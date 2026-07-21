@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SchoolLog - Staff Portal</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { background: #f3f4f6; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+    </style>
+</head>
+<body class="min-h-screen">
+    <!-- Auth Container -->
+    <div id="auth-container" class="max-w-md mx-auto mt-10 p-6 bg-white rounded-xl shadow-lg">
+        <div class="text-center mb-6">
+            <h1 class="text-3xl font-bold text-indigo-600">SchoolLog Staff</h1>
+            <p class="text-gray-500">Please login or register to continue</p>
+        </div>
+
+        <!-- Tabs -->
+        <div class="flex border-b mb-6">
+            <button onclick="showTab('login')" id="login-tab-btn" class="flex-1 py-2 font-semibold border-b-2 border-indigo-600 text-indigo-600">Login</button>
+            <button onclick="showTab('register')" id="register-tab-btn" class="flex-1 py-2 font-semibold border-b-2 border-transparent text-gray-400">Register</button>
+        </div>
+
+        <!-- Login Form -->
+        <div id="login-tab" class="tab-content active">
+            <form onsubmit="handleLogin(event)" class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium">Mobile Number</label>
+                    <input type="tel" id="login-mobile" required class="w-full mt-1 p-2 border rounded-md">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium">Password</label>
+                    <input type="password" id="login-pass" required class="w-full mt-1 p-2 border rounded-md">
+                </div>
+                <button type="submit" class="w-full bg-indigo-600 text-white py-2 rounded-md hover:bg-indigo-700 transition">Login</button>
+            </form>
+        </div>
+
+        <!-- Register Form -->
+        <div id="register-tab" class="tab-content">
+            <form onsubmit="handleRegister(event)" class="space-y-4">
+                <input type="text" id="reg-name" placeholder="Full Name" required class="w-full p-2 border rounded-md">
+                <input type="tel" id="reg-mobile" placeholder="Mobile Number" required class="w-full p-2 border rounded-md">
+                <input type="text" id="reg-aadhaar" placeholder="Aadhaar/Pass Number" required class="w-full p-2 border rounded-md">
+                <select id="reg-role" required class="w-full p-2 border rounded-md">
+                    <option value="">Select Role</option>
+                    <option value="Cleaner">Cleaner</option>
+                    <option value="Cleaner Team Leader">Cleaner Team Leader</option>
+                    <option value="Technician">Technician</option>
+                    <option value="Security">Security</option>
+                </select>
+                <input type="text" id="reg-company" placeholder="Company Name" required class="w-full p-2 border rounded-md">
+                <input type="password" id="reg-pass" placeholder="Password" required class="w-full p-2 border rounded-md">
+                <input type="password" id="reg-confirm" placeholder="Confirm Password" required class="w-full p-2 border rounded-md">
+                <button type="submit" class="w-full bg-indigo-600 text-white py-2 rounded-md hover:bg-indigo-700 transition">Register</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Dashboard Container (Hidden by default) -->
+    <div id="dashboard-container" class="hidden max-w-4xl mx-auto p-4">
+        <header class="bg-indigo-600 text-white p-6 rounded-xl shadow-lg mb-6 flex justify-between items-center">
+            <div>
+                <h2 id="staff-name" class="text-2xl font-bold">Staff Name</h2>
+                <p id="staff-role" class="text-indigo-100 opacity-80 uppercase tracking-widest text-xs font-semibold"></p>
+            </div>
+            <button onclick="logout()" class="bg-white/20 hover:bg-white/30 px-4 py-2 rounded-lg text-sm transition">Logout</button>
+        </header>
+
+        <!-- Common Check-in/Out Section -->
+        <div id="attendance-card" class="bg-white p-6 rounded-xl shadow-md mb-6 hidden">
+            <h3 class="text-lg font-bold mb-4">Daily Attendance</h3>
+            <div class="flex space-x-4">
+                <button id="checkin-btn" class="flex-1 bg-green-500 text-white py-3 rounded-lg font-bold hover:bg-green-600 transition">Check-In</button>
+                <button id="checkout-btn" class="flex-1 bg-red-500 text-white py-3 rounded-lg font-bold opacity-50 cursor-not-allowed transition" disabled>Check-Out</button>
+            </div>
+        </div>
+
+        <!-- Dashboard Views -->
+        <!-- Cleaner View -->
+        <div id="cleaner-view" class="dashboard-view hidden space-y-6">
+            <div class="bg-white p-6 rounded-xl shadow-md">
+                <h3 class="font-bold mb-4">Attendance History</h3>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left">
+                        <thead><tr class="border-b"><th class="py-2">Date</th><th>In</th><th>Out</th></tr></thead>
+                        <tbody id="attendance-history">
+                            <tr><td class="py-2">2023-10-25</td><td>08:00 AM</td><td>04:00 PM</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Cleaner Team Leader View -->
+        <div id="leader-view" class="dashboard-view hidden space-y-6">
+            <div class="bg-white p-6 rounded-xl shadow-md">
+                <h3 class="font-bold mb-4">Reliever Entry Form (1 Day)</h3>
+                <form class="space-y-4">
+                    <input type="text" placeholder="Reliever Name" class="w-full p-2 border rounded-md">
+                    <input type="text" placeholder="Replacing Who?" class="w-full p-2 border rounded-md">
+                    <button type="submit" class="bg-indigo-600 text-white px-6 py-2 rounded-md hover:bg-indigo-700 transition">Submit Entry</button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Technician View -->
+        <div id="technician-view" class="dashboard-view hidden space-y-6">
+            <div class="bg-white p-6 rounded-xl shadow-md">
+                <h3 class="font-bold mb-4">Assigned Tasks</h3>
+                <div id="task-list" class="space-y-4">
+                    <!-- Dynamic tasks -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Security View -->
+        <div id="security-view" class="dashboard-view hidden space-y-6">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="bg-white p-6 rounded-xl shadow-md">
+                    <h3 class="font-bold mb-4 text-indigo-600">Create Technician Task</h3>
+                    <form class="space-y-4">
+                        <input type="text" placeholder="Task Title" class="w-full p-2 border rounded-md">
+                        <textarea placeholder="Task Description" class="w-full p-2 border rounded-md"></textarea>
+                        <button type="submit" class="bg-indigo-600 text-white w-full py-2 rounded-md hover:bg-indigo-700 transition">Assign Task</button>
+                    </form>
+                </div>
+                <div class="bg-white p-6 rounded-xl shadow-md">
+                    <h3 class="font-bold mb-4 text-red-600">Damage Item Report</h3>
+                    <form class="space-y-4">
+                        <input type="text" placeholder="Item Name" class="w-full p-2 border rounded-md">
+                        <label class="block text-xs text-gray-400">Upload Photo (Placeholder)</label>
+                        <input type="file" accept="image/*" class="w-full text-sm border p-1 rounded">
+                        <button type="submit" class="bg-red-500 text-white w-full py-2 rounded-md hover:bg-red-600 transition">Report Damage</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Tab Toggling
+        function showTab(tab) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+            document.getElementById(tab + '-tab').classList.add('active');
+
+            const loginBtn = document.getElementById('login-tab-btn');
+            const regBtn = document.getElementById('register-tab-btn');
+
+            if(tab === 'login') {
+                loginBtn.classList.add('border-indigo-600', 'text-indigo-600');
+                loginBtn.classList.remove('border-transparent', 'text-gray-400');
+                regBtn.classList.add('border-transparent', 'text-gray-400');
+                regBtn.classList.remove('border-indigo-600', 'text-indigo-600');
+            } else {
+                regBtn.classList.add('border-indigo-600', 'text-indigo-600');
+                regBtn.classList.remove('border-transparent', 'text-gray-400');
+                loginBtn.classList.add('border-transparent', 'text-gray-400');
+                loginBtn.classList.remove('border-indigo-600', 'text-indigo-600');
+            }
+        }
+
+        // Registration
+        function handleRegister(e) {
+            e.preventDefault();
+            const staff = {
+                name: document.getElementById('reg-name').value,
+                mobile: document.getElementById('reg-mobile').value,
+                aadhaar: document.getElementById('reg-aadhaar').value,
+                role: document.getElementById('reg-role').value,
+                company: document.getElementById('reg-company').value,
+                password: document.getElementById('reg-pass').value
+            };
+
+            if(staff.password !== document.getElementById('reg-confirm').value) {
+                alert("Passwords do not match!");
+                return;
+            }
+
+            localStorage.setItem('staff_' + staff.mobile, JSON.stringify(staff));
+            alert("Registration Successful! Please login.");
+            showTab('login');
+        }
+
+        // Login
+        function handleLogin(e) {
+            e.preventDefault();
+            const mobile = document.getElementById('login-mobile').value;
+            const pass = document.getElementById('login-pass').value;
+
+            const staffData = localStorage.getItem('staff_' + mobile);
+            if(staffData) {
+                const staff = JSON.parse(staffData);
+                if(staff.password === pass) {
+                    loadDashboard(staff);
+                } else {
+                    alert("Incorrect Password!");
+                }
+            } else {
+                alert("Staff member not found. Please register first.");
+            }
+        }
+
+        // Dashboard Loading
+        function loadDashboard(staff) {
+            document.getElementById('auth-container').classList.add('hidden');
+            document.getElementById('dashboard-container').classList.remove('hidden');
+
+            document.getElementById('staff-name').innerText = staff.name;
+            document.getElementById('staff-role').innerText = staff.role;
+            document.getElementById('attendance-card').classList.remove('hidden');
+
+            document.querySelectorAll('.dashboard-view').forEach(v => v.classList.add('hidden'));
+
+            if(staff.role === 'Cleaner') {
+                document.getElementById('cleaner-view').classList.remove('hidden');
+            } else if(staff.role === 'Cleaner Team Leader') {
+                document.getElementById('leader-view').classList.remove('hidden');
+            } else if(staff.role === 'Technician') {
+                document.getElementById('technician-view').classList.remove('hidden');
+                renderTasks();
+            } else if(staff.role === 'Security') {
+                document.getElementById('security-view').classList.remove('hidden');
+            }
+        }
+
+        function renderTasks() {
+            const taskList = document.getElementById('task-list');
+            taskList.innerHTML = `
+                <div class="border p-4 rounded-lg flex justify-between items-center bg-gray-50">
+                    <div>
+                        <p class="font-bold">Fix AC in Room 102</p>
+                        <p class="text-sm text-gray-500">Assigned by Security</p>
+                    </div>
+                    <div class="flex items-center space-x-2">
+                         <input type="file" id="task-photo" class="hidden" onchange="alert('Photo Selected')">
+                         <button onclick="document.getElementById('task-photo').click()" class="text-xs bg-gray-200 p-1 rounded">Add Photo</button>
+                         <button onclick="this.parentElement.parentElement.remove()" class="bg-indigo-100 text-indigo-600 px-3 py-1 rounded text-sm font-bold">Complete</button>
+                    </div>
+                </div>
+            `;
+        }
+
+        function logout() {
+            location.reload();
+        }
+
+        // Attendance Logic
+        const checkinBtn = document.getElementById('checkin-btn');
+        const checkoutBtn = document.getElementById('checkout-btn');
+
+        checkinBtn.onclick = () => {
+            checkinBtn.classList.add('opacity-50', 'cursor-not-allowed');
+            checkinBtn.disabled = true;
+            checkoutBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+            checkoutBtn.disabled = false;
+            alert("Checked In at " + new Date().toLocaleTimeString());
+        };
+
+        checkoutBtn.onclick = () => {
+            alert("Checked Out at " + new Date().toLocaleTimeString());
+            logout();
+        };
+    </script>
+</body>
+</html>

@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SchoolLog - Staff Portal</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { background: #f0f2f5; }
+        .gradient-bg { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+    </style>
+</head>
+<body class="min-h-screen">
+
+    <!-- Auth Section -->
+    <div id="auth-section" class="flex items-center justify-center p-4 min-h-screen">
+        <div class="bg-white w-full max-w-md rounded-2xl shadow-xl overflow-hidden">
+            <div class="gradient-bg p-6 text-white text-center">
+                <h1 class="text-3xl font-bold">SchoolLog</h1>
+                <p class="opacity-90">Staff Management Portal</p>
+            </div>
+
+            <div class="flex border-b">
+                <button onclick="toggleTab('login')" id="login-tab" class="flex-1 py-4 font-bold text-indigo-600 border-b-2 border-indigo-600 transition">Login</button>
+                <button onclick="toggleTab('register')" id="register-tab" class="flex-1 py-4 font-bold text-gray-400 border-b-2 border-transparent transition">Register</button>
+            </div>
+
+            <div class="p-6">
+                <!-- Login Form -->
+                <form id="login-form" class="space-y-4">
+                    <input type="tel" id="login-mobile" placeholder="Mobile Number" required class="w-full p-3 border rounded-xl outline-none focus:ring-2 focus:ring-indigo-500">
+                    <input type="password" id="login-pass" placeholder="Password" required class="w-full p-3 border rounded-xl outline-none focus:ring-2 focus:ring-indigo-500">
+                    <button type="submit" class="w-full gradient-bg text-white py-3 rounded-xl font-bold hover:opacity-90 transition">Sign In</button>
+                </form>
+
+                <!-- Register Form -->
+                <form id="register-form" class="hidden space-y-4">
+                    <input type="text" id="reg-name" placeholder="Full Name" required class="w-full p-3 border rounded-xl outline-none focus:ring-2 focus:ring-indigo-500">
+                    <input type="tel" id="reg-mobile" placeholder="Mobile Number" required class="w-full p-3 border rounded-xl outline-none focus:ring-2 focus:ring-indigo-500">
+                    <input type="text" id="reg-id" placeholder="Aadhaar/Pass Number" required class="w-full p-3 border rounded-xl outline-none focus:ring-2 focus:ring-indigo-500">
+                    <select id="reg-role" required class="w-full p-3 border rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 bg-white">
+                        <option value="">Select Position</option>
+                        <option value="Cleaner">Cleaner</option>
+                        <option value="Cleaner Leader">Cleaner Leader</option>
+                        <option value="Technician">Technician</option>
+                        <option value="Security">Security</option>
+                    </select>
+                    <input type="text" id="reg-company" placeholder="Company Name" required class="w-full p-3 border rounded-xl outline-none focus:ring-2 focus:ring-indigo-500">
+                    <input type="password" id="reg-pass" placeholder="Password" required class="w-full p-3 border rounded-xl outline-none focus:ring-2 focus:ring-indigo-500">
+                    <input type="password" id="reg-confirm" placeholder="Confirm Password" required class="w-full p-3 border rounded-xl outline-none focus:ring-2 focus:ring-indigo-500">
+                    <button type="submit" class="w-full gradient-bg text-white py-3 rounded-xl font-bold hover:opacity-90 transition">Register Now</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Dashboard Section (Hidden by Default) -->
+    <div id="dashboard-section" class="hidden pb-12">
+        <header class="gradient-bg text-white p-6 shadow-lg mb-8">
+            <div class="max-w-6xl mx-auto flex justify-between items-center">
+                <div>
+                    <h2 id="display-name" class="text-2xl font-bold">STAFF NAME</h2>
+                    <p id="display-role" class="text-sm font-semibold opacity-80 uppercase tracking-widest"></p>
+                </div>
+                <button onclick="logout()" class="bg-white/20 hover:bg-white/30 px-4 py-2 rounded-lg text-sm font-bold transition">Logout</button>
+            </div>
+        </header>
+
+        <main class="max-w-6xl mx-auto px-4 grid grid-cols-1 gap-8">
+            <!-- Common Attendance Card -->
+            <div class="bg-white p-6 rounded-2xl shadow-md flex flex-wrap gap-4 items-center justify-between">
+                <div>
+                    <h3 class="font-bold text-gray-800">Attendance Status</h3>
+                    <p class="text-sm text-gray-500" id="status-text">Not Checked-In</p>
+                </div>
+                <div class="flex gap-4">
+                    <button id="checkin-btn" class="bg-green-500 text-white px-6 py-2 rounded-xl font-bold hover:bg-green-600 transition">Check In</button>
+                    <button id="checkout-btn" class="bg-red-500 text-white px-6 py-2 rounded-xl font-bold opacity-50 cursor-not-allowed transition" disabled>Check Out</button>
+                </div>
+            </div>
+
+            <!-- Role Specific Views -->
+            <div id="role-content"></div>
+        </main>
+    </div>
+
+    <script>
+        const authSection = document.getElementById('auth-section');
+        const dashboardSection = document.getElementById('dashboard-section');
+        const loginForm = document.getElementById('login-form');
+        const registerForm = document.getElementById('register-form');
+        const roleContent = document.getElementById('role-content');
+
+        // Tab Switching
+        function toggleTab(tab) {
+            const loginTab = document.getElementById('login-tab');
+            const regTab = document.getElementById('register-tab');
+            if (tab === 'login') {
+                loginForm.classList.remove('hidden');
+                registerForm.classList.add('hidden');
+                loginTab.classList.add('text-indigo-600', 'border-indigo-600');
+                regTab.classList.remove('text-indigo-600', 'border-indigo-600');
+            } else {
+                loginForm.classList.add('hidden');
+                registerForm.classList.remove('hidden');
+                regTab.classList.add('text-indigo-600', 'border-indigo-600');
+                loginTab.classList.remove('text-indigo-600', 'border-indigo-600');
+            }
+        }
+
+        // Auth Logic
+        registerForm.onsubmit = (e) => {
+            e.preventDefault();
+            if (document.getElementById('reg-pass').value !== document.getElementById('reg-confirm').value) {
+                alert("Passwords do not match!");
+                return;
+            }
+            const staff = {
+                name: document.getElementById('reg-name').value,
+                mobile: document.getElementById('reg-mobile').value,
+                id: document.getElementById('reg-id').value,
+                role: document.getElementById('reg-role').value,
+                company: document.getElementById('reg-company').value,
+                password: document.getElementById('reg-pass').value
+            };
+            localStorage.setItem(`staff_${staff.mobile}`, JSON.stringify(staff));
+            alert("Registration Successful!");
+            toggleTab('login');
+        };
+
+        loginForm.onsubmit = (e) => {
+            e.preventDefault();
+            const mobile = document.getElementById('login-mobile').value;
+            const pass = document.getElementById('login-pass').value;
+            const data = localStorage.getItem(`staff_${mobile}`);
+            if (data) {
+                const user = JSON.parse(data);
+                if (user.password === pass) {
+                    showDashboard(user);
+                } else {
+                    alert("Incorrect Password!");
+                }
+            } else {
+                alert("User not found!");
+            }
+        };
+
+        function showDashboard(user) {
+            authSection.classList.add('hidden');
+            dashboardSection.classList.remove('hidden');
+            document.getElementById('display-name').innerText = user.name;
+            document.getElementById('display-role').innerText = user.role;
+            renderRoleView(user.role);
+            setupAttendance();
+        }
+
+        function renderRoleView(role) {
+            let html = '';
+            if (role === 'Cleaner') {
+                html = `
+                    <div class="bg-white p-6 rounded-2xl shadow-md">
+                        <h3 class="text-xl font-bold mb-4">Attendance History</h3>
+                        <div class="space-y-3">
+                            <div class="flex justify-between p-3 bg-gray-50 rounded-lg"><span>Oct 25, 2023</span> <span class="text-green-600 font-bold">Present</span></div>
+                            <div class="flex justify-between p-3 bg-gray-50 rounded-lg"><span>Oct 24, 2023</span> <span class="text-green-600 font-bold">Present</span></div>
+                            <div class="flex justify-between p-3 bg-gray-50 rounded-lg"><span>Oct 23, 2023</span> <span class="text-red-500 font-bold">Absent</span></div>
+                        </div>
+                    </div>
+                `;
+            } else if (role === 'Cleaner Leader') {
+                html = `
+                    <div class="bg-white p-6 rounded-2xl shadow-md">
+                        <h3 class="text-xl font-bold mb-4">Reliever Entry (1 Day)</h3>
+                        <form class="space-y-4">
+                            <input type="text" placeholder="Reliever Full Name" class="w-full p-3 border rounded-xl">
+                            <input type="text" placeholder="Replacing Who?" class="w-full p-3 border rounded-xl">
+                            <button type="button" onclick="alert('Reliever Logged')" class="bg-indigo-600 text-white px-8 py-3 rounded-xl font-bold">Submit Entry</button>
+                        </form>
+                    </div>
+                `;
+            } else if (role === 'Technician') {
+                html = `
+                    <div class="bg-white p-6 rounded-2xl shadow-md">
+                        <h3 class="text-xl font-bold mb-4">Assigned Task Board</h3>
+                        <div class="p-4 border-2 border-dashed border-indigo-100 rounded-2xl">
+                            <div class="flex justify-between items-center">
+                                <div>
+                                    <h4 class="font-bold">Repair Water Leak - Block A</h4>
+                                    <p class="text-sm text-gray-500">Reported by Security</p>
+                                </div>
+                                <div class="flex flex-col items-end gap-2">
+                                    <input type="file" id="task-photo" class="hidden">
+                                    <button onclick="document.getElementById('task-photo').click()" class="text-xs text-indigo-600 underline">Add Photo</button>
+                                    <button onclick="this.parentElement.parentElement.remove()" class="bg-indigo-100 text-indigo-600 px-4 py-2 rounded-lg font-bold">Complete</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            } else if (role === 'Security') {
+                html = `
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                        <div class="bg-white p-6 rounded-2xl shadow-md">
+                            <h3 class="text-xl font-bold mb-4 text-indigo-600">Assign Technician Task</h3>
+                            <form class="space-y-4">
+                                <input type="text" placeholder="Task Title" class="w-full p-3 border rounded-xl">
+                                <textarea placeholder="Details" class="w-full p-3 border rounded-xl"></textarea>
+                                <button type="button" onclick="alert('Task Assigned')" class="w-full bg-indigo-600 text-white py-3 rounded-xl font-bold">Assign Task</button>
+                            </form>
+                        </div>
+                        <div class="bg-white p-6 rounded-2xl shadow-md">
+                            <h3 class="text-xl font-bold mb-4 text-red-500">Damage Item Report</h3>
+                            <form class="space-y-4">
+                                <input type="text" placeholder="Item Name / Location" class="w-full p-3 border rounded-xl">
+                                <input type="file" class="w-full text-sm">
+                                <button type="button" onclick="alert('Report Filed')" class="w-full bg-red-500 text-white py-3 rounded-xl font-bold">Report Damage</button>
+                            </form>
+                        </div>
+                    </div>
+                `;
+            }
+            roleContent.innerHTML = html;
+        }
+
+        function setupAttendance() {
+            const cin = document.getElementById('checkin-btn');
+            const cout = document.getElementById('checkout-btn');
+            const status = document.getElementById('status-text');
+
+            cin.onclick = () => {
+                cin.disabled = true; cin.classList.add('opacity-50', 'cursor-not-allowed');
+                cout.disabled = false; cout.classList.remove('opacity-50', 'cursor-not-allowed');
+                status.innerText = "Checked-In at " + new Date().toLocaleTimeString();
+            };
+            cout.onclick = () => {
+                alert("Checked out successfully.");
+                logout();
+            };
+        }
+
+        function logout() {
+            location.reload();
+        }
+    </script>
+</body>
+</html>
