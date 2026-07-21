@@ -10,6 +10,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
         * { color: #0f172a !important; opacity: 1 !important; }
 
@@ -74,6 +75,15 @@
         #view-landing h1 { font-size: 2.5rem !important; }
         .view-section h2 { font-size: 1.6rem !important; }
 
+        /* Modern Task Card */
+        .task-card {
+            background: #ffffff !important;
+            border: 1px solid #e2e8f0 !important;
+            border-radius: 12px !important;
+            padding: 16px !important;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1) !important;
+        }
+
         /* Modern Inputs */
         input, textarea, select {
             border: 2px solid #cbd5e1 !important;
@@ -102,6 +112,10 @@
             border: none !important;
             cursor: pointer !important;
             transition: all 0.2s !important;
+            display: inline-flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            gap: 8px !important;
         }
 
         button:hover {
@@ -110,13 +124,47 @@
         }
 
         /* Specific Color Buttons */
-        #s-checkout-btn, #v-signout-btn, #staff-logout, .text-red-500 {
+        #s-checkout-btn, #v-signout-btn, #staff-logout, .text-red-500, .bg-red-600 {
             background-color: #ef4444 !important;
             color: #ffffff !important;
         }
-        #s-checkin-btn, .bg-green-500 {
+        #s-checkin-btn, .bg-green-500, .bg-green-600 {
             background-color: #10b981 !important;
             color: #ffffff !important;
+        }
+
+        /* Ensure Icons in Buttons are Visible */
+        button svg, button svg * {
+            stroke: #ffffff !important;
+            color: #ffffff !important;
+        }
+
+        /* Modern Back Button (Override for light theme) */
+        nav button:first-child, button[onclick*="showView('view-landing')"] {
+            background-color: #f1f5f9 !important;
+            border: 1px solid #cbd5e1 !important;
+            color: #334155 !important;
+            padding: 8px 20px !important;
+            border-radius: 9999px !important;
+            font-weight: 600 !important;
+        }
+
+        nav button:first-child svg, nav button:first-child svg * {
+            stroke: #334155 !important;
+            color: #334155 !important;
+        }
+
+        /* Admin Tab Styling Fix */
+        .admin-tab-btn {
+            border-bottom: 2px solid transparent !important;
+            background: transparent !important;
+            color: #64748b !important;
+            border-radius: 0 !important;
+        }
+        .admin-tab-btn.active-tab {
+            border-bottom-color: #4f46e5 !important;
+            color: #4f46e5 !important;
+            background: rgba(79, 70, 229, 0.05) !important;
         }
 
         /* Logout Button Fix */
@@ -129,8 +177,9 @@
         /* SVG Icons Fix */
         svg, svg * { color: inherit !important; stroke: currentColor !important; }
 
-        .view-section { display: none; }
-        .view-section.active { display: flex; flex-direction: column; width: 100%; }
+        .view-section { display: none !important; }
+        .view-section.active { display: block !important; width: 100%; min-height: 100vh; }
+        .hidden { display: none !important; }
         canvas { touch-action: none; cursor: crosshair; border: 2px solid #cbd5e1 !important; border-radius: 8px !important; }
     </style>
 </head>
@@ -141,7 +190,7 @@
         <section id="view-landing" class="view-section active items-center justify-center p-4 flex-1">
             <header class="text-center mb-12">
                 <div class="w-24 h-24 bg-white rounded-full mx-auto mb-4 flex items-center justify-center shadow-lg border-4 border-indigo-500 overflow-hidden relative">
-                    <img src="logo.png" class="w-full h-full object-contain rounded-full" alt="JYS Logo" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex'">
+                    <img src="logo.png" class="w-full h-full object-contain rounded-full" alt="JYS Logo" onerror="this.style.display='none'; this.nextElementSibling.classList.remove('hidden'); this.nextElementSibling.classList.add('flex');">
                     <div class="hidden absolute inset-0 items-center justify-center text-indigo-900 font-black text-xl">JYS</div>
                 </div>
                 <h1 class="text-3xl md:text-5xl font-black tracking-tight text-indigo-900 drop-shadow-md">Welcome To Jarn Yafoor School</h1>
@@ -174,7 +223,7 @@
         </section>
 
         <!-- VISITOR VIEW -->
-        <section id="view-visitor" class="view-section p-4">
+        <section id="view-visitor" class="view-section hidden p-4">
             <nav class="w-full flex items-center justify-between mb-8 pt-4">
                 <button onclick="showView('view-landing')" class="glass-morphism px-4 py-2 rounded-lg flex items-center space-x-2">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L5.414 9H17a1 1 0 110 2H5.414l4.293 4.293a1 1 0 010 1.414z" clip-rule="evenodd" /></svg>
@@ -230,7 +279,7 @@
         </section>
 
         <!-- STAFF VIEW -->
-        <section id="view-staff" class="view-section p-4">
+        <section id="view-staff" class="view-section hidden p-4">
             <nav class="w-full flex items-center justify-between mb-8 pt-4">
                 <button onclick="showView('view-landing')" class="glass-morphism px-4 py-2 rounded-lg flex items-center space-x-2">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L5.414 9H17a1 1 0 110 2H5.414l4.293 4.293a1 1 0 010 1.414z" clip-rule="evenodd" /></svg>
@@ -299,7 +348,7 @@
         </section>
 
         <!-- ADMIN AUTH VIEW -->
-        <section id="view-admin-auth" class="view-section p-4 items-center justify-center flex-1">
+        <section id="view-admin-auth" class="view-section hidden p-4 items-center justify-center flex-1">
             <nav class="w-full flex items-center justify-between mb-12 text-white">
                 <button onclick="showView('view-landing')" class="glass-morphism px-4 py-2 rounded-lg flex items-center space-x-2">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L5.414 9H17a1 1 0 110 2H5.414l4.293 4.293a1 1 0 010 1.414z" clip-rule="evenodd" /></svg>
@@ -324,7 +373,7 @@
         </section>
 
         <!-- ADMIN DASHBOARD VIEW -->
-        <section id="view-admin-dash" class="view-section p-4">
+        <section id="view-admin-dash" class="view-section hidden p-4">
             <nav class="w-full flex items-center justify-between mb-8 pt-4">
                 <h2 class="text-2xl font-extrabold tracking-tighter">ADMIN</h2>
                 <div class="flex items-center space-x-2">
@@ -344,10 +393,10 @@
             </nav>
 
             <div class="max-w-7xl mx-auto glass-morphism rounded-3xl overflow-hidden shadow-2xl">
-                <div class="flex bg-black/20 border-b border-white/10 overflow-x-auto">
-                    <button onclick="showAdminTab('tab-master')" id="btn-tab-master" class="admin-tab-btn flex-1 py-4 font-bold border-b-2 border-indigo-500 bg-white/5 transition">Master Logs</button>
-                    <button onclick="showAdminTab('tab-tasks')" id="btn-tab-tasks" class="admin-tab-btn flex-1 py-4 font-bold border-b-2 border-transparent hover:bg-white/5 transition">Task Audit</button>
-                    <button onclick="showAdminTab('tab-staff-list')" id="btn-tab-staff-list" class="admin-tab-btn flex-1 py-4 font-bold border-b-2 border-transparent hover:bg-white/5 transition">Staff Management</button>
+                <div class="flex bg-slate-50 border-b border-gray-200 overflow-x-auto">
+                    <button onclick="showAdminTab('tab-master')" id="masterLogsBtn" class="admin-tab-btn flex-1 py-4 font-bold transition active-tab">Master Logs</button>
+                    <button onclick="showAdminTab('tab-tasks')" id="taskAuditBtn" class="admin-tab-btn flex-1 py-4 font-bold transition">Task Audit</button>
+                    <button onclick="showAdminTab('tab-staff-list')" id="staffMgmtBtn" class="admin-tab-btn flex-1 py-4 font-bold transition">Staff Management</button>
                 </div>
 
                 <div class="p-4 space-y-4">
@@ -396,7 +445,7 @@
 
         <!-- FOOTER -->
         <footer class="mt-auto py-6 text-center text-[10px] opacity-40 w-full">
-            &copy; 2026 SchoolLog Standalone System
+            &copy; 2026 Jarn Yafoor School Staff Management System
         </footer>
     </div>
 
@@ -481,8 +530,20 @@
 
         // NAVIGATION
         window.showView = (viewId) => {
-            document.querySelectorAll('.view-section').forEach(s => s.classList.remove('active'));
-            document.getElementById(viewId).classList.add('active');
+            // Hide ALL sections strictly
+            const sections = document.querySelectorAll('.view-section');
+            sections.forEach(s => {
+                s.classList.remove('active');
+                s.classList.add('hidden');
+            });
+
+            // Show ONLY the target section
+            const target = document.getElementById(viewId);
+            if (target) {
+                target.classList.remove('hidden');
+                target.classList.add('active');
+            }
+
             if(viewId === 'view-visitor') checkVisitorSession();
             if(viewId === 'view-admin-dash') loadAdminDashboard();
             window.scrollTo(0,0);
@@ -703,7 +764,7 @@
 
             // 2. Task Management (Role-based)
             const taskSnap = await get(ref(db, 'tasks'));
-            let taskHtml = '<div class="space-y-4 mt-6"><h3 class="text-lg font-bold">Assigned Tasks</h3>';
+            let taskHtml = '<div class="space-y-4 mt-6"><h3 class="text-lg font-bold border-b pb-2">Assigned Tasks</h3>';
             let filteredTasks = [];
             if(taskSnap.exists()) {
                 filteredTasks = Object.values(taskSnap.val()).filter(t => t.targetRole === staff.role && t.status === 'Open');
@@ -711,23 +772,23 @@
             if(filteredTasks.length > 0) {
                 filteredTasks.forEach(t => {
                     taskHtml += `
-                        <div class="task-card shadow-xl p-4 space-y-3">
+                        <div class="task-card space-y-3">
                             <div class="flex justify-between items-start">
-                                <div><h4 class="font-bold text-indigo-600">${t.location}</h4><p class="text-xs text-gray-400">${t.timestamp}</p></div>
-                                <span class="px-2 py-0.5 rounded-full text-[8px] font-bold uppercase badge-${t.priority.toLowerCase()}">${t.priority}</span>
+                                <div><h4 class="font-bold text-indigo-700 text-sm">${t.location}</h4><p class="text-[10px] text-gray-400">${t.timestamp}</p></div>
+                                <span class="px-2 py-0.5 rounded-full text-[8px] font-bold uppercase ${t.priority==='High'?'bg-red-100 text-red-700':(t.priority==='Medium'?'bg-yellow-100 text-yellow-700':'bg-green-100 text-green-700')}">${t.priority}</span>
                             </div>
-                            <p class="text-sm font-medium text-gray-700">${t.details}</p>
+                            <p class="text-xs font-medium text-gray-600">${t.details}</p>
                             <div class="flex items-center gap-2 text-[10px] text-gray-400">
-                                <span class="bg-gray-100 px-2 py-1 rounded">By: ${t.raisedByName} (${t.raisedByRole})</span>
+                                <span class="bg-slate-100 px-2 py-1 rounded">By: ${t.raisedByName}</span>
                             </div>
-                            <img src="${t.beforePhoto}" class="w-full h-32 object-cover rounded-xl border">
+                            <img src="${t.beforePhoto}" class="w-full h-32 object-cover rounded-lg border border-slate-100">
                             <div class="flex gap-2">
-                                <button onclick="closeTaskAction('${t.id}')" class="flex-1 bg-green-600 text-white py-2 rounded-lg font-bold text-xs">Close Task</button>
-                                <button onclick="openRejectModal('${t.id}')" class="flex-1 bg-red-100 text-red-600 py-2 rounded-lg font-bold text-xs">Reject</button>
+                                <button onclick="closeTaskAction('${t.id}')" class="flex-1 bg-green-500 text-white py-2 rounded-lg font-bold text-xs shadow-sm">Close Task</button>
+                                <button onclick="openRejectModal('${t.id}')" class="flex-1 bg-red-50 text-red-600 py-2 rounded-lg font-bold text-xs border border-red-100">Reject</button>
                             </div>
                         </div>`;
                 });
-            } else taskHtml += '<div class="bg-white/10 p-6 rounded-2xl text-center text-xs text-white/50 border border-dashed border-white/20">No pending tasks for your role.</div>';
+            } else taskHtml += '<div class="bg-slate-50 p-6 rounded-xl text-center text-xs text-slate-400 border border-dashed border-slate-200">No pending tasks for your role.</div>';
             taskHtml += '</div>';
 
             // 3. My Task History (Personal involvement)
@@ -876,10 +937,26 @@
         };
         window.logoutAdmin = () => { window.isAdminLoggedIn = false; showView('view-landing'); };
         window.showAdminTab = (tabId) => {
-            document.querySelectorAll('.admin-tab').forEach(t => t.classList.remove('active'));
-            document.getElementById(tabId).classList.add('active');
-            document.querySelectorAll('.admin-tab-btn').forEach(b => b.classList.remove('border-indigo-500', 'bg-white/5', 'border-transparent'));
-            document.getElementById('btn-' + tabId).classList.add('border-indigo-500', 'bg-white/5');
+            // Strict view separation: Hide all, then show one
+            const tabs = document.querySelectorAll('.admin-tab');
+            tabs.forEach(t => {
+                t.style.display = 'none';
+                t.classList.remove('active');
+            });
+
+            const activeTab = document.getElementById(tabId);
+            if (activeTab) {
+                activeTab.style.display = 'block';
+                activeTab.classList.add('active');
+            }
+
+            // Update button styles
+            document.querySelectorAll('.admin-tab-btn').forEach(b => {
+                b.classList.remove('active-tab');
+            });
+
+            const activeBtn = document.querySelector(`[onclick*="${tabId}"]`);
+            if (activeBtn) activeBtn.classList.add('active-tab');
         };
 
         async function loadAdminDashboard() {
@@ -892,7 +969,11 @@
             let allRecords = [];
             if(vSnap.exists()) Object.values(vSnap.val()).forEach(v => allRecords.push({...v, type: 'visitor'}));
             if(sSnap.exists()) Object.values(sSnap.val()).forEach(s => allRecords.push({...s, type: 'staff', id: s.mobile, timeIn: s.timeIn, timeOut: s.timeOut || '-'}));
-            allRecords.sort((a,b) => new Date(b.date + ' ' + (b.timeIn)) - new Date(a.date + ' ' + (a.timeIn)));
+            allRecords.sort((a,b) => {
+                const dateA = new Date(a.date + ' ' + (a.timeIn || '00:00 AM'));
+                const dateB = new Date(b.date + ' ' + (b.timeIn || '00:00 AM'));
+                return dateB - dateA;
+            });
             window.adminData = allRecords; renderAdminTable(allRecords);
 
             // Staff List
