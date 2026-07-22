@@ -7,15 +7,28 @@
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <title>JYS - Jarn Yafoor School Portal</title>
+    <!-- Fonts & FontAwesome Icons -->
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
-        * { color: #0f172a !important; opacity: 1 !important; }
+        :root {
+          --primary-teal: #00A8B5;
+          --primary-dark: #0A2540;
+          --bg-light: #F4F7FE;
+          --white: #FFFFFF;
+          --text-gray: #626C7A;
+          --border-color: #E2E8F0;
+          --shadow: 0px 8px 24px rgba(149, 157, 165, 0.1);
+        }
+
+        * { color: #0f172a !important; opacity: 1 !important; font-family: 'Poppins', sans-serif; }
 
         body {
-            background: #f8fafc !important;
+            background: var(--bg-light) !important;
             min-height: 100vh;
             margin: 0;
             padding: 0;
@@ -25,14 +38,136 @@
             overflow-x: hidden;
         }
 
+        /* --- DASHBOARD UI REPLACEMENT STYLES --- */
+        .navbar {
+          background: var(--white);
+          padding: 12px 24px;
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          border-bottom: 2px solid var(--border-color);
+          box-shadow: var(--shadow);
+          position: sticky;
+          top: 0;
+          z-index: 100;
+        }
+        .brand-section { display: flex; align-items: center; gap: 15px; }
+        .school-title { font-size: 1.1rem; font-weight: 700; color: var(--primary-dark); line-height: 1.2; }
+        .school-title span { font-size: 0.8rem; font-weight: 400; color: var(--primary-teal); display: block; }
+        .avatar { width: 40px; height: 40px; background: var(--primary-teal); color: white !important; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 600; }
+        .avatar * { color: white !important; }
+
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 25px; }
+        .stat-card { background: var(--white); padding: 18px; border-radius: 12px; box-shadow: var(--shadow); display: flex; align-items: center; justify-content: space-between; border-left: 5px solid var(--primary-teal); border-top: none !important; border-right: none !important; border-bottom: none !important; }
+        .stat-card h3 { font-size: 1.5rem; font-weight: 700; margin: 0; }
+        .stat-card p { font-size: 0.85rem; color: var(--text-gray); margin: 0; }
+        .stat-card i { font-size: 1.8rem; color: var(--primary-teal); opacity: 0.8; }
+
+        .action-panel { background: var(--white); padding: 20px; border-radius: 12px; box-shadow: var(--shadow); margin-bottom: 25px; }
+        .action-panel h2 { font-size: 1.1rem; margin-bottom: 15px; color: var(--primary-dark); display: flex; align-items: center; gap: 8px; border: none !important; }
+        .form-group { display: flex; flex-wrap: wrap; gap: 10px; }
+        .form-group input, .form-group select { flex: 1; min-width: 180px; padding: 10px 14px !important; border: 1px solid var(--border-color) !important; border-radius: 8px !important; outline: none; }
+
+        .btn { padding: 10px 20px !important; border: none !important; border-radius: 8px !important; cursor: pointer !important; font-weight: 500 !important; display: inline-flex !important; align-items: center !important; gap: 8px !important; transition: all 0.2s ease !important; }
+        .btn-teal { background: var(--primary-teal) !important; color: white !important; }
+        .btn-teal * { color: white !important; }
+        .btn-outline { border: 1px solid var(--primary-teal) !important; color: var(--primary-teal) !important; background: transparent !important; }
+        .btn-outline * { color: var(--primary-teal) !important; }
+
+        .tasks-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 20px; }
+        .task-card { background: var(--white) !important; border-radius: 12px !important; padding: 16px !important; box-shadow: var(--shadow) !important; display: flex !important; flex-direction: column !important; justify-content: space-between !important; border: none !important; margin: 0 !important; }
+        .task-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px; }
+        .badge { font-size: 0.75rem; padding: 4px 10px; border-radius: 20px; font-weight: 500; }
+        .badge-pending { background: #FFF4E5; color: #FF9800 !important; }
+        .badge-completed { background: #E8F5E9; color: #4CAF50 !important; }
+
+        .image-preview-container { display: flex; gap: 10px; margin: 12px 0; }
+        .img-box { flex: 1; height: 120px; background: #EAEFF5; border-radius: 8px; overflow: hidden; position: relative; cursor: pointer; border: 1px dashed #CBD5E1; display: flex; align-items: center; justify-content: center; }
+        .img-box img { width: 100%; height: 100%; object-fit: cover; transition: transform 0.3s ease; opacity: 1 !important; }
+        .img-label { position: absolute; bottom: 4px; left: 4px; background: rgba(10, 37, 64, 0.75); color: white !important; font-size: 0.65rem; padding: 2px 6px; border-radius: 4px; }
+        .img-label * { color: white !important; }
+
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.9); z-index: 2000; justify-content: center; align-items: center; flex-direction: column; }
+        .modal img { max-width: 90%; max-height: 80%; border-radius: 8px; }
+        .modal-close { position: absolute; top: 20px; right: 25px; color: white !important; font-size: 2.2rem; cursor: pointer; }
+
         .app-container {
             width: 100%;
             margin: 0 auto;
-            max-width: 1200px;
+            max-width: 1400px !important;
             min-height: 100vh;
             display: flex;
             flex-direction: column;
             position: relative;
+        }
+
+        /* Responsive Dashboard Containers */
+        .app-container, .main-card, .dashboard-wrapper, #view-admin-dash > div {
+            width: 95% !important;
+            max-width: 1400px !important;
+            margin: 20px auto !important;
+            padding: 20px !important;
+            box-sizing: border-box !important;
+        }
+
+        /* Ensure tables & tab contents expand 100% */
+        table, .admin-tab, .overflow-x-auto {
+            width: 100% !important;
+            overflow-x: auto;
+        }
+
+        /* Mobile Phones View */
+        @media (max-width: 768px) {
+            .app-container, .main-card, .dashboard-wrapper, #view-admin-dash > div {
+                width: 100% !important;
+                padding: 10px !important;
+                margin: 0 auto !important;
+            }
+
+            /* Stack form filters vertically on mobile */
+            .flex.flex-col.md\:flex-row {
+                flex-direction: column !important;
+                gap: 10px !important;
+            }
+
+            input, select, button {
+                width: 100% !important;
+            }
+        }
+
+        /* --- NEW RESPONSIVE PORTAL STYLES --- */
+        .portal-container {
+            width: 90% !important;
+            max-width: 900px !important;
+            margin: 40px auto !important;
+            padding: 40px 30px !important;
+            background: #ffffff !important;
+            border: 1px solid #e2e8f0 !important;
+            box-shadow: 0px 15px 35px rgba(0, 0, 0, 0.1) !important;
+            border-radius: 24px !important;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .portal-options {
+            display: grid !important;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)) !important;
+            gap: 25px !important;
+            width: 100% !important;
+            margin-top: 20px;
+        }
+
+        @media (max-width: 768px) {
+            .portal-container {
+                width: 95% !important;
+                padding: 30px 20px !important;
+                margin: 20px auto !important;
+                border-radius: 20px !important;
+            }
+            .portal-options {
+                grid-template-columns: 1fr !important;
+            }
         }
 
         /* Modern Professional Cards */
@@ -178,9 +313,79 @@
         svg, svg * { color: inherit !important; stroke: currentColor !important; }
 
         .view-section { display: none !important; }
-        .view-section.active { display: block !important; width: 100%; min-height: 100vh; }
+        .view-section.active { display: flex !important; flex-direction: column; width: 100%; min-height: 100vh; }
         .hidden { display: none !important; }
         canvas { touch-action: none; cursor: crosshair; border: 2px solid #cbd5e1 !important; border-radius: 8px !important; }
+
+        /* --- ZOOMABLE IMAGE MODAL --- */
+        #zoom-modal {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.95);
+            z-index: 1000;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            touch-action: none;
+        }
+        #zoom-container {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            overflow: hidden;
+        }
+        #zoom-img {
+            max-width: 95%;
+            max-height: 95%;
+            transition: transform 0.1s ease-out;
+            user-select: none;
+            -webkit-user-drag: none;
+        }
+        .zoom-controls {
+            position: fixed;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 15px;
+            z-index: 1100;
+        }
+        .zoom-btn {
+            background: rgba(255,255,255,0.2);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.3);
+            color: white !important;
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        #zoom-close {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            color: white !important;
+            font-size: 30px;
+            cursor: pointer;
+            z-index: 1200;
+            width: 44px;
+            height: 44px;
+            background: rgba(0,0,0,0.5);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
     </style>
 </head>
 <body class="text-white">
@@ -188,38 +393,40 @@
     <div class="app-container">
         <!-- LANDING VIEW -->
         <section id="view-landing" class="view-section active items-center justify-center p-4 flex-1">
-            <header class="text-center mb-12">
-                <div class="w-24 h-24 bg-white rounded-full mx-auto mb-4 flex items-center justify-center shadow-lg border-4 border-indigo-500 overflow-hidden relative">
-                    <img src="logo.png" class="w-full h-full object-contain rounded-full" alt="JYS Logo" onerror="this.style.display='none'; this.nextElementSibling.classList.remove('hidden'); this.nextElementSibling.classList.add('flex');">
-                    <div class="hidden absolute inset-0 items-center justify-center text-indigo-900 font-black text-xl">JYS</div>
-                </div>
-                <h1 class="text-3xl md:text-5xl font-black tracking-tight text-indigo-900 drop-shadow-md">Welcome To Jarn Yafoor School</h1>
-                <p class="text-lg md:text-xl mt-2 font-bold text-indigo-700 bg-white/30 backdrop-blur-sm inline-block px-4 py-1 rounded-full border border-white/50">JYS Login Portal</p>
-            </header>
-
-            <main class="grid grid-cols-1 gap-6 w-full">
-                <button onclick="showView('view-visitor')" class="flex flex-col items-center justify-center bg-white rounded-2xl p-8 transition-all duration-300 transform active:scale-95 shadow-[0_10px_25px_rgba(0,0,0,0.15)] group text-center">
-                    <div class="bg-indigo-600 p-4 rounded-full mb-4 group-hover:bg-indigo-500 transition-colors shadow-lg">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-                        </svg>
+            <div class="portal-container">
+                <header class="text-center mb-12">
+                    <div class="w-24 h-24 bg-white rounded-full mx-auto mb-4 flex items-center justify-center shadow-lg border-4 border-indigo-500 overflow-hidden relative">
+                        <img src="logo.png" class="w-full h-full object-contain rounded-full" alt="JYS Logo" onerror="this.style.display='none'; this.nextElementSibling.classList.remove('hidden'); this.nextElementSibling.classList.add('flex');">
+                        <div class="hidden absolute inset-0 items-center justify-center text-indigo-900 font-black text-xl">JYS</div>
                     </div>
-                    <span class="text-2xl font-bold text-[#221851]">Visitor Entry / Exit</span>
-                    <p class="text-sm mt-2 text-[#555555] font-medium">Register and track visitors</p>
-                </button>
+                    <h1 class="text-3xl md:text-5xl font-black tracking-tight text-indigo-900 drop-shadow-md">Welcome To Jarn Yafoor School</h1>
+                    <p class="text-lg md:text-xl mt-2 font-bold text-indigo-700 bg-white/30 backdrop-blur-sm inline-block px-4 py-1 rounded-full border border-white/50">JYS Login Portal</p>
+                </header>
 
-                <button onclick="showView('view-staff')" class="flex flex-col items-center justify-center bg-white rounded-2xl p-8 transition-all duration-300 transform active:scale-95 shadow-[0_10px_25px_rgba(0,0,0,0.15)] group text-center">
-                    <div class="bg-purple-600 p-4 rounded-full mb-4 group-hover:bg-purple-500 transition-colors shadow-lg">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                        </svg>
-                    </div>
-                    <span class="text-2xl font-bold text-[#221851]">Staff Portal</span>
-                    <p class="text-sm mt-2 text-[#555555] font-medium">Login to access staff features</p>
-                </button>
-            </main>
+                <main class="portal-options">
+                    <button onclick="showView('view-visitor')" class="flex flex-col items-center justify-center bg-slate-50 border border-slate-100 rounded-3xl p-8 transition-all duration-300 transform active:scale-95 hover:shadow-xl group text-center">
+                        <div class="bg-indigo-600 p-5 rounded-full mb-4 group-hover:bg-indigo-500 transition-colors shadow-lg">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                            </svg>
+                        </div>
+                        <span class="text-2xl font-bold text-[#221851]">Visitor Entry</span>
+                        <p class="text-sm mt-2 text-[#555555] font-medium">Register and track visitors</p>
+                    </button>
 
-            <button onclick="showView('view-admin-auth')" class="mt-12 text-sm text-[#221851] font-black hover:opacity-80 underline tracking-widest uppercase">Admin Dashboard</button>
+                    <button onclick="showView('view-staff')" class="flex flex-col items-center justify-center bg-slate-50 border border-slate-100 rounded-3xl p-8 transition-all duration-300 transform active:scale-95 hover:shadow-xl group text-center">
+                        <div class="bg-purple-600 p-5 rounded-full mb-4 group-hover:bg-purple-500 transition-colors shadow-lg">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                            </svg>
+                        </div>
+                        <span class="text-2xl font-bold text-[#221851]">Staff Portal</span>
+                        <p class="text-sm mt-2 text-[#555555] font-medium">Access staff features</p>
+                    </button>
+                </main>
+
+                <button onclick="showView('view-admin-auth')" class="mt-12 text-sm text-[#221851] font-black hover:opacity-80 underline tracking-widest uppercase">Admin Dashboard</button>
+            </div>
         </section>
 
         <!-- VISITOR VIEW -->
@@ -286,7 +493,7 @@
                     <span>Back</span>
                 </button>
                 <h2 class="text-xl font-bold">Staff Portal</h2>
-                <button id="staff-logout" class="hidden glass-morphism px-4 py-2 rounded-lg text-xs font-bold">Logout</button>
+                <button id="staff-logout-btn" class="hidden glass-morphism px-4 py-2 rounded-lg text-xs font-bold">Logout</button>
             </nav>
 
             <div id="staff-auth-area" class="w-full bg-white text-gray-800 rounded-2xl shadow-2xl overflow-hidden">
@@ -302,8 +509,9 @@
                     </form>
                     <form id="staff-reg-form" class="hidden space-y-4">
                         <input type="text" id="s-reg-name" placeholder="Full Name" required class="w-full p-2 border rounded-lg text-sm">
-                        <input type="tel" id="s-reg-mobile" placeholder="Mobile Number" required class="w-full p-2 border rounded-lg text-sm">
-                        <input type="text" id="s-reg-aadhaar" placeholder="Aadhaar / Pass Number" required class="w-full p-2 border rounded-lg text-sm">
+
+                        <!-- Dynamic Fields Container -->
+                        <div id="dynamic-reg-fields" class="space-y-4"></div>
 
                         <select id="s-reg-branch" required class="w-full p-2 border rounded-lg bg-white text-sm">
                             <option value="">Select Jern Yafoor School Branch</option>
@@ -318,7 +526,7 @@
                             <option value="RT Technician">RT Technician</option>
                             <option value="Security">Security</option>
                         </select>
-                        <input type="text" id="s-reg-company" placeholder="Company Name" required class="w-full p-2 border rounded-lg text-sm">
+                        <input type="text" id="s-reg-company" placeholder="Company ID Number" required class="w-full p-2 border rounded-lg text-sm">
                         <input type="password" id="s-reg-pass" placeholder="Password" required class="w-full p-2 border rounded-lg text-sm">
                         <input type="password" id="s-reg-confirm" placeholder="Confirm Password" required class="w-full p-2 border rounded-lg text-sm">
                         <button type="submit" class="w-full bg-indigo-600 text-white py-3 rounded-lg font-bold">Register Staff</button>
@@ -326,26 +534,81 @@
                 </div>
             </div>
 
-            <div id="staff-dash-area" class="hidden w-full space-y-6">
-                <div class="glass-morphism p-6 rounded-2xl flex justify-between items-center text-white">
-                    <div>
-                        <h2 id="s-dash-name" class="text-xl font-extrabold uppercase">NAME</h2>
-                        <p id="s-dash-role" class="text-indigo-200 font-bold uppercase text-[10px] tracking-widest"></p>
+            <div id="staff-dash-area" class="hidden w-full">
+                <!-- TOP NAVBAR -->
+                <nav class="navbar">
+                    <div class="brand-section">
+                        <div class="school-title">
+                            JERN YAFOOR CHARTER SCHOOL
+                            <span>مدرسة جتور للثراكات التعليمية</span>
+                        </div>
                     </div>
-                    <div id="staff-action-container" class="flex gap-2">
-                        <button id="s-checkin-btn" class="bg-green-500 px-4 py-2 rounded-lg font-bold text-xs shadow-lg active:bg-green-600">Check In</button>
-                        <button id="s-checkout-btn" class="bg-red-500 px-4 py-2 rounded-lg font-bold text-xs shadow-lg active:bg-red-600 hidden">Check Out</button>
+                    <div class="flex items-center gap-4">
+                        <div class="avatar" id="userAvatar">JY</div>
+                        <button id="delete-my-account" class="text-[10px] font-bold text-red-400 uppercase underline mr-2">Delete My Account</button>
+                        <button id="staff-logout" class="text-xs font-bold text-red-500 uppercase">Logout</button>
+                    </div>
+                </nav>
+
+                <div class="container py-6">
+                    <!-- DASHBOARD STATS -->
+                    <div class="stats-grid">
+                        <div class="stat-card">
+                            <div><p>Total Tasks</p><h3 id="statTotal">0</h3></div>
+                            <i class="fa-solid fa-list-check"></i>
+                        </div>
+                        <div class="stat-card" style="border-color: #FF9800;">
+                            <div><p>Pending Tasks</p><h3 id="statPending">0</h3></div>
+                            <i class="fa-solid fa-clock-rotate-left"></i>
+                        </div>
+                        <div class="stat-card" style="border-color: #4CAF50;">
+                            <div><p>Completed</p><h3 id="statCompleted">0</h3></div>
+                            <i class="fa-solid fa-circle-check"></i>
+                        </div>
+                    </div>
+
+                    <!-- ATTENDANCE ACTIONS (Hidden if not relevant, but kept for logic) -->
+                    <div class="glass-morphism p-4 rounded-xl flex justify-between items-center mb-6">
+                        <div class="text-xs font-bold text-gray-500 uppercase tracking-widest" id="s-dash-role-display">Role</div>
+                        <div id="staff-action-container" class="flex gap-2">
+                            <button id="s-checkin-btn" class="bg-green-500 px-4 py-2 rounded-lg font-bold text-xs text-white shadow-lg active:bg-green-600">Check In</button>
+                            <button id="s-checkout-btn" class="bg-red-500 px-4 py-2 rounded-lg font-bold text-xs text-white shadow-lg active:bg-red-600 hidden">Check Out</button>
+                        </div>
+                    </div>
+
+                    <!-- CREATE TASK PANEL -->
+                    <div id="security-task-area" class="action-panel hidden">
+                        <h2><i class="fa-solid fa-plus-circle" style="color: var(--primary-teal);"></i> Create New Maintenance Task</h2>
+                        <div class="form-group">
+                            <input type="text" id="areaNameInput" placeholder="Area Name (e.g., Classroom 12B)">
+                            <select id="departmentSelect">
+                                <option value="">Select Target Role</option>
+                                <option value="Housekeeping">Housekeeping</option>
+                                <option value="RT Technician">RT Technician</option>
+                                <option value="Cleaner Leader">Cleaner Leader</option>
+                            </select>
+                            <input type="file" id="cameraInput" accept="image/*" capture="environment" class="hidden" onchange="handleTaskImageCapture(event)">
+                            <button class="btn btn-outline" onclick="document.getElementById('cameraInput').click()">
+                                <i class="fa-solid fa-camera"></i> <span id="cameraBtnText">Take Photo</span>
+                            </button>
+                            <button id="submitTaskBtn" class="btn btn-teal" onclick="submitNewMaintenanceTask()">Create Task</button>
+                        </div>
+                    </div>
+
+                    <!-- ACTIVE TASKS LIST -->
+                    <h2 style="font-size: 1.2rem; margin-bottom: 15px; font-weight: 700;">Active Task Cards</h2>
+                    <div class="tasks-grid" id="tasksContainer">
+                        <!-- Task Cards render here -->
                     </div>
                 </div>
-
-                <!-- Raise Task Button (Security Only) -->
-                <div id="security-task-area" class="hidden">
-                    <button onclick="openTaskModal()" class="w-full bg-indigo-500 text-white py-3 rounded-xl font-bold text-sm shadow-lg mb-4">+ Raise New Issue / Task</button>
-                </div>
-
-                <div id="s-role-view" class="w-full space-y-4"></div>
             </div>
         </section>
+
+        <!-- FULL SCREEN ZOOM MODAL -->
+        <div class="modal" id="imageModal">
+            <span class="modal-close" onclick="closeZoomModal()">&times;</span>
+            <img id="modalImage" src="" alt="Enlarged View">
+        </div>
 
         <!-- ADMIN AUTH VIEW -->
         <section id="view-admin-auth" class="view-section hidden p-4 items-center justify-center flex-1">
@@ -386,9 +649,10 @@
                      <button onclick="openTaskModal()" title="Raise Task" class="bg-purple-600 p-2 rounded-lg shadow-lg active:bg-purple-700 transition">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" /></svg>
                      </button>
-                    <button onclick="logoutAdmin()" class="glass-morphism p-2 rounded-lg active:bg-white/20 transition">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>
-                    </button>
+                     <button onclick="handleUserLogout()" class="bg-red-600 px-3 py-2 rounded-lg shadow-lg active:bg-red-700 transition flex items-center gap-2" title="Logout">
+                        <i class="fa-solid fa-right-from-bracket"></i>
+                        <span class="text-xs font-bold">Logout</span>
+                     </button>
                 </div>
             </nav>
 
@@ -425,7 +689,28 @@
 
                     <!-- Task Audit Tab -->
                     <div id="tab-tasks" class="admin-tab space-y-4">
-                         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" id="admin-task-list"></div>
+                        <div class="overflow-x-auto rounded-xl border border-white/10 bg-black/20">
+                            <table class="w-full text-left text-[9px]" id="task-audit-table">
+                                <thead class="bg-white/10 uppercase font-bold text-green-300">
+                                    <tr>
+                                        <th class="p-2">Task ID</th>
+                                        <th class="p-2">School</th>
+                                        <th class="p-2">Area</th>
+                                        <th class="p-2">Dept</th>
+                                        <th class="p-2">Raised By</th>
+                                        <th class="p-2">Raised Date</th>
+                                        <th class="p-2">Raised Time</th>
+                                        <th class="p-2">Fixed By</th>
+                                        <th class="p-2">Closed Date</th>
+                                        <th class="p-2">Closed Time</th>
+                                        <th class="p-2">Status</th>
+                                        <th class="p-2">Reason</th>
+                                        <th class="p-2 text-center">Photos</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="admin-task-list-body" class="divide-y divide-white/5"></tbody>
+                            </table>
+                        </div>
                     </div>
 
                     <!-- Staff Management -->
@@ -433,7 +718,7 @@
                         <div class="overflow-x-auto rounded-xl border border-white/10 bg-black/20">
                             <table class="w-full text-left text-[10px]">
                                 <thead class="bg-white/10 uppercase font-bold text-purple-300">
-                                    <tr><th class="p-3">Staff Name</th><th class="p-3">School Branch</th><th class="p-3">Position</th><th class="p-3">Company</th><th class="p-3 text-center">Action</th></tr>
+                                    <tr><th class="p-3">Staff Name</th><th class="p-3">School Branch</th><th class="p-3">Position</th><th class="p-3">Company</th><th class="p-3">Mobile</th><th class="p-3 text-center">Action</th></tr>
                                 </thead>
                                 <tbody id="admin-staff-list-body" class="divide-y divide-white/5"></tbody>
                             </table>
@@ -489,10 +774,26 @@
                     <select id="task-target" required class="p-3 border rounded-xl bg-white"></select>
                 </div>
                 <div>
-                    <label class="block text-xs font-bold text-gray-500 mb-1">Before Work Photo (Mandatory)</label>
-                    <input type="file" id="task-photo-in" accept="image/*" required class="w-full text-xs">
+                    <label class="block text-xs font-bold text-gray-500 mb-2">Before Work Photo (Mandatory)</label>
+                    <div class="grid grid-cols-2 gap-3 mb-2">
+                        <button type="button" onclick="triggerPhotoCapture('task-photo-in', true)" class="flex flex-col items-center justify-center p-3 border-2 border-dashed border-indigo-200 rounded-xl hover:bg-indigo-50 transition">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-indigo-500 mb-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                            <span class="text-[10px] font-bold text-indigo-600">Take Photo</span>
+                        </button>
+                        <button type="button" onclick="triggerPhotoCapture('task-photo-in', false)" class="flex flex-col items-center justify-center p-3 border-2 border-dashed border-slate-200 rounded-xl hover:bg-slate-50 transition">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-slate-400 mb-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                            <span class="text-[10px] font-bold text-slate-500">Upload File</span>
+                        </button>
+                    </div>
+                    <input type="file" id="task-photo-in" accept="image/*" class="hidden" onchange="previewCapturedPhoto(this)">
+                    <div id="task-photo-preview" class="hidden relative h-32 w-full rounded-xl overflow-hidden mt-2">
+                        <img src="" class="w-full h-full object-cover" alt="Task Preview">
+                        <div class="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
+                            <button type="button" onclick="removeCapturedPhoto('task-photo-in')" class="text-white font-bold text-xs">Remove</button>
+                        </div>
+                    </div>
                 </div>
-                <button type="submit" id="task-submit-btn" class="w-full bg-indigo-600 text-white py-4 rounded-2xl font-bold">Save & Route Task</button>
+                <button type="submit" id="task-submit-btn" class="w-full bg-indigo-600 text-white py-4 rounded-2xl font-bold shadow-lg">Save & Route Task</button>
             </form>
         </div>
     </div>
@@ -510,6 +811,42 @@
     </div>
 
     <!-- SCRIPTS -->
+    <script>
+        // Global Navigation & State Management
+        window.showView = (viewId) => {
+            const sections = document.querySelectorAll('.view-section');
+            sections.forEach(s => {
+                s.classList.remove('active');
+                s.classList.add('hidden');
+            });
+
+            const target = document.getElementById(viewId);
+            if (target) {
+                target.classList.remove('hidden');
+                target.classList.add('active');
+            }
+            window.scrollTo(0, 0);
+
+            // Signal to module-based logic that view has changed
+            window.dispatchEvent(new CustomEvent('viewChanged', { detail: { viewId } }));
+        };
+
+        // Handle image loading placeholders
+        window.handleImageLoad = (img) => {
+            img.style.opacity = '1';
+            const loader = img.previousElementSibling;
+            if (loader && loader.classList.contains('animate-pulse')) {
+                loader.style.display = 'none';
+            }
+        };
+
+        window.handleImageError = (img) => {
+            img.src = 'https://placehold.co/400x300?text=Error+Loading';
+            img.style.opacity = '1';
+            const loader = img.previousElementSibling;
+            if (loader) loader.style.display = 'none';
+        };
+    </script>
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
         import { getDatabase, ref, set, get, update, child, onValue, push } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
@@ -528,61 +865,270 @@
         const app = initializeApp(firebaseConfig);
         const db = getDatabase(app);
 
-        // NAVIGATION
-        window.showView = (viewId) => {
-            // Hide ALL sections strictly
-            const sections = document.querySelectorAll('.view-section');
-            sections.forEach(s => {
-                s.classList.remove('active');
-                s.classList.add('hidden');
-            });
+        const SHEETS_URL = "https://script.google.com/macros/s/AKfycbykqGaM5v2bNQ-MzLLwUY4uj5v8kYUJFd9J8f9P7q8gSLxwpig8AyG162kwq9MdVFAx/exec";
 
-            // Show ONLY the target section
-            const target = document.getElementById(viewId);
-            if (target) {
-                target.classList.remove('hidden');
-                target.classList.add('active');
+        // --- CORE NAVIGATION HOOKS ---
+        window.addEventListener('viewChanged', (e) => {
+            const viewId = e.detail.viewId;
+            if(viewId === 'view-visitor') checkVisitorSession();
+            if(viewId === 'view-admin-dash') {
+                if (window.isAdminLoggedIn) loadAdminDashboard();
+                else showView('view-admin-auth');
+            }
+            if(viewId === 'view-staff') checkStaffAuth();
+        });
+
+        // --- AUTH & STABILIZATION ---
+        const checkStaffAuth = () => {
+            const saved = localStorage.getItem('loggedStaff');
+            if (saved) {
+                renderDashboard(JSON.parse(saved));
+            } else {
+                document.getElementById('staff-auth-area').classList.remove('hidden');
+                document.getElementById('staff-dash-area').classList.add('hidden');
+                document.getElementById('staff-logout-btn').classList.add('hidden');
+            }
+        };
+
+        window.logoutStaff = () => {
+            localStorage.removeItem('loggedStaff');
+            localStorage.removeItem('staff_active_session');
+            location.reload();
+        };
+
+        // Attach logout listeners
+        const logoutBtn1 = document.getElementById('staff-logout-btn');
+        if (logoutBtn1) logoutBtn1.onclick = window.logoutStaff;
+        const logoutBtn2 = document.getElementById('staff-logout');
+        if (logoutBtn2) logoutBtn2.onclick = window.logoutStaff;
+
+        // Staff Login
+        document.getElementById('staff-login-form').onsubmit = async (e) => {
+            e.preventDefault();
+            const mobile = document.getElementById('s-log-mobile').value;
+            const pass = document.getElementById('s-log-pass').value;
+            const submitBtn = e.target.querySelector('button');
+            submitBtn.disabled = true;
+
+            try {
+                const snapshot = await get(child(ref(db), 'staff/' + mobile));
+                if (snapshot.exists() && snapshot.val().password === pass) {
+                    const staffData = snapshot.val();
+                    localStorage.setItem('loggedStaff', JSON.stringify(staffData));
+                    renderDashboard(staffData);
+                } else {
+                    alert("Invalid Credentials");
+                }
+            } catch (error) {
+                alert("Login Error: " + error.message);
+            } finally {
+                submitBtn.disabled = false;
+            }
+        };
+
+        // --- DASHBOARD RENDERING ---
+        async function renderDashboard(staff) {
+            window.currentStaff = staff;
+            document.getElementById('staff-auth-area').classList.add('hidden');
+            document.getElementById('staff-dash-area').classList.remove('hidden');
+            document.getElementById('staff-logout-btn').classList.remove('hidden');
+
+            // Update Avatar Initials
+            const initials = staff.name.split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2);
+            document.getElementById('userAvatar').innerText = initials;
+            document.getElementById('s-dash-role-display').innerText = staff.role;
+
+            const activeSession = localStorage.getItem('staff_active_session');
+            const sessionObj = activeSession ? JSON.parse(activeSession) : null;
+            const cinBtn = document.getElementById('s-checkin-btn');
+            const coutBtn = document.getElementById('s-checkout-btn');
+
+            if (sessionObj && sessionObj.mobile === staff.mobile && sessionObj.status === 'checked_in') {
+                cinBtn.classList.add('hidden');
+                coutBtn.classList.remove('hidden');
+                startCheckoutCountdown(new Date(sessionObj.checkInTimestamp), coutBtn);
+            } else {
+                cinBtn.classList.remove('hidden');
+                coutBtn.classList.add('hidden');
             }
 
-            if(viewId === 'view-visitor') checkVisitorSession();
-            if(viewId === 'view-admin-dash') loadAdminDashboard();
-            window.scrollTo(0,0);
-        };
-
-        window.testFirebase = async () => {
-            try { await set(ref(db, 'test_connection'), { time: new Date().toISOString() }); alert("Connected!"); }
-            catch (e) { alert("Failed: " + e.message); }
-        };
-
-        // --- COMPRESSION UTILITY ---
-        function getCompressedSignature(canvas) {
-            const targetWidth = 300;
-            const targetHeight = 150;
-            const offscreen = document.createElement('canvas');
-            offscreen.width = targetWidth;
-            offscreen.height = targetHeight;
-            const ctx = offscreen.getContext('2d');
-            ctx.fillStyle = "#FFFFFF";
-            ctx.fillRect(0, 0, targetWidth, targetHeight);
-            ctx.drawImage(canvas, 0, 0, targetWidth, targetHeight);
-            return offscreen.toDataURL("image/jpeg", 0.3);
+            document.getElementById('security-task-area').classList.toggle('hidden', staff.role !== 'Security');
+            loadRoleView(staff);
         }
 
-        async function compressImageFile(file) {
+        function startCheckoutCountdown(checkInTime, coutBtn) {
+            const thirtyMinMs = 30 * 60 * 1000;
+            const update = () => {
+                const remaining = thirtyMinMs - (new Date() - checkInTime);
+                if (remaining <= 0) {
+                    coutBtn.disabled = false;
+                    coutBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+                    coutBtn.innerText = "Check Out";
+                    return;
+                }
+                coutBtn.disabled = true;
+                coutBtn.classList.add('opacity-50', 'cursor-not-allowed');
+                const min = Math.floor(remaining / 60000);
+                const sec = Math.floor((remaining % 60000) / 1000);
+                coutBtn.innerText = `Wait ${min}:${sec.toString().padStart(2, '0')}`;
+                setTimeout(update, 1000);
+            };
+            update();
+        }
+
+        async function loadRoleView(staff) {
+            const container = document.getElementById('tasksContainer');
+            container.innerHTML = `<div class="bg-white/10 p-4 rounded-xl text-center text-xs text-gray-500">Loading tasks...</div>`;
+
+            const taskSnap = await get(ref(db, 'tasks'));
+            let taskHtml = '';
+            let total = 0, pending = 0, completed = 0;
+
+            if(taskSnap.exists()) {
+                const allTasks = Object.values(taskSnap.val());
+                total = allTasks.length;
+                pending = allTasks.filter(t => t.status === 'Open').length;
+                completed = allTasks.filter(t => t.status === 'Closed').length;
+
+                const filteredTasks = allTasks.filter(t => t.targetRole === staff.role && t.status === 'Open');
+
+                if(filteredTasks.length > 0) {
+                    filteredTasks.forEach(t => {
+                        const bImg = getDirectDriveImageUrl(t.beforePhotoUrl || t.beforePhoto);
+                        const aImg = getDirectDriveImageUrl(t.afterPhotoUrl || t.afterPhoto);
+                        taskHtml += `
+                            <div class="task-card">
+                                <div class="task-header">
+                                    <div>
+                                        <h4 style="font-weight:700; font-size:1rem; color:var(--primary-dark);">${t.location}</h4>
+                                        <p style="font-size:0.75rem; color:var(--text-gray);">${t.timestamp}</p>
+                                    </div>
+                                    <span class="badge ${t.status === 'Open' ? 'badge-pending' : 'badge-completed'}">${t.status}</span>
+                                </div>
+                                <p style="font-size:0.85rem; color:var(--primary-dark); margin:12px 0; font-weight:500;">${t.details}</p>
+                                <div class="image-preview-container">
+                                    <div class="img-box" onclick="openZoomModal('${bImg}')">
+                                        <img src="${bImg}">
+                                        <span class="img-label">Before</span>
+                                    </div>
+                                    ${(t.afterPhotoUrl || t.afterPhoto) ? `
+                                    <div class="img-box" onclick="openZoomModal('${aImg}')">
+                                        <img src="${aImg}">
+                                        <span class="img-label">After</span>
+                                    </div>` : ''}
+                                </div>
+                                <div style="display:flex; gap:10px; margin-top:10px;">
+                                    <button class="btn btn-teal" style="flex:1; font-size:0.8rem;" onclick="closeTaskAction('${t.id}')">Resolve</button>
+                                    <button class="btn btn-outline" style="flex:1; font-size:0.8rem;" onclick="openRejectModal('${t.id}')">Reject</button>
+                                </div>
+                            </div>`;
+                    });
+                } else {
+                    taskHtml = '<div class="col-span-full bg-white p-10 rounded-xl text-center text-gray-400 border border-dashed">No pending tasks for your position.</div>';
+                }
+            } else {
+                taskHtml = '<div class="col-span-full bg-white p-10 rounded-xl text-center text-gray-400 border border-dashed">No tasks found.</div>';
+            }
+
+            document.getElementById('statTotal').innerText = total;
+            document.getElementById('statPending').innerText = pending;
+            document.getElementById('statCompleted').innerText = completed;
+            container.innerHTML = taskHtml;
+        }
+
+        // --- NEW MAINTENANCE TASK SYSTEM ---
+        let capturedTaskImageBase64 = "";
+
+        window.handleTaskImageCapture = async (event) => {
+            const file = event.target.files[0];
+            if (!file) return;
+            document.getElementById('cameraBtnText').innerText = "Compressing...";
+            const compressed = await compressImageFile(file, 1200, 1200, 0.7);
+            capturedTaskImageBase64 = compressed;
+            document.getElementById('cameraBtnText').innerText = "Photo Captured ✓";
+        };
+
+        window.submitNewMaintenanceTask = async () => {
+            const area = document.getElementById('areaNameInput').value;
+            const targetRole = document.getElementById('departmentSelect').value;
+            if (!area || !targetRole || !capturedTaskImageBase64) {
+                alert('Please fill Area, Target Role and Take a Photo!');
+                return;
+            }
+
+            const btn = document.getElementById('submitTaskBtn');
+            btn.disabled = true; btn.innerText = "Uploading...";
+
+            try {
+                const driveUrl = await uploadToDrive({
+                    type: 'photo',
+                    fileName: `${area} - Before - ${Date.now()}.png`,
+                    image: capturedTaskImageBase64
+                });
+
+                const now = new Date();
+                const taskId = "TASK-" + Date.now();
+                const task = {
+                    id: taskId, location: area,
+                    details: "Maintenance issue raised via Dashboard", priority: "Medium",
+                    targetRole: targetRole,
+                    beforePhotoUrl: driveUrl,
+                    raisedByName: window.currentStaff.name,
+                    raisedByRole: window.currentStaff.role,
+                    raisedTimestamp: now.toISOString(), timestamp: now.toLocaleString(), status: "Open"
+                };
+                await set(ref(db, 'tasks/' + taskId), task);
+                alert("Task Created Successfully!");
+
+                // Reset form
+                document.getElementById('areaNameInput').value = "";
+                document.getElementById('departmentSelect').value = "";
+                capturedTaskImageBase64 = "";
+                document.getElementById('cameraBtnText').innerText = "Take Photo";
+
+                loadRoleView(window.currentStaff);
+            } catch (err) {
+                alert("Error: " + err.message);
+            } finally {
+                btn.disabled = false; btn.innerText = "Create Task";
+            }
+        };
+
+        window.openZoomModal = (imgSrc) => {
+            if (!imgSrc || imgSrc.includes('placeholder')) return;
+            const modal = document.getElementById('imageModal');
+            const modalImg = document.getElementById('modalImage');
+            modal.style.display = 'flex';
+            modalImg.src = getDirectDriveImageUrl(imgSrc);
+        };
+
+        window.closeZoomModal = () => {
+            document.getElementById('imageModal').style.display = 'none';
+        };
+
+        // --- GOOGLE DRIVE UPLOAD UTILITY ---
+        async function uploadToDrive(payload) {
+            try {
+                const response = await fetch(SHEETS_URL, { method: 'POST', body: JSON.stringify(payload), mode: 'cors' });
+                const result = await response.json();
+                return result.fileUrl || result.signatureUrl || "";
+            } catch (e) { console.error("Drive Upload Failed", e); return ""; }
+        }
+
+        async function compressImageFile(file, maxWidth = 1200, maxHeight = 1200, quality = 0.7) {
             return new Promise((resolve) => {
                 const reader = new FileReader();
                 reader.onload = (e) => {
                     const img = new Image();
                     img.onload = () => {
                         const canvas = document.createElement('canvas');
-                        const MAX_W = 400; const MAX_H = 300;
                         let w = img.width; let h = img.height;
-                        if (w > h) { if (w > MAX_W) { h *= MAX_W / w; w = MAX_W; } }
-                        else { if (h > MAX_H) { w *= MAX_H / h; h = MAX_H; } }
+                        if (w > h) { if (w > maxWidth) { h *= maxWidth / w; w = maxWidth; } }
+                        else { if (h > maxHeight) { w *= maxHeight / h; h = maxHeight; } }
                         canvas.width = w; canvas.height = h;
                         const ctx = canvas.getContext('2d');
                         ctx.drawImage(img, 0, 0, w, h);
-                        resolve(canvas.toDataURL("image/jpeg", 0.3));
+                        resolve(canvas.toDataURL("image/jpeg", quality));
                     };
                     img.src = e.target.result;
                 };
@@ -590,17 +1136,26 @@
             });
         }
 
-        // --- UNIFIED SIGNATURE PAD ---
-        let sigCanvas, sigCtx, sigDrawing = false;
-        let sigCallback = null;
+        function getDirectDriveImageUrl(driveUrl) {
+            if (!driveUrl) return 'https://placehold.co/400x300?text=No+Photo';
+            try {
+                const idMatch = driveUrl.match(/[-\w]{25,}/);
+                if (idMatch && idMatch[0]) return 'https://lh3.googleusercontent.com/d/' + idMatch[0];
+            } catch (e) {}
+            return driveUrl;
+        }
+
+        function getCompressedSignature(canvas) {
+            const offscreen = document.createElement('canvas'); offscreen.width = 300; offscreen.height = 150;
+            const ctx = offscreen.getContext('2d'); ctx.fillStyle = "#FFFFFF"; ctx.fillRect(0, 0, 300, 150);
+            ctx.drawImage(canvas, 0, 0, 300, 150); return offscreen.toDataURL("image/jpeg", 0.3);
+        }
+
+        // --- SIGNATURE PAD ---
+        let sigCanvas, sigCtx, sigDrawing = false, sigCallback = null;
         function initSigPad() {
             sigCanvas = document.getElementById('sig-canvas'); sigCtx = sigCanvas.getContext('2d');
-            const getPos = (e) => {
-                const rect = sigCanvas.getBoundingClientRect();
-                const clientX = e.clientX || (e.touches && e.touches[0].clientX);
-                const clientY = e.clientY || (e.touches && e.touches[0].clientY);
-                return { x: clientX - rect.left, y: clientY - rect.top };
-            };
+            const getPos = (e) => { const rect = sigCanvas.getBoundingClientRect(); return { x: (e.clientX || (e.touches && e.touches[0].clientX)) - rect.left, y: (e.clientY || (e.touches && e.touches[0].clientY)) - rect.top }; };
             const start = (e) => { sigDrawing = true; sigCtx.beginPath(); const p = getPos(e); sigCtx.moveTo(p.x, p.y); };
             const move = (e) => { if (!sigDrawing) return; e.preventDefault(); const p = getPos(e); sigCtx.lineTo(p.x, p.y); sigCtx.stroke(); };
             const stop = () => sigDrawing = false;
@@ -610,37 +1165,32 @@
         window.openSignatureModal = (title, callback) => {
             document.getElementById('sig-modal-title').innerText = title;
             document.getElementById('signature-modal').classList.remove('hidden');
-            sigCallback = callback; setTimeout(resizeSigCanvas, 50); clearSigCanvas();
+            sigCallback = callback; setTimeout(() => {
+                sigCanvas.width = sigCanvas.parentElement.offsetWidth; sigCanvas.height = 250;
+                sigCtx.lineWidth = 3; sigCtx.lineCap = 'round'; sigCtx.strokeStyle = '#4f46e5';
+            }, 50); sigCtx.clearRect(0, 0, sigCanvas.width, sigCanvas.height);
         };
         window.closeSignatureModal = () => document.getElementById('signature-modal').classList.add('hidden');
         window.clearSigCanvas = () => sigCtx.clearRect(0, 0, sigCanvas.width, sigCanvas.height);
-        function resizeSigCanvas() {
-            const container = sigCanvas.parentElement;
-            sigCanvas.width = container.offsetWidth; sigCanvas.height = 250;
-            sigCtx.lineWidth = 3; sigCtx.lineCap = 'round'; sigCtx.strokeStyle = '#4f46e5';
-        }
         document.getElementById('sig-confirm-btn').onclick = () => {
-            const compressedData = getCompressedSignature(sigCanvas);
-            if (sigCallback) sigCallback(compressedData);
-            closeSignatureModal();
+            const data = getCompressedSignature(sigCanvas);
+            if (sigCallback) sigCallback(data); closeSignatureModal();
         };
 
-        // --- VISITOR SIGNATURE ---
-        let vCanvas, vCtx, vDrawing = false;
+        // --- VISITOR SYSTEM ---
+        let vCanvas, vCtx;
         function initVisitorCanvas() {
             vCanvas = document.getElementById('v-sig-pad'); vCtx = vCanvas.getContext('2d');
             const getPos = (e) => { const rect = vCanvas.getBoundingClientRect(); return { x: (e.clientX || (e.touches && e.touches[0].clientX)) - rect.left, y: (e.clientY || (e.touches && e.touches[0].clientY)) - rect.top }; };
-            const start = (e) => { vDrawing = true; vCtx.beginPath(); const p = getPos(e); vCtx.moveTo(p.x, p.y); };
-            const move = (e) => { if (!vDrawing) return; e.preventDefault(); const p = getPos(e); vCtx.lineTo(p.x, p.y); vCtx.stroke(); };
-            const stop = () => vDrawing = false;
-            vCanvas.addEventListener('mousedown', start); vCanvas.addEventListener('mousemove', move); window.addEventListener('mouseup', stop);
-            vCanvas.addEventListener('touchstart', start, {passive: false}); vCanvas.addEventListener('touchmove', move, {passive: false}); vCanvas.addEventListener('touchend', stop);
+            const start = (e) => { vCtx.beginPath(); const p = getPos(e); vCtx.moveTo(p.x, p.y); };
+            const move = (e) => { e.preventDefault(); const p = getPos(e); vCtx.lineTo(p.x, p.y); vCtx.stroke(); };
+            vCanvas.addEventListener('mousedown', start); vCanvas.addEventListener('mousemove', (e) => { if(e.buttons==1) move(e); });
+            vCanvas.addEventListener('touchstart', start, {passive: false}); vCanvas.addEventListener('touchmove', move, {passive: false});
             vCanvas.width = vCanvas.parentElement.offsetWidth; vCanvas.height = 128;
             vCtx.lineWidth = 2; vCtx.strokeStyle = '#4f46e5';
         }
         window.clearVisitorSig = () => vCtx.clearRect(0, 0, vCanvas.width, vCanvas.height);
 
-        // --- VISITOR SYSTEM ---
         function checkVisitorSession() {
             const active = localStorage.getItem('vActive');
             if(active) {
@@ -662,20 +1212,19 @@
             document.getElementById('v-date').value = now.toLocaleDateString('en-US') + " " + now.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', hour12: true});
             setTimeout(initVisitorCanvas, 50);
         }
+
         document.getElementById('visitor-form').onsubmit = async (e) => {
             e.preventDefault();
-            const signatureData = getCompressedSignature(vCanvas);
+            const btn = e.target.querySelector('button[type="submit"]');
+            btn.disabled = true; btn.innerText = "Processing...";
+            const sig = await uploadToDrive({ type: 'signature', department: 'Visitor', staffName: document.getElementById('v-name').value, fileName: `Visitor_Sig_${Date.now()}.png`, image: getCompressedSignature(vCanvas) });
             const now = new Date();
-            const data = {
-                id: document.getElementById('v-id').value, name: document.getElementById('v-name').value,
-                mobile: document.getElementById('v-mobile').value, company: document.getElementById('v-company').value,
-                purpose: document.getElementById('v-purpose').value, date: now.toLocaleDateString('en-US'),
-                timeIn: now.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', hour12: true}),
-                status: "active", signatureBase64: signatureData
-            };
-            try { await set(ref(db, 'visitors/' + data.id), data); localStorage.setItem('vActive', JSON.stringify(data)); alert("Signed In!"); checkVisitorSession(); }
+            const data = { id: document.getElementById('v-id').value, name: document.getElementById('v-name').value, mobile: document.getElementById('v-mobile').value, company: document.getElementById('v-company').value, purpose: document.getElementById('v-purpose').value, date: now.toLocaleDateString('en-US'), timeIn: now.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', hour12: true}), status: "active", signatureUrl: sig };
+            try { await set(ref(db, 'visitors/' + data.id), data); localStorage.setItem('vActive', JSON.stringify({id: data.id, name: data.name, timeIn: data.timeIn})); alert("Signed In!"); checkVisitorSession(); }
             catch (error) { alert("Error: " + error.message); }
+            finally { btn.disabled = false; btn.innerText = "Confirm Sign-In"; }
         };
+
         document.getElementById('v-signout-btn').onclick = async () => {
             const active = JSON.parse(localStorage.getItem('vActive'));
             const timeOut = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', hour12: true});
@@ -683,7 +1232,15 @@
             catch (error) { alert("Error: " + error.message); }
         };
 
-        // --- STAFF SYSTEM ---
+        // --- STAFF SYSTEM ACTIONS ---
+        document.getElementById('staff-reg-form').onsubmit = async (e) => {
+            e.preventDefault();
+            if(document.getElementById('s-reg-pass').value !== document.getElementById('s-reg-confirm').value) return alert("Passwords Mismatch");
+            const staff = { name: document.getElementById('s-reg-name').value, mobile: document.getElementById('s-reg-mobile').value, aadhaar: document.getElementById('s-reg-aadhaar').value, branch: document.getElementById('s-reg-branch').value, role: document.getElementById('s-reg-role').value, company: document.getElementById('s-reg-company').value, password: document.getElementById('s-reg-pass').value };
+            try { await set(ref(db, 'staff/' + staff.mobile), staff); alert("Staff Registered!"); toggleStaffTab('login'); }
+            catch (error) { alert("Error: " + error.message); }
+        };
+
         window.toggleStaffTab = (tab) => {
             const isLogin = tab === 'login';
             document.getElementById('staff-login-form').classList.toggle('hidden', !isLogin);
@@ -691,157 +1248,13 @@
             document.getElementById('s-tab-login').classList.toggle('text-indigo-600', isLogin).classList.toggle('border-indigo-600', isLogin);
             document.getElementById('s-tab-reg').classList.toggle('text-indigo-600', !isLogin).classList.toggle('border-indigo-600', !isLogin);
         };
-        document.getElementById('staff-reg-form').onsubmit = async (e) => {
-            e.preventDefault();
-            if(document.getElementById('s-reg-pass').value !== document.getElementById('s-reg-confirm').value) return alert("Passwords Mismatch");
-            const staff = {
-                name: document.getElementById('s-reg-name').value, mobile: document.getElementById('s-reg-mobile').value,
-                aadhaar: document.getElementById('s-reg-aadhaar').value, branch: document.getElementById('s-reg-branch').value,
-                role: document.getElementById('s-reg-role').value, company: document.getElementById('s-reg-company').value,
-                password: document.getElementById('s-reg-pass').value
-            };
-            try { await set(ref(db, 'staff/' + staff.mobile), staff); alert("Staff Registered!"); toggleStaffTab('login'); }
-            catch (error) { alert("Error: " + error.message); }
-        };
-        document.getElementById('staff-login-form').onsubmit = async (e) => {
-            e.preventDefault();
-            const mobile = document.getElementById('s-log-mobile').value;
-            const pass = document.getElementById('s-log-pass').value;
-            try {
-                const snapshot = await get(child(ref(db), 'staff/' + mobile));
-                if (snapshot.exists() && snapshot.val().password === pass) renderDashboard(snapshot.val());
-                else alert("Invalid Credentials");
-            } catch (error) { alert("Error: " + error.message); }
-        };
-
-        async function renderDashboard(staff) {
-            window.currentStaff = staff;
-            document.getElementById('staff-auth-area').classList.add('hidden');
-            document.getElementById('staff-dash-area').classList.remove('hidden');
-            document.getElementById('staff-logout').classList.remove('hidden');
-            document.getElementById('s-dash-name').innerText = staff.name;
-            document.getElementById('s-dash-role').innerText = staff.role;
-
-            const activeSession = localStorage.getItem('staff_active_session');
-            const sessionObj = activeSession ? JSON.parse(activeSession) : null;
-            const cinBtn = document.getElementById('s-checkin-btn');
-            const coutBtn = document.getElementById('s-checkout-btn');
-
-            if (sessionObj && sessionObj.mobile === staff.mobile && sessionObj.status === 'checked_in') {
-                cinBtn.classList.add('hidden'); coutBtn.classList.remove('hidden');
-                const checkInTime = new Date(sessionObj.checkInTimestamp);
-                const thirtyMinMs = 30 * 60 * 1000;
-                const updateCountdown = () => {
-                    const remaining = thirtyMinMs - (new Date() - checkInTime);
-                    if (remaining <= 0) { coutBtn.disabled = false; coutBtn.classList.remove('opacity-50', 'cursor-not-allowed'); coutBtn.innerText = "Check Out"; return; }
-                    coutBtn.disabled = true; coutBtn.classList.add('opacity-50', 'cursor-not-allowed');
-                    const min = Math.floor(remaining / 60000); const sec = Math.floor((remaining % 60000) / 1000);
-                    coutBtn.innerText = `Wait ${min}:${sec.toString().padStart(2, '0')}`;
-                    setTimeout(updateCountdown, 1000);
-                };
-                updateCountdown();
-            } else { cinBtn.classList.remove('hidden'); coutBtn.classList.add('hidden'); }
-
-            document.getElementById('security-task-area').classList.toggle('hidden', staff.role !== 'Security');
-            loadRoleView(staff);
-        }
-
-        async function loadRoleView(staff) {
-            const container = document.getElementById('s-role-view');
-            container.innerHTML = `<div class="bg-white/10 p-4 rounded-xl text-center text-xs text-white/50">Loading tasks and history...</div>`;
-
-            // 1. My Attendance History
-            const attSnap = await get(ref(db, 'staff_attendance'));
-            let historyHtml = '<div class="bg-white p-4 rounded-2xl text-gray-800 shadow-xl"><h3 class="font-bold border-b pb-2 mb-4 text-sm text-indigo-600">My Attendance History</h3>';
-            let records = [];
-            if(attSnap.exists()) records = Object.values(attSnap.val()).filter(r => r.mobile === staff.mobile).sort((a,b) => b.timestamp - a.timestamp).slice(0, 5);
-            if(records.length > 0) {
-                historyHtml += '<div class="space-y-3">';
-                records.forEach(r => historyHtml += `<div class="flex justify-between items-center text-[10px] border-b pb-2"><div><p class="font-bold">${r.date}</p><p class="text-gray-400">${r.timeIn} - ${r.timeOut || 'Active'}</p></div><span class="px-2 py-0.5 rounded bg-indigo-50 text-indigo-600 font-bold uppercase">${r.status === 'completed' ? 'Done' : 'In'}</span></div>`);
-                historyHtml += '</div>';
-            } else historyHtml += '<p class="text-gray-400 text-xs text-center py-4">No attendance records.</p>';
-            historyHtml += '</div>';
-
-            // 2. Task Management (Role-based)
-            const taskSnap = await get(ref(db, 'tasks'));
-            let taskHtml = '<div class="space-y-4 mt-6"><h3 class="text-lg font-bold border-b pb-2">Assigned Tasks</h3>';
-            let filteredTasks = [];
-            if(taskSnap.exists()) {
-                filteredTasks = Object.values(taskSnap.val()).filter(t => t.targetRole === staff.role && t.status === 'Open');
-            }
-            if(filteredTasks.length > 0) {
-                filteredTasks.forEach(t => {
-                    taskHtml += `
-                        <div class="task-card space-y-3">
-                            <div class="flex justify-between items-start">
-                                <div><h4 class="font-bold text-indigo-700 text-sm">${t.location}</h4><p class="text-[10px] text-gray-400">${t.timestamp}</p></div>
-                                <span class="px-2 py-0.5 rounded-full text-[8px] font-bold uppercase ${t.priority==='High'?'bg-red-100 text-red-700':(t.priority==='Medium'?'bg-yellow-100 text-yellow-700':'bg-green-100 text-green-700')}">${t.priority}</span>
-                            </div>
-                            <p class="text-xs font-medium text-gray-600">${t.details}</p>
-                            <div class="flex items-center gap-2 text-[10px] text-gray-400">
-                                <span class="bg-slate-100 px-2 py-1 rounded">By: ${t.raisedByName}</span>
-                            </div>
-                            <img src="${t.beforePhoto}" class="w-full h-32 object-cover rounded-lg border border-slate-100">
-                            <div class="flex gap-2">
-                                <button onclick="closeTaskAction('${t.id}')" class="flex-1 bg-green-500 text-white py-2 rounded-lg font-bold text-xs shadow-sm">Close Task</button>
-                                <button onclick="openRejectModal('${t.id}')" class="flex-1 bg-red-50 text-red-600 py-2 rounded-lg font-bold text-xs border border-red-100">Reject</button>
-                            </div>
-                        </div>`;
-                });
-            } else taskHtml += '<div class="bg-slate-50 p-6 rounded-xl text-center text-xs text-slate-400 border border-dashed border-slate-200">No pending tasks for your role.</div>';
-            taskHtml += '</div>';
-
-            // 3. My Task History (Personal involvement)
-            let historyTasks = [];
-            if(taskSnap.exists()) {
-                historyTasks = Object.values(taskSnap.val()).filter(t =>
-                    t.raisedByName === staff.name ||
-                    t.solvedByName === staff.name ||
-                    t.rejectedByName === staff.name
-                ).sort((a,b) => (b.solvedTimestamp || b.rejectedTimestamp || b.raisedTimestamp).localeCompare(a.solvedTimestamp || a.rejectedTimestamp || a.raisedTimestamp)).slice(0, 5);
-            }
-
-            let taskHistoryHtml = '<div class="bg-white p-4 rounded-2xl text-gray-800 shadow-xl mt-6"><h3 class="font-bold border-b pb-2 mb-4 text-sm text-purple-600">My Task History</h3>';
-            if(historyTasks.length > 0) {
-                taskHistoryHtml += '<div class="overflow-x-auto"><table class="w-full text-left text-[9px]">';
-                taskHistoryHtml += '<thead class="bg-gray-50 uppercase font-bold text-gray-500"><tr><th class="p-2">Action Time</th><th class="p-2">Location</th><th class="p-2 text-center">Photos</th><th class="p-2">Status</th></tr></thead><tbody class="divide-y">';
-                historyTasks.forEach(t => {
-                    let isRaisedByMe = t.raisedByName === staff.name;
-                    let isSolvedByMe = t.solvedByName === staff.name;
-                    let isRejectedByMe = t.rejectedByName === staff.name;
-
-                    let time = t.solvedTimestamp || t.rejectedTimestamp || t.raisedTimestamp;
-                    let displayTime = new Date(time).toLocaleString([], {month:'short', day:'numeric', hour:'2-digit', minute:'2-digit'});
-
-                    taskHistoryHtml += `
-                        <tr class="hover:bg-gray-50">
-                            <td class="p-2"><b>${displayTime}</b><br><span class="opacity-60 text-[8px] uppercase">${isSolvedByMe ? 'Closed' : (isRejectedByMe ? 'Rejected' : 'Raised')}</span></td>
-                            <td class="p-2 font-medium">${t.location}</td>
-                            <td class="p-2">
-                                <div class="flex gap-1 justify-center">
-                                    <img src="${t.beforePhoto}" class="h-6 w-6 rounded object-cover border" title="Before">
-                                    ${t.afterPhoto ? `<img src="${t.afterPhoto}" class="h-6 w-6 rounded object-cover border" title="After">` : ''}
-                                </div>
-                            </td>
-                            <td class="p-2">
-                                <span class="font-bold ${t.status==='Closed'?'text-green-600':(t.status==='Rejected'?'text-red-600':'text-blue-600')}">${t.status}</span>
-                                ${isRejectedByMe && t.rejectionReason ? `<p class="text-[7px] text-red-400 mt-1 italic">${t.rejectionReason}</p>` : ''}
-                            </td>
-                        </tr>`;
-                });
-                taskHistoryHtml += '</tbody></table></div>';
-            } else {
-                taskHistoryHtml += '<p class="text-gray-400 text-xs text-center py-4">No task activity recorded.</p>';
-            }
-            taskHistoryHtml += '</div>';
-
-            container.innerHTML = historyHtml + taskHtml + taskHistoryHtml;
-        }
 
         document.getElementById('s-checkin-btn').onclick = () => {
-            openSignatureModal("Sign to Check-In", async (sig) => {
-                const now = new Date(); const pushRef = push(ref(db, 'staff_attendance'));
-                const log = { mobile: window.currentStaff.mobile, name: window.currentStaff.name, role: window.currentStaff.role, action: "Check-In", date: now.toLocaleDateString('en-US'), timeIn: now.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', hour12: true}), signatureBase64: sig, status: 'active', checkInTimestamp: now.toISOString(), timestamp: Date.now() };
+            openSignatureModal("Sign to Check-In", async (sigData) => {
+                const driveUrl = await uploadToDrive({ type: 'signature', department: window.currentStaff.role, staffName: window.currentStaff.name, fileName: `Signature_${Date.now()}.png`, image: sigData });
+                const now = new Date();
+                const pushRef = push(ref(db, 'staff_attendance'));
+                const log = { mobile: window.currentStaff.mobile, name: window.currentStaff.name, role: window.currentStaff.role, action: "Check-In", date: now.toLocaleDateString('en-US'), timeIn: now.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', hour12: true}), signatureUrl: driveUrl, status: 'active', checkInTimestamp: now.toISOString(), timestamp: Date.now() };
                 await set(pushRef, log);
                 localStorage.setItem('staff_active_session', JSON.stringify({ mobile: window.currentStaff.mobile, pushId: pushRef.key, status: 'checked_in', checkInTimestamp: log.checkInTimestamp }));
                 alert("Checked In!"); renderDashboard(window.currentStaff);
@@ -855,61 +1268,46 @@
             catch (error) { alert("Error: " + error.message); }
         };
 
-        document.getElementById('staff-logout').onclick = () => location.reload();
-
         // --- TASK SYSTEM ---
         window.openTaskModal = () => {
             const targetSelect = document.getElementById('task-target');
             targetSelect.innerHTML = '<option value="">Target Role</option>';
-            const isAdmin = window.isAdminLoggedIn || false;
-            const staffRole = window.currentStaff ? window.currentStaff.role : "";
-
-            if (isAdmin) ['Security', 'RT Technician', 'Cleaner'].forEach(r => targetSelect.innerHTML += `<option value="${r}">${r}</option>`);
-            else if (staffRole === 'Security') ['Cleaner Leader', 'RT Technician'].forEach(r => targetSelect.innerHTML += `<option value="${r}">${r}</option>`);
-
+            const roles = window.isAdminLoggedIn ? ['Security', 'RT Technician', 'Cleaner'] : ['Cleaner Leader', 'RT Technician'];
+            roles.forEach(r => targetSelect.innerHTML += `<option value="${r}">${r}</option>`);
             document.getElementById('task-modal').classList.remove('hidden');
         };
         window.closeTaskModal = () => document.getElementById('task-modal').classList.add('hidden');
 
         document.getElementById('task-form').onsubmit = async (e) => {
             e.preventDefault();
-            const submitBtn = document.getElementById('task-submit-btn');
-            submitBtn.disabled = true; submitBtn.innerText = "Uploading...";
-
+            const btn = document.getElementById('task-submit-btn');
             const file = document.getElementById('task-photo-in').files[0];
-            const compressedPhoto = await compressImageFile(file);
-            const now = new Date();
-            const taskId = "TASK-" + Date.now();
-            const task = {
-                id: taskId, location: document.getElementById('task-loc').value,
-                details: document.getElementById('task-desc').value, priority: document.getElementById('task-priority').value,
-                targetRole: document.getElementById('task-target').value, beforePhoto: compressedPhoto,
-                raisedByName: window.isAdminLoggedIn ? "Admin" : window.currentStaff.name,
-                raisedByRole: window.isAdminLoggedIn ? "Admin" : window.currentStaff.role,
-                raisedTimestamp: now.toISOString(), timestamp: now.toLocaleString(), status: "Open"
-            };
-            await set(ref(db, 'tasks/' + taskId), task);
-            alert("Task Routed Successfully!");
-            closeTaskModal(); submitBtn.disabled = false; submitBtn.innerText = "Save & Route Task";
-            if(window.currentStaff) loadRoleView(window.currentStaff);
-            if(window.isAdminLoggedIn) loadAdminDashboard();
+            if (!file) return alert("Please provide a photo.");
+            btn.disabled = true; btn.innerText = "Uploading...";
+            try {
+                const comp = await compressImageFile(file);
+                const loc = document.getElementById('task-loc').value;
+                const url = await uploadToDrive({ type: 'photo', fileName: `${loc} - Before.png`, image: comp });
+                const id = "TASK-" + Date.now();
+                const task = { id, location: loc, details: document.getElementById('task-desc').value, priority: document.getElementById('task-priority').value, targetRole: document.getElementById('task-target').value, beforePhotoUrl: url, raisedByName: window.currentStaff ? window.currentStaff.name : "Admin", raisedByRole: window.currentStaff ? window.currentStaff.role : "Admin", raisedTimestamp: new Date().toISOString(), timestamp: new Date().toLocaleString(), status: "Open" };
+                await set(ref(db, 'tasks/' + id), task);
+                alert("Task Routed!"); closeTaskModal(); removeCapturedPhoto('task-photo-in');
+            } catch (err) { alert("Error: " + err.message); }
+            finally { btn.disabled = false; btn.innerText = "Save & Route Task"; if(window.currentStaff) loadRoleView(window.currentStaff); }
         };
 
         window.closeTaskAction = async (taskId) => {
             const fileInput = document.createElement('input'); fileInput.type = 'file'; fileInput.accept = 'image/*';
             fileInput.onchange = async (e) => {
                 if(!e.target.files[0]) return;
-                const compressedAfter = await compressImageFile(e.target.files[0]);
-                const now = new Date();
-                await update(ref(db, 'tasks/' + taskId), {
-                    status: 'Closed', afterPhoto: compressedAfter,
-                    solvedByName: window.currentStaff.name, solvedByRole: window.currentStaff.role,
-                    solvedTimestamp: now.toISOString()
-                });
-                alert("Task Closed Successfully!"); loadRoleView(window.currentStaff);
+                alert("Processing After Photo...");
+                const comp = await compressImageFile(e.target.files[0]);
+                const url = await uploadToDrive({ type: 'photo', fileName: `After_${taskId}.png`, image: comp });
+                await update(ref(db, 'tasks/' + taskId), { status: 'Closed', afterPhotoUrl: url, solvedByName: window.currentStaff.name, solvedByRole: window.currentStaff.role, solvedTimestamp: new Date().toISOString() });
+                alert("Task Closed!"); loadRoleView(window.currentStaff);
             };
+            if (confirm("Take CAMERA PHOTO (OK) or Gallery (Cancel)?")) fileInput.setAttribute('capture', 'environment');
             fileInput.click();
-            alert("Please pick an AFTER WORK photo to close the task.");
         };
 
         let activeRejectId = null;
@@ -917,96 +1315,84 @@
         window.closeRejectModal = () => document.getElementById('reject-modal').classList.add('hidden');
         window.submitRejection = async () => {
             const reason = document.getElementById('reject-reason').value;
-            if(!reason) return alert("Rejection reason is mandatory.");
-            const now = new Date();
-            await update(ref(db, 'tasks/' + activeRejectId), {
-                status: 'Rejected', rejectionReason: reason,
-                rejectedByName: window.currentStaff.name, rejectedByRole: window.currentStaff.role,
-                rejectedTimestamp: now.toISOString()
-            });
-            alert("Task Rejected."); closeRejectModal(); loadRoleView(window.currentStaff);
+            if(!reason) return alert("Reason required.");
+            await update(ref(db, 'tasks/' + activeRejectId), { status: 'Rejected', rejectionReason: reason, rejectedByName: window.currentStaff.name, rejectedByRole: window.currentStaff.role, rejectedTimestamp: new Date().toISOString() });
+            alert("Rejected."); closeRejectModal(); loadRoleView(window.currentStaff);
         };
 
-        // --- ADMIN SYSTEM ---
+        // --- ADMIN ---
         document.getElementById('admin-login-form').onsubmit = async (e) => {
             e.preventDefault();
-            const mobile = document.getElementById('admin-mobile').value;
-            const pass = document.getElementById('admin-pass').value;
-            if ((mobile === "admin" && pass === "1234")) { window.isAdminLoggedIn = true; showView('view-admin-dash'); }
-            else alert("Access Denied");
+            if (document.getElementById('admin-mobile').value === "admin" && document.getElementById('admin-pass').value === "1234") { window.isAdminLoggedIn = true; showView('view-admin-dash'); }
+            else alert("Denied");
         };
-        window.logoutAdmin = () => { window.isAdminLoggedIn = false; showView('view-landing'); };
+        window.handleUserLogout = () => {
+            localStorage.clear();
+            location.reload();
+        };
+
         window.showAdminTab = (tabId) => {
-            // Strict view separation: Hide all, then show one
             const tabs = document.querySelectorAll('.admin-tab');
             tabs.forEach(t => {
+                t.classList.add('hidden');
                 t.style.display = 'none';
-                t.classList.remove('active');
             });
 
             const activeTab = document.getElementById(tabId);
             if (activeTab) {
+                activeTab.classList.remove('hidden');
                 activeTab.style.display = 'block';
-                activeTab.classList.add('active');
             }
 
-            // Update button styles
-            document.querySelectorAll('.admin-tab-btn').forEach(b => {
-                b.classList.remove('active-tab');
-            });
-
+            document.querySelectorAll('.admin-tab-btn').forEach(b => b.classList.remove('active-tab'));
             const activeBtn = document.querySelector(`[onclick*="${tabId}"]`);
             if (activeBtn) activeBtn.classList.add('active-tab');
         };
 
         async function loadAdminDashboard() {
-            const vSnap = await get(ref(db, 'visitors'));
-            const sSnap = await get(ref(db, 'staff_attendance'));
-            const staffSnap = await get(ref(db, 'staff'));
-            const taskSnap = await get(ref(db, 'tasks'));
+            const [v, s, staff, tasks] = await Promise.all([get(ref(db, 'visitors')), get(ref(db, 'staff_attendance')), get(ref(db, 'staff')), get(ref(db, 'tasks'))]);
+            let records = [];
+            if(v.exists()) Object.values(v.val()).forEach(x => records.push({...x, type: 'visitor'}));
+            if(s.exists()) Object.values(s.val()).forEach(x => records.push({...x, type: 'staff', id: x.mobile}));
+            records.sort((a,b) => new Date(b.date + ' ' + (b.timeIn || '00:00 AM')) - new Date(a.date + ' ' + (a.timeIn || '00:00 AM')));
+            window.adminData = records; renderAdminTable(records);
 
-            // Master Logs
-            let allRecords = [];
-            if(vSnap.exists()) Object.values(vSnap.val()).forEach(v => allRecords.push({...v, type: 'visitor'}));
-            if(sSnap.exists()) Object.values(sSnap.val()).forEach(s => allRecords.push({...s, type: 'staff', id: s.mobile, timeIn: s.timeIn, timeOut: s.timeOut || '-'}));
-            allRecords.sort((a,b) => {
-                const dateA = new Date(a.date + ' ' + (a.timeIn || '00:00 AM'));
-                const dateB = new Date(b.date + ' ' + (b.timeIn || '00:00 AM'));
-                return dateB - dateA;
+            const staffList = document.getElementById('admin-staff-list-body'); staffList.innerHTML = '';
+            if(staff.exists()) Object.values(staff.val()).forEach(x => {
+                staffList.innerHTML += `<tr class="border-b border-white/5"><td class="p-3 font-bold">${x.name}</td><td class="p-3">${x.branch}</td><td class="p-3">${x.role}</td><td class="p-3">${x.company}</td><td class="p-3">${x.mobile}</td><td class="p-3 text-center"><button onclick="deleteStaffAccount('${x.mobile}', '${x.name}')" class="text-red-500 font-bold text-xs uppercase">Delete</button></td></tr>`;
             });
-            window.adminData = allRecords; renderAdminTable(allRecords);
 
-            // Staff List
-            const staffListBody = document.getElementById('admin-staff-list-body'); staffListBody.innerHTML = '';
-            if(staffSnap.exists()) {
-                Object.values(staffSnap.val()).forEach(s => {
-                    staffListBody.innerHTML += `<tr class="border-b border-white/5"><td class="p-3 font-bold">${s.name}</td><td class="p-3 text-indigo-300 font-bold">${s.branch}</td><td class="p-3 text-gray-400">${s.role}</td><td class="p-3 text-gray-400">${s.company}</td><td class="p-3 text-center"><button onclick="deleteStaff('${s.mobile}', '${s.name}')" class="text-red-500 font-bold text-xs uppercase">Delete</button></td></tr>`;
-                });
-            }
-
-            // Task Audit
-            const adminTaskList = document.getElementById('admin-task-list'); adminTaskList.innerHTML = '';
-            if(taskSnap.exists()) {
-                window.adminTasks = Object.values(taskSnap.val()).reverse();
+            const taskBody = document.getElementById('admin-task-list-body'); taskBody.innerHTML = '';
+            if(tasks.exists()) {
+                window.adminTasks = Object.values(tasks.val()).reverse();
                 window.adminTasks.forEach(t => {
-                    const statusColor = t.status==='Open'?'text-blue-400':(t.status==='Closed'?'text-green-400':'text-red-400');
-                    adminTaskList.innerHTML += `
-                        <div class="glass-morphism p-4 rounded-2xl text-xs space-y-2 border border-white/5">
-                            <div class="flex justify-between items-start">
-                                <div><h4 class="font-bold text-indigo-300">${t.location}</h4><p class="opacity-50 text-[8px]">${t.id}</p></div>
-                                <span class="font-black uppercase ${statusColor}">${t.status}</span>
-                            </div>
-                            <p class="font-light">${t.details}</p>
-                            <div class="grid grid-cols-2 gap-2 mt-2">
-                                <div class="space-y-1"><p class="font-bold opacity-50 uppercase text-[8px]">Before Photo</p><img src="${t.beforePhoto}" class="h-16 w-full object-cover rounded-lg"></div>
-                                <div class="space-y-1"><p class="font-bold opacity-50 uppercase text-[8px]">After Photo</p>${t.afterPhoto ? `<img src="${t.afterPhoto}" class="h-16 w-full object-cover rounded-lg">` : `<div class="h-16 bg-black/20 rounded-lg flex items-center justify-center italic opacity-30 text-[8px]">N/A</div>`}</div>
-                            </div>
-                            <div class="pt-2 border-t border-white/5 space-y-1 text-[8px] opacity-60">
-                                <p>Raised by: ${t.raisedByName} (${t.raisedByRole})</p>
-                                ${t.status === 'Rejected' ? `<p class="text-red-400 font-bold">REJECT REASON: ${t.rejectionReason}</p>` : ''}
-                                ${t.solvedByName ? `<p class="text-green-400">Solved by: ${t.solvedByName} (${t.solvedByRole})</p>` : ''}
-                            </div>
-                        </div>`;
+                    const b = getDirectDriveImageUrl(t.beforePhotoUrl || t.beforePhoto);
+                    const a = getDirectDriveImageUrl(t.afterPhotoUrl || t.afterPhoto);
+
+                    const rDT = t.raisedTimestamp ? new Date(t.raisedTimestamp) : null;
+                    const cDT = t.solvedTimestamp ? new Date(t.solvedTimestamp) : null;
+
+                    taskBody.innerHTML += `
+                        <tr class="hover:bg-white/5 transition">
+                            <td class="p-2 font-mono opacity-50">${t.id}</td>
+                            <td class="p-2">${t.schoolBuilding || '-'}</td>
+                            <td class="p-2 font-bold">${t.location}</td>
+                            <td class="p-2 opacity-70">${t.targetRole}</td>
+                            <td class="p-2">${t.raisedByName || 'Admin'}</td>
+                            <td class="p-2">${rDT ? rDT.toLocaleDateString() : '-'}</td>
+                            <td class="p-2">${rDT ? rDT.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) : '-'}</td>
+                            <td class="p-2">${t.solvedByName || '-'}</td>
+                            <td class="p-2">${cDT ? cDT.toLocaleDateString() : '-'}</td>
+                            <td class="p-2">${cDT ? cDT.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) : '-'}</td>
+                            <td class="p-2 font-bold ${t.status === 'Open' ? 'text-blue-400' : (t.status === 'Closed' ? 'text-green-400' : 'text-red-400')}">${t.status}</td>
+                            <td class="p-2 italic opacity-60">${t.rejectionReason || 'N/A'}</td>
+                            <td class="p-2">
+                                <div class="flex gap-1 justify-center">
+                                    <img src="${b}" class="h-6 w-6 rounded border border-white/10" onclick="openImageZoom('${b}')" onerror="this.style.display='none'">
+                                    ${(t.afterPhotoUrl || t.afterPhoto) ? `<img src="${a}" class="h-6 w-6 rounded border border-white/10" onclick="openImageZoom('${a}')" onerror="this.style.display='none'">` : ''}
+                                </div>
+                            </td>
+                        </tr>`;
                 });
             }
         }
@@ -1014,51 +1400,215 @@
         function renderAdminTable(data) {
             const body = document.getElementById('admin-table-body'); body.innerHTML = '';
             data.forEach(r => {
-                const sig = r.signatureBase64 || r.signature;
-                body.innerHTML += `<tr class="hover:bg-white/5 transition"><td class="p-3 uppercase text-[8px] font-bold opacity-40">${r.type}</td><td class="p-3 font-mono text-indigo-300 font-bold">${r.id || r.mobile}</td><td class="p-3 opacity-60">${r.date}</td><td class="p-3 font-bold text-white">${r.name}</td><td class="p-3 text-green-400 font-bold">${r.timeIn}</td><td class="p-3 text-red-400 font-bold">${r.timeOut || '-'}</td><td class="p-3 text-center">${sig ? `<img src="${sig}" class="h-6 mx-auto rounded border border-white/10 hover:scale-150 transition cursor-zoom-in">` : '-'}</td></tr>`;
+                const sig = getDirectDriveImageUrl(r.signatureUrl || r.signature);
+                body.innerHTML += `<tr class="hover:bg-white/5 transition"><td class="p-3 uppercase text-[8px] opacity-40">${r.type}</td><td class="p-3">${r.id || r.mobile}</td><td class="p-3 opacity-60">${r.date}</td><td class="p-3 font-bold">${r.name}</td><td class="p-3 text-green-400">${r.timeIn}</td><td class="p-3 text-red-400">${r.timeOut || '-'}</td><td class="p-3 text-center">${sig ? `<img src="${sig}" class="h-6 mx-auto rounded border border-white/10" onerror="this.style.display='none'">` : '-'}</td></tr>`;
             });
         }
 
         window.deleteStaff = async (mobile, name) => { if(confirm(`Delete ${name}?`)) { await set(ref(db, 'staff/' + mobile), null); loadAdminDashboard(); } };
 
-        window.exportTaskReportExcel = async () => {
-            const workbook = new ExcelJS.Workbook();
-            const worksheet = workbook.addWorksheet('Task Audit Report');
-            worksheet.columns = [
-                { header: 'Task ID', key: 'id', width: 20 }, { header: 'Location', key: 'loc', width: 30 }, { header: 'Details', key: 'details', width: 30 },
-                { header: 'Raised By', key: 'raisedBy', width: 20 }, { header: 'Raised Time', key: 'raisedTime', width: 20 },
-                { header: 'Before Photo', key: 'before', width: 25 }, { header: 'Assigned To', key: 'target', width: 15 },
-                { header: 'Solved By', key: 'solvedBy', width: 20 }, { header: 'Solved Time', key: 'solvedTime', width: 20 },
-                { header: 'After Photo', key: 'after', width: 25 }, { header: 'Status', key: 'status', width: 15 }, { header: 'Comments', key: 'comment', width: 30 }
-            ];
+        // --- EXCEL EXPORT SYSTEM ---
+        function exportHtmlTableToExcel(tableHTML, filename) {
+            const downloadUrl = 'data:application/vnd.ms-excel;charset=utf-8,' + encodeURIComponent(tableHTML);
+            const link = document.createElement('a');
+            link.href = downloadUrl;
+            link.download = filename + '.xls';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
 
-            for (let i = 0; i < window.adminTasks.length; i++) {
-                const t = window.adminTasks[i]; const rowIndex = i + 2;
-                const row = worksheet.addRow({ id: t.id, loc: t.location, details: t.details, raisedBy: `${t.raisedByName} (${t.raisedByRole})`, raisedTime: t.timestamp, target: t.targetRole, solvedBy: t.solvedByName || t.rejectedByName || '-', solvedTime: t.solvedTimestamp || t.rejectedTimestamp || '-', status: t.status, comment: t.rejectionReason || '' });
-                row.height = 60; row.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+        window.downloadExcelReport = () => {
+            let html = `
+                <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
+                <head><!--[if gte mso 9]><xml><x:ExcelWorkbook><x:ExcelWorksheets><x:ExcelWorksheet><x:Name>Attendance</x:Name><x:WorksheetOptions><x:DisplayGridlines/></x:WorksheetOptions></x:ExcelWorksheet></x:ExcelWorksheets></x:ExcelWorkbook></xml><![endif]--></head>
+                <body>
+                <table border="1">
+                    <tr style="background-color: #4f46e5; color: white; font-weight: bold; height: 40px;">
+                        <th>ID/Pass No</th><th>Staff Name</th><th>Company Name</th><th>Position/Role</th><th>Department/Type</th><th>Date</th><th>In-Time</th><th>Out-Time</th><th>Status</th><th>Signature (In)</th><th>Signature (Out)</th>
+                    </tr>`;
 
-                const addImg = (base64, col) => {
-                    if (base64 && base64.startsWith('data:image')) {
-                        try {
-                            const imgId = workbook.addImage({ base64, extension: 'jpeg' });
-                            worksheet.addImage(imgId, { tl: { col, row: rowIndex - 1 }, ext: { width: 100, height: 50 }, editAs: 'oneCell' });
-                        } catch(e) {}
-                    }
-                };
-                addImg(t.beforePhoto, 5); addImg(t.afterPhoto, 9);
-            }
-            worksheet.getRow(1).font = { bold: true };
-            const buffer = await workbook.xlsx.writeBuffer();
-            saveAs(new Blob([buffer]), `SchoolLog_Task_Audit_${Date.now()}.xlsx`);
+            window.adminData.forEach(r => {
+                const sigIn = getDirectDriveImageUrl(r.signatureUrl || r.signature);
+                const sigOut = getDirectDriveImageUrl(r.signatureOutUrl); // Assuming future support or placeholder
+
+                html += `
+                    <tr style="height: 60px; vertical-align: middle;">
+                        <td>${r.mobile || r.id || '-'}</td>
+                        <td>${r.name}</td>
+                        <td>${r.company || '-'}</td>
+                        <td>${r.role || '-'}</td>
+                        <td style="text-transform: uppercase;">${r.type}</td>
+                        <td>${r.date}</td>
+                        <td style="color: green;">${r.timeIn}</td>
+                        <td style="color: red;">${r.timeOut || '-'}</td>
+                        <td>${r.status}</td>
+                        <td align="center">
+                            ${sigIn.includes('http') ? `<img src="${sigIn}" width="100" height="40" style="object-fit:contain;">` : '<span style="color:#888;">No Signature</span>'}
+                        </td>
+                        <td align="center">
+                            ${sigOut.includes('http') ? `<img src="${sigOut}" width="100" height="40" style="object-fit:contain;">` : '<span style="color:#888;">No Signature</span>'}
+                        </td>
+                    </tr>`;
+            });
+            html += '</table></body></html>';
+            exportHtmlTableToExcel(html, `Attendance_Complete_${Date.now()}`);
+        };
+
+        window.exportTaskReportExcel = () => {
+            let html = `
+                <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
+                <head><!--[if gte mso 9]><xml><x:ExcelWorkbook><x:ExcelWorksheets><x:ExcelWorksheet><x:Name>Task Audit</x:Name><x:WorksheetOptions><x:DisplayGridlines/></x:WorksheetOptions></x:ExcelWorksheet></x:ExcelWorksheets></x:ExcelWorkbook></xml><![endif]--></head>
+                <body>
+                <table border="1">
+                    <tr style="background-color: #10b981; color: white; font-weight: bold; height: 40px;">
+                        <th>Task ID</th><th>School / Building</th><th>Area / Location</th><th>Assigned Dept / Role</th><th>Raised By</th><th>Raised Date</th><th>Raised Time</th><th>RT Technician</th><th>Closed Date</th><th>Closed Time</th><th>Status</th><th>Rejection Reason</th><th>Before Photo</th><th>After Photo</th>
+                    </tr>`;
+
+            window.adminTasks.forEach(t => {
+                const bImg = getDirectDriveImageUrl(t.beforePhotoUrl || t.beforePhoto);
+                const aImg = getDirectDriveImageUrl(t.afterPhotoUrl || t.afterPhoto);
+
+                const rDT = t.raisedTimestamp ? new Date(t.raisedTimestamp) : null;
+                const cDT = t.solvedTimestamp ? new Date(t.solvedTimestamp) : null;
+
+                html += `
+                    <tr style="height: 80px; vertical-align: middle;">
+                        <td>${t.id}</td>
+                        <td>${t.schoolBuilding || '-'}</td>
+                        <td>${t.location}</td>
+                        <td>${t.targetRole}</td>
+                        <td>${t.raisedByName || 'Admin'}</td>
+                        <td>${rDT ? rDT.toLocaleDateString() : '-'}</td>
+                        <td>${rDT ? rDT.toLocaleTimeString() : '-'}</td>
+                        <td>${t.solvedByName || '-'}</td>
+                        <td>${cDT ? cDT.toLocaleDateString() : '-'}</td>
+                        <td>${cDT ? cDT.toLocaleTimeString() : '-'}</td>
+                        <td style="font-weight: bold;">${t.status}</td>
+                        <td>${t.rejectionReason || 'N/A'}</td>
+                        <td width="100" height="80" align="center" valign="middle">
+                            ${bImg.includes('http') ? `<img src="${bImg}" width="70" height="70" style="object-fit: contain;">` : '<span style="color:#888; font-size:11px;">No Photo</span>'}
+                        </td>
+                        <td width="100" height="80" align="center" valign="middle">
+                            ${(aImg.includes('http') && !aImg.includes('No+Photo')) ? `<img src="${aImg}" width="70" height="70" style="object-fit: contain;">` : '<span style="color:#888; font-size:11px;">No Photo</span>'}
+                        </td>
+                    </tr>`;
+            });
+            html += '</table></body></html>';
+            exportHtmlTableToExcel(html, `Task_Audit_Full_Report_${Date.now()}`);
         };
 
         window.filterAdminTable = () => {
-            const query = document.getElementById('admin-search').value.toLowerCase();
-            const dateInput = document.getElementById('admin-date-filter').value;
-            const type = document.getElementById('admin-type-filter').value;
-            let fmtDate = ""; if(dateInput) { const [y, m, d] = dateInput.split('-'); fmtDate = `${parseInt(m)}/${parseInt(d)}/${y}`; }
-            const filtered = window.adminData.filter(r => (r.name.toLowerCase().includes(query)) && (!dateInput || r.date === fmtDate) && (type === 'all' || r.type === type));
-            renderAdminTable(filtered);
+            const q = document.getElementById('admin-search').value.toLowerCase();
+            const f = window.adminData.filter(r => r.name.toLowerCase().includes(q));
+            renderAdminTable(f);
+        };
+
+        window.openImageZoom = (url) => { if(!url || url.includes('placeholder')) return; window.open(url, '_blank'); };
+
+        // --- DYNAMIC FIELDS & ACCOUNT MGMT ---
+        async function loadRegistrationFields() {
+            const snap = await get(ref(db, 'appConfig/registrationFields'));
+            const container = document.getElementById('dynamic-reg-fields');
+            container.innerHTML = '';
+
+            // Standard fields to always include if not already present
+            const defaultFields = ["Mobile Number", "ADEK Pass Number", "Company Name"];
+            const fields = snap.exists() ? Object.values(snap.val()) : defaultFields;
+
+            fields.forEach(field => {
+                const id = field.toLowerCase().replace(/[^a-z0-9]/g, '-');
+                container.innerHTML += `<input type="text" id="dyn-reg-${id}" data-field="${field}" placeholder="${field}" required class="w-full p-2 border rounded-lg text-sm dynamic-input">`;
+            });
+        }
+
+        window.addRegistrationField = async () => {
+            const name = document.getElementById('new-field-name').value.trim();
+            if (!name) return;
+            const snap = await get(ref(db, 'appConfig/registrationFields'));
+            let fields = snap.exists() ? Object.values(snap.val()) : ["Mobile Number", "ADEK Pass Number", "Company Name"];
+            if (fields.includes(name)) return alert("Field already exists");
+            fields.push(name);
+            await set(ref(db, 'appConfig/registrationFields'), fields);
+            document.getElementById('new-field-name').value = '';
+            renderConfigFields();
+        };
+
+        window.removeField = async (name) => {
+            const snap = await get(ref(db, 'appConfig/registrationFields'));
+            let fields = Object.values(snap.val()).filter(f => f !== name);
+            await set(ref(db, 'appConfig/registrationFields'), fields);
+            renderConfigFields();
+        };
+
+        async function renderConfigFields() {
+            const snap = await get(ref(db, 'appConfig/registrationFields'));
+            const list = document.getElementById('active-fields-list');
+            list.innerHTML = '';
+            if (snap.exists()) {
+                Object.values(snap.val()).forEach(field => {
+                    list.innerHTML += `<div class="flex justify-between items-center bg-slate-50 p-3 rounded-xl border">
+                        <span class="font-bold text-sm">${field}</span>
+                        <button onclick="removeField('${field}')" class="text-red-500 text-xs font-black">REMOVE</button>
+                    </div>`;
+                });
+            }
+        }
+
+        document.getElementById('delete-my-account').onclick = async () => {
+            if (!confirm("Are you sure? This will PERMANENTLY delete your account and all data. You will need to register again.")) return;
+            try {
+                const mobile = window.currentStaff.mobile;
+                await set(ref(db, 'staff/' + mobile), null);
+                // Attempt auth deletion if available
+                if (window.firebase && window.firebase.auth && window.firebase.auth().currentUser) {
+                    await window.firebase.auth().currentUser.delete();
+                }
+                localStorage.clear();
+                alert("Account Deleted. Redirecting to Registration...");
+                location.reload(); // Reload will triggerLanding/Auth logic
+            } catch (e) { alert("Error deleting account: " + e.message); }
+        };
+
+        // Update showView to include dynamic field loading
+        const originalShowView = window.showView;
+        window.showView = (viewId) => {
+            if (viewId === 'view-staff') {
+                const saved = localStorage.getItem('loggedStaff');
+                if (!saved) loadRegistrationFields();
+            }
+            if (viewId === 'view-admin-dash') renderConfigFields();
+            originalShowView(viewId);
+        };
+
+        // Staff Registration Handler (Updated for Dynamic Fields)
+        document.getElementById('staff-reg-form').onsubmit = async (e) => {
+            e.preventDefault();
+            if(document.getElementById('s-reg-pass').value !== document.getElementById('s-reg-confirm').value) return alert("Passwords Mismatch");
+
+            const staff = {
+                name: document.getElementById('s-reg-name').value,
+                branch: document.getElementById('s-reg-branch').value,
+                role: document.getElementById('s-reg-role').value,
+                password: document.getElementById('s-reg-pass').value,
+                company_id: document.getElementById('s-reg-company').value
+            };
+
+            // Collect all dynamic inputs
+            document.querySelectorAll('.dynamic-input').forEach(input => {
+                const fieldName = input.getAttribute('data-field');
+                const key = fieldName.toLowerCase().includes('mobile') ? 'mobile' : fieldName.toLowerCase().replace(/[^a-z0-9]/g, '_');
+                staff[key] = input.value;
+            });
+
+            if (!staff.mobile) return alert("Mobile Number is required for registration.");
+
+            try {
+                await set(ref(db, 'staff/' + staff.mobile), staff);
+                alert("Staff Registered Successfully!");
+                toggleStaffTab('login');
+            }
+            catch (error) { alert("Error: " + error.message); }
         };
 
         initSigPad();
