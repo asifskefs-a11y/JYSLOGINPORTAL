@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, shrink-to-fit=no">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -116,64 +116,94 @@
             overflow-x: auto;
         }
 
-        /* Prevent horizontal scrolling on mobile */
+        /* Global Safety - Prevent Horizontal Scrolling on all screens */
         html, body {
           max-width: 100vw !important;
           overflow-x: hidden !important;
+          margin: 0;
+          padding: 0;
+          box-sizing: border-box;
         }
 
-        /* Mobile Phones View */
-        @media (max-width: 768px) {
-            /* 1. Container & Card Auto-Fit */
-            .app-container, .main-card, .dashboard-wrapper, #view-admin-dash > div, .container, .card, .portal-container, .wrapper, .form-container {
-                width: 92% !important;
+        /* ========================================================= */
+        /* 📱 1. MOBILE VIEW (Phones: Android & iPhone under 600px)   */
+        /* ========================================================= */
+        @media (max-width: 600px) {
+            .container, .main-wrapper, .portal-container, .card-container, div[class="container"], .app-container, .main-card, .dashboard-wrapper, #view-admin-dash > div {
+                width: 100% !important;
                 max-width: 100% !important;
-                margin: 10px auto !important;
-                padding: 15px !important;
+                margin: 0 !important;
+                padding: 12px !important;
+                box-shadow: none !important;
+                border-radius: 0 !important;
+            }
+            /* Stack grid elements vertically for clean mobile app feel */
+            .form-row, .grid-2-col, .input-group-row, .flex.flex-col.md\:flex-row, .portal-options {
+                display: flex !important;
+                flex-direction: column !important;
+                width: 100% !important;
+                gap: 10px !important;
+            }
+            /* Touch-friendly inputs & buttons */
+            input, select, textarea, button {
+                width: 100% !important;
+                height: 48px !important;
+                font-size: 16px !important; /* Prevents auto-zoom on iOS */
                 box-sizing: border-box !important;
+                border-radius: 8px !important;
             }
-
-            /* 2. Header & Title Adjustments */
-            .header-title, .back-nav, .flex.flex-col.md\:flex-row {
-                flex-direction: column !important;
-                align-items: flex-start !important;
-                gap: 8px !important;
-                width: 100% !important;
-            }
-
-            /* 3. Stack Form Input Rows Vertically (Fix Visitor ID & Date cut-off) */
-            .form-row, .grid-2-col, .input-group-row, .grid.grid-cols-2 {
-                display: flex !important;
-                flex-direction: column !important;
-                width: 100% !important;
-                gap: 12px !important;
-            }
-
-            /* 4. Fix Signature Pad & Floating Clear Button Overlap */
+            /* Fix Floating/Overlapping Clear Button in Signature Area */
             .signature-container, .canvas-wrapper {
-                position: relative !important;
-                width: 100% !important;
                 display: flex !important;
                 flex-direction: column !important;
+                width: 100% !important;
+                position: relative !important;
             }
-
             .btn-clear, #clearSigBtn, button[onclick*="clear"], button[onclick*="VisitorSig"] {
-                position: static !important;
-                margin-bottom: 8px !important;
+                position: relative !important;
                 align-self: flex-end !important;
                 width: auto !important;
-                float: right !important;
+                height: 36px !important;
+                padding: 0 16px !important;
+                margin-bottom: 6px !important;
+                font-size: 14px !important;
             }
-
-            canvas#signature-pad, canvas.signature-canvas, canvas#v-sig-pad, canvas#sig-canvas {
+            canvas#signature-pad, canvas, canvas#v-sig-pad, canvas#sig-canvas {
                 width: 100% !important;
                 height: 180px !important;
                 touch-action: none !important;
-                box-sizing: border-box !important;
             }
+        }
 
-            input, select, button {
-                width: 100% !important;
+        /* ========================================================= */
+        /* 📱💻 2. TABLET / iPAD VIEW (Between 601px and 1024px)     */
+        /* ========================================================= */
+        @media (min-width: 601px) and (max-width: 1024px) {
+            .container, .main-wrapper, .portal-container, .app-container, .main-card, .dashboard-wrapper, #view-admin-dash > div {
+                width: 90% !important;
+                max-width: 720px !important;
+                margin: 20px auto !important;
+                padding: 24px !important;
+            }
+            .grid-2-col, .grid.grid-cols-2 {
+                display: grid !important;
+                grid-template-columns: 1fr 1fr !important;
+                gap: 16px !important;
+            }
+            input, select, textarea, button {
+                height: 46px !important;
+                font-size: 15px !important;
+            }
+        }
+
+        /* ========================================================= */
+        /* 🖥️ 3. DESKTOP / LAPTOP VIEW (1025px and above)            */
+        /* ========================================================= */
+        @media (min-width: 1025px) {
+            /* Keep desktop original design clean and centered */
+            .container, .main-wrapper, .portal-container, .app-container, .main-card, .dashboard-wrapper, #view-admin-dash > div {
+                max-width: 1100px !important;
+                margin: 0 auto !important;
             }
         }
 
