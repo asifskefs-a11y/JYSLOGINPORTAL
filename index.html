@@ -459,7 +459,7 @@
 
         /* --- CRITICAL MOBILE VISIBILITY FIX --- */
         @media screen and (max-width: 768px) {
-          .view-section.hidden, .hidden {
+          .view-section.hidden, .hidden, [style*="display: none"] {
             display: none !important;
             visibility: hidden !important;
             height: 0 !important;
@@ -473,6 +473,32 @@
             height: auto !important;
             position: relative !important;
             width: 100% !important;
+            flex-direction: column !important;
+          }
+
+          /* Restore Button Clicks */
+          button, a, input, select, textarea, .btn, [onclick] {
+            pointer-events: auto !important;
+            z-index: 50 !important;
+            cursor: pointer !important;
+            touch-action: manipulation !important;
+          }
+
+          /* Fix Crushed Cards & Modals */
+          .portal-container, .main-wrapper, .container, .app-container, .modal > div, #signature-modal > div, #task-modal > div {
+            width: 95% !important;
+            max-width: 100% !important;
+            margin-left: auto !important;
+            margin-right: auto !important;
+            box-sizing: border-box !important;
+            height: auto !important;
+          }
+
+          /* Prevent vertical strip stretching */
+          .canvas-wrapper, canvas {
+            width: 100% !important;
+            height: auto !important;
+            min-height: 200px !important;
           }
         }
     </style>
@@ -903,20 +929,23 @@
     <script>
         // Global Navigation & State Management
         window.showView = (viewId) => {
+            // Hide all sections
             const sections = document.querySelectorAll('.view-section');
             sections.forEach(s => {
                 s.classList.remove('active');
                 s.classList.add('hidden');
+                s.style.display = 'none'; // Double-force hidden
             });
 
             const target = document.getElementById(viewId);
             if (target) {
                 target.classList.remove('hidden');
                 target.classList.add('active');
+                target.style.display = 'flex'; // Force show
             }
 
             // Force jump to top on section switch
-            window.scrollTo({ top: 0, behavior: 'smooth' });
+            window.scrollTo(0, 0);
 
             // Signal to module-based logic that view has changed
             window.dispatchEvent(new CustomEvent('viewChanged', { detail: { viewId } }));
