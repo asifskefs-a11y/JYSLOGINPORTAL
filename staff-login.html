@@ -2,245 +2,222 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SchoolLog - Staff Portal</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Staff Portal - JYS Portal</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.tailwindcss.com"></script>
-    <style>
-        body { background: #f0f2f5; }
-        .gradient-bg { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
-    </style>
+    <link rel="stylesheet" href="style.css">
 </head>
-<body class="min-h-screen">
+<body class="text-white">
+    <div class="app-container">
+        <!-- STAFF VIEW -->
+        <section id="view-staff" class="view-section active p-4">
+            <nav class="w-full flex items-center justify-between mb-8 pt-4">
+                <a href="index.html" class="btn btn-outline" style="text-decoration: none;">
+                    <i class="fa-solid fa-arrow-left"></i>
+                    <span>Back</span>
+                </a>
+                <h2 class="text-xl font-bold">Staff Portal</h2>
+                <button id="staff-logout-btn" class="hidden glass-morphism px-4 py-2 rounded-lg text-xs font-bold">Logout</button>
+            </nav>
 
-    <!-- Auth Section -->
-    <div id="auth-section" class="flex items-center justify-center p-4 min-h-screen">
-        <div class="bg-white w-full max-w-md rounded-2xl shadow-xl overflow-hidden">
-            <div class="gradient-bg p-6 text-white text-center">
-                <h1 class="text-3xl font-bold">SchoolLog</h1>
-                <p class="opacity-90">Staff Management Portal</p>
+            <div id="staff-auth-area" class="w-full bg-white text-gray-800 rounded-2xl shadow-2xl overflow-hidden">
+                <div class="flex border-b">
+                    <button onclick="toggleStaffTab('login')" id="s-tab-login" class="flex-1 py-4 font-bold text-indigo-600 border-b-2 border-indigo-600">Login</button>
+                    <button onclick="toggleStaffTab('reg')" id="s-tab-reg" class="flex-1 py-4 font-bold text-gray-400 border-b-2 border-transparent">Register</button>
+                </div>
+                <div class="p-6">
+                    <form id="staff-login-form" class="space-y-4">
+                        <input type="tel" id="s-log-mobile" placeholder="Mobile Number" required class="w-full p-2 border rounded-lg text-sm">
+                        <input type="password" id="s-log-pass" placeholder="Password" required class="w-full p-2 border rounded-lg text-sm">
+                        <button type="submit" class="w-full bg-indigo-600 text-white py-3 rounded-lg font-bold">Sign In</button>
+                    </form>
+                    <form id="staff-reg-form" class="hidden space-y-4">
+                        <input type="text" id="s-reg-name" placeholder="Full Name" required class="w-full p-2 border rounded-lg text-sm">
+
+                        <!-- Dynamic Fields Container -->
+                        <div id="dynamic-reg-fields" class="space-y-4"></div>
+
+                        <select id="s-reg-branch" required class="w-full p-2 border rounded-lg bg-white text-sm">
+                            <option value="">Select Jern Yafoor School Branch</option>
+                            <option value="Jern Yafoor School 1">Jern Yafoor School 1</option>
+                            <option value="Jern Yafoor School 2">Jern Yafoor School 2</option>
+                        </select>
+
+                        <select id="s-reg-role" required class="w-full p-2 border rounded-lg bg-white text-sm">
+                            <option value="">Select Position</option>
+                            <option value="Cleaner">Cleaner</option>
+                            <option value="Cleaner Leader">Cleaner Leader</option>
+                            <option value="RT Technician">RT Technician</option>
+                            <option value="Security">Security</option>
+                        </select>
+                        <input type="text" id="s-reg-company" placeholder="Company ID Number" required class="w-full p-2 border rounded-lg text-sm">
+                        <input type="password" id="s-reg-pass" placeholder="Password" required class="w-full p-2 border rounded-lg text-sm">
+                        <input type="password" id="s-reg-confirm" placeholder="Confirm Password" required class="w-full p-2 border rounded-lg text-sm">
+                        <button type="submit" class="w-full bg-indigo-600 text-white py-3 rounded-lg font-bold">Register Staff</button>
+                    </form>
+                </div>
             </div>
 
-            <div class="flex border-b">
-                <button onclick="toggleTab('login')" id="login-tab" class="flex-1 py-4 font-bold text-indigo-600 border-b-2 border-indigo-600 transition">Login</button>
-                <button onclick="toggleTab('register')" id="register-tab" class="flex-1 py-4 font-bold text-gray-400 border-b-2 border-transparent transition">Register</button>
-            </div>
+            <div id="staff-dash-area" class="hidden w-full">
+                <!-- TOP NAVBAR -->
+                <nav class="navbar">
+                    <div class="brand-section">
+                        <div class="school-title">
+                            JERN YAFOOR CHARTER SCHOOL
+                            <span>مدرسة جتور للثراكات التعليمية</span>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-4">
+                        <div class="avatar" id="userAvatar">JY</div>
+                        <button id="delete-my-account" class="text-[10px] font-bold text-red-400 uppercase underline mr-2">Delete My Account</button>
+                        <button id="staff-logout" class="text-xs font-bold text-red-500 uppercase">Logout</button>
+                    </div>
+                </nav>
 
+                <div class="container py-6">
+                    <!-- DASHBOARD STATS -->
+                    <div class="stats-grid">
+                        <div class="stat-card">
+                            <div><p>Total Tasks</p><h3 id="statTotal">0</h3></div>
+                            <i class="fa-solid fa-list-check"></i>
+                        </div>
+                        <div class="stat-card" style="border-color: #FF9800;">
+                            <div><p>Pending Tasks</p><h3 id="statPending">0</h3></div>
+                            <i class="fa-solid fa-clock-rotate-left"></i>
+                        </div>
+                        <div class="stat-card" style="border-color: #4CAF50;">
+                            <div><p>Completed</p><h3 id="statCompleted">0</h3></div>
+                            <i class="fa-solid fa-circle-check"></i>
+                        </div>
+                    </div>
+
+                    <!-- ATTENDANCE ACTIONS -->
+                    <div class="glass-morphism p-4 rounded-xl flex justify-between items-center mb-6 text-gray-800">
+                        <div class="text-xs font-bold text-gray-500 uppercase tracking-widest" id="s-dash-role-display">Role</div>
+                        <div id="staff-action-container" class="flex gap-2">
+                            <button id="s-checkin-btn" class="bg-green-500 px-4 py-2 rounded-lg font-bold text-xs text-white shadow-lg active:bg-green-600">Check In</button>
+                            <button id="s-checkout-btn" class="bg-red-500 px-4 py-2 rounded-lg font-bold text-xs text-white shadow-lg active:bg-red-600 hidden">Check Out</button>
+                        </div>
+                    </div>
+
+                    <!-- CREATE TASK PANEL -->
+                    <div id="security-task-area" class="action-panel hidden text-gray-800">
+                        <h2><i class="fa-solid fa-plus-circle" style="color: var(--primary-teal);"></i> Create New Maintenance Task</h2>
+                        <div class="form-group">
+                            <input type="text" id="areaNameInput" placeholder="Area Name (e.g., Classroom 12B)">
+                            <select id="departmentSelect">
+                                <option value="">Select Target Role</option>
+                                <option value="Housekeeping">Housekeeping</option>
+                                <option value="RT Technician">RT Technician</option>
+                                <option value="Cleaner Leader">Cleaner Leader</option>
+                            </select>
+                            <input type="file" id="cameraInput" accept="image/*" capture="environment" class="hidden" onchange="handleTaskImageCapture(event)">
+                            <button class="btn btn-outline" onclick="document.getElementById('cameraInput').click()">
+                                <i class="fa-solid fa-camera"></i> <span id="cameraBtnText">Take Photo</span>
+                            </button>
+                            <button id="submitTaskBtn" class="btn btn-teal" onclick="submitNewMaintenanceTask()">Create Task</button>
+                        </div>
+                    </div>
+
+                    <!-- ACTIVE TASKS LIST -->
+                    <h2 style="font-size: 1.2rem; margin-bottom: 15px; font-weight: 700; color: #1e1b4b;">Active Task Cards</h2>
+                    <div class="tasks-grid" id="tasksContainer">
+                        <!-- Task Cards render here -->
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- FOOTER -->
+        <footer class="mt-auto py-6 text-center text-[10px] opacity-40 w-full">
+            &copy; 2026 Jarn Yafoor School Staff Management System
+        </footer>
+    </div>
+
+    <!-- SIGNATURE MODAL -->
+    <div id="signature-modal" class="fixed inset-0 bg-black/90 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white w-full max-w-sm rounded-3xl overflow-hidden shadow-2xl">
+            <div class="p-6 border-b flex justify-between items-center">
+                <h3 class="text-lg font-bold text-gray-800" id="sig-modal-title">Sign to Confirm</h3>
+                <button onclick="closeSignatureModal()" class="text-gray-400 p-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                </button>
+            </div>
             <div class="p-6">
-                <!-- Login Form -->
-                <form id="login-form" class="space-y-4">
-                    <input type="tel" id="login-mobile" placeholder="Mobile Number" required class="w-full p-3 border rounded-xl outline-none focus:ring-2 focus:ring-indigo-500">
-                    <input type="password" id="login-pass" placeholder="Password" required class="w-full p-3 border rounded-xl outline-none focus:ring-2 focus:ring-indigo-500">
-                    <button type="submit" class="w-full gradient-bg text-white py-3 rounded-xl font-bold hover:opacity-90 transition">Sign In</button>
-                </form>
-
-                <!-- Register Form -->
-                <form id="register-form" class="hidden space-y-4">
-                    <input type="text" id="reg-name" placeholder="Full Name" required class="w-full p-3 border rounded-xl outline-none focus:ring-2 focus:ring-indigo-500">
-                    <input type="tel" id="reg-mobile" placeholder="Mobile Number" required class="w-full p-3 border rounded-xl outline-none focus:ring-2 focus:ring-indigo-500">
-                    <input type="text" id="reg-id" placeholder="ADEK Pass Number" required class="w-full p-3 border rounded-xl outline-none focus:ring-2 focus:ring-indigo-500">
-                    <select id="reg-role" required class="w-full p-3 border rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 bg-white">
-                        <option value="">Select Position</option>
-                        <option value="Cleaner">Cleaner</option>
-                        <option value="Cleaner Leader">Cleaner Leader</option>
-                        <option value="Technician">Technician</option>
-                        <option value="Security">Security</option>
-                    </select>
-                    <input type="text" id="reg-company" placeholder="Company Name" required class="w-full p-3 border rounded-xl outline-none focus:ring-2 focus:ring-indigo-500">
-                    <input type="password" id="reg-pass" placeholder="Password" required class="w-full p-3 border rounded-xl outline-none focus:ring-2 focus:ring-indigo-500">
-                    <input type="password" id="reg-confirm" placeholder="Confirm Password" required class="w-full p-3 border rounded-xl outline-none focus:ring-2 focus:ring-indigo-500">
-                    <button type="submit" class="w-full gradient-bg text-white py-3 rounded-xl font-bold hover:opacity-90 transition">Register Now</button>
-                </form>
+                <div class="canvas-wrapper">
+                    <canvas id="sig-canvas" class="w-full h-64 border-2 border-dashed border-gray-200 rounded-2xl bg-gray-50"></canvas>
+                </div>
+                <div class="flex gap-4 mt-6">
+                    <button onclick="clearSigCanvas()" class="flex-1 py-3 border-2 border-gray-200 text-gray-500 font-bold rounded-xl active:bg-gray-50 transition text-sm">Clear</button>
+                    <button id="sig-confirm-btn" class="flex-1 py-3 bg-indigo-600 text-white font-bold rounded-xl active:bg-indigo-700 shadow-lg transition text-sm">Confirm</button>
+                </div>
             </div>
         </div>
     </div>
 
-    <!-- Dashboard Section (Hidden by Default) -->
-    <div id="dashboard-section" class="hidden pb-12">
-        <header class="gradient-bg text-white p-6 shadow-lg mb-8">
-            <div class="max-w-6xl mx-auto flex justify-between items-center">
-                <div>
-                    <h2 id="display-name" class="text-2xl font-bold">STAFF NAME</h2>
-                    <p id="display-role" class="text-sm font-semibold opacity-80 uppercase tracking-widest"></p>
-                </div>
-                <button onclick="logout()" class="bg-white/20 hover:bg-white/30 px-4 py-2 rounded-lg text-sm font-bold transition">Logout</button>
+    <!-- TASK CREATION MODAL -->
+    <div id="task-modal" class="fixed inset-0 bg-black/90 backdrop-blur-md z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white w-full max-w-md rounded-3xl overflow-hidden shadow-2xl text-gray-800">
+            <div class="p-6 border-b flex justify-between items-center bg-indigo-600 text-white">
+                <h3 class="text-lg font-bold">Raise New Issue / Task</h3>
+                <button onclick="closeTaskModal()"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg></button>
             </div>
-        </header>
-
-        <main class="max-w-6xl mx-auto px-4 grid grid-cols-1 gap-8">
-            <!-- Common Attendance Card -->
-            <div class="bg-white p-6 rounded-2xl shadow-md flex flex-wrap gap-4 items-center justify-between">
+            <form id="task-form" class="p-6 space-y-4">
+                <input type="text" id="task-loc" placeholder="Location (e.g. Block A, Room 102)" required class="w-full p-3 border rounded-xl">
+                <textarea id="task-desc" placeholder="Problem Details..." required class="w-full p-3 border rounded-xl h-24"></textarea>
+                <div class="grid grid-cols-2 gap-4">
+                    <select id="task-priority" required class="p-3 border rounded-xl bg-white">
+                        <option value="Low">Low Priority</option>
+                        <option value="Medium">Medium</option>
+                        <option value="High">High</option>
+                    </select>
+                    <select id="task-target" required class="p-3 border rounded-xl bg-white"></select>
+                </div>
                 <div>
-                    <h3 class="font-bold text-gray-800">Attendance Status</h3>
-                    <p class="text-sm text-gray-500" id="status-text">Not Checked-In</p>
+                    <label class="block text-xs font-bold text-gray-500 mb-2">Before Work Photo (Mandatory)</label>
+                    <div class="grid grid-cols-2 gap-3 mb-2">
+                        <button type="button" onclick="triggerPhotoCapture('task-photo-in', true)" class="flex flex-col items-center justify-center p-3 border-2 border-dashed border-indigo-200 rounded-xl hover:bg-indigo-50 transition">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-indigo-500 mb-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                            <span class="text-[10px] font-bold text-indigo-600">Take Photo</span>
+                        </button>
+                        <button type="button" onclick="triggerPhotoCapture('task-photo-in', false)" class="flex flex-col items-center justify-center p-3 border-2 border-dashed border-slate-200 rounded-xl hover:bg-slate-50 transition">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-slate-400 mb-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                            <span class="text-[10px] font-bold text-slate-500">Upload File</span>
+                        </button>
+                    </div>
+                    <input type="file" id="task-photo-in" accept="image/*" class="hidden" onchange="previewCapturedPhoto(this)">
+                    <div id="task-photo-preview" class="hidden relative h-32 w-full rounded-xl overflow-hidden mt-2">
+                        <img src="" class="w-full h-full object-cover" alt="Task Preview">
+                        <div class="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
+                            <button type="button" onclick="removeCapturedPhoto('task-photo-in')" class="text-white font-bold text-xs">Remove</button>
+                        </div>
+                    </div>
                 </div>
-                <div class="flex gap-4">
-                    <button id="checkin-btn" class="bg-green-500 text-white px-6 py-2 rounded-xl font-bold hover:bg-green-600 transition">Check In</button>
-                    <button id="checkout-btn" class="bg-red-500 text-white px-6 py-2 rounded-xl font-bold opacity-50 cursor-not-allowed transition" disabled>Check Out</button>
-                </div>
-            </div>
-
-            <!-- Role Specific Views -->
-            <div id="role-content"></div>
-        </main>
+                <button type="submit" id="task-submit-btn" class="w-full bg-indigo-600 text-white py-4 rounded-2xl font-bold shadow-lg">Save & Route Task</button>
+            </form>
+        </div>
     </div>
 
-    <script>
-        const authSection = document.getElementById('auth-section');
-        const dashboardSection = document.getElementById('dashboard-section');
-        const loginForm = document.getElementById('login-form');
-        const registerForm = document.getElementById('register-form');
-        const roleContent = document.getElementById('role-content');
+    <!-- REJECTION MODAL -->
+    <div id="reject-modal" class="fixed inset-0 bg-black/90 z-[60] hidden flex items-center justify-center p-4">
+        <div class="bg-white w-full max-w-sm rounded-3xl overflow-hidden p-6 text-gray-800">
+            <h3 class="text-lg font-bold text-red-600 mb-4">Reject Task</h3>
+            <textarea id="reject-reason" placeholder="Reason for rejection (Mandatory)..." class="w-full p-3 border rounded-xl h-24 mb-4"></textarea>
+            <div class="flex gap-2">
+                <button onclick="closeRejectModal()" class="flex-1 py-3 border rounded-xl font-bold">Cancel</button>
+                <button onclick="submitRejection()" class="flex-1 py-3 bg-red-600 text-white rounded-xl font-bold">Confirm Reject</button>
+            </div>
+        </div>
+    </div>
 
-        // Tab Switching
-        function toggleTab(tab) {
-            const loginTab = document.getElementById('login-tab');
-            const regTab = document.getElementById('register-tab');
-            if (tab === 'login') {
-                loginForm.classList.remove('hidden');
-                registerForm.classList.add('hidden');
-                loginTab.classList.add('text-indigo-600', 'border-indigo-600');
-                regTab.classList.remove('text-indigo-600', 'border-indigo-600');
-            } else {
-                loginForm.classList.add('hidden');
-                registerForm.classList.remove('hidden');
-                regTab.classList.add('text-indigo-600', 'border-indigo-600');
-                loginTab.classList.remove('text-indigo-600', 'border-indigo-600');
-            }
-        }
+    <!-- FULL SCREEN ZOOM MODAL -->
+    <div class="modal" id="imageModal">
+        <span class="modal-close" onclick="closeZoomModal()">&times;</span>
+        <img id="modalImage" src="" alt="Enlarged View">
+    </div>
 
-        // Auth Logic
-        registerForm.onsubmit = (e) => {
-            e.preventDefault();
-            if (document.getElementById('reg-pass').value !== document.getElementById('reg-confirm').value) {
-                alert("Passwords do not match!");
-                return;
-            }
-            const staff = {
-                name: document.getElementById('reg-name').value,
-                mobile: document.getElementById('reg-mobile').value,
-                id: document.getElementById('reg-id').value,
-                role: document.getElementById('reg-role').value,
-                company: document.getElementById('reg-company').value,
-                password: document.getElementById('reg-pass').value
-            };
-            localStorage.setItem(`staff_${staff.mobile}`, JSON.stringify(staff));
-            alert("Registration Successful!");
-            toggleTab('login');
-        };
-
-        loginForm.onsubmit = (e) => {
-            e.preventDefault();
-            const mobile = document.getElementById('login-mobile').value;
-            const pass = document.getElementById('login-pass').value;
-            const data = localStorage.getItem(`staff_${mobile}`);
-            if (data) {
-                const user = JSON.parse(data);
-                if (user.password === pass) {
-                    showDashboard(user);
-                } else {
-                    alert("Incorrect Password!");
-                }
-            } else {
-                alert("User not found!");
-            }
-        };
-
-        function showDashboard(user) {
-            authSection.classList.add('hidden');
-            dashboardSection.classList.remove('hidden');
-            document.getElementById('display-name').innerText = user.name;
-            document.getElementById('display-role').innerText = user.role;
-            renderRoleView(user.role);
-            setupAttendance();
-        }
-
-        function renderRoleView(role) {
-            let html = '';
-            if (role === 'Cleaner') {
-                html = `
-                    <div class="bg-white p-6 rounded-2xl shadow-md">
-                        <h3 class="text-xl font-bold mb-4">Attendance History</h3>
-                        <div class="space-y-3">
-                            <div class="flex justify-between p-3 bg-gray-50 rounded-lg"><span>Oct 25, 2023</span> <span class="text-green-600 font-bold">Present</span></div>
-                            <div class="flex justify-between p-3 bg-gray-50 rounded-lg"><span>Oct 24, 2023</span> <span class="text-green-600 font-bold">Present</span></div>
-                            <div class="flex justify-between p-3 bg-gray-50 rounded-lg"><span>Oct 23, 2023</span> <span class="text-red-500 font-bold">Absent</span></div>
-                        </div>
-                    </div>
-                `;
-            } else if (role === 'Cleaner Leader') {
-                html = `
-                    <div class="bg-white p-6 rounded-2xl shadow-md">
-                        <h3 class="text-xl font-bold mb-4">Reliever Entry (1 Day)</h3>
-                        <form class="space-y-4">
-                            <input type="text" placeholder="Reliever Full Name" class="w-full p-3 border rounded-xl">
-                            <input type="text" placeholder="Replacing Who?" class="w-full p-3 border rounded-xl">
-                            <button type="button" onclick="alert('Reliever Logged')" class="bg-indigo-600 text-white px-8 py-3 rounded-xl font-bold">Submit Entry</button>
-                        </form>
-                    </div>
-                `;
-            } else if (role === 'Technician') {
-                html = `
-                    <div class="bg-white p-6 rounded-2xl shadow-md">
-                        <h3 class="text-xl font-bold mb-4">Assigned Task Board</h3>
-                        <div class="p-4 border-2 border-dashed border-indigo-100 rounded-2xl">
-                            <div class="flex justify-between items-center">
-                                <div>
-                                    <h4 class="font-bold">Repair Water Leak - Block A</h4>
-                                    <p class="text-sm text-gray-500">Reported by Security</p>
-                                </div>
-                                <div class="flex flex-col items-end gap-2">
-                                    <input type="file" id="task-photo" class="hidden">
-                                    <button onclick="document.getElementById('task-photo').click()" class="text-xs text-indigo-600 underline">Add Photo</button>
-                                    <button onclick="this.parentElement.parentElement.remove()" class="bg-indigo-100 text-indigo-600 px-4 py-2 rounded-lg font-bold">Complete</button>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                `;
-            } else if (role === 'Security') {
-                html = `
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-                        <div class="bg-white p-6 rounded-2xl shadow-md">
-                            <h3 class="text-xl font-bold mb-4 text-indigo-600">Assign Technician Task</h3>
-                            <form class="space-y-4">
-                                <input type="text" placeholder="Task Title" class="w-full p-3 border rounded-xl">
-                                <textarea placeholder="Details" class="w-full p-3 border rounded-xl"></textarea>
-                                <button type="button" onclick="alert('Task Assigned')" class="w-full bg-indigo-600 text-white py-3 rounded-xl font-bold">Assign Task</button>
-                            </form>
-                        </div>
-                        <div class="bg-white p-6 rounded-2xl shadow-md">
-                            <h3 class="text-xl font-bold mb-4 text-red-500">Damage Item Report</h3>
-                            <form class="space-y-4">
-                                <input type="text" placeholder="Item Name / Location" class="w-full p-3 border rounded-xl">
-                                <input type="file" class="w-full text-sm">
-                                <button type="button" onclick="alert('Report Filed')" class="w-full bg-red-500 text-white py-3 rounded-xl font-bold">Report Damage</button>
-                            </form>
-                        </div>
-                    </div>
-                `;
-            }
-            roleContent.innerHTML = html;
-        }
-
-        function setupAttendance() {
-            const cin = document.getElementById('checkin-btn');
-            const cout = document.getElementById('checkout-btn');
-            const status = document.getElementById('status-text');
-
-            cin.onclick = () => {
-                cin.disabled = true; cin.classList.add('opacity-50', 'cursor-not-allowed');
-                cout.disabled = false; cout.classList.remove('opacity-50', 'cursor-not-allowed');
-                status.innerText = "Checked-In at " + new Date().toLocaleTimeString();
-            };
-            cout.onclick = () => {
-                alert("Checked out successfully.");
-                logout();
-            };
-        }
-
-        function logout() {
-            location.reload();
-        }
-    </script>
+    <script type="module" src="app.js"></script>
 </body>
 </html>

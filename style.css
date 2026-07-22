@@ -1,0 +1,217 @@
+:root {
+  --primary-teal: #00A8B5;
+  --primary-dark: #0A2540;
+  --bg-light: #F4F7FE;
+  --white: #FFFFFF;
+  --text-gray: #626C7A;
+  --border-color: #E2E8F0;
+  --shadow: 0px 8px 24px rgba(149, 157, 165, 0.1);
+}
+
+* { color: #0f172a !important; opacity: 1 !important; font-family: 'Poppins', sans-serif; }
+
+body {
+    background: var(--bg-light) !important;
+    min-height: 100vh;
+    margin: 0;
+    padding: 0;
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+    overflow-x: hidden;
+}
+
+/* --- DASHBOARD UI REPLACEMENT STYLES --- */
+.navbar {
+  background: var(--white);
+  padding: 12px 24px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 2px solid var(--border-color);
+  box-shadow: var(--shadow);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+.brand-section { display: flex; align-items: center; gap: 15px; }
+.school-title { font-size: 1.1rem; font-weight: 700; color: var(--primary-dark); line-height: 1.2; }
+.school-title span { font-size: 0.8rem; font-weight: 400; color: var(--primary-teal); display: block; }
+.avatar { width: 40px; height: 40px; background: var(--primary-teal); color: white !important; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 600; }
+.avatar * { color: white !important; }
+
+.stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 25px; }
+.stat-card { background: var(--white); padding: 18px; border-radius: 12px; box-shadow: var(--shadow); display: flex; align-items: center; justify-content: space-between; border-left: 5px solid var(--primary-teal); border-top: none !important; border-right: none !important; border-bottom: none !important; }
+.stat-card h3 { font-size: 1.5rem; font-weight: 700; margin: 0; }
+.stat-card p { font-size: 0.85rem; color: var(--text-gray); margin: 0; }
+.stat-card i { font-size: 1.8rem; color: var(--primary-teal); opacity: 0.8; }
+
+.action-panel { background: var(--white); padding: 20px; border-radius: 12px; box-shadow: var(--shadow); margin-bottom: 25px; }
+.action-panel h2 { font-size: 1.1rem; margin-bottom: 15px; color: var(--primary-dark); display: flex; align-items: center; gap: 8px; border: none !important; }
+.form-group { display: flex; flex-wrap: wrap; gap: 10px; }
+.form-group input, .form-group select { flex: 1; min-width: 180px; padding: 10px 14px !important; border: 1px solid var(--border-color) !important; border-radius: 8px !important; outline: none; }
+
+.btn { padding: 10px 20px !important; border: none !important; border-radius: 8px !important; cursor: pointer !important; font-weight: 500 !important; display: inline-flex !important; align-items: center !important; gap: 8px !important; transition: all 0.2s ease !important; }
+.btn-teal { background: var(--primary-teal) !important; color: white !important; }
+.btn-teal * { color: white !important; }
+.btn-outline { border: 1px solid var(--primary-teal) !important; color: var(--primary-teal) !important; background: transparent !important; }
+.btn-outline * { color: var(--primary-teal) !important; }
+
+.tasks-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 20px; }
+.task-card { background: var(--white) !important; border-radius: 12px !important; padding: 16px !important; box-shadow: var(--shadow) !important; display: flex !important; flex-direction: column !important; justify-content: space-between !important; border: none !important; margin: 0 !important; }
+.task-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px; }
+.badge { font-size: 0.75rem; padding: 4px 10px; border-radius: 20px; font-weight: 500; }
+.badge-pending { background: #FFF4E5; color: #FF9800 !important; }
+.badge-completed { background: #E8F5E9; color: #4CAF50 !important; }
+
+.image-preview-container { display: flex; gap: 10px; margin: 12px 0; }
+.img-box { flex: 1; height: 120px; background: #EAEFF5; border-radius: 8px; overflow: hidden; position: relative; cursor: pointer; border: 1px dashed #CBD5E1; display: flex; align-items: center; justify-content: center; }
+.img-box img { width: 100%; height: 100%; object-fit: cover; transition: transform 0.3s ease; opacity: 1 !important; }
+.img-label { position: absolute; bottom: 4px; left: 4px; background: rgba(10, 37, 64, 0.75); color: white !important; font-size: 0.65rem; padding: 2px 6px; border-radius: 4px; }
+.img-label * { color: white !important; }
+
+.modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.9); z-index: 2000; justify-content: center; align-items: center; flex-direction: column; }
+.modal img { max-width: 90%; max-height: 80%; border-radius: 8px; }
+.modal-close { position: absolute; top: 20px; right: 25px; color: white !important; font-size: 2.2rem; cursor: pointer; }
+
+.app-container {
+    width: 100%;
+    margin: 0 auto;
+    max-width: 1400px !important;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+}
+
+/* --- RESPONSIVE DASHBOARD CONTAINERS --- */
+.app-container, .main-card, .dashboard-wrapper, #view-admin-dash > div {
+    width: 95% !important;
+    max-width: 1400px !important;
+    margin: 20px auto !important;
+    padding: 20px !important;
+    box-sizing: border-box !important;
+}
+
+/* Ensure tables & tab contents expand 100% */
+table, .admin-tab, .overflow-x-auto {
+    width: 100% !important;
+    overflow-x: auto;
+}
+
+/* Global Safety - Prevent Horizontal Scrolling on all screens */
+html, body {
+  max-width: 100vw !important;
+  overflow-x: hidden !important;
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+/* ========================================================= */
+/* 📱 MOBILE LAYOUT RESET & VISIBILITY FIX                   */
+/* ========================================================= */
+@media screen and (max-width: 768px) {
+    html, body {
+      overflow-x: hidden !important;
+      width: 100vw !important;
+    }
+
+    /* Prevent Single Page Dump: Strict Routing */
+    .view-section.hidden, .hidden, [style*="display: none"] {
+      display: none !important;
+      visibility: hidden !important;
+      height: 0 !important;
+      overflow: hidden !important;
+      position: absolute !important;
+    }
+    .view-section.active, .active {
+      display: block !important;
+      visibility: visible !important;
+      height: auto !important;
+      position: relative !important;
+      width: 100% !important;
+    }
+
+    /* Natural Card Scaling & Proportions */
+    .portal-container, .container, .app-container, .main-card, #staff-auth-area, #view-admin-dash > div {
+      width: 95% !important;
+      max-width: 100% !important;
+      margin: 15px auto !important;
+      padding: 20px !important;
+      box-sizing: border-box !important;
+      border-radius: 16px !important;
+      box-shadow: var(--shadow) !important;
+    }
+
+    /* Interactions Fix */
+    button, a, input, select, textarea, .btn, [onclick] {
+      pointer-events: auto !important;
+      z-index: 10 !important;
+      cursor: pointer !important;
+    }
+
+    /* Signature Pad Fix (Proper Rectangle) */
+    .canvas-wrapper {
+      width: 100% !important;
+      height: 200px !important;
+      margin: 10px 0 !important;
+      border: 2px dashed var(--border-color) !important;
+      border-radius: 12px !important;
+      overflow: hidden !important;
+    }
+    canvas {
+      width: 100% !important;
+      height: 100% !important;
+      touch-action: none !important;
+    }
+
+    /* Modal Safety (Black box fix) */
+    .modal {
+      display: none !important;
+      position: fixed !important;
+      top: 0 !important; left: 0 !important;
+      width: 100vw !important; height: 100vh !important;
+      z-index: 9999 !important;
+      background: rgba(0,0,0,0.9) !important;
+    }
+    .modal[style*="display: flex"], .modal[style*="display: block"] {
+      display: flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+    }
+    #modalImage { max-width: 90% !important; max-height: 80% !important; border-radius: 8px !important; }
+
+    .stats-grid, .tasks-grid, .portal-options {
+        display: flex !important;
+        flex-direction: column !important;
+        gap: 15px !important;
+    }
+}
+
+/* ========================================================= */
+/* 🖥️ 3. DESKTOP / LAPTOP VIEW (1025px and above)            */
+/* ========================================================= */
+@media (min-width: 1025px) {
+    /* Keep desktop original design clean and centered */
+    .container, .main-wrapper, .portal-container, .app-container, .main-card, .dashboard-wrapper, #view-admin-dash > div {
+        display: block !important;
+        max-width: 1100px !important;
+        margin: 0 auto !important;
+    }
+    .stats-grid {
+        display: grid !important;
+        grid-template-columns: repeat(3, 1fr) !important;
+        gap: 20px !important;
+    }
+    .tasks-grid {
+        display: grid !important;
+        grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)) !important;
+        gap: 20px !important;
+    }
+    .portal-options {
+        display: grid !important;
+        grid-template-columns: 1fr 1fr !important;
+        gap: 30px !important;
+    }
+}

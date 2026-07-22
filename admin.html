@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Admin Portal - JYS Portal</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body class="text-white">
+    <div class="app-container">
+        <!-- ADMIN AUTH VIEW -->
+        <section id="view-admin-auth" class="view-section p-4 items-center justify-center flex-1 active">
+            <nav class="w-full flex items-center justify-between mb-12 text-white">
+                <a href="index.html" class="btn btn-outline" style="text-decoration: none;">
+                    <i class="fa-solid fa-arrow-left"></i>
+                    <span>Back</span>
+                </a>
+                <h2 class="text-lg font-bold uppercase tracking-widest text-white">Admin Login</h2>
+            </nav>
+
+            <div class="w-full bg-white text-gray-800 rounded-3xl shadow-2xl p-8">
+                <form id="admin-login-form" class="space-y-6">
+                    <div class="text-center mb-6">
+                        <div class="w-16 h-16 bg-indigo-100 text-indigo-600 rounded-full mx-auto flex items-center justify-center mb-2">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
+                        </div>
+                        <p class="text-xs text-gray-400">Restricted Access</p>
+                    </div>
+                    <input type="tel" id="admin-mobile" placeholder="Admin Mobile" required class="w-full p-3 border rounded-xl text-sm outline-none focus:ring-2 focus:ring-indigo-600">
+                    <input type="password" id="admin-pass" placeholder="Password" required class="w-full p-3 border rounded-xl text-sm outline-none focus:ring-2 focus:ring-indigo-600">
+                    <button type="submit" class="w-full bg-indigo-600 text-white py-3 rounded-xl font-bold text-lg active:bg-indigo-700 transition">Unlock</button>
+                </form>
+            </div>
+        </section>
+
+        <!-- ADMIN DASHBOARD VIEW -->
+        <section id="view-admin-dash" class="view-section hidden p-4">
+            <nav class="w-full flex items-center justify-between mb-8 pt-4">
+                <h2 class="text-2xl font-extrabold tracking-tighter text-indigo-900">ADMIN</h2>
+                <div class="flex items-center space-x-2">
+                     <button onclick="downloadExcelReport()" title="Attendance Report" class="bg-indigo-600 p-2 rounded-lg shadow-lg active:bg-indigo-700 transition">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                     </button>
+                     <button onclick="exportTaskReportExcel()" title="Task Audit Report" class="bg-green-600 p-2 rounded-lg shadow-lg active:bg-green-700 transition">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" /></svg>
+                     </button>
+                     <button onclick="openTaskModal()" title="Raise Task" class="bg-purple-600 p-2 rounded-lg shadow-lg active:bg-purple-700 transition">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" /></svg>
+                     </button>
+                     <button onclick="handleUserLogout()" class="bg-red-600 px-3 py-2 rounded-lg shadow-lg active:bg-red-700 transition flex items-center gap-2" title="Logout">
+                        <i class="fa-solid fa-right-from-bracket"></i>
+                        <span class="text-xs font-bold">Logout</span>
+                     </button>
+                </div>
+            </nav>
+
+            <div class="max-w-7xl mx-auto glass-morphism rounded-3xl overflow-hidden shadow-2xl bg-white text-gray-800">
+                <div class="flex bg-slate-50 border-b border-gray-200 overflow-x-auto">
+                    <button onclick="showAdminTab('tab-master')" id="masterLogsBtn" class="admin-tab-btn flex-1 py-4 font-bold transition active-tab">Master Logs</button>
+                    <button onclick="showAdminTab('tab-tasks')" id="taskAuditBtn" class="admin-tab-btn flex-1 py-4 font-bold transition">Task Audit</button>
+                    <button onclick="showAdminTab('tab-staff-list')" id="staffMgmtBtn" class="admin-tab-btn flex-1 py-4 font-bold transition">Staff Management</button>
+                </div>
+
+                <div class="p-4 space-y-4">
+                    <!-- Master Logs -->
+                    <div id="tab-master" class="admin-tab active space-y-4">
+                         <div class="flex flex-col md:flex-row gap-2">
+                            <input type="text" id="admin-search" placeholder="Search Logs..." class="flex-1 bg-white border border-gray-200 p-3 rounded-xl outline-none text-xs" oninput="filterAdminTable()">
+                            <div class="flex gap-2">
+                                <input type="date" id="admin-date-filter" class="flex-1 bg-white border border-gray-200 p-2 rounded-xl text-xs" onchange="filterAdminTable()">
+                                <select id="admin-type-filter" class="flex-1 bg-white border border-gray-200 p-2 rounded-xl text-xs" onchange="filterAdminTable()">
+                                    <option value="all">All</option>
+                                    <option value="visitor">Visitors</option>
+                                    <option value="staff">Staff</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="overflow-x-auto rounded-xl border border-gray-100">
+                            <table class="w-full text-left text-[10px] excel-table" id="main-admin-table">
+                                <thead class="bg-slate-50 uppercase font-bold text-indigo-600">
+                                    <tr><th class="p-3">Type</th><th class="p-3">ID / Pass</th><th class="p-3">Date</th><th class="p-3">Name</th><th class="p-3">In</th><th class="p-3">Out</th><th class="p-3 text-center">Sig</th></tr>
+                                </thead>
+                                <tbody id="admin-table-body" class="divide-y divide-gray-50"></tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Task Audit Tab -->
+                    <div id="tab-tasks" class="admin-tab space-y-4 hidden">
+                        <div class="overflow-x-auto rounded-xl border border-gray-100">
+                            <table class="w-full text-left text-[9px]" id="task-audit-table">
+                                <thead class="bg-slate-50 uppercase font-bold text-green-600">
+                                    <tr>
+                                        <th class="p-2">Task ID</th>
+                                        <th class="p-2">School</th>
+                                        <th class="p-2">Area</th>
+                                        <th class="p-2">Dept</th>
+                                        <th class="p-2">Raised By</th>
+                                        <th class="p-2">Raised Date</th>
+                                        <th class="p-2">Raised Time</th>
+                                        <th class="p-2">Fixed By</th>
+                                        <th class="p-2">Closed Date</th>
+                                        <th class="p-2">Closed Time</th>
+                                        <th class="p-2">Status</th>
+                                        <th class="p-2">Reason</th>
+                                        <th class="p-2 text-center">Photos</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="admin-task-list-body" class="divide-y divide-gray-50"></tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Staff Management -->
+                    <div id="tab-staff-list" class="admin-tab space-y-4 hidden">
+                        <div class="overflow-x-auto rounded-xl border border-gray-100">
+                            <table class="w-full text-left text-[10px]">
+                                <thead class="bg-slate-50 uppercase font-bold text-purple-600">
+                                    <tr><th class="p-3">Staff Name</th><th class="p-3">School Branch</th><th class="p-3">Position</th><th class="p-3">Company</th><th class="p-3">Mobile</th><th class="p-3 text-center">Action</th></tr>
+                                </thead>
+                                <tbody id="admin-staff-list-body" class="divide-y divide-gray-50"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- FOOTER -->
+        <footer class="mt-auto py-6 text-center text-[10px] opacity-40 w-full">
+            &copy; 2026 Jarn Yafoor School Staff Management System
+        </footer>
+    </div>
+
+    <!-- TASK CREATION MODAL (Reuse from Staff if needed) -->
+    <div id="task-modal" class="fixed inset-0 bg-black/90 backdrop-blur-md z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white w-full max-w-md rounded-3xl overflow-hidden shadow-2xl text-gray-800">
+            <div class="p-6 border-b flex justify-between items-center bg-indigo-600 text-white">
+                <h3 class="text-lg font-bold">Raise New Issue / Task</h3>
+                <button onclick="closeTaskModal()"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg></button>
+            </div>
+            <form id="task-form" class="p-6 space-y-4">
+                <input type="text" id="task-loc" placeholder="Location (e.g. Block A, Room 102)" required class="w-full p-3 border rounded-xl">
+                <textarea id="task-desc" placeholder="Problem Details..." required class="w-full p-3 border rounded-xl h-24"></textarea>
+                <div class="grid grid-cols-2 gap-4">
+                    <select id="task-priority" required class="p-3 border rounded-xl bg-white">
+                        <option value="Low">Low Priority</option>
+                        <option value="Medium">Medium</option>
+                        <option value="High">High</option>
+                    </select>
+                    <select id="task-target" required class="p-3 border rounded-xl bg-white"></select>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-gray-500 mb-2">Before Work Photo (Mandatory)</label>
+                    <input type="file" id="task-photo-in" accept="image/*" capture="environment" class="w-full p-2 border rounded-xl">
+                </div>
+                <button type="submit" id="task-submit-btn" class="w-full bg-indigo-600 text-white py-4 rounded-2xl font-bold shadow-lg">Save & Route Task</button>
+            </form>
+        </div>
+    </div>
+
+    <script type="module" src="app.js"></script>
+</body>
+</html>
