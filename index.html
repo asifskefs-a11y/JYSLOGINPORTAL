@@ -456,6 +456,13 @@
                 gap: 30px !important;
             }
         }
+
+        /* --- CRITICAL MOBILE VISIBILITY FIX --- */
+        @media screen and (max-width: 768px) {
+          .hidden { display: none !important; }
+          .active { display: flex !important; width: 100% !important; flex-direction: column !important; }
+          section.view-section:not(.active) { display: none !important; }
+        }
     </style>
 </head>
 <body class="text-white">
