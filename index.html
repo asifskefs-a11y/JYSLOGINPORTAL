@@ -459,9 +459,21 @@
 
         /* --- CRITICAL MOBILE VISIBILITY FIX --- */
         @media screen and (max-width: 768px) {
-          .hidden { display: none !important; }
-          .active { display: flex !important; width: 100% !important; flex-direction: column !important; }
-          section.view-section:not(.active) { display: none !important; }
+          .view-section.hidden, .hidden {
+            display: none !important;
+            visibility: hidden !important;
+            height: 0 !important;
+            overflow: hidden !important;
+            position: absolute !important;
+            pointer-events: none !important;
+          }
+          .view-section.active, .active {
+            display: flex !important;
+            visibility: visible !important;
+            height: auto !important;
+            position: relative !important;
+            width: 100% !important;
+          }
         }
     </style>
 </head>
@@ -902,7 +914,9 @@
                 target.classList.remove('hidden');
                 target.classList.add('active');
             }
-            window.scrollTo(0, 0);
+
+            // Force jump to top on section switch
+            window.scrollTo({ top: 0, behavior: 'smooth' });
 
             // Signal to module-based logic that view has changed
             window.dispatchEvent(new CustomEvent('viewChanged', { detail: { viewId } }));
