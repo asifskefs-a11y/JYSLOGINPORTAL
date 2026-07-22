@@ -365,7 +365,8 @@ window.openSignatureModal = (title, callback) => {
     sigCallback = callback;
     setTimeout(() => {
         if (!sigCanvas) return;
-        sigCanvas.width = sigCanvas.parentElement.offsetWidth; sigCanvas.height = 250;
+        sigCanvas.width = sigCanvas.parentElement.offsetWidth;
+        sigCanvas.height = sigCanvas.parentElement.offsetHeight;
         sigCtx.lineWidth = 3; sigCtx.lineCap = 'round'; sigCtx.strokeStyle = '#4f46e5';
     }, 50);
     if (sigCtx) sigCtx.clearRect(0, 0, sigCanvas.width, sigCanvas.height);
@@ -399,7 +400,8 @@ window.initVisitorCanvas = () => {
     const move = (e) => { e.preventDefault(); const p = getPos(e); vCtx.lineTo(p.x, p.y); vCtx.stroke(); };
     vCanvas.addEventListener('mousedown', start); vCanvas.addEventListener('mousemove', (e) => { if(e.buttons==1) move(e); });
     vCanvas.addEventListener('touchstart', start, {passive: false}); vCanvas.addEventListener('touchmove', move, {passive: false});
-    vCanvas.width = vCanvas.parentElement.offsetWidth; vCanvas.height = 128;
+    vCanvas.width = vCanvas.parentElement.offsetWidth;
+    vCanvas.height = vCanvas.parentElement.offsetHeight;
     vCtx.lineWidth = 2; vCtx.strokeStyle = '#4f46e5';
 };
 

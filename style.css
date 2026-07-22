@@ -134,21 +134,29 @@ html, body {
     }
 
     /* Natural Card Scaling & Proportions */
-    .portal-container, .container, .app-container, .main-card, #staff-auth-area, #view-admin-dash > div {
-      width: 95% !important;
+    .app-container {
+      width: 100% !important;
       max-width: 100% !important;
-      margin: 15px auto !important;
-      padding: 20px !important;
+      margin: 0 !important;
+      padding: 0 !important;
+    }
+
+    .portal-container, .container, .main-card, #staff-auth-area, #view-admin-dash > div {
+      width: 98% !important;
+      max-width: 100% !important;
+      margin: 10px auto !important;
+      padding: 20px 10px !important;
       box-sizing: border-box !important;
       border-radius: 16px !important;
       box-shadow: var(--shadow) !important;
     }
 
     /* Interactions Fix */
-    button, a, input, select, textarea, .btn, [onclick] {
+    button, a, input, select, textarea, .btn, [onclick], canvas {
       pointer-events: auto !important;
       z-index: 10 !important;
       cursor: pointer !important;
+      touch-action: none !important;
     }
 
     /* Signature Pad Fix (Proper Rectangle) */
@@ -159,11 +167,12 @@ html, body {
       border: 2px dashed var(--border-color) !important;
       border-radius: 12px !important;
       overflow: hidden !important;
+      background: #fff !important;
     }
     canvas {
       width: 100% !important;
       height: 100% !important;
-      touch-action: none !important;
+      display: block !important;
     }
 
     /* Modal Safety (Black box fix) */
