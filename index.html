@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, shrink-to-fit=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -126,10 +126,14 @@
         }
 
         /* ========================================================= */
-        /* 📱 1. MOBILE VIEW (Phones: Android & iPhone under 600px)   */
+        /* 📱 MOBILE VIEW (Phones: Android & iPhone under 600px)   */
         /* ========================================================= */
-        @media (max-width: 768px) {
-            /* 1. Reset Body & Main Container to Flow Naturally */
+        @media screen and (max-width: 600px) {
+            /* 1. Force Body & Root Containers to Fit Screen */
+            *, *::before, *::after {
+              box-sizing: border-box !important;
+            }
+
             html, body {
               width: 100% !important;
               max-width: 100vw !important;
@@ -138,84 +142,91 @@
               padding: 0 !important;
             }
 
-            /* 2. Force Container to Stack Vertically with Real Gap */
-            .container, .main-wrapper, .portal-container, .wrapper, div[class="container"], .app-container, .main-card, .dashboard-wrapper, #view-admin-dash > div {
-              display: flex !important;
-              flex-direction: column !important;
+            /* 2. KILL ALL FIXED WIDTHS & MIN-WIDTHS THAT CAUSE OVERLAPPING */
+            div, section, form, .container, .card, .portal-card, .wrapper, .app-container, .main-card, .dashboard-wrapper, #view-admin-dash > div {
               width: 100% !important;
               max-width: 100% !important;
-              padding: 16px !important;
-              margin: 0 auto !important;
-              box-sizing: border-box !important;
-              gap: 20px !important; /* Forces spacing between cards */
-            }
-
-            /* 3. Remove ALL Absolute Positioning from Cards & Icons (Fixes Overlap) */
-            .card, .portal-card, .btn-card, .icon-container, div[class="card"], .task-card, .stat-card {
-              position: relative !important; /* NEVER USE ABSOLUTE HERE */
+              min-width: 0 !important; /* Removes hardcoded px width */
+              position: relative !important; /* Force natural document flow */
               top: auto !important;
-              bottom: auto !important;
               left: auto !important;
               right: auto !important;
+              bottom: auto !important;
+              float: none !important;
+              margin: 0 0 16px 0 !important;
+              box-shadow: none !important;
+              border-radius: 0 !important;
+            }
+
+            /* 3. Main Wrapper Padding & Vertical Stacking */
+            .main-wrapper, .container, .portal-container {
+              display: flex !important;
+              flex-direction: column !important;
+              padding: 12px !important;
+              gap: 16px !important;
+            }
+
+            /* 4. Fix Cards & Buttons (Icon + Text vertical stack) */
+            .card, .portal-card, .btn-card, .task-card, .stat-card {
               display: flex !important;
               flex-direction: column !important;
               align-items: center !important;
               justify-content: center !important;
-              width: 100% !important;
-              margin: 0 0 15px 0 !important;
-              padding: 20px !important;
-              box-sizing: border-box !important;
-              gap: 12px !important; /* Space between Icon and Text inside Card */
+              padding: 20px 15px !important;
+              margin: 0 0 12px 0 !important;
+              height: auto !important; /* Let content dictate height */
+              min-height: auto !important;
+              gap: 10px !important;
             }
 
-            /* 4. Fix Elements inside Cards (Icons, Text, Buttons) */
-            .card img, .card i, .card svg, .portal-card img, .portal-card svg, .stat-card i, .task-card img {
+            /* 5. Fix Icons Overlapping Text */
+            .card img, .card svg, .card i, .portal-card svg, .portal-card img, .stat-card i, .task-card img {
               position: static !important;
-              margin: 0 auto !important;
-              width: 50px !important;
-              height: 50px !important;
+              margin: 0 0 8px 0 !important;
+              width: 48px !important;
+              height: 48px !important;
             }
             .card h1, .card h2, .card h3, .card p, .card span, .stat-card h3, .stat-card p {
               position: static !important;
               margin: 0 !important;
               text-align: center !important;
               width: 100% !important;
+              word-break: break-word !important;
             }
 
-            /* 5. Clean Form Input Layout */
+            /* 6. Form Field Inputs Stacked Vertically */
             .form-row, .grid-2-col, .input-group-row, .grid.grid-cols-2 {
               display: flex !important;
               flex-direction: column !important;
               width: 100% !important;
-              gap: 12px !important;
+              gap: 10px !important;
             }
             input, select, textarea, button {
               position: static !important;
               width: 100% !important;
+              max-width: 100% !important;
               height: 48px !important;
-              box-sizing: border-box !important;
+              font-size: 16px !important;
+              margin: 4px 0 !important;
             }
 
-            /* 6. Fix Signature Pad and Clear Button Overlap */
+            /* 7. Signature & Clear Button Stack */
             .signature-container, .canvas-wrapper {
               display: flex !important;
               flex-direction: column !important;
               width: 100% !important;
-              gap: 8px !important;
             }
             .btn-clear, #clearSigBtn, button[onclick*="clear"], button[onclick*="VisitorSig"] {
               position: relative !important;
               align-self: flex-end !important;
               width: auto !important;
               height: 36px !important;
-              margin-bottom: 5px !important;
+              margin-bottom: 6px !important;
             }
-
-            canvas#signature-pad, canvas.signature-canvas, canvas#v-sig-pad, canvas#sig-canvas {
+            canvas#signature-pad, canvas, canvas#v-sig-pad, canvas#sig-canvas {
                 width: 100% !important;
                 height: 180px !important;
                 touch-action: none !important;
-                box-sizing: border-box !important;
             }
         }
 
@@ -501,6 +512,114 @@
             display: flex;
             align-items: center;
             justify-content: center;
+        }
+
+        /* ======================================================= */
+        /* 📱 MOBILE STYLES - OVERRIDE ALL FIXED WIDTHS & POSITIONS */
+        /* ======================================================= */
+        @media screen and (max-width: 600px) {
+
+          /* 1. Force Body & Root Containers to Fit Screen */
+          *, *::before, *::after {
+            box-sizing: border-box !important;
+          }
+
+          html, body {
+            width: 100% !important;
+            max-width: 100vw !important;
+            overflow-x: hidden !important;
+            margin: 0 !important;
+            padding: 0 !important;
+          }
+
+          /* 2. KILL ALL FIXED WIDTHS & MIN-WIDTHS THAT CAUSE OVERLAPPING */
+          div, section, form, .container, .card, .portal-card, .wrapper, .portal-container, .portal-options, button, .app-container, .main-card, .dashboard-wrapper, #view-admin-dash > div {
+            width: 100% !important;
+            max-width: 100% !important;
+            min-width: 0 !important; /* Extremely Important! Removes hardcoded px width */
+            position: relative !important; /* Force natural document flow */
+            top: auto !important;
+            left: auto !important;
+            right: auto !important;
+            bottom: auto !important;
+            float: none !important;
+          }
+
+          /* 3. Main Wrapper Padding & Vertical Stacking */
+          .main-wrapper, .container, .portal-container, .portal-options {
+            display: flex !important;
+            flex-direction: column !important;
+            padding: 12px !important;
+            gap: 16px !important;
+          }
+
+          /* 4. Fix Cards & Buttons (Icon + Text vertical stack) */
+          .card, .portal-card, .btn-card, button[onclick*="showView"], .task-card, .stat-card {
+            display: flex !important;
+            flex-direction: column !important;
+            align-items: center !important;
+            justify-content: center !important;
+            padding: 20px 15px !important;
+            margin: 0 0 12px 0 !important;
+            height: auto !important; /* Let content dictate height */
+            min-height: auto !important;
+            gap: 10px !important;
+          }
+
+          /* 5. Fix Icons Overlapping Text */
+          .card img, .card svg, .card i, .portal-card svg, .portal-card img, button[onclick*="showView"] svg, button[onclick*="showView"] img, .stat-card i, .task-card img {
+            position: static !important;
+            margin: 0 0 8px 0 !important;
+            width: 48px !important;
+            height: 48px !important;
+          }
+
+          .card h1, .card h2, .card h3, .card p, .card span, button[onclick*="showView"] span, button[onclick*="showView"] p, .stat-card h3, .stat-card p {
+            position: static !important;
+            margin: 0 !important;
+            text-align: center !important;
+            width: 100% !important;
+            word-break: break-word !important;
+          }
+
+          /* 6. Form Field Inputs Stacked Vertically */
+          .form-row, .grid-2-col, .input-group-row, .grid.grid-cols-2 {
+            display: flex !important;
+            flex-direction: column !important;
+            width: 100% !important;
+            gap: 10px !important;
+          }
+
+          input, select, textarea, button {
+            position: static !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            height: 48px !important;
+            font-size: 16px !important;
+            margin: 4px 0 !important;
+          }
+
+          /* 7. Signature & Clear Button Stack */
+          .signature-container, .canvas-wrapper {
+            display: flex !important;
+            flex-direction: column !important;
+            width: 100% !important;
+          }
+
+          .btn-clear, #clearSigBtn, button[onclick*="clear"], button[onclick*="VisitorSig"] {
+            position: relative !important;
+            align-self: flex-end !important;
+            width: auto !important;
+            height: 36px !important;
+            margin-bottom: 6px !important;
+          }
+
+          canvas#signature-pad, canvas, canvas#v-sig-pad, canvas#sig-canvas {
+              width: 100% !important;
+              height: 180px !important;
+              touch-action: none !important;
+              box-sizing: border-box !important;
+          }
         }
     </style>
 </head>
