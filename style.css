@@ -183,16 +183,19 @@ html, body {
       height: 3.5rem !important;
     }
 
-    /* Interactions Fix */
+    /* Interactions Fix - CRITICAL FOR MOBILE SCROLLING */
+    html, body, .app-container, .view-section, .portal-container, .portal-options, a, button, div, span, p {
+      touch-action: auto !important; /* Ensures the whole page and all elements allow scrolling */
+    }
+
     button, a, .btn, [onclick] {
       pointer-events: auto !important;
       z-index: 10 !important;
       cursor: pointer !important;
-      touch-action: manipulation !important; /* ALLOWS SCROLLING */
     }
 
     canvas {
-      touch-action: none !important; /* Keep none only for drawing */
+      touch-action: none !important; /* Drawing only */
     }
 
     /* Signature Pad Fix (Proper Rectangle) */
