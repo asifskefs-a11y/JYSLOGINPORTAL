@@ -436,8 +436,24 @@
         @media (min-width: 1025px) {
             /* Keep desktop original design clean and centered */
             .container, .main-wrapper, .portal-container, .app-container, .main-card, .dashboard-wrapper, #view-admin-dash > div {
+                display: block !important;
                 max-width: 1100px !important;
                 margin: 0 auto !important;
+            }
+            .stats-grid {
+                display: grid !important;
+                grid-template-columns: repeat(3, 1fr) !important;
+                gap: 20px !important;
+            }
+            .tasks-grid {
+                display: grid !important;
+                grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)) !important;
+                gap: 20px !important;
+            }
+            .portal-options {
+                display: grid !important;
+                grid-template-columns: 1fr 1fr !important;
+                gap: 30px !important;
             }
         }
     </style>
