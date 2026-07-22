@@ -126,15 +126,10 @@
         }
 
         /* ========================================================= */
+        /* 📱 MOBILE LAYOUT FIT & CLICK ABILITY FIX (CONSOLIDATED)   */
         /* ========================================================= */
-        /* 📱 MOBILE VIEW (Phones: Android & iPhone under 600px)   */
-        /* ========================================================= */
-        @media screen and (max-width: 600px) {
-            /* 1. Force Body & Root Containers to Fit Screen */
-            *, *::before, *::after {
-              box-sizing: border-box !important;
-            }
-
+        @media screen and (max-width: 768px) {
+            /* 1. Make Container 100% Fit without Right-side Cutoff */
             html, body {
               width: 100% !important;
               max-width: 100vw !important;
@@ -143,376 +138,104 @@
               padding: 0 !important;
             }
 
-            /* 2. KILL ALL FIXED WIDTHS & MIN-WIDTHS THAT CAUSE OVERLAPPING */
-            div, section, form, .container, .card, .portal-card, .wrapper, .app-container, .main-card, .dashboard-wrapper, #view-admin-dash > div {
+            .container, .main-wrapper, .portal-container, .app-container, .main-card, .dashboard-wrapper, #view-admin-dash > div, div[class*="container"] {
+              width: 94% !important;
+              max-width: 100% !important;
+              margin: 10px auto !important;
+              padding: 16px 12px !important;
+              box-sizing: border-box !important;
+              border-radius: 16px !important;
+              display: flex !important;
+              flex-direction: column !important;
+              align-items: center !important;
+              gap: 15px !important;
+            }
+
+            /* 2. Unblock Button Clicks (Restore Interactivity) */
+            button, a, .card, .portal-card, .btn-card, input, select, .btn, [onclick], .stat-card, .task-card {
+              pointer-events: auto !important;
+              position: relative !important;
+              z-index: 10 !important; /* Brings buttons above any invisible overlay */
+              cursor: pointer !important;
+              touch-action: manipulation !important;
+            }
+
+            /* 3. Force Vertical Stacking & Kill Overlaps */
+            div, section, form, .card, .portal-card, .wrapper, .task-card, .stat-card, .portal-options {
               width: 100% !important;
               max-width: 100% !important;
-              min-width: 0 !important; /* Removes hardcoded px width */
-              position: relative !important; /* Force natural document flow */
+              min-width: 0 !important;
+              position: relative !important;
               top: auto !important;
               left: auto !important;
               right: auto !important;
               bottom: auto !important;
-              float: none !important;
-              margin: 0 0 16px 0 !important;
-              box-shadow: none !important;
-              border-radius: 0 !important;
-            }
-
-            /* 3. Main Wrapper Padding & Vertical Stacking */
-            .main-wrapper, .container, .portal-container {
-              display: flex !important;
-              flex-direction: column !important;
-              padding: 12px !important;
-              gap: 16px !important;
-            }
-
-            /* 4. Fix Cards & Buttons (Icon + Text vertical stack) */
-            .card, .portal-card, .btn-card, .task-card, .stat-card {
+              transform: none !important;
+              height: auto !important;
+              min-height: auto !important;
               display: flex !important;
               flex-direction: column !important;
               align-items: center !important;
               justify-content: center !important;
-              padding: 20px 15px !important;
-              margin: 0 0 12px 0 !important;
-              height: auto !important; /* Let content dictate height */
-              min-height: auto !important;
-              gap: 10px !important;
+              gap: 12px !important;
+              padding: 20px !important;
+              box-sizing: border-box !important;
+              margin-bottom: 10px !important;
+            }
+
+            /* 4. Fix Back Button Overflowing at Top */
+            .back-btn, nav button:first-child, button[onclick*="showView('view-landing')"], div[class*="back"] {
+              width: auto !important;
+              max-width: 120px !important;
+              border-radius: 30px !important;
+              padding: 6px 14px !important;
+              margin: 0 0 15px 0 !important;
+              display: inline-flex !important;
+              align-items: center !important;
+              justify-content: center !important;
             }
 
             /* 5. Fix Icons Overlapping Text */
-            .card img, .card svg, .card i, .portal-card svg, .portal-card img, .stat-card i, .task-card img {
+            .card img, .card svg, .card i, .portal-card svg, .portal-card img, .stat-card i, .task-card img, div[class*="icon"], .w-24, .h-24 {
               position: static !important;
-              margin: 0 0 8px 0 !important;
+              margin: 0 auto 8px auto !important;
               width: 48px !important;
               height: 48px !important;
+              min-width: 48px !important;
+              min-height: 48px !important;
             }
-            .card h1, .card h2, .card h3, .card p, .card span, .stat-card h3, .stat-card p {
+
+            .card h1, .card h2, .card h3, .card p, .card span, .stat-card h3, .stat-card p, button span, button p {
               position: static !important;
-              margin: 0 !important;
               text-align: center !important;
               width: 100% !important;
               word-break: break-word !important;
+              line-height: 1.3 !important;
             }
 
-            /* 6. Form Field Inputs Stacked Vertically */
+            /* 6. Form Layout & Input Stretch */
             .form-row, .grid-2-col, .input-group-row, .grid.grid-cols-2 {
               display: flex !important;
               flex-direction: column !important;
               width: 100% !important;
-              gap: 10px !important;
+              gap: 12px !important;
             }
-            input, select, textarea, button {
-              position: static !important;
+            input, select, textarea, button, .btn {
               width: 100% !important;
-              max-width: 100% !important;
               height: 48px !important;
+              box-sizing: border-box !important;
               font-size: 16px !important;
-              margin: 4px 0 !important;
             }
 
-            /* 7. Signature & Clear Button Stack */
-            .signature-container, .canvas-wrapper {
-              display: flex !important;
-              flex-direction: column !important;
-              width: 100% !important;
-            }
+            /* 7. Signature area fixes */
+            .signature-container, .canvas-wrapper { width: 100% !important; height: auto !important; display: flex !important; flex-direction: column !important; }
+            canvas { width: 100% !important; height: 180px !important; touch-action: none !important; }
             .btn-clear, #clearSigBtn, button[onclick*="clear"], button[onclick*="VisitorSig"] {
-              position: relative !important;
-              align-self: flex-end !important;
               width: auto !important;
               height: 36px !important;
-              margin-bottom: 6px !important;
+              align-self: flex-end !important;
+              margin-bottom: 8px !important;
             }
-            canvas#signature-pad, canvas, canvas#v-sig-pad, canvas#sig-canvas {
-                width: 100% !important;
-                height: 180px !important;
-                touch-action: none !important;
-            }
-        }
-
-        /* ========================================================= */
-        /* 📱💻 2. TABLET / iPAD VIEW (Between 601px and 1024px)     */
-        /* ========================================================= */
-        @media (min-width: 601px) and (max-width: 1024px) {
-            .container, .main-wrapper, .portal-container, .app-container, .main-card, .dashboard-wrapper, #view-admin-dash > div {
-                width: 90% !important;
-                max-width: 720px !important;
-                margin: 20px auto !important;
-                padding: 24px !important;
-            }
-            .grid-2-col, .grid.grid-cols-2 {
-                display: grid !important;
-                grid-template-columns: 1fr 1fr !important;
-                gap: 16px !important;
-            }
-            input, select, textarea, button {
-                height: 46px !important;
-                font-size: 15px !important;
-            }
-        }
-
-        /* ========================================================= */
-        /* 🖥️ 3. DESKTOP / LAPTOP VIEW (1025px and above)            */
-        /* ========================================================= */
-        @media (min-width: 1025px) {
-            /* Keep desktop original design clean and centered */
-            .container, .main-wrapper, .portal-container, .app-container, .main-card, .dashboard-wrapper, #view-admin-dash > div {
-                max-width: 1100px !important;
-                margin: 0 auto !important;
-            }
-        }
-
-        /* --- NEW RESPONSIVE PORTAL STYLES --- */
-        .portal-container {
-            width: 90% !important;
-            max-width: 900px !important;
-            margin: 40px auto !important;
-            padding: 40px 30px !important;
-            background: #ffffff !important;
-            border: 1px solid #e2e8f0 !important;
-            box-shadow: 0px 15px 35px rgba(0, 0, 0, 0.1) !important;
-            border-radius: 24px !important;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-        }
-
-        .portal-options {
-            display: grid !important;
-            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)) !important;
-            gap: 25px !important;
-            width: 100% !important;
-            margin-top: 20px;
-        }
-
-        @media (max-width: 768px) {
-            .portal-container {
-                width: 95% !important;
-                padding: 30px 20px !important;
-                margin: 20px auto !important;
-                border-radius: 20px !important;
-            }
-            .portal-options {
-                grid-template-columns: 1fr !important;
-            }
-        }
-
-        /* Modern Professional Cards */
-        .glass-morphism, .bg-white, .app-container > section > div, .task-card, #staff-auth-area {
-            background-color: #ffffff !important;
-            border: 1px solid #e2e8f0 !important;
-            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1) !important;
-            border-radius: 16px !important;
-            padding: 24px !important;
-            margin-bottom: 20px !important;
-        }
-
-        /* Clean Header & Navigation */
-        nav, header {
-            background-color: transparent !important;
-            padding: 16px !important;
-            border: none !important;
-        }
-
-        /* Modern Back Button */
-        nav button:first-child, button[onclick*="showView('view-landing')"] {
-            background-color: #f1f5f9 !important;
-            border: 1px solid #cbd5e1 !important;
-            color: #334155 !important;
-            padding: 8px 20px !important;
-            border-radius: 9999px !important;
-            font-weight: 600 !important;
-            display: flex !important;
-            align-items: center !important;
-            gap: 8px !important;
-        }
-
-        /* Titles */
-        h1, h2, .text-xl, .text-2xl, .text-3xl {
-            color: #1e1b4b !important;
-            font-weight: 800 !important;
-            letter-spacing: -0.025em !important;
-        }
-
-        #view-landing h1 { font-size: 2.5rem !important; }
-        .view-section h2 { font-size: 1.6rem !important; }
-
-        /* Modern Task Card */
-        .task-card {
-            background: #ffffff !important;
-            border: 1px solid #e2e8f0 !important;
-            border-radius: 12px !important;
-            padding: 16px !important;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1) !important;
-        }
-
-        /* Modern Inputs */
-        input, textarea, select {
-            border: 2px solid #cbd5e1 !important;
-            background-color: #ffffff !important;
-            color: #0f172a !important;
-            padding: 12px 16px !important;
-            border-radius: 8px !important;
-            width: 100% !important;
-            font-weight: 500 !important;
-            outline: none !important;
-            transition: all 0.2s !important;
-        }
-
-        input:focus, textarea:focus, select:focus {
-            border-color: #4f46e5 !important;
-            box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.2) !important;
-        }
-
-        /* Modern Buttons */
-        button, [type="submit"], .admin-tab-btn {
-            background-color: #4f46e5 !important;
-            color: #ffffff !important;
-            font-weight: 700 !important;
-            padding: 12px 24px !important;
-            border-radius: 8px !important;
-            border: none !important;
-            cursor: pointer !important;
-            transition: all 0.2s !important;
-            display: inline-flex !important;
-            align-items: center !important;
-            justify-content: center !important;
-            gap: 8px !important;
-        }
-
-        button:hover {
-            box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3) !important;
-            transform: translateY(-1px) !important;
-        }
-
-        /* Specific Color Buttons */
-        #s-checkout-btn, #v-signout-btn, #staff-logout, .text-red-500, .bg-red-600 {
-            background-color: #ef4444 !important;
-            color: #ffffff !important;
-        }
-        #s-checkin-btn, .bg-green-500, .bg-green-600 {
-            background-color: #10b981 !important;
-            color: #ffffff !important;
-        }
-
-        /* Ensure Icons in Buttons are Visible */
-        button svg, button svg * {
-            stroke: #ffffff !important;
-            color: #ffffff !important;
-        }
-
-        /* Modern Back Button (Override for light theme) */
-        nav button:first-child, button[onclick*="showView('view-landing')"] {
-            background-color: #f1f5f9 !important;
-            border: 1px solid #cbd5e1 !important;
-            color: #334155 !important;
-            padding: 8px 20px !important;
-            border-radius: 9999px !important;
-            font-weight: 600 !important;
-        }
-
-        nav button:first-child svg, nav button:first-child svg * {
-            stroke: #334155 !important;
-            color: #334155 !important;
-        }
-
-        /* Admin Tab Styling Fix */
-        .admin-tab-btn {
-            border-bottom: 2px solid transparent !important;
-            background: transparent !important;
-            color: #64748b !important;
-            border-radius: 0 !important;
-        }
-        .admin-tab-btn.active-tab {
-            border-bottom-color: #4f46e5 !important;
-            color: #4f46e5 !important;
-            background: rgba(79, 70, 229, 0.05) !important;
-        }
-
-        /* Logout Button Fix */
-        #staff-logout { margin-left: auto !important; }
-
-        /* Tables & Typography */
-        th { background-color: #f8fafc !important; color: #475569 !important; font-weight: 700 !important; border-bottom: 2px solid #e2e8f0 !important; }
-        td { color: #1e293b !important; border-bottom: 1px solid #f1f5f9 !important; }
-
-        /* SVG Icons Fix */
-        svg, svg * { color: inherit !important; stroke: currentColor !important; }
-
-        .view-section { display: none !important; }
-        .view-section.active { display: flex !important; flex-direction: column; width: 100%; min-height: 100vh; }
-        .hidden { display: none !important; }
-        canvas { touch-action: none; cursor: crosshair; border: 2px solid #cbd5e1 !important; border-radius: 8px !important; }
-
-        /* --- ZOOMABLE IMAGE MODAL --- */
-        #zoom-modal {
-            display: none;
-            position: fixed;
-            inset: 0;
-            background: rgba(0,0,0,0.95);
-            z-index: 1000;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            overflow: hidden;
-            touch-action: none;
-        }
-        #zoom-container {
-            width: 100%;
-            height: 100%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            position: relative;
-            overflow: hidden;
-        }
-        #zoom-img {
-            max-width: 95%;
-            max-height: 95%;
-            transition: transform 0.1s ease-out;
-            user-select: none;
-            -webkit-user-drag: none;
-        }
-        .zoom-controls {
-            position: fixed;
-            bottom: 30px;
-            left: 50%;
-            transform: translateX(-50%);
-            display: flex;
-            gap: 15px;
-            z-index: 1100;
-        }
-        .zoom-btn {
-            background: rgba(255,255,255,0.2);
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255,255,255,0.3);
-            color: white !important;
-            width: 44px;
-            height: 44px;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 20px;
-            font-weight: bold;
-            cursor: pointer;
-        }
-        #zoom-close {
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            color: white !important;
-            font-size: 30px;
-            cursor: pointer;
-            z-index: 1200;
-            width: 44px;
-            height: 44px;
-            background: rgba(0,0,0,0.5);
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
         }
 
         /* ======================================================= */
@@ -705,6 +428,17 @@
           /* Special Landing Title Fix */
           #view-landing h1 { font-size: 1.8rem !important; margin-bottom: 10px !important; }
           #view-landing header { margin-bottom: 20px !important; }
+        }
+
+        /* ========================================================= */
+        /* 🖥️ 3. DESKTOP / LAPTOP VIEW (1025px and above)            */
+        /* ========================================================= */
+        @media (min-width: 1025px) {
+            /* Keep desktop original design clean and centered */
+            .container, .main-wrapper, .portal-container, .app-container, .main-card, .dashboard-wrapper, #view-admin-dash > div {
+                max-width: 1100px !important;
+                margin: 0 auto !important;
+            }
         }
     </style>
 </head>
