@@ -240,6 +240,12 @@ html, body {
         margin-bottom: 20px !important;
     }
 
+    #asset-audit-section {
+        overflow-y: auto !important;
+        padding-bottom: 100px !important;
+        max-height: 90vh !important;
+    }
+
     #asset-audit-access button {
         min-height: 80px !important; /* Extra large touch targets */
         margin-bottom: 15px !important;

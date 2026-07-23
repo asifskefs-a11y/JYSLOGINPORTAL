@@ -116,24 +116,6 @@ window.checkStaffAuth = () => {
     } catch (e) { console.error("Auth Check Error:", e); }
 };
 
-// --- TASK MODAL LOGIC ---
-window.openTaskModal = () => {
-    try {
-        const targetSelect = document.getElementById('task-target');
-        if (!targetSelect) return;
-        targetSelect.innerHTML = '<option value="">Target Role</option>';
-        const roles = window.isAdminLoggedIn ? ['Security', 'RT Technician', 'Cleaner'] : ['Cleaner Leader', 'RT Technician'];
-        roles.forEach(r => targetSelect.innerHTML += `<option value="${r}">${r}</option>`);
-        const modal = document.getElementById('task-modal');
-        if (modal) modal.classList.remove('hidden');
-    } catch (e) { console.error("Open task modal error:", e); }
-};
-
-window.closeTaskModal = () => {
-    const modal = document.getElementById('task-modal');
-    if (modal) modal.classList.add('hidden');
-};
-
 // --- DASHBOARD RENDERING ---
 async function renderDashboard(staff) {
     try {
@@ -447,6 +429,72 @@ window.exportTaskReportExcel = () => {
     } catch (e) { console.error("Task Export Error:", e); }
 };
 
+window.downloadMasterAssetReport = async () => {
+    try {
+        if (!window.allAssets) return alert("No asset data!");
+        const workbook = new ExcelJS.Workbook();
+        const sheet = workbook.addWorksheet('Master Asset Register');
+
+        sheet.columns = [
+            { header: '1. Asset Barcode', key: 'f1', width: 20 },
+            { header: '2. Serial No.', key: 'f2', width: 20 },
+            { header: '3. Model Description', key: 'f3', width: 30 },
+            { header: '4. Asset Condition', key: 'f4', width: 15 },
+            { header: '5. Price Status', key: 'f5', width: 15 },
+            { header: '6. Asset Unit Cost', key: 'f6', width: 15 },
+            { header: '7. Asset Description', key: 'f7', width: 30 },
+            { header: '8. Date Place in Service', key: 'f8', width: 20 },
+            { header: '9. Manufacturer', key: 'f9', width: 20 },
+            { header: '10. Major Category', key: 'f10', width: 20 },
+            { header: '11. Sub Major Category', key: 'f11', width: 20 },
+            { header: '12. Sub Minor Category', key: 'f12', width: 20 },
+            { header: '13. DOF Major', key: 'f13', width: 15 },
+            { header: '14. DOF Minor', key: 'f14', width: 15 },
+            { header: '15. Category', key: 'f15', width: 15 },
+            { header: '16. Classification [Asset Name]', key: 'f16', width: 20 },
+            { header: '17. Location Name', key: 'f17', width: 20 },
+            { header: '18. School ESIS ID', key: 'f18', width: 15 },
+            { header: '19. School Building Name', key: 'f19', width: 25 },
+            { header: '20. Room Name', key: 'f20', width: 20 },
+            { header: '21. Room No', key: 'f21', width: 15 },
+            { header: '22. Room Barcode', key: 'f22', width: 20 },
+            { header: '23. Floor No', key: 'f23', width: 10 },
+            { header: '24. Floor Description', key: 'f24', width: 20 },
+            { header: '25. Barcode Status', key: 'f25', width: 15 },
+            { header: '26. Asset Status', key: 'f26', width: 15 },
+            { header: '27. Old School Name', key: 'f27', width: 25 },
+            { header: '28. Transaction No', key: 'f28', width: 20 },
+            { header: '29. Asset Useful Life', key: 'f29', width: 15 },
+            { header: '30. Asset Vendor Name', key: 'f30', width: 25 },
+            { header: '31. Old Asset Barcode', key: 'f31', width: 20 },
+            { header: '32. Existing Old Asset Barcode From FAR', key: 'f32', width: 30 },
+            { header: '33. Invoice No', key: 'f33', width: 20 },
+            { header: '34. DN No', key: 'f34', width: 20 },
+            { header: '35. Remarks', key: 'f35', width: 30 },
+            { header: '36. Physical Asset Register No', key: 'f36', width: 25 },
+            { header: '37. Fixed Asset Register No', key: 'f37', width: 25 },
+            { header: '38. Mapping Criteria', key: 'f38', width: 20 },
+            { header: '39. Audit Timestamp', key: 'f39', width: 25 }
+        ];
+
+        window.allAssets.forEach(a => {
+            sheet.addRow({
+                f1: a.assetBarcode, f2: a.serialNo, f3: a.modelDescription, f4: a.assetCondition, f5: a.priceStatus,
+                f6: a.unitCost, f7: a.assetDescription, f8: a.serviceDate, f9: a.manufacturer, f10: a.majorCategory,
+                f11: a.subMajorCategory, f12: a.subMinorCategory, f13: a.dofMajor, f14: a.dofMinor, f15: a.category,
+                f16: a.classification, f17: a.locationName, f18: a.esisId, f19: a.buildingName, f20: a.roomName,
+                f21: a.roomNo, f22: a.currentRoomBarcode, f23: a.floorNo, f24: a.floorDescription, f25: a.barcodeStatus,
+                f26: a.assetStatus, f27: a.oldSchoolName, f28: a.transactionNo, f29: a.usefulLife, f30: a.vendorName,
+                f31: a.oldBarcode, f32: a.farBarcode, f33: a.invoiceNo, f34: a.dnNo, f35: a.remarks,
+                f36: a.physRegNo, f37: a.fixedAssetRegNo, f38: a.mappingCriteria, f39: a.auditTimestamp
+            });
+        });
+
+        const buffer = await workbook.xlsx.writeBuffer();
+        saveAs(new Blob([buffer]), `Master_Asset_Register_${Date.now()}.xlsx`);
+    } catch (e) { console.error("Asset Export Error:", e); }
+};
+
 // --- VISITOR SYSTEM ---
 let vCanvas, vCtx;
 window.initVisitorCanvas = () => {
@@ -657,7 +705,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         if (path.includes('staff-login.html')) {
-            checkStaffAuth();
+            window.checkStaffAuth();
             window.loadRegistrationFields();
         }
 
@@ -669,3 +717,54 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 window.deleteStaffAccount = async (mobile, name) => { if(confirm(`Delete account for ${name}?`)) { try { await set(ref(db, 'staff/' + mobile), null); alert("Deleted."); loadAdminDashboard(); } catch (e) { alert(e.message); } } };
+
+// --- TASK MODAL LOGIC ---
+window.openTaskModal = () => {
+    try {
+        const targetSelect = document.getElementById('task-target');
+        if (!targetSelect) return;
+        targetSelect.innerHTML = '<option value="">Target Role</option>';
+        const roles = window.isAdminLoggedIn ? ['Security', 'RT Technician', 'Cleaner'] : ['Cleaner Leader', 'RT Technician'];
+        roles.forEach(r => targetSelect.innerHTML += `<option value="${r}">${r}</option>`);
+        const modal = document.getElementById('task-modal');
+        if (modal) modal.classList.remove('hidden');
+    } catch (e) { console.error("Open task modal error:", e); }
+};
+
+window.closeTaskModal = () => {
+    const modal = document.getElementById('task-modal');
+    if (modal) modal.classList.add('hidden');
+};
+
+window.closeTaskAction = async (taskId) => {
+    const fileInput = document.createElement('input'); fileInput.type = 'file'; fileInput.accept = 'image/*';
+    fileInput.onchange = async (e) => {
+        if(!e.target.files[0]) return;
+        alert("Processing After Photo...");
+        const comp = await window.compressImageFile(e.target.files[0]);
+        const url = await window.uploadToDrive({ type: 'photo', fileName: `After_${taskId}.png`, image: comp });
+        await update(ref(db, 'tasks/' + taskId), { status: 'Closed', afterPhotoUrl: url, solvedByName: window.currentStaff.name, solvedByRole: window.currentStaff.role, solvedTimestamp: new Date().toISOString() });
+        alert("Task Closed!"); loadRoleView(window.currentStaff);
+    };
+    if (confirm("Take CAMERA PHOTO (OK) or Gallery (Cancel)?")) fileInput.setAttribute('capture', 'environment');
+    fileInput.click();
+};
+
+window.openRejectModal = (id) => {
+    window.activeRejectId = id;
+    const modal = document.getElementById('reject-modal');
+    if (modal) modal.classList.remove('hidden');
+};
+
+window.closeRejectModal = () => {
+    const modal = document.getElementById('reject-modal');
+    if (modal) modal.classList.add('hidden');
+};
+
+window.submitRejection = async () => {
+    const reasonEl = document.getElementById('reject-reason');
+    const reason = reasonEl ? reasonEl.value : "";
+    if(!reason) return alert("Reason required.");
+    await update(ref(db, 'tasks/' + window.activeRejectId), { status: 'Rejected', rejectionReason: reason, rejectedByName: window.currentStaff.name, rejectedByRole: window.currentStaff.role, rejectedTimestamp: new Date().toISOString() });
+    alert("Rejected."); window.closeRejectModal(); loadRoleView(window.currentStaff);
+};

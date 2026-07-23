@@ -168,44 +168,167 @@
                     <button onclick="closeAssetAudit()" class="btn btn-outline">
                         <i class="fa-solid fa-arrow-left"></i> <span>Dashboard</span>
                     </button>
-                    <h2 class="text-xl font-bold text-indigo-900">Asset Audit</h2>
+                    <h2 class="text-xl font-bold text-indigo-900">Master Asset Register</h2>
                 </nav>
 
-                <!-- STEP 1: ROOM SCAN -->
-                <div id="step-room-scan" class="asset-card active">
-                    <h3 class="text-lg font-bold mb-2">Step 1: Set Room Context</h3>
-                    <p class="text-xs text-gray-500 mb-4 text-gray-800">Scan or type the barcode at the room entrance.</p>
-                    <div class="flex gap-2">
-                        <input type="text" id="room-barcode-input" placeholder="Room Barcode" class="flex-1 p-3 border rounded-xl text-sm">
-                        <button onclick="startCameraScanner('room')" class="bg-indigo-600 text-white p-3 rounded-xl flex items-center justify-center">
-                            <i class="fa-solid fa-camera"></i>
+                <form id="master-asset-form" class="space-y-4 pb-24">
+                    <!-- SECTION A: ASSET IDENTIFICATION -->
+                    <div class="border rounded-2xl overflow-hidden shadow-sm bg-white">
+                        <button type="button" onclick="toggleAccordion('sec-a')" class="w-full flex justify-between items-center p-4 bg-indigo-50 text-indigo-900 font-bold">
+                            <span>SECTION A: ASSET IDENTIFICATION</span>
+                            <i id="sec-a-icon" class="fa-solid fa-chevron-down"></i>
                         </button>
-                        <button onclick="processBarcodeManual('room')" class="bg-indigo-900 text-white px-4 rounded-xl font-bold text-xs uppercase">Set</button>
-                    </div>
-                    <div id="current-room-display" class="hidden mt-4 p-3 bg-indigo-50 rounded-lg border border-indigo-100 text-gray-800">
-                        <div class="flex justify-between items-center text-gray-800">
-                            <span class="text-xs font-bold text-indigo-600 uppercase">Active Room</span>
-                            <button onclick="resetRoomContext()" class="text-[10px] text-red-500 font-bold underline">Change</button>
+                        <div id="sec-a-content" class="p-4 space-y-4">
+                            <div class="flex gap-2">
+                                <input type="text" id="f1_asset_barcode" placeholder="1. Asset Barcode" class="flex-1 p-3 border rounded-xl text-sm text-gray-800">
+                                <button type="button" onclick="startCameraScanner('f1_asset_barcode')" class="bg-indigo-600 text-white p-3 rounded-xl"><i class="fa-solid fa-camera"></i></button>
+                            </div>
+                            <div class="flex gap-2">
+                                <input type="text" id="f2_serial_no" placeholder="2. Serial No." class="flex-1 p-3 border rounded-xl text-sm text-gray-800">
+                                <button type="button" onclick="startCameraScanner('f2_serial_no')" class="bg-indigo-600 text-white p-3 rounded-xl"><i class="fa-solid fa-camera"></i></button>
+                            </div>
+                            <input type="text" id="f3_model_desc" placeholder="3. Model Description" class="w-full p-3 border rounded-xl text-sm text-gray-800">
+                            <input type="text" id="f4_asset_cond" placeholder="4. Asset Condition" class="w-full p-3 border rounded-xl text-sm text-gray-800">
+                            <input type="text" id="f5_price_stat" placeholder="5. Price Status" class="w-full p-3 border rounded-xl text-sm text-gray-800">
+                            <input type="number" id="f6_unit_cost" placeholder="6. Asset Unit Cost" class="w-full p-3 border rounded-xl text-sm text-gray-800">
+                            <input type="text" id="f7_asset_desc" placeholder="7. Asset Description" class="w-full p-3 border rounded-xl text-sm text-gray-800">
+                            <div>
+                                <label class="block text-[10px] font-bold text-gray-400 mb-1 ml-2">8. DATE PLACE IN SERVICE</label>
+                                <input type="date" id="f8_service_date" class="w-full p-3 border rounded-xl text-sm text-gray-800">
+                            </div>
+                            <input type="text" id="f9_manufacturer" placeholder="9. Manufacturer" class="w-full p-3 border rounded-xl text-sm text-gray-800">
                         </div>
-                        <h4 id="active-room-id" class="text-xl font-black text-indigo-900 mt-1">-</h4>
-                        <p id="active-room-desc" class="text-xs text-indigo-700">-</p>
                     </div>
-                </div>
 
-                <!-- STEP 2: ASSET SCANNING -->
-                <div id="step-asset-audit" class="asset-card opacity-50 pointer-events-none mt-4">
-                    <h3 class="text-lg font-bold mb-2">Step 2: Audit Equipment</h3>
-                    <div class="flex gap-2 mb-4">
-                        <input type="text" id="asset-barcode-input" placeholder="Asset Barcode" class="flex-1 p-3 border rounded-xl text-sm">
-                        <button onclick="startCameraScanner('asset')" class="bg-teal-600 text-white p-3 rounded-xl flex items-center justify-center">
-                            <i class="fa-solid fa-camera"></i>
+                    <!-- SECTION B: CATEGORIZATION -->
+                    <div class="border rounded-2xl overflow-hidden shadow-sm bg-white">
+                        <button type="button" onclick="toggleAccordion('sec-b')" class="w-full flex justify-between items-center p-4 bg-indigo-50 text-indigo-900 font-bold">
+                            <span>SECTION B: CATEGORIZATION</span>
+                            <i id="sec-b-icon" class="fa-solid fa-chevron-right"></i>
                         </button>
-                        <button onclick="processBarcodeManual('asset')" class="bg-teal-800 text-white px-4 rounded-xl font-bold text-xs uppercase">Audit</button>
+                        <div id="sec-b-content" class="p-4 space-y-4 hidden text-gray-800">
+                            <select id="f10_major_cat" class="w-full p-3 border rounded-xl text-sm">
+                                <option value="">10. Major Category</option>
+                                <option value="Furniture & Fixtures">Furniture & Fixtures</option>
+                                <option value="Office Equipment">Office Equipment</option>
+                                <option value="Teaching Equipment">Teaching Equipment</option>
+                                <option value="Computer Hardware & Peripherals">Computer Hardware & Peripherals</option>
+                                <option value="Machinery & Equipment">Machinery & Equipment</option>
+                            </select>
+                            <select id="f11_sub_major" class="w-full p-3 border rounded-xl text-sm">
+                                <option value="">11. Sub Major Category</option>
+                                <option value="Office & School Furnitures">Office & School Furnitures</option>
+                                <option value="Telecommunication Equipment">Telecommunication Equipment</option>
+                                <option value="Boards & Tools">Boards & Tools</option>
+                                <option value="Computer Equipment">Computer Equipment</option>
+                                <option value="Multimedia Equipment">Multimedia Equipment</option>
+                            </select>
+                            <input type="text" id="f12_sub_minor" placeholder="12. Sub Minor Category" class="w-full p-3 border rounded-xl text-sm">
+                            <input type="text" id="f13_dof_major" placeholder="13. DOF Major" class="w-full p-3 border rounded-xl text-sm">
+                            <input type="text" id="f14_dof_minor" placeholder="14. DOF Minor" class="w-full p-3 border rounded-xl text-sm">
+                            <select id="f15_category" class="w-full p-3 border rounded-xl text-sm">
+                                <option value="">15. Category</option>
+                                <option value="NON IT">NON IT</option>
+                                <option value="IT">IT</option>
+                            </select>
+                            <select id="f16_class" class="w-full p-3 border rounded-xl text-sm">
+                                <option value="">16. Classification [Asset Name]</option>
+                                <option value="CHAIR">CHAIR</option>
+                                <option value="TABLE">TABLE</option>
+                                <option value="DESK">DESK</option>
+                                <option value="DISPLAY BOARDS / STANDS">DISPLAY BOARDS / STANDS</option>
+                                <option value="CENTER TABLE">CENTER TABLE</option>
+                                <option value="SMART BOARD">SMART BOARD</option>
+                                <option value="PROJECTORS">PROJECTORS</option>
+                                <option value="DRAWER">DRAWER</option>
+                                <option value="SHELVES">SHELVES</option>
+                            </select>
+                        </div>
                     </div>
-                    <div id="scanned-assets-list" class="space-y-3 max-h-[400px] overflow-y-auto text-gray-800">
-                        <!-- List of assets scanned in current session -->
+
+                    <!-- SECTION C: LOCATION & ROOM DETAILS -->
+                    <div class="border rounded-2xl overflow-hidden shadow-sm bg-white">
+                        <button type="button" onclick="toggleAccordion('sec-c')" class="w-full flex justify-between items-center p-4 bg-indigo-50 text-indigo-900 font-bold">
+                            <span>SECTION C: LOCATION & ROOM DETAILS</span>
+                            <i id="sec-c-icon" class="fa-solid fa-chevron-right"></i>
+                        </button>
+                        <div id="sec-c-content" class="p-4 space-y-4 hidden text-gray-800">
+                            <select id="f17_location" class="w-full p-3 border rounded-xl text-sm">
+                                <option value="Abu Dhabi">17. Location Name: Abu Dhabi</option>
+                            </select>
+                            <select id="f18_esis" class="w-full p-3 border rounded-xl text-sm">
+                                <option value="6024">18. School ESIS ID: 6024</option>
+                            </select>
+                            <select id="f19_school_building" class="w-full p-3 border rounded-xl text-sm">
+                                <option value="">19. School Building Name</option>
+                                <option value="Jern Yafoor School Building 1">Jern Yafoor School Building 1</option>
+                                <option value="Jern Yafoor School Building 2">Jern Yafoor School Building 2</option>
+                            </select>
+                            <input type="text" id="f20_room_name" placeholder="20. Room Name" class="w-full p-3 border rounded-xl text-sm">
+                            <div class="flex gap-2 text-gray-800">
+                                <input type="text" id="f21_room_no" placeholder="21. Room No" class="flex-1 p-3 border rounded-xl text-sm">
+                                <button type="button" onclick="startCameraScanner('f21_room_no')" class="bg-indigo-600 text-white p-3 rounded-xl"><i class="fa-solid fa-camera"></i></button>
+                            </div>
+                            <div class="flex gap-2 text-gray-800">
+                                <input type="text" id="f22_room_barcode" placeholder="22. Room Barcode" class="flex-1 p-3 border rounded-xl text-sm">
+                                <button type="button" onclick="startCameraScanner('f22_room_barcode')" class="bg-indigo-600 text-white p-3 rounded-xl"><i class="fa-solid fa-camera"></i></button>
+                            </div>
+                            <select id="f23_floor_no" class="w-full p-3 border rounded-xl text-sm">
+                                <option value="">23. Floor No</option>
+                                <option value="1">1</option>
+                                <option value="2">2</option>
+                            </select>
+                            <input type="text" id="f24_floor_desc" placeholder="24. Floor Description" class="w-full p-3 border rounded-xl text-sm">
+                        </div>
                     </div>
-                </div>
+
+                    <!-- SECTION D: AUDIT & STATUS -->
+                    <div class="border rounded-2xl overflow-hidden shadow-sm bg-white">
+                        <button type="button" onclick="toggleAccordion('sec-d')" class="w-full flex justify-between items-center p-4 bg-indigo-50 text-indigo-900 font-bold">
+                            <span>SECTION D: AUDIT & STATUS</span>
+                            <i id="sec-d-icon" class="fa-solid fa-chevron-right"></i>
+                        </button>
+                        <div id="sec-d-content" class="p-4 space-y-4 hidden text-gray-800">
+                            <select id="f25_barcode_stat" class="w-full p-3 border rounded-xl text-sm">
+                                <option value="Read">25. Barcode Status: Read</option>
+                                <option value="Counting">Counting</option>
+                            </select>
+                            <select id="f26_asset_stat" class="w-full p-3 border rounded-xl text-sm">
+                                <option value="Existing">26. Asset Status: Existing</option>
+                                <option value="Not Existing">Not Existing</option>
+                            </select>
+                            <input type="text" id="f27_old_school" placeholder="27. Old School Name" class="w-full p-3 border rounded-xl text-sm">
+                            <div class="flex gap-2">
+                                <input type="text" id="f28_trans_no" placeholder="28. Transaction No" class="flex-1 p-3 border rounded-xl text-sm">
+                                <button type="button" onclick="startCameraScanner('f28_trans_no')" class="bg-indigo-600 text-white p-3 rounded-xl"><i class="fa-solid fa-camera"></i></button>
+                            </div>
+                            <input type="text" id="f29_useful_life" placeholder="29. Asset Useful Life" class="w-full p-3 border rounded-xl text-sm">
+                            <input type="text" id="f30_vendor" placeholder="30. Asset Vendor Name" class="w-full p-3 border rounded-xl text-sm">
+                            <div class="flex gap-2">
+                                <input type="text" id="f31_old_barcode" placeholder="31. Old Asset Barcode" class="flex-1 p-3 border rounded-xl text-sm">
+                                <button type="button" onclick="startCameraScanner('f31_old_barcode')" class="bg-indigo-600 text-white p-3 rounded-xl"><i class="fa-solid fa-camera"></i></button>
+                            </div>
+                            <div class="flex gap-2">
+                                <input type="text" id="f32_far_barcode" placeholder="32. Existing Old Asset Barcode From FAR" class="flex-1 p-3 border rounded-xl text-sm">
+                                <button type="button" onclick="startCameraScanner('f32_far_barcode')" class="bg-indigo-600 text-white p-3 rounded-xl"><i class="fa-solid fa-camera"></i></button>
+                            </div>
+                            <div class="flex gap-2">
+                                <input type="text" id="f33_invoice_no" placeholder="33. Invoice No" class="flex-1 p-3 border rounded-xl text-sm">
+                                <button type="button" onclick="startCameraScanner('f33_invoice_no')" class="bg-indigo-600 text-white p-3 rounded-xl"><i class="fa-solid fa-camera"></i></button>
+                            </div>
+                            <div class="flex gap-2">
+                                <input type="text" id="f34_dn_no" placeholder="34. DN No" class="flex-1 p-3 border rounded-xl text-sm">
+                                <button type="button" onclick="startCameraScanner('f34_dn_no')" class="bg-indigo-600 text-white p-3 rounded-xl"><i class="fa-solid fa-camera"></i></button>
+                            </div>
+                            <input type="text" id="f35_remarks" placeholder="35. Remarks" class="w-full p-3 border rounded-xl text-sm">
+                            <input type="text" id="f36_phys_reg_no" readonly placeholder="36. Physical Asset Register No" class="w-full p-3 border rounded-xl text-sm bg-gray-50 text-indigo-600 font-bold">
+                            <input type="text" id="f37_fixed_reg_no" placeholder="37. Fixed Asset Register No" class="w-full p-3 border rounded-xl text-sm">
+                            <input type="text" id="f38_mapping" placeholder="38. Mapping Criteria" class="w-full p-3 border rounded-xl text-sm">
+                        </div>
+                    </div>
+
+                    <button type="submit" class="w-full bg-indigo-600 text-white py-5 rounded-2xl font-black shadow-xl sticky bottom-4">SAVE ASSET REGISTER (AUDIT)</button>
+                </form>
             </div>
 
             <!-- BARCODE SCANNER MODAL -->

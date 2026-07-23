@@ -16,7 +16,7 @@ window.openAssetAudit = () => {
         const audit = document.getElementById('asset-audit-section');
         if (dash) dash.classList.add('hidden');
         if (audit) audit.classList.remove('hidden');
-        window.resetRoomContext();
+        window.generatePhysRegNo();
     } catch (e) { console.error(e); }
 };
 
@@ -29,10 +29,35 @@ window.closeAssetAudit = () => {
     } catch (e) { console.error(e); }
 };
 
+window.toggleAccordion = (sectionId) => {
+    const content = document.getElementById(`${sectionId}-content`);
+    const icon = document.getElementById(`${sectionId}-icon`);
+    if (!content) return;
+    const isHidden = content.classList.contains('hidden');
+    if (isHidden) {
+        content.classList.remove('hidden');
+        icon.classList.replace('fa-chevron-right', 'fa-chevron-down');
+    } else {
+        content.classList.add('hidden');
+        icon.classList.replace('fa-chevron-down', 'fa-chevron-right');
+    }
+};
+
+window.generatePhysRegNo = async () => {
+    const snap = await get(ref(db, 'assets'));
+    let count = 1;
+    if (snap.exists()) {
+        count = Object.keys(snap.val()).length + 1;
+    }
+    const no = "JYS-" + count.toString().padStart(4, '0');
+    const el = document.getElementById('f36_phys_reg_no');
+    if (el) el.value = no;
+};
+
 // --- CAMERA SCANNER LOGIC ---
-window.startCameraScanner = async (target) => {
+window.startCameraScanner = async (inputId) => {
     try {
-        currentScanTarget = target;
+        currentScanTarget = inputId;
         const modal = document.getElementById('scanner-modal');
         if (modal) {
             modal.classList.remove('hidden');
@@ -51,11 +76,12 @@ window.startCameraScanner = async (target) => {
             (decodedText) => {
                 try {
                     window.stopCameraScanner();
-                    const inputId = currentScanTarget === 'room' ? 'room-barcode-input' : 'asset-barcode-input';
-                    const input = document.getElementById(inputId);
+                    const input = document.getElementById(currentScanTarget);
                     if (input) {
                         input.value = decodedText;
-                        window.processBarcodeManual(currentScanTarget);
+                        if (currentScanTarget === 'f22_room_barcode') {
+                            window.fetchRoomDetails(decodedText);
+                        }
                     }
                 } catch (e) { console.error("Scan processing error:", e); }
             },
@@ -81,144 +107,96 @@ window.stopCameraScanner = async () => {
     }
 };
 
-window.processBarcodeManual = async (type) => {
+window.fetchRoomDetails = async (roomBarcode) => {
     try {
-        const inputId = type === 'room' ? 'room-barcode-input' : 'asset-barcode-input';
-        const inputEl = document.getElementById(inputId);
-        const val = inputEl ? inputEl.value.trim() : "";
-        if (!val) return;
-
-        if (type === 'room') {
-            const snap = await get(child(ref(db), `rooms/${val}`));
-            if (snap.exists()) {
-                currentRoomContext = snap.val();
-                document.getElementById('current-room-display').classList.remove('hidden');
-                document.getElementById('active-room-id').innerText = currentRoomContext.roomBarcode;
-                document.getElementById('active-room-desc').innerText = `${currentRoomContext.floorNo} - ${currentRoomContext.roomNo}`;
-                document.getElementById('step-asset-audit').classList.remove('opacity-50', 'pointer-events-none');
-                currentAuditSessionAssets = [];
-                renderScannedAssets();
-                if (inputEl) inputEl.value = '';
-            } else { alert("Invalid Room Barcode"); }
-        } else {
-            if (!currentRoomContext) return alert("Please scan room first");
-            const assetSnap = await get(child(ref(db), `assets/${val}`));
-            if (assetSnap.exists()) {
-                const assetData = assetSnap.val();
-                await update(ref(db, `assets/${val}`), {
-                    currentRoomBarcode: currentRoomContext.roomBarcode,
-                    lastAuditDate: new Date().toLocaleDateString(),
-                    lastAuditBy: window.currentStaff ? window.currentStaff.name : "Unknown"
-                });
-                currentAuditSessionAssets.unshift({ ...assetData, status: 'Existing' });
-                renderScannedAssets();
-                if (inputEl) inputEl.value = '';
-            } else { alert("Asset not found in Master Register"); }
+        const snap = await get(child(ref(db), `rooms/${roomBarcode}`));
+        if (snap.exists()) {
+            const data = snap.val();
+            const rNo = document.getElementById('f21_room_no');
+            const bNm = document.getElementById('f19_school_building');
+            const fNo = document.getElementById('f23_floor_no');
+            if (rNo) rNo.value = data.roomNo || "";
+            if (bNm) bNm.value = data.buildingName || "";
+            if (fNo) fNo.value = data.floorNo || "";
         }
-    } catch (e) { console.error("Process Error:", e); }
-};
-
-window.resetRoomContext = () => {
-    currentRoomContext = null;
-    const roomDisplay = document.getElementById('current-room-display');
-    const assetAuditStep = document.getElementById('step-asset-audit');
-    const assetList = document.getElementById('scanned-assets-list');
-    if (roomDisplay) roomDisplay.classList.add('hidden');
-    if (assetAuditStep) assetAuditStep.classList.add('opacity-50', 'pointer-events-none');
-    if (assetList) assetList.innerHTML = '';
-};
-
-function renderScannedAssets() {
-    const container = document.getElementById('scanned-assets-list');
-    if (!container) return;
-    container.innerHTML = '';
-    currentAuditSessionAssets.forEach(a => {
-        container.innerHTML += `
-            <div class="asset-card ${a.majorCategory === 'IT' ? 'category-it' : 'category-nonit'}">
-                <div class="flex justify-between items-start">
-                    <div>
-                        <h4 class="font-bold text-sm text-indigo-900">${a.assetBarcode}</h4>
-                        <p class="text-[10px] text-gray-500">${a.modelDescription}</p>
-                    </div>
-                    <span class="asset-status-badge status-existing">Existing</span>
-                </div>
-                <div class="flex gap-2 mt-3">
-                    <button onclick="openDisposalModal('${a.assetBarcode}')" class="flex-1 py-2 bg-red-50 text-red-600 rounded-lg text-[10px] font-bold border border-red-100">MARK BROKEN / SCRAP</button>
-                </div>
-            </div>`;
-    });
-}
-
-// --- DISPOSAL MODULE ---
-window.openDisposalModal = (barcode) => {
-    activeDisposalBarcode = barcode;
-    const el = document.getElementById('disposal-barcode');
-    if (el) el.innerText = barcode;
-    const modal = document.getElementById('asset-disposal-modal');
-    if (modal) modal.classList.remove('hidden');
-};
-
-window.closeDisposalModal = () => {
-    const modal = document.getElementById('asset-disposal-modal');
-    if (modal) modal.classList.add('hidden');
-    activeDisposalBarcode = null;
-    disposalPhotoBase64 = "";
-    const preview = document.getElementById('disposal-photo-preview');
-    const btnText = document.getElementById('disposal-photo-btn-text');
-    if (preview) preview.classList.add('hidden');
-    if (btnText) btnText.innerText = "Take Damage Photo";
-};
-
-window.handleDisposalPhoto = async (e) => {
-    try {
-        const file = e.target.files[0];
-        if (!file) return;
-        const btnText = document.getElementById('disposal-photo-btn-text');
-        if (btnText) btnText.innerText = "Compressing...";
-        disposalPhotoBase64 = await window.compressImageFile(file, 800, 800, 0.6);
-        const preview = document.getElementById('disposal-photo-preview');
-        if (preview) {
-            preview.classList.remove('hidden');
-            preview.querySelector('img').src = disposalPhotoBase64;
-        }
-        if (btnText) btnText.innerText = "Photo Captured ✓";
     } catch (e) { console.error(e); }
 };
 
-window.submitAssetDisposal = async () => {
-    try {
-        const reason = document.getElementById('disposal-reason').value;
-        const scrapLoc = document.getElementById('disposal-scrap-loc').value;
-        if (!reason || !scrapLoc || !disposalPhotoBase64) return alert("Photo and details required!");
+// --- FORM SUBMISSION ---
+const masterAssetForm = document.getElementById('master-asset-form');
+if (masterAssetForm) {
+    masterAssetForm.onsubmit = async (e) => {
+        e.preventDefault();
+        const submitBtn = e.target.querySelector('button[type="submit"]');
+        submitBtn.disabled = true;
+        submitBtn.innerText = "SAVING...";
 
-        const btn = document.getElementById('submit-disposal-btn');
-        if (btn) { btn.disabled = true; btn.innerText = "Uploading..."; }
+        try {
+            const barcode = document.getElementById('f1_asset_barcode').value.trim();
+            if (!barcode) return alert("Asset Barcode is mandatory!");
 
-        const driveUrl = await window.uploadToDrive({
-            type: 'photo',
-            fileName: `Disposal_${activeDisposalBarcode}_${Date.now()}.png`,
-            image: disposalPhotoBase64
-        });
+            const assetData = {
+                assetBarcode: barcode,
+                serialNo: document.getElementById('f2_serial_no').value,
+                modelDescription: document.getElementById('f3_model_desc').value,
+                assetCondition: document.getElementById('f4_asset_cond').value,
+                priceStatus: document.getElementById('f5_price_stat').value,
+                unitCost: document.getElementById('f6_unit_cost').value,
+                assetDescription: document.getElementById('f7_asset_desc').value,
+                serviceDate: document.getElementById('f8_service_date').value,
+                manufacturer: document.getElementById('f9_manufacturer').value,
+                majorCategory: document.getElementById('f10_major_cat').value,
+                subMajorCategory: document.getElementById('f11_sub_major').value,
+                subMinorCategory: document.getElementById('f12_sub_minor').value,
+                dofMajor: document.getElementById('f13_dof_major').value,
+                dofMinor: document.getElementById('f14_dof_minor').value,
+                category: document.getElementById('f15_category').value,
+                classification: document.getElementById('f16_class').value,
+                locationName: document.getElementById('f17_location').value,
+                esisId: document.getElementById('f18_esis').value,
+                buildingName: document.getElementById('f19_school_building').value,
+                roomName: document.getElementById('f20_room_name').value,
+                roomNo: document.getElementById('f21_room_no').value,
+                currentRoomBarcode: document.getElementById('f22_room_barcode').value,
+                floorNo: document.getElementById('f23_floor_no').value,
+                floorDescription: document.getElementById('f24_floor_desc').value,
+                barcodeStatus: document.getElementById('f25_barcode_stat').value,
+                assetStatus: document.getElementById('f26_asset_stat').value,
+                oldSchoolName: document.getElementById('f27_old_school').value,
+                transactionNo: document.getElementById('f28_trans_no').value,
+                usefulLife: document.getElementById('f29_useful_life').value,
+                vendorName: document.getElementById('f30_vendor').value,
+                oldBarcode: document.getElementById('f31_old_barcode').value,
+                farBarcode: document.getElementById('f32_far_barcode').value,
+                invoiceNo: document.getElementById('f33_invoice_no').value,
+                dnNo: document.getElementById('f34_dn_no').value,
+                remarks: document.getElementById('f35_remarks').value,
+                physRegNo: document.getElementById('f36_phys_reg_no').value,
+                fixedAssetRegNo: document.getElementById('f37_fixed_reg_no').value,
+                mappingCriteria: document.getElementById('f38_mapping').value,
+                auditTimestamp: new Date().toLocaleString(),
+                auditBy: window.currentStaff ? window.currentStaff.name : "Unknown"
+            };
 
-        const updates = {
-            assetStatus: 'Disposed',
-            disposalReason: reason,
-            scrapLocation: scrapLoc,
-            disposalPhotoUrl: driveUrl,
-            disposalDate: new Date().toLocaleDateString(),
-            disposedBy: window.currentStaff ? window.currentStaff.name : "Unknown"
-        };
+            await set(ref(db, `assets/${barcode}`), assetData);
+            alert("Asset Registered Successfully!");
+            e.target.reset();
+            window.generatePhysRegNo();
+        } catch (err) {
+            alert("Error saving asset: " + err.message);
+        } finally {
+            submitBtn.disabled = false;
+            submitBtn.innerText = "SAVE ASSET REGISTER (AUDIT)";
+        }
+    };
+}
 
-        await update(ref(db, `assets/${activeDisposalBarcode}`), updates);
-        alert("Asset marked as Disposed.");
-        closeDisposalModal();
-        currentAuditSessionAssets = currentAuditSessionAssets.filter(a => a.assetBarcode !== activeDisposalBarcode);
-        renderScannedAssets();
-    } catch (err) { alert(err.message); }
-    finally {
-        const btn = document.getElementById('submit-disposal-btn');
-        if (btn) { btn.disabled = false; btn.innerText = "Confirm Scrap"; }
-    }
+// Re-implementing the old audit features for compatibility
+window.resetRoomContext = () => {
+    const rDisplay = document.getElementById('current-room-display');
+    if (rDisplay) rDisplay.classList.add('hidden');
+    const expectedContainer = document.getElementById('expected-assets-container');
+    if (expectedContainer) expectedContainer.innerHTML = '';
 };
 
 window.openDirectDisposal = async () => {
@@ -227,51 +205,5 @@ window.openDirectDisposal = async () => {
     const assetSnap = await get(child(ref(db), `assets/${val}`));
     if (assetSnap.exists()) {
         window.openDisposalModal(val);
-    } else {
-        alert("Asset not found in register.");
-    }
-};
-
-// --- ADMIN ASSET UI ---
-window.renderAdminAssetTable = (data) => {
-    const body = document.getElementById('admin-asset-list-body');
-    if (!body) return;
-    body.innerHTML = '';
-    data.forEach(a => {
-        const photo = a.disposalPhotoUrl ? window.getDirectDriveImageUrl(a.disposalPhotoUrl) : null;
-        body.innerHTML += `
-            <tr class="hover:bg-gray-50 transition border-b border-gray-100 text-gray-800">
-                <td class="p-2 font-mono text-gray-400">${a.currentRoomBarcode || '-'}</td>
-                <td class="p-2 font-bold">${a.assetBarcode}</td>
-                <td class="p-2 text-gray-800">
-                    <div class="font-bold">${a.majorCategory} > ${a.category}</div>
-                    <div class="text-[8px] opacity-60">${a.modelDescription}</div>
-                </td>
-                <td class="p-2 text-gray-800">${a.majorCategory}</td>
-                <td class="p-2 text-gray-800">${a.assetCondition || 'Good'}</td>
-                <td class="p-2 text-gray-800">
-                    <span class="asset-status-badge ${a.assetStatus === 'Disposed' ? 'status-disposed' : 'status-existing'}">${a.assetStatus || 'Existing'}</span>
-                </td>
-                <td class="p-2 text-gray-800">
-                    ${a.assetStatus === 'Disposed' ? `<div class="text-[8px] font-bold text-red-600">${a.disposalReason}</div><div class="text-[7px]">At: ${a.scrapLocation}</div>` : '-'}
-                </td>
-                <td class="p-2 text-center text-gray-800">
-                    ${photo ? `<img src="${photo}" class="h-8 w-8 rounded border mx-auto" onclick="window.openImageZoom('${photo}')">` : '-'}
-                </td>
-            </tr>`;
-    });
-};
-
-window.filterAssetTable = () => {
-    if (!window.allAssets) return;
-    const q = document.getElementById('asset-search').value.toLowerCase();
-    const cat = document.getElementById('asset-category-filter').value;
-    const stat = document.getElementById('asset-status-filter').value;
-    const filtered = window.allAssets.filter(a => {
-        const matchQ = a.assetBarcode.toLowerCase().includes(q) || (a.modelDescription || "").toLowerCase().includes(q) || (a.currentRoomBarcode && a.currentRoomBarcode.toLowerCase().includes(q));
-        const matchCat = cat === 'all' || a.majorCategory === cat;
-        const matchStat = stat === 'all' || (a.assetStatus || 'Existing') === stat;
-        return matchQ && matchCat && matchStat;
-    });
-    window.renderAdminAssetTable(filtered);
+    } else { alert("Asset not found in register."); }
 };
