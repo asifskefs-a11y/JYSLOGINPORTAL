@@ -77,6 +77,38 @@
                 </nav>
 
                 <div class="container py-6">
+                    <!-- ASSET AUDIT ACCESS (For Authorized Roles) - MOVED TO TOP FOR MOBILE -->
+                    <div id="asset-audit-access" class="hidden mb-8 space-y-4">
+                        <h2 style="font-size: 1.2rem; margin-bottom: 15px; font-weight: 700; color: #1e1b4b;">Asset Management</h2>
+                        <div class="grid grid-cols-1 gap-4">
+                            <button onclick="openAssetAudit()" class="w-full bg-orange-600 text-white p-5 rounded-2xl shadow-lg flex items-center justify-between transition-transform active:scale-95" style="min-height: 70px;">
+                                <div class="flex items-center gap-4">
+                                    <div class="bg-white/20 p-2 rounded-full">
+                                        <i class="fa-solid fa-barcode text-xl"></i>
+                                    </div>
+                                    <div class="text-left">
+                                        <span class="block text-lg font-bold">Item Audit</span>
+                                        <span class="text-[10px] opacity-80">Room & Equipment Scan</span>
+                                    </div>
+                                </div>
+                                <i class="fa-solid fa-chevron-right opacity-50"></i>
+                            </button>
+
+                            <button onclick="openDirectDisposal()" class="w-full bg-red-600 text-white p-5 rounded-2xl shadow-lg flex items-center justify-between transition-transform active:scale-95" style="min-height: 70px;">
+                                <div class="flex items-center gap-4">
+                                    <div class="bg-white/20 p-2 rounded-full">
+                                        <i class="fa-solid fa-trash-can text-xl"></i>
+                                    </div>
+                                    <div class="text-left">
+                                        <span class="block text-lg font-bold">Dispose Item</span>
+                                        <span class="text-[10px] opacity-80">Mark Broken / Scrap</span>
+                                    </div>
+                                </div>
+                                <i class="fa-solid fa-chevron-right opacity-50"></i>
+                            </button>
+                        </div>
+                    </div>
+
                     <!-- DASHBOARD STATS -->
                     <div class="stats-grid">
                         <div class="stat-card">
@@ -125,36 +157,6 @@
                     <h2 style="font-size: 1.2rem; margin-bottom: 15px; font-weight: 700; color: #1e1b4b;">Active Task Cards</h2>
                     <div class="tasks-grid" id="tasksContainer">
                         <!-- Task Cards render here -->
-                    </div>
-
-                    <!-- ASSET AUDIT ACCESS (For Authorized Roles) -->
-                    <div id="asset-audit-access" class="hidden mt-8 space-y-4">
-                        <h2 style="font-size: 1.2rem; margin-bottom: 15px; font-weight: 700; color: #1e1b4b;">Asset Management</h2>
-                        <button onclick="openAssetAudit()" class="w-full bg-orange-600 text-white p-6 rounded-3xl shadow-xl flex items-center justify-between transition-transform active:scale-95">
-                            <div class="flex items-center gap-4">
-                                <div class="bg-white/20 p-3 rounded-full">
-                                    <i class="fa-solid fa-barcode text-2xl"></i>
-                                </div>
-                                <div class="text-left">
-                                    <span class="block text-xl font-bold">Start Asset Audit</span>
-                                    <span class="text-sm opacity-80">Scan rooms and equipment</span>
-                                </div>
-                            </div>
-                            <i class="fa-solid fa-chevron-right opacity-50"></i>
-                        </button>
-
-                        <button onclick="openDirectDisposal()" class="w-full bg-red-600 text-white p-6 rounded-3xl shadow-xl flex items-center justify-between transition-transform active:scale-95">
-                            <div class="flex items-center gap-4">
-                                <div class="bg-white/20 p-3 rounded-full">
-                                    <i class="fa-solid fa-trash-can text-2xl"></i>
-                                </div>
-                                <div class="text-left">
-                                    <span class="block text-xl font-bold">Dispose Item</span>
-                                    <span class="text-sm opacity-80">Mark broken equipment</span>
-                                </div>
-                            </div>
-                            <i class="fa-solid fa-chevron-right opacity-50"></i>
-                        </button>
                     </div>
                 </div>
             </div>

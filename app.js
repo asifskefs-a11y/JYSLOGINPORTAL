@@ -166,10 +166,11 @@ async function renderDashboard(staff) {
     if (assetAuditAccess) {
         if (isSecurity || isCleanerLeader || isRTTech || isAdmin) {
             assetAuditAccess.classList.remove('hidden');
-            assetAuditAccess.style.display = 'block';
+            assetAuditAccess.setAttribute('style', 'display: block !important; visibility: visible !important; opacity: 1 !important;');
+            console.log("Forcing Asset Management Visibility for:", roleNormalized);
         } else {
             assetAuditAccess.classList.add('hidden');
-            assetAuditAccess.style.display = 'none';
+            assetAuditAccess.setAttribute('style', 'display: none !important;');
         }
     }
 
