@@ -105,6 +105,7 @@ if (staffLoginForm) {
 
 // --- DASHBOARD RENDERING ---
 async function renderDashboard(staff) {
+    if (!staff) return;
     window.currentStaff = staff;
     const authArea = document.getElementById('staff-auth-area');
     const dashArea = document.getElementById('staff-dash-area');
@@ -114,11 +115,11 @@ async function renderDashboard(staff) {
     if (dashArea) dashArea.classList.remove('hidden');
     if (logoutBtn) logoutBtn.classList.remove('hidden');
 
-    const initials = staff.name.split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2);
+    const initials = (staff.name || "JY").split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2);
     const avatar = document.getElementById('userAvatar');
     const roleDisplay = document.getElementById('s-dash-role-display');
     if (avatar) avatar.innerText = initials;
-    if (roleDisplay) roleDisplay.innerText = staff.role;
+    if (roleDisplay) roleDisplay.innerText = staff.role || "Staff";
 
     const activeSession = localStorage.getItem('staff_active_session');
     const sessionObj = activeSession ? JSON.parse(activeSession) : null;
@@ -136,15 +137,41 @@ async function renderDashboard(staff) {
         if (coutBtn) coutBtn.classList.add('hidden');
     }
 
+    // --- FORCE RENDER AUDIT/DISPOSE BUTTONS FOR AUTHORIZED ROLES ---
+    const roleStr = (staff.role || "").toLowerCase().trim();
+    // Normalize role string to handle spaces, underscores, and variations
+    const roleNormalized = roleStr.replace(/_/g, '').replace(/ /g, '');
+
     const securityArea = document.getElementById('security-task-area');
-    const roleNormalized = (staff.role || "").toLowerCase().trim().replace(/_/g, '').replace(/ /g, '');
-
-    if (securityArea) securityArea.classList.toggle('hidden', roleNormalized !== 'security');
-
-    // ASSET AUDIT ACCESS (Cleaner Leader, RT Technician, Security)
     const assetAuditAccess = document.getElementById('asset-audit-access');
-    const authorizedRoles = ['cleanerleader', 'rttechnician', 'security'];
-    if (assetAuditAccess) assetAuditAccess.classList.toggle('hidden', !authorizedRoles.includes(roleNormalized));
+
+    // Authorized roles: Security, Cleaner Leader, RT Technician, Admin
+    const isSecurity = roleNormalized === 'security';
+    const isCleanerLeader = roleNormalized === 'cleanerleader';
+    const isRTTech = roleNormalized === 'rttechnician';
+    const isAdmin = roleNormalized === 'admin';
+
+    // Show Create Task for Security or Admin
+    if (securityArea) {
+        if (isSecurity || isAdmin) {
+            securityArea.classList.remove('hidden');
+            securityArea.style.display = 'block';
+        } else {
+            securityArea.classList.add('hidden');
+            securityArea.style.display = 'none';
+        }
+    }
+
+    // Show Asset Audit for Cleaner Leader, RT Tech, Security, or Admin
+    if (assetAuditAccess) {
+        if (isSecurity || isCleanerLeader || isRTTech || isAdmin) {
+            assetAuditAccess.classList.remove('hidden');
+            assetAuditAccess.style.display = 'block';
+        } else {
+            assetAuditAccess.classList.add('hidden');
+            assetAuditAccess.style.display = 'none';
+        }
+    }
 
     loadRoleView(staff);
 }
@@ -320,6 +347,17 @@ window.openAssetAudit = () => {
 window.closeAssetAudit = () => {
     document.getElementById('staff-dash-area').classList.remove('hidden');
     document.getElementById('asset-audit-section').classList.add('hidden');
+};
+
+window.openDirectDisposal = async () => {
+    const val = prompt("Scan Asset Barcode for Disposal:");
+    if (!val) return;
+    const assetSnap = await get(child(ref(db), `assets/${val}`));
+    if (assetSnap.exists()) {
+        openDisposalModal(val);
+    } else {
+        alert("Asset not found in register.");
+    }
 };
 
 window.triggerBarcodeScan = async (type) => {

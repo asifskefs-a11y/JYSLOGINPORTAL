@@ -128,7 +128,7 @@
                     </div>
 
                     <!-- ASSET AUDIT ACCESS (For Authorized Roles) -->
-                    <div id="asset-audit-access" class="hidden mt-8">
+                    <div id="asset-audit-access" class="hidden mt-8 space-y-4">
                         <h2 style="font-size: 1.2rem; margin-bottom: 15px; font-weight: 700; color: #1e1b4b;">Asset Management</h2>
                         <button onclick="openAssetAudit()" class="w-full bg-orange-600 text-white p-6 rounded-3xl shadow-xl flex items-center justify-between transition-transform active:scale-95">
                             <div class="flex items-center gap-4">
@@ -138,6 +138,19 @@
                                 <div class="text-left">
                                     <span class="block text-xl font-bold">Start Asset Audit</span>
                                     <span class="text-sm opacity-80">Scan rooms and equipment</span>
+                                </div>
+                            </div>
+                            <i class="fa-solid fa-chevron-right opacity-50"></i>
+                        </button>
+
+                        <button onclick="openDirectDisposal()" class="w-full bg-red-600 text-white p-6 rounded-3xl shadow-xl flex items-center justify-between transition-transform active:scale-95">
+                            <div class="flex items-center gap-4">
+                                <div class="bg-white/20 p-3 rounded-full">
+                                    <i class="fa-solid fa-trash-can text-2xl"></i>
+                                </div>
+                                <div class="text-left">
+                                    <span class="block text-xl font-bold">Dispose Item</span>
+                                    <span class="text-sm opacity-80">Mark broken equipment</span>
                                 </div>
                             </div>
                             <i class="fa-solid fa-chevron-right opacity-50"></i>
