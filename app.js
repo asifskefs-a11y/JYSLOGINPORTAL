@@ -350,19 +350,51 @@ window.closeAssetAudit = () => {
     document.getElementById('asset-audit-section').classList.add('hidden');
 };
 
-window.openDirectDisposal = async () => {
-    const val = prompt("Scan Asset Barcode for Disposal:");
-    if (!val) return;
-    const assetSnap = await get(child(ref(db), `assets/${val}`));
-    if (assetSnap.exists()) {
-        openDisposalModal(val);
-    } else {
-        alert("Asset not found in register.");
+// --- CAMERA SCANNER LOGIC ---
+let html5QrCode = null;
+let currentScanTarget = null; // 'room' or 'asset'
+
+window.startCameraScanner = async (target) => {
+    currentScanTarget = target;
+    document.getElementById('scanner-modal').classList.remove('hidden');
+
+    if (!html5QrCode) {
+        html5QrCode = new Html5Qrcode("scanner-container");
+    }
+
+    const config = { fps: 10, qrbox: { width: 250, height: 150 } };
+
+    try {
+        await html5QrCode.start(
+            { facingMode: "environment" },
+            config,
+            (decodedText) => {
+                // Success
+                window.stopCameraScanner();
+                const inputId = currentScanTarget === 'room' ? 'room-barcode-input' : 'asset-barcode-input';
+                document.getElementById(inputId).value = decodedText;
+                window.processBarcodeManual(currentScanTarget);
+            },
+            (errorMessage) => {
+                // Error - keep scanning
+            }
+        );
+    } catch (err) {
+        alert("Camera Error: " + err);
+        window.stopCameraScanner();
     }
 };
 
-window.triggerBarcodeScan = async (type) => {
-    const val = prompt(`Scan ${type === 'room' ? 'Room' : 'Asset'} Barcode:`);
+window.stopCameraScanner = async () => {
+    if (html5QrCode && html5QrCode.isScanning) {
+        await html5QrCode.stop();
+    }
+    document.getElementById('scanner-modal').classList.add('hidden');
+};
+
+window.processBarcodeManual = async (type) => {
+    const inputId = type === 'room' ? 'room-barcode-input' : 'asset-barcode-input';
+    const val = document.getElementById(inputId).value.trim();
     if (!val) return;
 
     if (type === 'room') {
@@ -375,6 +407,7 @@ window.triggerBarcodeScan = async (type) => {
             document.getElementById('step-asset-audit').classList.remove('opacity-50', 'pointer-events-none');
             currentAuditSessionAssets = [];
             renderScannedAssets();
+            document.getElementById(inputId).value = '';
         } else {
             alert("Invalid Room Barcode");
         }
@@ -390,9 +423,21 @@ window.triggerBarcodeScan = async (type) => {
             });
             currentAuditSessionAssets.unshift({ ...assetData, status: 'Existing' });
             renderScannedAssets();
+            document.getElementById(inputId).value = '';
         } else {
             alert("Asset not found in Master Register");
         }
+    }
+};
+
+window.openDirectDisposal = async () => {
+    const val = prompt("Enter Asset Barcode for Disposal (Manual):");
+    if (!val) return;
+    const assetSnap = await get(child(ref(db), `assets/${val}`));
+    if (assetSnap.exists()) {
+        openDisposalModal(val);
+    } else {
+        alert("Asset not found in register.");
     }
 };
 

@@ -7,6 +7,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/html5-qrcode"></script>
     <link rel="stylesheet" href="style.css">
 </head>
 <body class="text-white">
@@ -173,10 +174,14 @@
                 <!-- STEP 1: ROOM SCAN -->
                 <div id="step-room-scan" class="asset-card active">
                     <h3 class="text-lg font-bold mb-2">Step 1: Set Room Context</h3>
-                    <p class="text-xs text-gray-500 mb-4 text-gray-800">Scan the barcode at the room entrance to begin.</p>
-                    <button onclick="triggerBarcodeScan('room')" class="w-full bg-indigo-600 text-white py-4 rounded-xl font-bold flex items-center justify-center gap-2">
-                        <i class="fa-solid fa-camera"></i> Scan Room Barcode
-                    </button>
+                    <p class="text-xs text-gray-500 mb-4 text-gray-800">Scan or type the barcode at the room entrance.</p>
+                    <div class="flex gap-2">
+                        <input type="text" id="room-barcode-input" placeholder="Room Barcode" class="flex-1 p-3 border rounded-xl text-sm">
+                        <button onclick="startCameraScanner('room')" class="bg-indigo-600 text-white p-3 rounded-xl flex items-center justify-center">
+                            <i class="fa-solid fa-camera"></i>
+                        </button>
+                        <button onclick="processBarcodeManual('room')" class="bg-indigo-900 text-white px-4 rounded-xl font-bold text-xs uppercase">Set</button>
+                    </div>
                     <div id="current-room-display" class="hidden mt-4 p-3 bg-indigo-50 rounded-lg border border-indigo-100 text-gray-800">
                         <div class="flex justify-between items-center text-gray-800">
                             <span class="text-xs font-bold text-indigo-600 uppercase">Active Room</span>
@@ -190,13 +195,33 @@
                 <!-- STEP 2: ASSET SCANNING -->
                 <div id="step-asset-audit" class="asset-card opacity-50 pointer-events-none mt-4">
                     <h3 class="text-lg font-bold mb-2">Step 2: Audit Equipment</h3>
-                    <div class="flex gap-2 mb-4 text-gray-800">
-                        <button onclick="triggerBarcodeScan('asset')" class="flex-1 bg-teal-600 text-white py-4 rounded-xl font-bold flex items-center justify-center gap-2 text-gray-800">
-                            <i class="fa-solid fa-qrcode"></i> Scan Asset
+                    <div class="flex gap-2 mb-4">
+                        <input type="text" id="asset-barcode-input" placeholder="Asset Barcode" class="flex-1 p-3 border rounded-xl text-sm">
+                        <button onclick="startCameraScanner('asset')" class="bg-teal-600 text-white p-3 rounded-xl flex items-center justify-center">
+                            <i class="fa-solid fa-camera"></i>
                         </button>
+                        <button onclick="processBarcodeManual('asset')" class="bg-teal-800 text-white px-4 rounded-xl font-bold text-xs uppercase">Audit</button>
                     </div>
                     <div id="scanned-assets-list" class="space-y-3 max-h-[400px] overflow-y-auto text-gray-800">
                         <!-- List of assets scanned in current session -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- BARCODE SCANNER MODAL -->
+            <div id="scanner-modal" class="fixed inset-0 bg-black/90 z-[100] hidden flex flex-col items-center justify-center p-4">
+                <div class="w-full max-w-md bg-white rounded-3xl overflow-hidden shadow-2xl relative">
+                    <div class="p-4 border-b flex justify-between items-center bg-gray-50">
+                        <h3 class="font-bold text-gray-800">Scanning Barcode...</h3>
+                        <button onclick="stopCameraScanner()" class="text-gray-400 p-2">
+                            <i class="fa-solid fa-xmark text-xl"></i>
+                        </button>
+                    </div>
+                    <div class="p-2">
+                        <div id="scanner-container" style="width: 100%; min-height: 300px; background: #000;"></div>
+                    </div>
+                    <div class="p-4 text-center text-xs text-gray-400">
+                        Align the barcode within the frame to scan automatically.
                     </div>
                 </div>
             </div>

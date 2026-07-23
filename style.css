@@ -271,6 +271,18 @@ html, body {
     .status-disposed { background: #FFEBEE; color: #C62828 !important; }
     .category-it { border-left-color: #2196F3 !important; }
     .category-nonit { border-left-color: #FF9800 !important; }
+
+    /* Scanner Styles */
+    #scanner-container video {
+        width: 100% !important;
+        height: 100% !important;
+        object-fit: cover !important;
+        border-radius: 12px !important;
+    }
+    #scanner-container {
+        border-radius: 12px !important;
+        overflow: hidden !important;
+    }
 }
 
 /* ========================================================= */
