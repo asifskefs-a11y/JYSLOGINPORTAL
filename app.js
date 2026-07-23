@@ -62,6 +62,265 @@ const checkStaffAuth = () => {
     }
 };
 
+// --- ASSET AUDIT SYSTEM ---
+let currentRoomContext = null;
+let currentAuditSessionAssets = [];
+
+window.openAssetAudit = () => {
+    document.getElementById('staff-dash-area').classList.add('hidden');
+    document.getElementById('asset-audit-section').classList.remove('hidden');
+    resetRoomContext();
+};
+
+window.closeAssetAudit = () => {
+    document.getElementById('staff-dash-area').classList.remove('hidden');
+    document.getElementById('asset-audit-section').classList.add('hidden');
+};
+
+window.triggerBarcodeScan = async (type) => {
+    const val = prompt(`Scan ${type === 'room' ? 'Room' : 'Asset'} Barcode:`);
+    if (!val) return;
+
+    if (type === 'room') {
+        const snap = await get(child(ref(db), `rooms/${val}`));
+        if (snap.exists()) {
+            currentRoomContext = snap.val();
+            document.getElementById('current-room-display').classList.remove('hidden');
+            document.getElementById('active-room-id').innerText = currentRoomContext.roomBarcode;
+            document.getElementById('active-room-desc').innerText = `${currentRoomContext.floorNo} - ${currentRoomContext.roomNo}`;
+            document.getElementById('step-asset-audit').classList.remove('opacity-50', 'pointer-events-none');
+            currentAuditSessionAssets = [];
+            renderScannedAssets();
+        } else {
+            alert("Invalid Room Barcode");
+        }
+    } else {
+        if (!currentRoomContext) return alert("Please scan room first");
+        const assetSnap = await get(child(ref(db), `assets/${val}`));
+        if (assetSnap.exists()) {
+            const assetData = assetSnap.val();
+            // Link asset to room if not already linked
+            await update(ref(db, `assets/${val}`), {
+                currentRoomBarcode: currentRoomContext.roomBarcode,
+                lastAuditDate: new Date().toLocaleDateString(),
+                lastAuditBy: window.currentStaff.name
+            });
+            currentAuditSessionAssets.unshift({ ...assetData, status: 'Existing' });
+            renderScannedAssets();
+        } else {
+            alert("Asset not found in Master Register");
+        }
+    }
+};
+
+window.resetRoomContext = () => {
+    currentRoomContext = null;
+    document.getElementById('current-room-display').classList.add('hidden');
+    document.getElementById('step-asset-audit').classList.add('opacity-50', 'pointer-events-none');
+    document.getElementById('scanned-assets-list').innerHTML = '';
+};
+
+function renderScannedAssets() {
+    const container = document.getElementById('scanned-assets-list');
+    container.innerHTML = '';
+    currentAuditSessionAssets.forEach(a => {
+        container.innerHTML += `
+            <div class="asset-card ${a.majorCategory === 'IT' ? 'category-it' : 'category-nonit'}">
+                <div class="flex justify-between items-start">
+                    <div>
+                        <h4 class="font-bold text-sm text-indigo-900">${a.assetBarcode}</h4>
+                        <p class="text-[10px] text-gray-500">${a.modelDescription}</p>
+                    </div>
+                    <span class="asset-status-badge status-existing">Existing</span>
+                </div>
+                <div class="flex gap-2 mt-3">
+                    <button onclick="openDisposalModal('${a.assetBarcode}')" class="flex-1 py-2 bg-red-50 text-red-600 rounded-lg text-[10px] font-bold border border-red-100">MARK BROKEN / SCRAP</button>
+                </div>
+            </div>`;
+    });
+}
+
+// DISPOSAL WORKFLOW
+let activeDisposalBarcode = null;
+let disposalPhotoBase64 = "";
+
+window.openDisposalModal = (barcode) => {
+    activeDisposalBarcode = barcode;
+    document.getElementById('disposal-barcode').innerText = barcode;
+    document.getElementById('asset-disposal-modal').classList.remove('hidden');
+};
+
+window.closeDisposalModal = () => {
+    document.getElementById('asset-disposal-modal').classList.add('hidden');
+    activeDisposalBarcode = null;
+    disposalPhotoBase64 = "";
+    document.getElementById('disposal-photo-preview').classList.add('hidden');
+    document.getElementById('disposal-photo-btn-text').innerText = "Take Damage Photo";
+};
+
+window.handleDisposalPhoto = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    document.getElementById('disposal-photo-btn-text').innerText = "Compressing...";
+    disposalPhotoBase64 = await compressImageFile(file, 800, 800, 0.6);
+    document.getElementById('disposal-photo-preview').classList.remove('hidden');
+    document.getElementById('disposal-photo-preview').querySelector('img').src = disposalPhotoBase64;
+    document.getElementById('disposal-photo-btn-text').innerText = "Photo Captured ✓";
+};
+
+window.submitAssetDisposal = async () => {
+    const reason = document.getElementById('disposal-reason').value;
+    const scrapLoc = document.getElementById('disposal-scrap-loc').value;
+    if (!reason || !scrapLoc || !disposalPhotoBase64) return alert("Photo and details required!");
+
+    const btn = document.getElementById('submit-disposal-btn');
+    btn.disabled = true; btn.innerText = "Uploading...";
+
+    try {
+        const driveUrl = await uploadToDrive({
+            type: 'photo',
+            fileName: `Disposal_${activeDisposalBarcode}_${Date.now()}.png`,
+            image: disposalPhotoBase64
+        });
+
+        const updates = {
+            assetStatus: 'Disposed',
+            disposalReason: reason,
+            scrapLocation: scrapLoc,
+            disposalPhotoUrl: driveUrl,
+            disposalDate: new Date().toLocaleDateString(),
+            disposedBy: window.currentStaff.name
+        };
+
+        await update(ref(db, `assets/${activeDisposalBarcode}`), updates);
+        alert("Asset marked as Disposed.");
+        closeDisposalModal();
+        // Refresh session list
+        currentAuditSessionAssets = currentAuditSessionAssets.filter(a => a.assetBarcode !== activeDisposalBarcode);
+        renderScannedAssets();
+    } catch (err) { alert(err.message); }
+    finally { btn.disabled = false; btn.innerText = "Confirm Scrap"; }
+};
+
+// ADMIN ASSET TABLE
+function renderAdminAssetTable(data) {
+    const body = document.getElementById('admin-asset-list-body');
+    if (!body) return;
+    body.innerHTML = '';
+    data.forEach(a => {
+        const photo = a.disposalPhotoUrl ? getDirectDriveImageUrl(a.disposalPhotoUrl) : null;
+        body.innerHTML += `
+            <tr class="hover:bg-gray-50 transition border-b border-gray-100">
+                <td class="p-2 font-mono text-gray-400">${a.currentRoomBarcode || '-'}</td>
+                <td class="p-2 font-bold">${a.assetBarcode}</td>
+                <td class="p-2">
+                    <div class="font-bold">${a.majorCategory} > ${a.category}</div>
+                    <div class="text-[8px] opacity-60">${a.modelDescription}</div>
+                </td>
+                <td class="p-2">${a.majorCategory}</td>
+                <td class="p-2">${a.assetCondition || 'Good'}</td>
+                <td class="p-2">
+                    <span class="asset-status-badge ${a.assetStatus === 'Disposed' ? 'status-disposed' : 'status-existing'}">${a.assetStatus || 'Existing'}</span>
+                </td>
+                <td class="p-2">
+                    ${a.assetStatus === 'Disposed' ? `<div class="text-[8px] font-bold text-red-600">${a.disposalReason}</div><div class="text-[7px]">At: ${a.scrapLocation}</div>` : '-'}
+                </td>
+                <td class="p-2 text-center">
+                    ${photo ? `<img src="${photo}" class="h-8 w-8 rounded border mx-auto" onclick="openImageZoom('${photo}')">` : '-'}
+                </td>
+            </tr>`;
+    });
+}
+
+window.filterAssetTable = () => {
+    const q = document.getElementById('asset-search').value.toLowerCase();
+    const cat = document.getElementById('asset-category-filter').value;
+    const stat = document.getElementById('asset-status-filter').value;
+
+    const filtered = window.allAssets.filter(a => {
+        const matchQ = a.assetBarcode.toLowerCase().includes(q) || a.modelDescription.toLowerCase().includes(q) || (a.currentRoomBarcode && a.currentRoomBarcode.toLowerCase().includes(q));
+        const matchCat = cat === 'all' || a.majorCategory === cat;
+        const matchStat = stat === 'all' || (a.assetStatus || 'Existing') === stat;
+        return matchQ && matchCat && matchStat;
+    });
+    renderAdminAssetTable(filtered);
+};
+
+// MULTI-TAB EXCEL WITH IMAGE EMBEDDING
+window.downloadMasterAssetReport = async () => {
+    if (!window.allAssets) return alert("No asset data!");
+
+    const workbook = new ExcelJS.Workbook();
+
+    // Tab 1: Active Audit
+    const activeSheet = workbook.addWorksheet('Active Audit List');
+    activeSheet.columns = [
+        { header: 'Room Barcode', key: 'room', width: 20 },
+        { header: 'Asset Barcode', key: 'barcode', width: 20 },
+        { header: 'Description', key: 'desc', width: 40 },
+        { header: 'Category', key: 'cat', width: 15 },
+        { header: 'Condition', key: 'cond', width: 15 }
+    ];
+    window.allAssets.filter(a => (a.assetStatus || 'Existing') === 'Existing').forEach(a => {
+        activeSheet.addRow({ room: a.currentRoomBarcode, barcode: a.assetBarcode, desc: a.modelDescription, cat: a.category, cond: a.assetCondition });
+    });
+
+    // Tab 2: Disposed Items (WITH IMAGES)
+    const disposedSheet = workbook.addWorksheet('Disposed Items');
+    disposedSheet.columns = [
+        { header: 'Asset Barcode', key: 'barcode', width: 20 },
+        { header: 'Original Room', key: 'room', width: 20 },
+        { header: 'Reason', key: 'reason', width: 30 },
+        { header: 'Scrap Location', key: 'loc', width: 20 },
+        { header: 'Disposed By', key: 'by', width: 20 },
+        { header: 'Item Damage Photo', key: 'photo', width: 25 }
+    ];
+
+    const disposedItems = window.allAssets.filter(a => a.assetStatus === 'Disposed');
+
+    for (let i = 0; i < disposedItems.length; i++) {
+        const a = disposedItems[i];
+        const rowIndex = i + 2; // +1 for header, +1 for 1-based index
+        disposedSheet.addRow({ barcode: a.assetBarcode, room: a.currentRoomBarcode, reason: a.disposalReason, loc: a.scrapLocation, by: a.disposedBy, photo: a.disposalPhotoUrl });
+        disposedSheet.getRow(rowIndex).height = 90;
+
+        if (a.disposalPhotoUrl) {
+            try {
+                const imgUrl = getDirectDriveImageUrl(a.disposalPhotoUrl);
+                const response = await fetch(imgUrl);
+                const blob = await response.blob();
+                const arrayBuffer = await blob.arrayBuffer();
+                const imageId = workbook.addImage({
+                    buffer: arrayBuffer,
+                    extension: 'png',
+                });
+                disposedSheet.addImage(imageId, {
+                    tl: { col: 5, row: rowIndex - 1 },
+                    br: { col: 6, row: rowIndex },
+                    editAs: 'oneCell'
+                });
+            } catch (e) { console.error("Img Embed Fail", e); }
+        }
+    }
+
+    // Tab 3: IT Assets
+    const itSheet = workbook.addWorksheet('IT Assets');
+    itSheet.columns = activeSheet.columns;
+    window.allAssets.filter(a => a.majorCategory === 'IT').forEach(a => {
+        itSheet.addRow({ room: a.currentRoomBarcode, barcode: a.assetBarcode, desc: a.modelDescription, cat: a.category, cond: a.assetCondition });
+    });
+
+    // Tab 4: Non-IT Assets
+    const nonItSheet = workbook.addWorksheet('Non-IT Assets');
+    nonItSheet.columns = activeSheet.columns;
+    window.allAssets.filter(a => a.majorCategory !== 'IT').forEach(a => {
+        nonItSheet.addRow({ room: a.currentRoomBarcode, barcode: a.assetBarcode, desc: a.modelDescription, cat: a.category, cond: a.assetCondition });
+    });
+
+    const buffer = await workbook.xlsx.writeBuffer();
+    saveAs(new Blob([buffer]), `Master_Asset_Register_${Date.now()}.xlsx`);
+};
+
 window.logoutStaff = () => {
     localStorage.removeItem('loggedStaff');
     localStorage.removeItem('staff_active_session');
@@ -137,6 +396,12 @@ async function renderDashboard(staff) {
 
     const securityArea = document.getElementById('security-task-area');
     if (securityArea) securityArea.classList.toggle('hidden', staff.role !== 'Security');
+
+    // ASSET AUDIT ACCESS
+    const assetAuditAccess = document.getElementById('asset-audit-access');
+    const authorizedRoles = ['Cleaner Leader', 'RT Technician', 'Security'];
+    if (assetAuditAccess) assetAuditAccess.classList.toggle('hidden', !authorizedRoles.includes(staff.role));
+
     loadRoleView(staff);
 }
 
@@ -283,6 +548,265 @@ window.submitNewMaintenanceTask = async () => {
     }
 };
 
+// --- ASSET AUDIT SYSTEM ---
+let currentRoomContext = null;
+let currentAuditSessionAssets = [];
+
+window.openAssetAudit = () => {
+    document.getElementById('staff-dash-area').classList.add('hidden');
+    document.getElementById('asset-audit-section').classList.remove('hidden');
+    resetRoomContext();
+};
+
+window.closeAssetAudit = () => {
+    document.getElementById('staff-dash-area').classList.remove('hidden');
+    document.getElementById('asset-audit-section').classList.add('hidden');
+};
+
+window.triggerBarcodeScan = async (type) => {
+    const val = prompt(`Scan ${type === 'room' ? 'Room' : 'Asset'} Barcode:`);
+    if (!val) return;
+
+    if (type === 'room') {
+        const snap = await get(child(ref(db), `rooms/${val}`));
+        if (snap.exists()) {
+            currentRoomContext = snap.val();
+            document.getElementById('current-room-display').classList.remove('hidden');
+            document.getElementById('active-room-id').innerText = currentRoomContext.roomBarcode;
+            document.getElementById('active-room-desc').innerText = `${currentRoomContext.floorNo} - ${currentRoomContext.roomNo}`;
+            document.getElementById('step-asset-audit').classList.remove('opacity-50', 'pointer-events-none');
+            currentAuditSessionAssets = [];
+            renderScannedAssets();
+        } else {
+            alert("Invalid Room Barcode");
+        }
+    } else {
+        if (!currentRoomContext) return alert("Please scan room first");
+        const assetSnap = await get(child(ref(db), `assets/${val}`));
+        if (assetSnap.exists()) {
+            const assetData = assetSnap.val();
+            // Link asset to room if not already linked
+            await update(ref(db, `assets/${val}`), {
+                currentRoomBarcode: currentRoomContext.roomBarcode,
+                lastAuditDate: new Date().toLocaleDateString(),
+                lastAuditBy: window.currentStaff.name
+            });
+            currentAuditSessionAssets.unshift({ ...assetData, status: 'Existing' });
+            renderScannedAssets();
+        } else {
+            alert("Asset not found in Master Register");
+        }
+    }
+};
+
+window.resetRoomContext = () => {
+    currentRoomContext = null;
+    document.getElementById('current-room-display').classList.add('hidden');
+    document.getElementById('step-asset-audit').classList.add('opacity-50', 'pointer-events-none');
+    document.getElementById('scanned-assets-list').innerHTML = '';
+};
+
+function renderScannedAssets() {
+    const container = document.getElementById('scanned-assets-list');
+    container.innerHTML = '';
+    currentAuditSessionAssets.forEach(a => {
+        container.innerHTML += `
+            <div class="asset-card ${a.majorCategory === 'IT' ? 'category-it' : 'category-nonit'}">
+                <div class="flex justify-between items-start">
+                    <div>
+                        <h4 class="font-bold text-sm text-indigo-900">${a.assetBarcode}</h4>
+                        <p class="text-[10px] text-gray-500">${a.modelDescription}</p>
+                    </div>
+                    <span class="asset-status-badge status-existing">Existing</span>
+                </div>
+                <div class="flex gap-2 mt-3">
+                    <button onclick="openDisposalModal('${a.assetBarcode}')" class="flex-1 py-2 bg-red-50 text-red-600 rounded-lg text-[10px] font-bold border border-red-100">MARK BROKEN / SCRAP</button>
+                </div>
+            </div>`;
+    });
+}
+
+// DISPOSAL WORKFLOW
+let activeDisposalBarcode = null;
+let disposalPhotoBase64 = "";
+
+window.openDisposalModal = (barcode) => {
+    activeDisposalBarcode = barcode;
+    document.getElementById('disposal-barcode').innerText = barcode;
+    document.getElementById('asset-disposal-modal').classList.remove('hidden');
+};
+
+window.closeDisposalModal = () => {
+    document.getElementById('asset-disposal-modal').classList.add('hidden');
+    activeDisposalBarcode = null;
+    disposalPhotoBase64 = "";
+    document.getElementById('disposal-photo-preview').classList.add('hidden');
+    document.getElementById('disposal-photo-btn-text').innerText = "Take Damage Photo";
+};
+
+window.handleDisposalPhoto = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    document.getElementById('disposal-photo-btn-text').innerText = "Compressing...";
+    disposalPhotoBase64 = await compressImageFile(file, 800, 800, 0.6);
+    document.getElementById('disposal-photo-preview').classList.remove('hidden');
+    document.getElementById('disposal-photo-preview').querySelector('img').src = disposalPhotoBase64;
+    document.getElementById('disposal-photo-btn-text').innerText = "Photo Captured ✓";
+};
+
+window.submitAssetDisposal = async () => {
+    const reason = document.getElementById('disposal-reason').value;
+    const scrapLoc = document.getElementById('disposal-scrap-loc').value;
+    if (!reason || !scrapLoc || !disposalPhotoBase64) return alert("Photo and details required!");
+
+    const btn = document.getElementById('submit-disposal-btn');
+    btn.disabled = true; btn.innerText = "Uploading...";
+
+    try {
+        const driveUrl = await uploadToDrive({
+            type: 'photo',
+            fileName: `Disposal_${activeDisposalBarcode}_${Date.now()}.png`,
+            image: disposalPhotoBase64
+        });
+
+        const updates = {
+            assetStatus: 'Disposed',
+            disposalReason: reason,
+            scrapLocation: scrapLoc,
+            disposalPhotoUrl: driveUrl,
+            disposalDate: new Date().toLocaleDateString(),
+            disposedBy: window.currentStaff.name
+        };
+
+        await update(ref(db, `assets/${activeDisposalBarcode}`), updates);
+        alert("Asset marked as Disposed.");
+        closeDisposalModal();
+        // Refresh session list
+        currentAuditSessionAssets = currentAuditSessionAssets.filter(a => a.assetBarcode !== activeDisposalBarcode);
+        renderScannedAssets();
+    } catch (err) { alert(err.message); }
+    finally { btn.disabled = false; btn.innerText = "Confirm Scrap"; }
+};
+
+// ADMIN ASSET TABLE
+function renderAdminAssetTable(data) {
+    const body = document.getElementById('admin-asset-list-body');
+    if (!body) return;
+    body.innerHTML = '';
+    data.forEach(a => {
+        const photo = a.disposalPhotoUrl ? getDirectDriveImageUrl(a.disposalPhotoUrl) : null;
+        body.innerHTML += `
+            <tr class="hover:bg-gray-50 transition border-b border-gray-100">
+                <td class="p-2 font-mono text-gray-400">${a.currentRoomBarcode || '-'}</td>
+                <td class="p-2 font-bold">${a.assetBarcode}</td>
+                <td class="p-2">
+                    <div class="font-bold">${a.majorCategory} > ${a.category}</div>
+                    <div class="text-[8px] opacity-60">${a.modelDescription}</div>
+                </td>
+                <td class="p-2">${a.majorCategory}</td>
+                <td class="p-2">${a.assetCondition || 'Good'}</td>
+                <td class="p-2">
+                    <span class="asset-status-badge ${a.assetStatus === 'Disposed' ? 'status-disposed' : 'status-existing'}">${a.assetStatus || 'Existing'}</span>
+                </td>
+                <td class="p-2">
+                    ${a.assetStatus === 'Disposed' ? `<div class="text-[8px] font-bold text-red-600">${a.disposalReason}</div><div class="text-[7px]">At: ${a.scrapLocation}</div>` : '-'}
+                </td>
+                <td class="p-2 text-center">
+                    ${photo ? `<img src="${photo}" class="h-8 w-8 rounded border mx-auto" onclick="openImageZoom('${photo}')">` : '-'}
+                </td>
+            </tr>`;
+    });
+}
+
+window.filterAssetTable = () => {
+    const q = document.getElementById('asset-search').value.toLowerCase();
+    const cat = document.getElementById('asset-category-filter').value;
+    const stat = document.getElementById('asset-status-filter').value;
+
+    const filtered = window.allAssets.filter(a => {
+        const matchQ = a.assetBarcode.toLowerCase().includes(q) || a.modelDescription.toLowerCase().includes(q) || (a.currentRoomBarcode && a.currentRoomBarcode.toLowerCase().includes(q));
+        const matchCat = cat === 'all' || a.majorCategory === cat;
+        const matchStat = stat === 'all' || (a.assetStatus || 'Existing') === stat;
+        return matchQ && matchCat && matchStat;
+    });
+    renderAdminAssetTable(filtered);
+};
+
+// MULTI-TAB EXCEL WITH IMAGE EMBEDDING
+window.downloadMasterAssetReport = async () => {
+    if (!window.allAssets) return alert("No asset data!");
+
+    const workbook = new ExcelJS.Workbook();
+
+    // Tab 1: Active Audit
+    const activeSheet = workbook.addWorksheet('Active Audit List');
+    activeSheet.columns = [
+        { header: 'Room Barcode', key: 'room', width: 20 },
+        { header: 'Asset Barcode', key: 'barcode', width: 20 },
+        { header: 'Description', key: 'desc', width: 40 },
+        { header: 'Category', key: 'cat', width: 15 },
+        { header: 'Condition', key: 'cond', width: 15 }
+    ];
+    window.allAssets.filter(a => (a.assetStatus || 'Existing') === 'Existing').forEach(a => {
+        activeSheet.addRow({ room: a.currentRoomBarcode, barcode: a.assetBarcode, desc: a.modelDescription, cat: a.category, cond: a.assetCondition });
+    });
+
+    // Tab 2: Disposed Items (WITH IMAGES)
+    const disposedSheet = workbook.addWorksheet('Disposed Items');
+    disposedSheet.columns = [
+        { header: 'Asset Barcode', key: 'barcode', width: 20 },
+        { header: 'Original Room', key: 'room', width: 20 },
+        { header: 'Reason', key: 'reason', width: 30 },
+        { header: 'Scrap Location', key: 'loc', width: 20 },
+        { header: 'Disposed By', key: 'by', width: 20 },
+        { header: 'Item Damage Photo', key: 'photo', width: 25 }
+    ];
+
+    const disposedItems = window.allAssets.filter(a => a.assetStatus === 'Disposed');
+
+    for (let i = 0; i < disposedItems.length; i++) {
+        const a = disposedItems[i];
+        const rowIndex = i + 2; // +1 for header, +1 for 1-based index
+        disposedSheet.addRow({ barcode: a.assetBarcode, room: a.currentRoomBarcode, reason: a.disposalReason, loc: a.scrapLocation, by: a.disposedBy, photo: a.disposalPhotoUrl });
+        disposedSheet.getRow(rowIndex).height = 90;
+
+        if (a.disposalPhotoUrl) {
+            try {
+                const imgUrl = getDirectDriveImageUrl(a.disposalPhotoUrl);
+                const response = await fetch(imgUrl);
+                const blob = await response.blob();
+                const arrayBuffer = await blob.arrayBuffer();
+                const imageId = workbook.addImage({
+                    buffer: arrayBuffer,
+                    extension: 'png',
+                });
+                disposedSheet.addImage(imageId, {
+                    tl: { col: 5, row: rowIndex - 1 },
+                    br: { col: 6, row: rowIndex },
+                    editAs: 'oneCell'
+                });
+            } catch (e) { console.error("Img Embed Fail", e); }
+        }
+    }
+
+    // Tab 3: IT Assets
+    const itSheet = workbook.addWorksheet('IT Assets');
+    itSheet.columns = activeSheet.columns;
+    window.allAssets.filter(a => a.majorCategory === 'IT').forEach(a => {
+        itSheet.addRow({ room: a.currentRoomBarcode, barcode: a.assetBarcode, desc: a.modelDescription, cat: a.category, cond: a.assetCondition });
+    });
+
+    // Tab 4: Non-IT Assets
+    const nonItSheet = workbook.addWorksheet('Non-IT Assets');
+    nonItSheet.columns = activeSheet.columns;
+    window.allAssets.filter(a => a.majorCategory !== 'IT').forEach(a => {
+        nonItSheet.addRow({ room: a.currentRoomBarcode, barcode: a.assetBarcode, desc: a.modelDescription, cat: a.category, cond: a.assetCondition });
+    });
+
+    const buffer = await workbook.xlsx.writeBuffer();
+    saveAs(new Blob([buffer]), `Master_Asset_Register_${Date.now()}.xlsx`);
+};
+
 window.openZoomModal = (imgSrc) => {
     if (!imgSrc || imgSrc.includes('placeholder')) return;
     const modal = document.getElementById('imageModal');
@@ -291,6 +815,265 @@ window.openZoomModal = (imgSrc) => {
         modal.style.display = 'flex';
         modalImg.src = getDirectDriveImageUrl(imgSrc);
     }
+};
+
+// --- ASSET AUDIT SYSTEM ---
+let currentRoomContext = null;
+let currentAuditSessionAssets = [];
+
+window.openAssetAudit = () => {
+    document.getElementById('staff-dash-area').classList.add('hidden');
+    document.getElementById('asset-audit-section').classList.remove('hidden');
+    resetRoomContext();
+};
+
+window.closeAssetAudit = () => {
+    document.getElementById('staff-dash-area').classList.remove('hidden');
+    document.getElementById('asset-audit-section').classList.add('hidden');
+};
+
+window.triggerBarcodeScan = async (type) => {
+    const val = prompt(`Scan ${type === 'room' ? 'Room' : 'Asset'} Barcode:`);
+    if (!val) return;
+
+    if (type === 'room') {
+        const snap = await get(child(ref(db), `rooms/${val}`));
+        if (snap.exists()) {
+            currentRoomContext = snap.val();
+            document.getElementById('current-room-display').classList.remove('hidden');
+            document.getElementById('active-room-id').innerText = currentRoomContext.roomBarcode;
+            document.getElementById('active-room-desc').innerText = `${currentRoomContext.floorNo} - ${currentRoomContext.roomNo}`;
+            document.getElementById('step-asset-audit').classList.remove('opacity-50', 'pointer-events-none');
+            currentAuditSessionAssets = [];
+            renderScannedAssets();
+        } else {
+            alert("Invalid Room Barcode");
+        }
+    } else {
+        if (!currentRoomContext) return alert("Please scan room first");
+        const assetSnap = await get(child(ref(db), `assets/${val}`));
+        if (assetSnap.exists()) {
+            const assetData = assetSnap.val();
+            // Link asset to room if not already linked
+            await update(ref(db, `assets/${val}`), {
+                currentRoomBarcode: currentRoomContext.roomBarcode,
+                lastAuditDate: new Date().toLocaleDateString(),
+                lastAuditBy: window.currentStaff.name
+            });
+            currentAuditSessionAssets.unshift({ ...assetData, status: 'Existing' });
+            renderScannedAssets();
+        } else {
+            alert("Asset not found in Master Register");
+        }
+    }
+};
+
+window.resetRoomContext = () => {
+    currentRoomContext = null;
+    document.getElementById('current-room-display').classList.add('hidden');
+    document.getElementById('step-asset-audit').classList.add('opacity-50', 'pointer-events-none');
+    document.getElementById('scanned-assets-list').innerHTML = '';
+};
+
+function renderScannedAssets() {
+    const container = document.getElementById('scanned-assets-list');
+    container.innerHTML = '';
+    currentAuditSessionAssets.forEach(a => {
+        container.innerHTML += `
+            <div class="asset-card ${a.majorCategory === 'IT' ? 'category-it' : 'category-nonit'}">
+                <div class="flex justify-between items-start">
+                    <div>
+                        <h4 class="font-bold text-sm text-indigo-900">${a.assetBarcode}</h4>
+                        <p class="text-[10px] text-gray-500">${a.modelDescription}</p>
+                    </div>
+                    <span class="asset-status-badge status-existing">Existing</span>
+                </div>
+                <div class="flex gap-2 mt-3">
+                    <button onclick="openDisposalModal('${a.assetBarcode}')" class="flex-1 py-2 bg-red-50 text-red-600 rounded-lg text-[10px] font-bold border border-red-100">MARK BROKEN / SCRAP</button>
+                </div>
+            </div>`;
+    });
+}
+
+// DISPOSAL WORKFLOW
+let activeDisposalBarcode = null;
+let disposalPhotoBase64 = "";
+
+window.openDisposalModal = (barcode) => {
+    activeDisposalBarcode = barcode;
+    document.getElementById('disposal-barcode').innerText = barcode;
+    document.getElementById('asset-disposal-modal').classList.remove('hidden');
+};
+
+window.closeDisposalModal = () => {
+    document.getElementById('asset-disposal-modal').classList.add('hidden');
+    activeDisposalBarcode = null;
+    disposalPhotoBase64 = "";
+    document.getElementById('disposal-photo-preview').classList.add('hidden');
+    document.getElementById('disposal-photo-btn-text').innerText = "Take Damage Photo";
+};
+
+window.handleDisposalPhoto = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    document.getElementById('disposal-photo-btn-text').innerText = "Compressing...";
+    disposalPhotoBase64 = await compressImageFile(file, 800, 800, 0.6);
+    document.getElementById('disposal-photo-preview').classList.remove('hidden');
+    document.getElementById('disposal-photo-preview').querySelector('img').src = disposalPhotoBase64;
+    document.getElementById('disposal-photo-btn-text').innerText = "Photo Captured ✓";
+};
+
+window.submitAssetDisposal = async () => {
+    const reason = document.getElementById('disposal-reason').value;
+    const scrapLoc = document.getElementById('disposal-scrap-loc').value;
+    if (!reason || !scrapLoc || !disposalPhotoBase64) return alert("Photo and details required!");
+
+    const btn = document.getElementById('submit-disposal-btn');
+    btn.disabled = true; btn.innerText = "Uploading...";
+
+    try {
+        const driveUrl = await uploadToDrive({
+            type: 'photo',
+            fileName: `Disposal_${activeDisposalBarcode}_${Date.now()}.png`,
+            image: disposalPhotoBase64
+        });
+
+        const updates = {
+            assetStatus: 'Disposed',
+            disposalReason: reason,
+            scrapLocation: scrapLoc,
+            disposalPhotoUrl: driveUrl,
+            disposalDate: new Date().toLocaleDateString(),
+            disposedBy: window.currentStaff.name
+        };
+
+        await update(ref(db, `assets/${activeDisposalBarcode}`), updates);
+        alert("Asset marked as Disposed.");
+        closeDisposalModal();
+        // Refresh session list
+        currentAuditSessionAssets = currentAuditSessionAssets.filter(a => a.assetBarcode !== activeDisposalBarcode);
+        renderScannedAssets();
+    } catch (err) { alert(err.message); }
+    finally { btn.disabled = false; btn.innerText = "Confirm Scrap"; }
+};
+
+// ADMIN ASSET TABLE
+function renderAdminAssetTable(data) {
+    const body = document.getElementById('admin-asset-list-body');
+    if (!body) return;
+    body.innerHTML = '';
+    data.forEach(a => {
+        const photo = a.disposalPhotoUrl ? getDirectDriveImageUrl(a.disposalPhotoUrl) : null;
+        body.innerHTML += `
+            <tr class="hover:bg-gray-50 transition border-b border-gray-100">
+                <td class="p-2 font-mono text-gray-400">${a.currentRoomBarcode || '-'}</td>
+                <td class="p-2 font-bold">${a.assetBarcode}</td>
+                <td class="p-2">
+                    <div class="font-bold">${a.majorCategory} > ${a.category}</div>
+                    <div class="text-[8px] opacity-60">${a.modelDescription}</div>
+                </td>
+                <td class="p-2">${a.majorCategory}</td>
+                <td class="p-2">${a.assetCondition || 'Good'}</td>
+                <td class="p-2">
+                    <span class="asset-status-badge ${a.assetStatus === 'Disposed' ? 'status-disposed' : 'status-existing'}">${a.assetStatus || 'Existing'}</span>
+                </td>
+                <td class="p-2">
+                    ${a.assetStatus === 'Disposed' ? `<div class="text-[8px] font-bold text-red-600">${a.disposalReason}</div><div class="text-[7px]">At: ${a.scrapLocation}</div>` : '-'}
+                </td>
+                <td class="p-2 text-center">
+                    ${photo ? `<img src="${photo}" class="h-8 w-8 rounded border mx-auto" onclick="openImageZoom('${photo}')">` : '-'}
+                </td>
+            </tr>`;
+    });
+}
+
+window.filterAssetTable = () => {
+    const q = document.getElementById('asset-search').value.toLowerCase();
+    const cat = document.getElementById('asset-category-filter').value;
+    const stat = document.getElementById('asset-status-filter').value;
+
+    const filtered = window.allAssets.filter(a => {
+        const matchQ = a.assetBarcode.toLowerCase().includes(q) || a.modelDescription.toLowerCase().includes(q) || (a.currentRoomBarcode && a.currentRoomBarcode.toLowerCase().includes(q));
+        const matchCat = cat === 'all' || a.majorCategory === cat;
+        const matchStat = stat === 'all' || (a.assetStatus || 'Existing') === stat;
+        return matchQ && matchCat && matchStat;
+    });
+    renderAdminAssetTable(filtered);
+};
+
+// MULTI-TAB EXCEL WITH IMAGE EMBEDDING
+window.downloadMasterAssetReport = async () => {
+    if (!window.allAssets) return alert("No asset data!");
+
+    const workbook = new ExcelJS.Workbook();
+
+    // Tab 1: Active Audit
+    const activeSheet = workbook.addWorksheet('Active Audit List');
+    activeSheet.columns = [
+        { header: 'Room Barcode', key: 'room', width: 20 },
+        { header: 'Asset Barcode', key: 'barcode', width: 20 },
+        { header: 'Description', key: 'desc', width: 40 },
+        { header: 'Category', key: 'cat', width: 15 },
+        { header: 'Condition', key: 'cond', width: 15 }
+    ];
+    window.allAssets.filter(a => (a.assetStatus || 'Existing') === 'Existing').forEach(a => {
+        activeSheet.addRow({ room: a.currentRoomBarcode, barcode: a.assetBarcode, desc: a.modelDescription, cat: a.category, cond: a.assetCondition });
+    });
+
+    // Tab 2: Disposed Items (WITH IMAGES)
+    const disposedSheet = workbook.addWorksheet('Disposed Items');
+    disposedSheet.columns = [
+        { header: 'Asset Barcode', key: 'barcode', width: 20 },
+        { header: 'Original Room', key: 'room', width: 20 },
+        { header: 'Reason', key: 'reason', width: 30 },
+        { header: 'Scrap Location', key: 'loc', width: 20 },
+        { header: 'Disposed By', key: 'by', width: 20 },
+        { header: 'Item Damage Photo', key: 'photo', width: 25 }
+    ];
+
+    const disposedItems = window.allAssets.filter(a => a.assetStatus === 'Disposed');
+
+    for (let i = 0; i < disposedItems.length; i++) {
+        const a = disposedItems[i];
+        const rowIndex = i + 2; // +1 for header, +1 for 1-based index
+        disposedSheet.addRow({ barcode: a.assetBarcode, room: a.currentRoomBarcode, reason: a.disposalReason, loc: a.scrapLocation, by: a.disposedBy, photo: a.disposalPhotoUrl });
+        disposedSheet.getRow(rowIndex).height = 90;
+
+        if (a.disposalPhotoUrl) {
+            try {
+                const imgUrl = getDirectDriveImageUrl(a.disposalPhotoUrl);
+                const response = await fetch(imgUrl);
+                const blob = await response.blob();
+                const arrayBuffer = await blob.arrayBuffer();
+                const imageId = workbook.addImage({
+                    buffer: arrayBuffer,
+                    extension: 'png',
+                });
+                disposedSheet.addImage(imageId, {
+                    tl: { col: 5, row: rowIndex - 1 },
+                    br: { col: 6, row: rowIndex },
+                    editAs: 'oneCell'
+                });
+            } catch (e) { console.error("Img Embed Fail", e); }
+        }
+    }
+
+    // Tab 3: IT Assets
+    const itSheet = workbook.addWorksheet('IT Assets');
+    itSheet.columns = activeSheet.columns;
+    window.allAssets.filter(a => a.majorCategory === 'IT').forEach(a => {
+        itSheet.addRow({ room: a.currentRoomBarcode, barcode: a.assetBarcode, desc: a.modelDescription, cat: a.category, cond: a.assetCondition });
+    });
+
+    // Tab 4: Non-IT Assets
+    const nonItSheet = workbook.addWorksheet('Non-IT Assets');
+    nonItSheet.columns = activeSheet.columns;
+    window.allAssets.filter(a => a.majorCategory !== 'IT').forEach(a => {
+        nonItSheet.addRow({ room: a.currentRoomBarcode, barcode: a.assetBarcode, desc: a.modelDescription, cat: a.category, cond: a.assetCondition });
+    });
+
+    const buffer = await workbook.xlsx.writeBuffer();
+    saveAs(new Blob([buffer]), `Master_Asset_Register_${Date.now()}.xlsx`);
 };
 
 window.closeZoomModal = () => {
@@ -639,7 +1422,14 @@ window.showAdminTab = (tabId) => {
 
 async function loadAdminDashboard() {
     if (!document.getElementById('admin-table-body')) return;
-    const [v, s, staff, tasks] = await Promise.all([get(ref(db, 'visitors')), get(ref(db, 'staff_attendance')), get(ref(db, 'staff')), get(ref(db, 'tasks'))]);
+    const [v, s, staff, tasks, assets] = await Promise.all([
+        get(ref(db, 'visitors')),
+        get(ref(db, 'staff_attendance')),
+        get(ref(db, 'staff')),
+        get(ref(db, 'tasks')),
+        get(ref(db, 'assets'))
+    ]);
+
     let records = [];
     if(v.exists()) Object.values(v.val()).forEach(x => records.push({...x, type: 'visitor'}));
     if(s.exists()) Object.values(s.val()).forEach(x => records.push({...x, type: 'staff', id: x.mobile}));
@@ -689,6 +1479,11 @@ async function loadAdminDashboard() {
                     </tr>`;
             });
         }
+    }
+
+    if (assets.exists()) {
+        window.allAssets = Object.values(assets.val());
+        renderAdminAssetTable(window.allAssets);
     }
 }
 
@@ -758,4 +1553,392 @@ window.removeCapturedPhoto = (inputId) => {
     if (input) input.value = '';
     const preview = document.getElementById(inputId + '-preview');
     if (preview) preview.classList.add('hidden');
+};
+
+// --- EXCEL EXPORT SYSTEM ---
+function exportHtmlTableToExcel(tableHTML, filename) {
+    const downloadUrl = 'data:application/vnd.ms-excel;charset=utf-8,' + encodeURIComponent(tableHTML);
+    const link = document.createElement('a');
+    link.href = downloadUrl;
+    link.download = filename + '.xls';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+}
+
+window.downloadExcelReport = () => {
+    if (!window.adminData) return alert("No data to export");
+
+    // 1. Separate Data into Staff and Visitor arrays
+    const staffLogs = window.adminData.filter(r => r.type === 'staff').map(r => ({
+        "ID / Mobile": r.mobile || r.id || '-',
+        "Staff Name": r.name,
+        "Company": r.company || '-',
+        "Position": r.role || '-',
+        "Date": r.date,
+        "In-Time": r.timeIn,
+        "Out-Time": r.timeOut || '-',
+        "Status": r.status,
+        "Signature (In)": getDirectDriveImageUrl(r.signatureUrl || r.signature),
+        "Signature (Out)": getDirectDriveImageUrl(r.signatureOutUrl)
+    }));
+
+    const visitorLogs = window.adminData.filter(r => r.type === 'visitor').map(r => ({
+        "Visitor ID": r.id || '-',
+        "Visitor Name": r.name,
+        "Mobile": r.mobile || '-',
+        "Company": r.company || '-',
+        "Purpose of Visit": r.purpose || '-',
+        "Date": r.date,
+        "In-Time": r.timeIn,
+        "Out-Time": r.timeOut || '-',
+        "Status": r.status,
+        "Signature": getDirectDriveImageUrl(r.signatureUrl || r.signature)
+    }));
+
+    // 2. Create Workbook and Sheets
+    const wb = XLSX.utils.book_new();
+    const staffSheet = XLSX.utils.json_to_sheet(staffLogs);
+    const visitorSheet = XLSX.utils.json_to_sheet(visitorLogs);
+
+    // 3. Append Sheets to Workbook
+    XLSX.utils.book_append_sheet(wb, staffSheet, "Staff Attendance");
+    XLSX.utils.book_append_sheet(wb, visitorSheet, "Visitor Log");
+
+    // 4. Trigger Download
+    XLSX.writeFile(wb, `Attendance_Report_${Date.now()}.xlsx`);
+};
+
+window.exportTaskReportExcel = () => {
+    if (!window.adminTasks) return alert("No task data to export");
+    let html = `
+        <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
+        <head><!--[if gte mso 9]><xml><x:ExcelWorkbook><x:ExcelWorksheets><x:ExcelWorksheet><x:Name>Task Audit</x:Name><x:WorksheetOptions><x:DisplayGridlines/></x:WorksheetOptions></x:ExcelWorksheet></x:ExcelWorksheets></x:ExcelWorkbook></xml><![endif]--></head>
+        <body>
+        <table border="1">
+            <tr style="background-color: #10b981; color: white; font-weight: bold; height: 40px;">
+                <th>Task ID</th><th>School / Building</th><th>Area / Location</th><th>Assigned Dept / Role</th><th>Raised By</th><th>Raised Date</th><th>Raised Time</th><th>RT Technician</th><th>Closed Date</th><th>Closed Time</th><th>Status</th><th>Rejection Reason</th><th>Before Photo</th><th>After Photo</th>
+            </tr>`;
+
+    window.adminTasks.forEach(t => {
+        const bImg = getDirectDriveImageUrl(t.beforePhotoUrl || t.beforePhoto);
+        const aImg = getDirectDriveImageUrl(t.afterPhotoUrl || t.afterPhoto);
+
+        const rDT = t.raisedTimestamp ? new Date(t.raisedTimestamp) : null;
+        const cDT = t.solvedTimestamp ? new Date(t.solvedTimestamp) : null;
+
+        html += `
+            <tr style="height: 80px; vertical-align: middle;">
+                <td>${t.id}</td>
+                <td>${t.schoolBuilding || '-'}</td>
+                <td>${t.location}</td>
+                <td>${t.targetRole}</td>
+                <td>${t.raisedByName || 'Admin'}</td>
+                <td>${rDT ? rDT.toLocaleDateString() : '-'}</td>
+                <td>${rDT ? rDT.toLocaleTimeString() : '-'}</td>
+                <td>${t.solvedByName || '-'}</td>
+                <td>${cDT ? cDT.toLocaleDateString() : '-'}</td>
+                <td>${cDT ? cDT.toLocaleTimeString() : '-'}</td>
+                <td style="font-weight: bold;">${t.status}</td>
+                <td>${t.rejectionReason || 'N/A'}</td>
+                <td width="100" height="80" align="center" valign="middle">
+                    ${bImg.includes('http') ? `<img src="${bImg}" width="70" height="70" style="object-fit: contain;">` : '<span style="color:#888; font-size:11px;">No Photo</span>'}
+                </td>
+                <td width="100" height="80" align="center" valign="middle">
+                    ${(aImg.includes('http') && !aImg.includes('No+Photo')) ? `<img src="${aImg}" width="70" height="70" style="object-fit: contain;">` : '<span style="color:#888; font-size:11px;">No Photo</span>'}
+                </td>
+            </tr>`;
+    });
+    html += '</table></body></html>';
+    exportHtmlTableToExcel(html, `Task_Audit_Full_Report_${Date.now()}`);
+};
+
+window.filterAdminTable = () => {
+    const q = document.getElementById('admin-search').value.toLowerCase();
+    const typeFilter = document.getElementById('admin-type-filter').value;
+    const dateFilter = document.getElementById('admin-date-filter').value;
+
+    let filtered = window.adminData.filter(r => {
+        const matchesName = r.name.toLowerCase().includes(q) || (r.id && r.id.toLowerCase().includes(q)) || (r.mobile && r.mobile.toLowerCase().includes(q));
+        const matchesType = typeFilter === 'all' || r.type === typeFilter;
+        const matchesDate = !dateFilter || r.date === new Date(dateFilter).toLocaleDateString('en-US');
+        return matchesName && matchesType && matchesDate;
+    });
+    renderAdminTable(filtered);
+};
+
+window.openImageZoom = (url) => {
+    if(!url || url.includes('placeholder')) return;
+    window.open(url, '_blank');
+};
+
+window.deleteStaffAccount = async (mobile, name) => {
+    if(confirm(`Are you sure you want to delete account for ${name} (${mobile})?`)) {
+        try {
+            await set(ref(db, 'staff/' + mobile), null);
+            alert("Account deleted successfully");
+            loadAdminDashboard();
+        } catch (e) {
+            alert("Error deleting account: " + e.message);
+        }
+    }
+};
+
+// --- ASSET AUDIT SYSTEM ---
+let currentRoomContext = null;
+let currentAuditSessionAssets = [];
+
+window.openAssetAudit = () => {
+    document.getElementById('staff-dash-area').classList.add('hidden');
+    document.getElementById('asset-audit-section').classList.remove('hidden');
+    resetRoomContext();
+};
+
+window.closeAssetAudit = () => {
+    document.getElementById('staff-dash-area').classList.remove('hidden');
+    document.getElementById('asset-audit-section').classList.add('hidden');
+};
+
+window.triggerBarcodeScan = async (type) => {
+    const val = prompt(`Scan ${type === 'room' ? 'Room' : 'Asset'} Barcode:`);
+    if (!val) return;
+
+    if (type === 'room') {
+        const snap = await get(child(ref(db), `rooms/${val}`));
+        if (snap.exists()) {
+            currentRoomContext = snap.val();
+            document.getElementById('current-room-display').classList.remove('hidden');
+            document.getElementById('active-room-id').innerText = currentRoomContext.roomBarcode;
+            document.getElementById('active-room-desc').innerText = `${currentRoomContext.floorNo} - ${currentRoomContext.roomNo}`;
+            document.getElementById('step-asset-audit').classList.remove('opacity-50', 'pointer-events-none');
+            currentAuditSessionAssets = [];
+            renderScannedAssets();
+        } else {
+            alert("Invalid Room Barcode");
+        }
+    } else {
+        if (!currentRoomContext) return alert("Please scan room first");
+        const assetSnap = await get(child(ref(db), `assets/${val}`));
+        if (assetSnap.exists()) {
+            const assetData = assetSnap.val();
+            // Link asset to room if not already linked
+            await update(ref(db, `assets/${val}`), {
+                currentRoomBarcode: currentRoomContext.roomBarcode,
+                lastAuditDate: new Date().toLocaleDateString(),
+                lastAuditBy: window.currentStaff.name
+            });
+            currentAuditSessionAssets.unshift({ ...assetData, status: 'Existing' });
+            renderScannedAssets();
+        } else {
+            alert("Asset not found in Master Register");
+        }
+    }
+};
+
+window.resetRoomContext = () => {
+    currentRoomContext = null;
+    document.getElementById('current-room-display').classList.add('hidden');
+    document.getElementById('step-asset-audit').classList.add('opacity-50', 'pointer-events-none');
+    document.getElementById('scanned-assets-list').innerHTML = '';
+};
+
+function renderScannedAssets() {
+    const container = document.getElementById('scanned-assets-list');
+    container.innerHTML = '';
+    currentAuditSessionAssets.forEach(a => {
+        container.innerHTML += `
+            <div class="asset-card ${a.majorCategory === 'IT' ? 'category-it' : 'category-nonit'}">
+                <div class="flex justify-between items-start">
+                    <div>
+                        <h4 class="font-bold text-sm text-indigo-900">${a.assetBarcode}</h4>
+                        <p class="text-[10px] text-gray-500">${a.modelDescription}</p>
+                    </div>
+                    <span class="asset-status-badge status-existing">Existing</span>
+                </div>
+                <div class="flex gap-2 mt-3">
+                    <button onclick="openDisposalModal('${a.assetBarcode}')" class="flex-1 py-2 bg-red-50 text-red-600 rounded-lg text-[10px] font-bold border border-red-100">MARK BROKEN / SCRAP</button>
+                </div>
+            </div>`;
+    });
+}
+
+// DISPOSAL WORKFLOW
+let activeDisposalBarcode = null;
+let disposalPhotoBase64 = "";
+
+window.openDisposalModal = (barcode) => {
+    activeDisposalBarcode = barcode;
+    document.getElementById('disposal-barcode').innerText = barcode;
+    document.getElementById('asset-disposal-modal').classList.remove('hidden');
+};
+
+window.closeDisposalModal = () => {
+    document.getElementById('asset-disposal-modal').classList.add('hidden');
+    activeDisposalBarcode = null;
+    disposalPhotoBase64 = "";
+    document.getElementById('disposal-photo-preview').classList.add('hidden');
+    document.getElementById('disposal-photo-btn-text').innerText = "Take Damage Photo";
+};
+
+window.handleDisposalPhoto = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    document.getElementById('disposal-photo-btn-text').innerText = "Compressing...";
+    disposalPhotoBase64 = await compressImageFile(file, 800, 800, 0.6);
+    document.getElementById('disposal-photo-preview').classList.remove('hidden');
+    document.getElementById('disposal-photo-preview').querySelector('img').src = disposalPhotoBase64;
+    document.getElementById('disposal-photo-btn-text').innerText = "Photo Captured ✓";
+};
+
+window.submitAssetDisposal = async () => {
+    const reason = document.getElementById('disposal-reason').value;
+    const scrapLoc = document.getElementById('disposal-scrap-loc').value;
+    if (!reason || !scrapLoc || !disposalPhotoBase64) return alert("Photo and details required!");
+
+    const btn = document.getElementById('submit-disposal-btn');
+    btn.disabled = true; btn.innerText = "Uploading...";
+
+    try {
+        const driveUrl = await uploadToDrive({
+            type: 'photo',
+            fileName: `Disposal_${activeDisposalBarcode}_${Date.now()}.png`,
+            image: disposalPhotoBase64
+        });
+
+        const updates = {
+            assetStatus: 'Disposed',
+            disposalReason: reason,
+            scrapLocation: scrapLoc,
+            disposalPhotoUrl: driveUrl,
+            disposalDate: new Date().toLocaleDateString(),
+            disposedBy: window.currentStaff.name
+        };
+
+        await update(ref(db, `assets/${activeDisposalBarcode}`), updates);
+        alert("Asset marked as Disposed.");
+        closeDisposalModal();
+        // Refresh session list
+        currentAuditSessionAssets = currentAuditSessionAssets.filter(a => a.assetBarcode !== activeDisposalBarcode);
+        renderScannedAssets();
+    } catch (err) { alert(err.message); }
+    finally { btn.disabled = false; btn.innerText = "Confirm Scrap"; }
+};
+
+// ADMIN ASSET TABLE
+function renderAdminAssetTable(data) {
+    const body = document.getElementById('admin-asset-list-body');
+    if (!body) return;
+    body.innerHTML = '';
+    data.forEach(a => {
+        const photo = a.disposalPhotoUrl ? getDirectDriveImageUrl(a.disposalPhotoUrl) : null;
+        body.innerHTML += `
+            <tr class="hover:bg-gray-50 transition border-b border-gray-100">
+                <td class="p-2 font-mono text-gray-400">${a.currentRoomBarcode || '-'}</td>
+                <td class="p-2 font-bold">${a.assetBarcode}</td>
+                <td class="p-2">
+                    <div class="font-bold">${a.majorCategory} > ${a.category}</div>
+                    <div class="text-[8px] opacity-60">${a.modelDescription}</div>
+                </td>
+                <td class="p-2">${a.majorCategory}</td>
+                <td class="p-2">${a.assetCondition || 'Good'}</td>
+                <td class="p-2">
+                    <span class="asset-status-badge ${a.assetStatus === 'Disposed' ? 'status-disposed' : 'status-existing'}">${a.assetStatus || 'Existing'}</span>
+                </td>
+                <td class="p-2">
+                    ${a.assetStatus === 'Disposed' ? `<div class="text-[8px] font-bold text-red-600">${a.disposalReason}</div><div class="text-[7px]">At: ${a.scrapLocation}</div>` : '-'}
+                </td>
+                <td class="p-2 text-center">
+                    ${photo ? `<img src="${photo}" class="h-8 w-8 rounded border mx-auto" onclick="openImageZoom('${photo}')">` : '-'}
+                </td>
+            </tr>`;
+    });
+}
+
+window.filterAssetTable = () => {
+    const q = document.getElementById('asset-search').value.toLowerCase();
+    const cat = document.getElementById('asset-category-filter').value;
+    const stat = document.getElementById('asset-status-filter').value;
+
+    const filtered = window.allAssets.filter(a => {
+        const matchQ = a.assetBarcode.toLowerCase().includes(q) || a.modelDescription.toLowerCase().includes(q) || (a.currentRoomBarcode && a.currentRoomBarcode.toLowerCase().includes(q));
+        const matchCat = cat === 'all' || a.majorCategory === cat;
+        const matchStat = stat === 'all' || (a.assetStatus || 'Existing') === stat;
+        return matchQ && matchCat && matchStat;
+    });
+    renderAdminAssetTable(filtered);
+};
+
+// MULTI-TAB EXCEL WITH IMAGE EMBEDDING
+window.downloadMasterAssetReport = async () => {
+    if (!window.allAssets) return alert("No asset data!");
+
+    const workbook = new ExcelJS.Workbook();
+
+    // Tab 1: Active Audit
+    const activeSheet = workbook.addWorksheet('Active Audit List');
+    activeSheet.columns = [
+        { header: 'Room Barcode', key: 'room', width: 20 },
+        { header: 'Asset Barcode', key: 'barcode', width: 20 },
+        { header: 'Description', key: 'desc', width: 40 },
+        { header: 'Category', key: 'cat', width: 15 },
+        { header: 'Condition', key: 'cond', width: 15 }
+    ];
+    window.allAssets.filter(a => (a.assetStatus || 'Existing') === 'Existing').forEach(a => {
+        activeSheet.addRow({ room: a.currentRoomBarcode, barcode: a.assetBarcode, desc: a.modelDescription, cat: a.category, cond: a.assetCondition });
+    });
+
+    // Tab 2: Disposed Items (WITH IMAGES)
+    const disposedSheet = workbook.addWorksheet('Disposed Items');
+    disposedSheet.columns = [
+        { header: 'Asset Barcode', key: 'barcode', width: 20 },
+        { header: 'Original Room', key: 'room', width: 20 },
+        { header: 'Reason', key: 'reason', width: 30 },
+        { header: 'Scrap Location', key: 'loc', width: 20 },
+        { header: 'Disposed By', key: 'by', width: 20 },
+        { header: 'Item Damage Photo', key: 'photo', width: 25 }
+    ];
+
+    const disposedItems = window.allAssets.filter(a => a.assetStatus === 'Disposed');
+
+    for (let i = 0; i < disposedItems.length; i++) {
+        const a = disposedItems[i];
+        const rowIndex = i + 2; // +1 for header, +1 for 1-based index
+        disposedSheet.addRow({ barcode: a.assetBarcode, room: a.currentRoomBarcode, reason: a.disposalReason, loc: a.scrapLocation, by: a.disposedBy, photo: a.disposalPhotoUrl });
+        disposedSheet.getRow(rowIndex).height = 90;
+
+        if (a.disposalPhotoUrl) {
+            try {
+                const imgUrl = getDirectDriveImageUrl(a.disposalPhotoUrl);
+                const response = await fetch(imgUrl);
+                const blob = await response.blob();
+                const arrayBuffer = await blob.arrayBuffer();
+                const imageId = workbook.addImage({
+                    buffer: arrayBuffer,
+                    extension: 'png',
+                });
+                disposedSheet.addImage(imageId, {
+                    tl: { col: 5, row: rowIndex - 1 },
+                    br: { col: 6, row: rowIndex },
+                    editAs: 'oneCell'
+                });
+            } catch (e) { console.error("Img Embed Fail", e); }
+        }
+    }
+
+    // Tab 3: IT Assets
+    const itSheet = workbook.addWorksheet('IT Assets');
+    itSheet.columns = activeSheet.columns;
+    window.allAssets.filter(a => a.majorCategory === 'IT').forEach(a => {
+        itSheet.addRow({ room: a.currentRoomBarcode, barcode: a.assetBarcode, desc: a.modelDescription, cat: a.category, cond: a.assetCondition });
+    });
+
+    // Tab 4: Non-IT Assets
+    const nonItSheet = workbook.addWorksheet('Non-IT Assets');
+    nonItSheet.columns = activeSheet.columns;
+    window.allAssets.filter(a => a.majorCategory !== 'IT').forEach(a => {
+        nonItSheet.addRow({ room: a.currentRoomBarcode, barcode: a.assetBarcode, desc: a.modelDescription, cat: a.category, cond: a.assetCondition });
+    });
+
+    const buffer = await workbook.xlsx.writeBuffer();
+    saveAs(new Blob([buffer]), `Master_Asset_Register_${Date.now()}.xlsx`);
 };

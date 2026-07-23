@@ -126,6 +126,92 @@
                     <div class="tasks-grid" id="tasksContainer">
                         <!-- Task Cards render here -->
                     </div>
+
+                    <!-- ASSET AUDIT ACCESS (For Authorized Roles) -->
+                    <div id="asset-audit-access" class="hidden mt-8">
+                        <h2 style="font-size: 1.2rem; margin-bottom: 15px; font-weight: 700; color: #1e1b4b;">Asset Management</h2>
+                        <button onclick="openAssetAudit()" class="w-full bg-orange-600 text-white p-6 rounded-3xl shadow-xl flex items-center justify-between transition-transform active:scale-95">
+                            <div class="flex items-center gap-4">
+                                <div class="bg-white/20 p-3 rounded-full">
+                                    <i class="fa-solid fa-barcode text-2xl"></i>
+                                </div>
+                                <div class="text-left">
+                                    <span class="block text-xl font-bold">Start Asset Audit</span>
+                                    <span class="text-sm opacity-80">Scan rooms and equipment</span>
+                                </div>
+                            </div>
+                            <i class="fa-solid fa-chevron-right opacity-50"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ASSET AUDIT WORKFLOW SECTION -->
+            <div id="asset-audit-section" class="hidden w-full p-4">
+                <nav class="w-full flex items-center justify-between mb-6">
+                    <button onclick="closeAssetAudit()" class="btn btn-outline">
+                        <i class="fa-solid fa-arrow-left"></i> <span>Dashboard</span>
+                    </button>
+                    <h2 class="text-xl font-bold text-indigo-900">Asset Audit</h2>
+                </nav>
+
+                <!-- STEP 1: ROOM SCAN -->
+                <div id="step-room-scan" class="asset-card active">
+                    <h3 class="text-lg font-bold mb-2">Step 1: Set Room Context</h3>
+                    <p class="text-xs text-gray-500 mb-4 text-gray-800">Scan the barcode at the room entrance to begin.</p>
+                    <button onclick="triggerBarcodeScan('room')" class="w-full bg-indigo-600 text-white py-4 rounded-xl font-bold flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-camera"></i> Scan Room Barcode
+                    </button>
+                    <div id="current-room-display" class="hidden mt-4 p-3 bg-indigo-50 rounded-lg border border-indigo-100 text-gray-800">
+                        <div class="flex justify-between items-center text-gray-800">
+                            <span class="text-xs font-bold text-indigo-600 uppercase">Active Room</span>
+                            <button onclick="resetRoomContext()" class="text-[10px] text-red-500 font-bold underline">Change</button>
+                        </div>
+                        <h4 id="active-room-id" class="text-xl font-black text-indigo-900 mt-1">-</h4>
+                        <p id="active-room-desc" class="text-xs text-indigo-700">-</p>
+                    </div>
+                </div>
+
+                <!-- STEP 2: ASSET SCANNING -->
+                <div id="step-asset-audit" class="asset-card opacity-50 pointer-events-none mt-4">
+                    <h3 class="text-lg font-bold mb-2">Step 2: Audit Equipment</h3>
+                    <div class="flex gap-2 mb-4 text-gray-800">
+                        <button onclick="triggerBarcodeScan('asset')" class="flex-1 bg-teal-600 text-white py-4 rounded-xl font-bold flex items-center justify-center gap-2 text-gray-800">
+                            <i class="fa-solid fa-qrcode"></i> Scan Asset
+                        </button>
+                    </div>
+                    <div id="scanned-assets-list" class="space-y-3 max-h-[400px] overflow-y-auto text-gray-800">
+                        <!-- List of assets scanned in current session -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- ASSET DISPOSAL MODAL -->
+            <div id="asset-disposal-modal" class="fixed inset-0 bg-black/90 z-[70] hidden flex items-center justify-center p-4">
+                <div class="bg-white w-full max-w-md rounded-3xl overflow-hidden p-6 text-gray-800">
+                    <h3 class="text-xl font-bold text-red-600 mb-2">Asset Disposal</h3>
+                    <p class="text-xs text-gray-500 mb-4">Mark <span id="disposal-barcode" class="font-bold"></span> as Disposed/Scrap.</p>
+
+                    <div class="space-y-4">
+                        <textarea id="disposal-reason" placeholder="Reason for disposal (e.g. Broken screen, missing parts)..." class="w-full p-3 border rounded-xl h-24 text-sm"></textarea>
+                        <input type="text" id="disposal-scrap-loc" placeholder="New Scrap Location (e.g. Warehouse B)" class="w-full p-3 border rounded-xl text-sm">
+
+                        <div>
+                            <label class="block text-xs font-bold text-gray-500 mb-2">Damage Photo (Mandatory)</label>
+                            <input type="file" id="disposal-photo-input" accept="image/*" capture="environment" class="hidden" onchange="handleDisposalPhoto(event)">
+                            <button onclick="document.getElementById('disposal-photo-input').click()" class="w-full py-3 border-2 border-dashed border-red-200 rounded-xl text-red-600 font-bold flex items-center justify-center gap-2">
+                                <i class="fa-solid fa-camera"></i> <span id="disposal-photo-btn-text">Take Damage Photo</span>
+                            </button>
+                            <div id="disposal-photo-preview" class="hidden mt-2 h-32 rounded-xl overflow-hidden relative">
+                                <img src="" class="w-full h-full object-cover">
+                            </div>
+                        </div>
+
+                        <div class="flex gap-2 pt-2">
+                            <button onclick="closeDisposalModal()" class="flex-1 py-4 border rounded-xl font-bold">Cancel</button>
+                            <button id="submit-disposal-btn" onclick="submitAssetDisposal()" class="flex-1 py-4 bg-red-600 text-white rounded-xl font-bold shadow-lg">Confirm Scrap</button>
+                        </div>
+                    </div>
                 </div>
             </div>
         </section>
