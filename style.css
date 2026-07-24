@@ -105,6 +105,42 @@ button, a, .btn, [onclick] {
     clear: both !important;
     display: block !important;
 }
+
+/* Redesigned Asset Management Cards */
+#asset-audit-access h2 {
+    font-size: 1.3rem !important;
+    font-black: 900 !important;
+    color: #1e1b4b !important;
+    margin-bottom: 20px !important;
+    letter-spacing: -0.025em;
+}
+
+#asset-audit-access .grid {
+    gap: 16px !important;
+}
+
+#asset-audit-access button {
+    border: none !important;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    position: relative;
+    overflow: hidden;
+}
+
+#asset-audit-access button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 12px 20px -5px rgba(0, 0, 0, 0.15) !important;
+}
+
+#asset-audit-access button:active {
+    transform: scale(0.98);
+}
+
+#asset-audit-access button .bg-white\/20 {
+    background: rgba(255, 255, 255, 0.15) !important;
+    backdrop-filter: blur(4px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
 .form-group { display: flex; flex-wrap: wrap; gap: 15px; }
 .form-group input, .form-group select {
     flex: 1;
@@ -224,6 +260,20 @@ html, body {
 /* ========================================================= */
 /* 📱 MOBILE LAYOUT RESET & VISIBILITY FIX                   */
 /* ========================================================= */
+/* Resetting Tailwind/Global Overrides for Cleaner Look */
+.glass-morphism {
+    background: rgba(255, 255, 255, 0.8) !important;
+    backdrop-filter: blur(12px) !important;
+    border: 1px solid rgba(255, 255, 255, 0.3) !important;
+    box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.07) !important;
+}
+
+/* Fix for top-level navbar in staff-login.html */
+#view-staff > nav {
+    margin-top: 10px;
+    background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%) !important;
+}
+
 @media screen and (max-width: 768px) {
     html, body {
       overflow-x: hidden !important;

@@ -91,6 +91,7 @@ window.handleTaskImageCapture = async (e) => {
         if (preview && container) {
             preview.src = capturedTaskPhotoBase64;
             container.classList.remove('hidden');
+            container.style.display = 'block'; // Ensure visibility
         }
         if (btnText) btnText.innerText = "Photo Captured ✓";
     } catch (err) { console.error(err); }
@@ -112,28 +113,37 @@ window.filterStaffBySchoolAndRole = async () => {
     staffSelect.innerHTML = '<option value="">Loading Staff...</option>';
 
     try {
-        const snap = await get(ref(db, 'staff'));
+        const snap = await get(ref(db, 'users')); // Query users node as requested
         if (snap.exists()) {
-            const allStaff = Object.values(snap.val());
-            const filtered = allStaff.filter(s => {
-                const matchSchool = school ? s.branch === school : true;
-                const matchRole = role ? s.role === role : true;
+            const allUsers = Object.values(snap.val());
+            const filtered = allUsers.filter(u => {
+                const matchSchool = school ? (u.schoolName === school || u.branch === school) : true;
+                const matchRole = role ? (u.position === role || u.role === role) : true;
                 return matchSchool && matchRole;
             });
 
             staffSelect.innerHTML = '<option value="">Assign Specific Staff (Optional)</option>';
-            filtered.forEach(s => {
-                staffSelect.innerHTML += `<option value="${s.mobile}">${s.name} (${s.mobile})</option>`;
+            filtered.forEach(u => {
+                const name = u.fullName || u.name || "Unknown";
+                const mobile = u.mobileNumber || u.mobile || "";
+                staffSelect.innerHTML += `<option value="${mobile}" data-name="${name}">${name} (${mobile})</option>`;
             });
             if (filtered.length === 0) staffSelect.innerHTML = '<option value="">No matching staff found</option>';
+        } else {
+            staffSelect.innerHTML = '<option value="">No users found in database</option>';
         }
-    } catch (e) { console.error(e); }
+    } catch (e) {
+        console.error("Filter Staff Error:", e);
+        staffSelect.innerHTML = '<option value="">Error loading staff</option>';
+    }
 };
 
 window.submitNewMaintenanceTask = async () => {
     const school = document.getElementById('taskSchoolSelect').value;
     const role = document.getElementById('taskRoleSelect').value;
-    const staffId = document.getElementById('assignedStaffSelect').value;
+    const staffSelect = document.getElementById('assignedStaffSelect');
+    const staffId = staffSelect.value;
+    const staffName = staffSelect.options[staffSelect.selectedIndex]?.getAttribute('data-name') || "";
     const area = document.getElementById('areaNameInput').value;
     const details = document.getElementById('taskDetailsInput').value;
     const btn = document.getElementById('submitTaskBtn');
@@ -163,7 +173,8 @@ window.submitNewMaintenanceTask = async () => {
             id: taskId,
             assignedSchool: school,
             assignedRole: role,
-            assignedUserId: staffId || "all", // "all" means anyone with the role in that school
+            assignedUserId: staffId || "all",
+            assignedUserName: staffName || "All",
             location: area,
             details: details,
             beforePhotoUrl: uploadRes.fileUrl || uploadRes.signatureUrl,

@@ -189,8 +189,13 @@ window.renderDashboard = async (staff) => {
         const initials = (staff.name || "JY").split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2);
         const avatar = document.getElementById('userAvatar');
         const roleDisplay = document.getElementById('s-dash-role-display');
+        const userNameDisplay = document.getElementById('userNameDisplay');
+        const userBranchDisplay = document.getElementById('userBranchDisplay');
+
         if (avatar) avatar.innerText = initials;
         if (roleDisplay) roleDisplay.innerText = staff.role || "Staff";
+        if (userNameDisplay) userNameDisplay.innerText = staff.name || "Staff Member";
+        if (userBranchDisplay) userBranchDisplay.innerText = staff.branch || "School 1";
 
         const cinBtn = document.getElementById('s-checkin-btn');
         const coutBtn = document.getElementById('s-checkout-btn');
