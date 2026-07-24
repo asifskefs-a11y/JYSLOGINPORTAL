@@ -219,22 +219,27 @@ if (masterAssetForm) {
                 });
                 if (result.status === 'success' && result.fileUrl) {
                     console.log("UPLOAD_DEBUG", "Extracted URL: " + result.fileUrl);
-                    assetData.initialAuditPhoto = {
+                    const fileUrl = result.fileUrl;
+
+                    // Standardized Keys as direct strings for Dashboard Rendering
+                    assetData.initialAuditPhoto = fileUrl;
+                    assetData.auditPhotoUrl = fileUrl;
+                    assetData.audit_photo = fileUrl;
+                    assetData.beforePhotoUrl = fileUrl;
+                    assetData.photoUrl = fileUrl;
+
+                    // Optional: keep fileId for deletion logic if needed in a separate field
+                    assetData.initialAuditPhotoData = {
                         fileId: result.fileId,
-                        fileUrl: result.fileUrl
+                        fileUrl: fileUrl
                     };
-                    // Standardized Keys for Dashboard Rendering
-                    assetData.auditPhotoUrl = result.fileUrl;
-                    assetData.audit_photo = result.fileUrl;
-                    assetData.beforePhotoUrl = result.fileUrl;
-                    assetData.photoUrl = result.fileUrl;
                 } else if (result.status === 'success') {
                     console.error("UPLOAD_DEBUG", "Success but fileUrl is missing in response");
                 }
             }
 
             console.log("UPLOAD_DEBUG", "Database Update Path: assets/" + barcode);
-            await set(ref(db, `assets/${barcode}`), assetData);
+            await update(ref(db, `assets/${barcode}`), assetData);
             alert("Asset Registered Successfully!");
             e.target.reset();
             window.removeInitialAuditPhoto();
@@ -325,13 +330,18 @@ window.submitAssetDisposal = async () => {
             assetStatus: 'Disposed',
             disposalReason: reason,
             scrapLocation: scrapLoc,
-            disposalDamagedPhoto: {
+
+            // Standardized Keys for Disposal as direct strings
+            disposalPhotoUrl: result.fileUrl,
+            afterPhotoUrl: result.fileUrl,
+            disposal_photo: result.fileUrl,
+            disposalDamagedPhoto: result.fileUrl,
+
+            // Optional: keep fileId for deletion logic
+            disposalPhotoData: {
                 fileId: result.fileId,
                 fileUrl: result.fileUrl
             },
-            // Standardized Keys for Disposal
-            disposalPhotoUrl: result.fileUrl,
-            afterPhotoUrl: result.fileUrl,
 
             initialAuditPhotoAtDisposal: beforePhoto,
             disposalDate: new Date().toLocaleDateString(),

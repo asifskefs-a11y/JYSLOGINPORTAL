@@ -498,8 +498,8 @@ window.downloadMasterAssetReport = async () => {
             { header: '36. Physical Asset Register No', key: 'f36', width: 25 },
             { header: '37. Fixed Asset Register No', key: 'f37', width: 25 },
             { header: '38. Mapping Criteria', key: 'f38', width: 20 },
-            { header: '39. Initial Audit Photo', key: 'f39', width: 40 },
-            { header: '40. Disposal Photo', key: 'f40', width: 40 }
+            { header: '39. Audit Photo (After)', key: 'f39', width: 40 },
+            { header: '40. Disposal Photo (Before)', key: 'f40', width: 40 }
         ];
 
         window.allAssets.forEach(a => {
