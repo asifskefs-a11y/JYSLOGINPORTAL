@@ -37,7 +37,14 @@
                     <form id="staff-reg-form" class="hidden space-y-4">
                         <input type="text" id="s-reg-name" placeholder="Full Name" required class="w-full p-2 border rounded-lg text-sm">
 
-                        <!-- Dynamic Fields Container -->
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <input type="tel" id="s-reg-mobile" placeholder="Mobile Number" required class="w-full p-2 border rounded-lg text-sm">
+                            <input type="text" id="s-reg-adek" placeholder="ADEK Pass Number" required class="w-full p-2 border rounded-lg text-sm">
+                        </div>
+
+                        <input type="text" id="s-reg-company-name" placeholder="Company Name" required class="w-full p-2 border rounded-lg text-sm">
+
+                        <!-- Dynamic Fields Container (Optional Additional Fields) -->
                         <div id="dynamic-reg-fields" class="space-y-4"></div>
 
                         <select id="s-reg-branch" required class="w-full p-2 border rounded-lg bg-white text-sm">

@@ -36,9 +36,12 @@ document.addEventListener('DOMContentLoaded', () => {
             staffRegForm.onsubmit = async (e) => {
                 e.preventDefault();
                 const name = document.getElementById('s-reg-name').value;
+                const mobileNumber = document.getElementById('s-reg-mobile').value;
+                const adcPassNumber = document.getElementById('s-reg-adek').value;
+                const companyName = document.getElementById('s-reg-company-name').value;
                 const branch = document.getElementById('s-reg-branch').value;
                 const role = document.getElementById('s-reg-role').value;
-                const company = document.getElementById('s-reg-company').value;
+                const companyIdNumber = document.getElementById('s-reg-company').value;
                 const pass = document.getElementById('s-reg-pass').value;
                 const confirmPass = document.getElementById('s-reg-confirm').value;
 
@@ -51,21 +54,34 @@ document.addEventListener('DOMContentLoaded', () => {
                     document.querySelectorAll('.dynamic-input').forEach(input => {
                         dynamicData[input.getAttribute('data-field')] = input.value;
                     });
-                    const mobileField = document.querySelector('[data-field="Mobile Number"]');
-                    const mobile = mobileField ? mobileField.value : company;
 
-                    if (!mobile) {
+                    if (!mobileNumber) {
                         submitBtn.disabled = false;
                         return alert("Mobile Number is required.");
                     }
 
                     const data = {
-                        name, branch, role, company, password: pass, mobile,
+                        name: name,
+                        fullName: name,
+                        mobile: mobileNumber,
+                        mobileNumber: mobileNumber,
+                        adcPassNumber: adcPassNumber,
+                        companyName: companyName,
+                        branch: branch,
+                        schoolName: branch,
+                        role: role,
+                        position: role,
+                        company: companyIdNumber,
+                        companyIdNumber: companyIdNumber,
+                        password: pass,
                         ...dynamicData,
                         createdAt: new Date().toISOString()
                     };
 
-                    await set(ref(db, 'staff/' + mobile), data);
+                    // Save to both nodes for robust admin dashboard mapping
+                    await set(ref(db, 'staff/' + mobileNumber), data);
+                    await set(ref(db, 'users/' + mobileNumber), data);
+
                     alert("Registration successful! Please login.");
                     window.toggleStaffTab('login');
                 } catch (err) { alert("Registration failed: " + err.message); }
