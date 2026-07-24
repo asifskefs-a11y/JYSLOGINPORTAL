@@ -435,6 +435,7 @@ window.downloadMasterAssetReport = async () => {
         const workbook = new ExcelJS.Workbook();
         const sheet = workbook.addWorksheet('Master Asset Register');
 
+        // Define ALL 40 Columns
         sheet.columns = [
             { header: '1. Asset Barcode', key: 'f1', width: 20 },
             { header: '2. Serial No.', key: 'f2', width: 20 },
@@ -474,7 +475,9 @@ window.downloadMasterAssetReport = async () => {
             { header: '36. Physical Asset Register No', key: 'f36', width: 25 },
             { header: '37. Fixed Asset Register No', key: 'f37', width: 25 },
             { header: '38. Mapping Criteria', key: 'f38', width: 20 },
-            { header: '39. Audit Timestamp', key: 'f39', width: 25 }
+            { header: '39. Audit Timestamp', key: 'f39', width: 25 },
+            { header: '40. Initial Audit Photo URL', key: 'f40', width: 40 },
+            { header: 'Disposal Damaged Photo URL', key: 'f41', width: 40 }
         ];
 
         window.allAssets.forEach(a => {
@@ -486,7 +489,9 @@ window.downloadMasterAssetReport = async () => {
                 f21: a.roomNo, f22: a.currentRoomBarcode, f23: a.floorNo, f24: a.floorDescription, f25: a.barcodeStatus,
                 f26: a.assetStatus, f27: a.oldSchoolName, f28: a.transactionNo, f29: a.usefulLife, f30: a.vendorName,
                 f31: a.oldBarcode, f32: a.farBarcode, f33: a.invoiceNo, f34: a.dnNo, f35: a.remarks,
-                f36: a.physRegNo, f37: a.fixedAssetRegNo, f38: a.mappingCriteria, f39: a.auditTimestamp
+                f36: a.physRegNo, f37: a.fixedAssetRegNo, f38: a.mappingCriteria, f39: a.auditTimestamp,
+                f40: a.initialAuditPhoto || "",
+                f41: a.disposalDamagedPhoto || ""
             });
         });
 

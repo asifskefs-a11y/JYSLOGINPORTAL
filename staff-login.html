@@ -197,6 +197,19 @@
                                 <input type="date" id="f8_service_date" class="w-full p-3 border rounded-xl text-sm text-gray-800">
                             </div>
                             <input type="text" id="f9_manufacturer" placeholder="9. Manufacturer" class="w-full p-3 border rounded-xl text-sm text-gray-800">
+
+                            <!-- FIELD 40: INITIAL AUDIT PHOTO -->
+                            <div class="mt-2">
+                                <label class="block text-[10px] font-bold text-gray-400 mb-1 ml-2">40. ASSET PHOTO (INITIAL AUDIT)</label>
+                                <input type="file" id="f40_audit_photo_input" accept="image/*" capture="environment" class="hidden" onchange="handleInitialAuditPhoto(event)">
+                                <button type="button" onclick="document.getElementById('f40_audit_photo_input').click()" class="w-full py-3 border-2 border-dashed border-indigo-200 rounded-xl text-indigo-600 font-bold flex items-center justify-center gap-2">
+                                    <i class="fa-solid fa-camera"></i> <span id="audit-photo-btn-text">Capture Asset Photo</span>
+                                </button>
+                                <div id="audit-photo-preview" class="hidden mt-2 h-32 rounded-xl overflow-hidden relative border">
+                                    <img src="" class="w-full h-full object-cover">
+                                    <button type="button" onclick="removeInitialAuditPhoto()" class="absolute top-2 right-2 bg-red-500 text-white p-1 rounded-full text-[10px]"><i class="fa-solid fa-xmark"></i></button>
+                                </div>
+                            </div>
                         </div>
                     </div>
 
