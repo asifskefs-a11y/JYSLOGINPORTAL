@@ -207,6 +207,14 @@ async function renderDashboard(staff) {
                                 const mobile = staff.mobile;
                                 const now = new Date();
 
+                                // Update existing attendance record with Time Out
+                                if (sessionObj && sessionObj.attendanceKey) {
+                                    await update(ref(db, 'staff_attendance/' + sessionObj.attendanceKey), {
+                                        checkOutTime: now.toLocaleTimeString(),
+                                        status: 'completed'
+                                    });
+                                }
+
                                 await set(ref(db, 'active_staff_sessions/' + mobile), null);
                                 localStorage.removeItem('staff_active_session');
 
@@ -240,15 +248,17 @@ async function renderDashboard(staff) {
                                         image: sigData
                                     });
 
+                                    const attendanceKey = staff.mobile + '_' + now.getTime();
                                     const session = {
                                         mobile: staff.mobile,
                                         name: staff.name,
                                         status: 'checked_in',
                                         checkInTimestamp: now.toISOString(),
-                                        signatureUrl: res.fileUrl || res.signatureUrl
+                                        signatureUrl: res.fileUrl || res.signatureUrl,
+                                        attendanceKey: attendanceKey
                                     };
 
-                                    await set(ref(db, 'staff_attendance/' + staff.mobile + '_' + now.getTime()), {
+                                    await set(ref(db, 'staff_attendance/' + attendanceKey), {
                                         ...session,
                                         date: now.toLocaleDateString(),
                                         timeIn: now.toLocaleTimeString()
@@ -395,17 +405,39 @@ window.showAdminTab = (tabId) => {
 async function loadAdminDashboard() {
     try {
         if (!document.getElementById('admin-table-body')) return;
-        const [v, s, staff, tasks, assets] = await Promise.all([
+        const [v, s, staffSnap, userSnap, tasks, assets] = await Promise.all([
             get(ref(db, 'visitors')),
             get(ref(db, 'staff_attendance')),
             get(ref(db, 'staff')),
+            get(ref(db, 'users')),
             get(ref(db, 'tasks')),
             get(ref(db, 'assets'))
         ]);
 
+        const staffProfiles = staffSnap.exists() ? staffSnap.val() : {};
+        const userProfiles = userSnap.exists() ? userSnap.val() : {};
         let records = [];
         if(v.exists()) Object.values(v.val()).forEach(x => records.push({...x, type: 'visitor'}));
-        if(s.exists()) Object.values(s.val()).forEach(x => records.push({...x, type: 'staff', id: x.mobile}));
+
+        if(s.exists()) {
+            Object.values(s.val()).forEach(x => {
+                const profile = userProfiles[x.mobile] || staffProfiles[x.mobile] || {};
+                records.push({
+                    ...x,
+                    type: 'staff',
+                    id: x.mobile,
+                    // Merge missing profile fields
+                    fullName: profile.fullName || profile.name || x.name,
+                    mobileNumber: profile.mobileNumber || profile.mobile || x.mobile,
+                    adcPassNumber: profile.adcPassNumber || profile["ADEK Pass Number"] || profile.adekPass || "-",
+                    companyName: profile.companyName || profile.company || "-",
+                    schoolName: profile.schoolName || profile.branch || "-",
+                    position: profile.position || profile.role || "-",
+                    companyIdNumber: profile.companyIdNumber || profile.companyId || profile.company || "-"
+                });
+            });
+        }
+
         records.sort((a,b) => new Date(b.date + ' ' + (b.timeIn || '00:00 AM')) - new Date(a.date + ' ' + (a.timeIn || '00:00 AM')));
         window.adminData = records;
         renderAdminTable(records);
@@ -466,7 +498,28 @@ function renderAdminTable(data) {
     body.innerHTML = '';
     data.forEach(r => {
         const sig = window.getDirectDriveImageUrl(r.signatureUrl || r.signature);
-        body.innerHTML += `<tr class="hover:bg-gray-50 transition border-b border-gray-100 text-gray-800"><td class="p-3 uppercase text-[8px] opacity-40">${r.type}</td><td class="p-3">${r.id || r.mobile}</td><td class="p-3 opacity-60">${r.date}</td><td class="p-3 font-bold">${r.name}</td><td class="p-3 text-green-400">${r.timeIn}</td><td class="p-3 text-red-400">${r.timeOut || '-'}</td><td class="p-3 text-center">${sig ? `<img src="${sig}" class="h-6 mx-auto rounded border border-white/10" onerror="this.style.display='none'">` : '-'}</td></tr>`;
+        const isStaff = r.type === 'staff';
+
+        // Fix Time Out & Active Status Logic
+        const timeOutDisplay = (r.checkOutTime || r.timeOut) ? (r.checkOutTime || r.timeOut) : (r.status === 'completed' || r.status === 'checked_out' ? 'RECORDED' : 'ACTIVE');
+
+        body.innerHTML += `
+            <tr class="hover:bg-gray-50 transition border-b border-gray-100 text-gray-800">
+                <td class="p-3 uppercase text-[8px] opacity-40 font-bold">${r.type}</td>
+                <td class="p-3">${isStaff ? (r.mobileNumber || r.id) : (r.id || r.mobile)}</td>
+                <td class="p-3 font-bold text-indigo-900">${isStaff ? (r.fullName || r.name) : r.name}</td>
+                <td class="p-3">${isStaff ? (r.adcPassNumber || "-") : "-"}</td>
+                <td class="p-3">${isStaff ? (r.companyName || "-") : r.company}</td>
+                <td class="p-3">${isStaff ? (r.schoolName || "-") : "-"}</td>
+                <td class="p-3">${isStaff ? (r.position || "-") : "-"}</td>
+                <td class="p-3">${isStaff ? (r.companyIdNumber || "-") : "-"}</td>
+                <td class="p-3 opacity-60 font-mono">${r.date}</td>
+                <td class="p-3 text-green-600 font-bold">${r.timeIn}</td>
+                <td class="p-3 text-red-600 font-bold">${timeOutDisplay}</td>
+                <td class="p-3 text-center">
+                    ${sig ? `<img src="${sig}" class="h-8 mx-auto rounded border border-gray-200 cursor-pointer hover:scale-150 transition" onclick="window.openImageZoom('${sig}')">` : '-'}
+                </td>
+            </tr>`;
     });
 }
 
@@ -475,18 +528,22 @@ window.downloadExcelReport = () => {
     try {
         if (!window.adminData) return alert("No data to export");
         const staffLogs = window.adminData.filter(r => r.type === 'staff').map(r => ({
-            "ID / Mobile": r.mobile || r.id || '-',
-            "Staff Name": r.name,
-            "Company": r.company || '-',
-            "Position": r.role || '-',
+            "Type": "Staff",
+            "Mobile Number": r.mobileNumber || r.mobile || r.id || '-',
+            "Full Name": r.fullName || r.name,
+            "ADC Pass Number": r.adcPassNumber || '-',
+            "Company Name": r.companyName || '-',
+            "School Name": r.schoolName || '-',
+            "Position": r.position || r.role || '-',
+            "Company ID": r.companyIdNumber || '-',
             "Date": r.date,
             "In-Time": r.timeIn,
-            "Out-Time": r.timeOut || '-',
+            "Out-Time": (r.checkOutTime || r.timeOut) ? (r.checkOutTime || r.timeOut) : (r.status === 'completed' ? 'RECORDED' : 'ACTIVE'),
             "Status": r.status,
-            "Signature (In)": window.getDirectDriveImageUrl(r.signatureUrl || r.signature),
-            "Signature (Out)": window.getDirectDriveImageUrl(r.signatureOutUrl)
+            "Signature (In)": window.getDirectDriveImageUrl(r.signatureUrl || r.signature)
         }));
         const visitorLogs = window.adminData.filter(r => r.type === 'visitor').map(r => ({
+            "Type": "Visitor",
             "Visitor ID": r.id || '-',
             "Visitor Name": r.name,
             "Mobile": r.mobile || '-',
