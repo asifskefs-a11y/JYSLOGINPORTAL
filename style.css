@@ -78,6 +78,9 @@ button, a, .btn, [onclick] {
     border-radius: 12px;
     box-shadow: var(--shadow);
     margin-bottom: 30px;
+    clear: both;
+    position: relative;
+    z-index: 1;
 }
 .action-panel h2 {
     font-size: 1.2rem !important;
@@ -88,6 +91,11 @@ button, a, .btn, [onclick] {
     gap: 10px !important;
     border-bottom: 1px solid var(--border-color) !important;
     padding-bottom: 12px !important;
+}
+
+.tasks-grid {
+    margin-top: 20px;
+    clear: both;
 }
 .form-group { display: flex; flex-wrap: wrap; gap: 15px; }
 .form-group input, .form-group select {

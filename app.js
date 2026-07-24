@@ -201,6 +201,7 @@ async function renderDashboard(staff) {
             if (cinBtn) {
                 cinBtn.classList.remove('hidden');
                 cinBtn.onclick = () => {
+                    console.log("Check-In Triggered");
                     window.openSignatureModal("Staff Check-In", async (sigData) => {
                         try {
                             const now = new Date();
