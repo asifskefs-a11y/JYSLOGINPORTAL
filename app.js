@@ -257,9 +257,11 @@ async function renderDashboard(staff) {
         const assetAuditAccess = document.getElementById('asset-audit-access');
         const securityArea = document.getElementById('security-task-area');
 
-        // --- ROLE-BASED UI RESTRICTIONS ---
-        if (securityArea) {
-            securityArea.classList.toggle('hidden', roleNormalized !== 'security');
+        // --- ROLE-BASED UI RESTRICTIONS (PERMANENT DOM REMOVAL) ---
+        if (securityArea && roleNormalized !== 'security') {
+            securityArea.remove();
+        } else if (securityArea) {
+            securityArea.classList.remove('hidden');
         }
 
         const authorizedRoles = ['cleanerleader', 'rttechnician', 'security', 'admin'];

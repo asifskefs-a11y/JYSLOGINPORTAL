@@ -340,16 +340,6 @@ canvas {
     }
     #modalImage { max-width: 90% !important; max-height: 80% !important; border-radius: 8px !important; }
 
-    /* Force visibility for action cards on mobile */
-    #asset-audit-access, #security-task-area {
-        width: 100% !important;
-        visibility: visible !important;
-        opacity: 1 !important;
-        display: block !important;
-        margin-top: 10px !important;
-        margin-bottom: 20px !important;
-    }
-
     #asset-audit-section {
         overflow-y: auto !important;
         padding-bottom: 100px !important;
