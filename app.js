@@ -258,10 +258,14 @@ async function renderDashboard(staff) {
         const securityArea = document.getElementById('security-task-area');
 
         // --- ROLE-BASED UI RESTRICTIONS (PERMANENT DOM REMOVAL) ---
-        if (securityArea && roleNormalized !== 'security') {
-            securityArea.remove();
+        if (roleNormalized !== 'security') {
+            if (securityArea) {
+                console.log("Removing Security Area for non-security role:", roleNormalized);
+                securityArea.remove();
+            }
         } else if (securityArea) {
             securityArea.classList.remove('hidden');
+            securityArea.style.display = 'block';
         }
 
         const authorizedRoles = ['cleanerleader', 'rttechnician', 'security', 'admin'];

@@ -94,8 +94,16 @@ button, a, .btn, [onclick] {
 }
 
 .tasks-grid {
-    margin-top: 20px;
+    margin-top: 15px;
     clear: both;
+}
+
+.tasks-section-header {
+    margin-top: 32px !important;
+    margin-bottom: 20px !important;
+    position: relative !important;
+    clear: both !important;
+    display: block !important;
 }
 .form-group { display: flex; flex-wrap: wrap; gap: 15px; }
 .form-group input, .form-group select {
