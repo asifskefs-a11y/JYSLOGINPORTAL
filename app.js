@@ -15,7 +15,7 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 
-const SHEETS_URL = "https://script.google.com/macros/s/AKfycbykqGaM5v2bNQ-MzLLwUY4uj5v8kYUJFd9J8f9P7q8gSLxwpig8AyG162kwq9MdVFAx/exec";
+const SHEETS_URL = "https://script.google.com/macros/s/AKfycbyr-n_jC830cUR47oPrwZgV89NzKqknvNTobSq0PLA7Bp3BlvrZNKWI1SnusSWwbgwt/exec";
 
 // --- GLOBAL UTILITIES ---
 window.getDirectDriveImageUrl = (driveUrl) => {
@@ -29,10 +29,33 @@ window.getDirectDriveImageUrl = (driveUrl) => {
 
 window.uploadToDrive = async (payload) => {
     try {
-        const response = await fetch(SHEETS_URL, { method: 'POST', body: JSON.stringify(payload), mode: 'cors' });
+        // --- MULTI-ACCOUNT DUAL-DRIVE ROUTING LOGIC ---
+        const type = payload.type || 'task_photo';
+
+        // Configuration for the appearnhub@gmail.com account endpoints
+        if (type === 'active_asset' || type === 'disposed_asset') {
+            payload.folderType = type;
+        }
+
+        payload.type = type;
+
+        const response = await fetch(SHEETS_URL, {
+            method: 'POST',
+            body: JSON.stringify(payload),
+            mode: 'cors'
+        });
         const result = await response.json();
-        return result.fileUrl || result.signatureUrl || "";
-    } catch (e) { return ""; }
+
+        console.log("UPLOAD_DEBUG", "Raw JSON Response: " + JSON.stringify(result));
+
+        if (result.status === 'success' || result.fileUrl || result.signatureUrl) {
+            return result;
+        } else {
+            return { status: 'error', message: result.message || "Upload failed" };
+        }
+    } catch (e) {
+        return { status: 'error', message: e.message };
+    }
 };
 
 window.compressImageFile = async (file, maxWidth = 1200, maxHeight = 1200, quality = 0.7) => {
@@ -435,7 +458,7 @@ window.downloadMasterAssetReport = async () => {
         const workbook = new ExcelJS.Workbook();
         const sheet = workbook.addWorksheet('Master Asset Register');
 
-        // Define ALL 40 Columns
+        // Define EXACT 40 Columns per requirements
         sheet.columns = [
             { header: '1. Asset Barcode', key: 'f1', width: 20 },
             { header: '2. Serial No.', key: 'f2', width: 20 },
@@ -468,16 +491,15 @@ window.downloadMasterAssetReport = async () => {
             { header: '29. Asset Useful Life', key: 'f29', width: 15 },
             { header: '30. Asset Vendor Name', key: 'f30', width: 25 },
             { header: '31. Old Asset Barcode', key: 'f31', width: 20 },
-            { header: '32. Existing Old Asset Barcode From FAR', key: 'f32', width: 30 },
+            { header: '32. FAR Old Asset Barcode', key: 'f32', width: 30 },
             { header: '33. Invoice No', key: 'f33', width: 20 },
             { header: '34. DN No', key: 'f34', width: 20 },
             { header: '35. Remarks', key: 'f35', width: 30 },
             { header: '36. Physical Asset Register No', key: 'f36', width: 25 },
             { header: '37. Fixed Asset Register No', key: 'f37', width: 25 },
             { header: '38. Mapping Criteria', key: 'f38', width: 20 },
-            { header: '39. Audit Timestamp', key: 'f39', width: 25 },
-            { header: '40. Initial Audit Photo URL', key: 'f40', width: 40 },
-            { header: 'Disposal Damaged Photo URL', key: 'f41', width: 40 }
+            { header: '39. Initial Audit Photo', key: 'f39', width: 40 },
+            { header: '40. Disposal Photo', key: 'f40', width: 40 }
         ];
 
         window.allAssets.forEach(a => {
@@ -489,15 +511,80 @@ window.downloadMasterAssetReport = async () => {
                 f21: a.roomNo, f22: a.currentRoomBarcode, f23: a.floorNo, f24: a.floorDescription, f25: a.barcodeStatus,
                 f26: a.assetStatus, f27: a.oldSchoolName, f28: a.transactionNo, f29: a.usefulLife, f30: a.vendorName,
                 f31: a.oldBarcode, f32: a.farBarcode, f33: a.invoiceNo, f34: a.dnNo, f35: a.remarks,
-                f36: a.physRegNo, f37: a.fixedAssetRegNo, f38: a.mappingCriteria, f39: a.auditTimestamp,
-                f40: a.initialAuditPhoto || "",
-                f41: a.disposalDamagedPhoto || ""
+                f36: a.physRegNo, f37: a.fixedAssetRegNo, f38: a.mappingCriteria,
+                f39: a.initialAuditPhoto || "",
+                f40: a.disposalDamagedPhoto || ""
             });
         });
 
         const buffer = await workbook.xlsx.writeBuffer();
         saveAs(new Blob([buffer]), `Master_Asset_Register_${Date.now()}.xlsx`);
     } catch (e) { console.error("Asset Export Error:", e); }
+};
+
+window.downloadDisposedAssetReport = async () => {
+    try {
+        const disposed = window.allAssets.filter(a => a.assetStatus === 'Disposed');
+        if (!disposed.length) return alert("No disposed assets to export!");
+
+        const workbook = new ExcelJS.Workbook();
+        const sheet = workbook.addWorksheet('Asset Disposal List');
+
+        sheet.columns = [
+            { header: '1. Asset Barcode', key: 'f1', width: 20 },
+            { header: '2. Serial No.', key: 'f2', width: 20 },
+            { header: '3. Model Description', key: 'f3', width: 30 },
+            { header: '4. Asset Condition', key: 'f4', width: 15 },
+            { header: '5. Price Status', key: 'f5', width: 15 },
+            { header: '6. Asset Unit Cost', key: 'f6', width: 15 },
+            { header: '7. Asset Description', key: 'f7', width: 30 },
+            { header: '8. Date Place in Service', key: 'f8', width: 20 },
+            { header: '9. Manufacturer', key: 'f9', width: 20 },
+            { header: '10. Major Category', key: 'f10', width: 20 },
+            { header: '11. Sub Major Category', key: 'f11', width: 20 },
+            { header: '12. Sub Minor Category', key: 'f12', width: 20 },
+            { header: '13. DOF Major', key: 'f13', width: 15 },
+            { header: '14. DOF Minor', key: 'f14', width: 15 },
+            { header: '15. Category', key: 'f15', width: 15 },
+            { header: '16. Classification [Asset Name]', key: 'f16', width: 20 },
+            { header: '17. Location Name', key: 'f17', width: 20 },
+            { header: '18. School ESIS ID', key: 'f18', width: 15 },
+            { header: '19. School Building Name', key: 'f19', width: 25 },
+            { header: '20. Room Name', key: 'f20', width: 20 },
+            { header: '21. Room No', key: 'f21', width: 15 },
+            { header: '22. Room Barcode', key: 'f22', width: 20 },
+            { header: '23. Floor No', key: 'f23', width: 10 },
+            { header: '24. Floor Description', key: 'f24', width: 20 },
+            { header: '25. Barcode Status', key: 'f25', width: 15 },
+            { header: '26. Asset Status', key: 'f26', width: 15 },
+            { header: 'Disposal Reason', key: 'reason', width: 30 },
+            { header: 'Scrap Location', key: 'loc', width: 25 },
+            { header: 'Disposed By', key: 'by', width: 20 },
+            { header: 'Disposal Date', key: 'date', width: 15 },
+            { header: 'Audit Photo (After)', key: 'photo_before', width: 40 },
+            { header: 'Disposal Photo (Before)', key: 'photo_after', width: 40 }
+        ];
+
+        disposed.forEach(a => {
+            sheet.addRow({
+                f1: a.assetBarcode, f2: a.serialNo, f3: a.modelDescription, f4: a.assetCondition, f5: a.priceStatus,
+                f6: a.unitCost, f7: a.assetDescription, f8: a.serviceDate, f9: a.manufacturer, f10: a.majorCategory,
+                f11: a.subMajorCategory, f12: a.subMinorCategory, f13: a.dofMajor, f14: a.dofMinor, f15: a.category,
+                f16: a.classification, f17: a.locationName, f18: a.esisId, f19: a.buildingName, f20: a.roomName,
+                f21: a.roomNo, f22: a.currentRoomBarcode, f23: a.floorNo, f24: a.floorDescription, f25: a.barcodeStatus,
+                f26: a.assetStatus,
+                reason: a.disposalReason || "-",
+                loc: a.scrapLocation || "-",
+                by: a.disposedBy || "-",
+                date: a.disposalDate || "-",
+                photo_before: a.initialAuditPhoto || "",
+                photo_after: a.disposalDamagedPhoto || ""
+            });
+        });
+
+        const buffer = await workbook.xlsx.writeBuffer();
+        saveAs(new Blob([buffer]), `Disposed_Assets_Report_${Date.now()}.xlsx`);
+    } catch (e) { console.error("Disposal Export Error:", e); }
 };
 
 // --- VISITOR SYSTEM ---
@@ -691,7 +778,17 @@ document.addEventListener('DOMContentLoaded', () => {
                 const btn = e.target.querySelector('button[type="submit"]');
                 btn.disabled = true; btn.innerText = "Processing...";
                 try {
-                    const sig = await window.uploadToDrive({ type: 'signature', department: 'Visitor', staffName: document.getElementById('v-name').value, fileName: `Visitor_Sig_${Date.now()}.png`, image: window.getCompressedSignature(document.getElementById('v-sig-pad')) });
+                    const res = await window.uploadToDrive({
+                        type: 'signature',
+                        department: 'Visitor',
+                        staffName: document.getElementById('v-name').value,
+                        fileName: `Visitor_Sig_${Date.now()}.png`,
+                        image: window.getCompressedSignature(document.getElementById('v-sig-pad'))
+                    });
+
+                    if (res.status !== 'success' && !res.signatureUrl) throw new Error(res.message || "Upload failed");
+                    const sig = res.signatureUrl || res.fileUrl;
+
                     const now = new Date();
                     const data = { id: document.getElementById('v-id').value, name: document.getElementById('v-name').value, mobile: document.getElementById('v-mobile').value, company: document.getElementById('v-company').value, purpose: document.getElementById('v-purpose').value, date: now.toLocaleDateString('en-US'), timeIn: now.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', hour12: true}), status: "active", signatureUrl: sig };
                     await set(ref(db, 'visitors/' + data.id), data);
@@ -747,7 +844,15 @@ window.closeTaskAction = async (taskId) => {
         if(!e.target.files[0]) return;
         alert("Processing After Photo...");
         const comp = await window.compressImageFile(e.target.files[0]);
-        const url = await window.uploadToDrive({ type: 'photo', fileName: `After_${taskId}.png`, image: comp });
+        const res = await window.uploadToDrive({
+            type: 'task_photo',
+            fileName: `After_${taskId}.png`,
+            image: comp
+        });
+
+        if (res.status !== 'success' && !res.fileUrl) return alert("Upload failed: " + (res.message || "Unknown error"));
+        const url = res.fileUrl;
+
         await update(ref(db, 'tasks/' + taskId), { status: 'Closed', afterPhotoUrl: url, solvedByName: window.currentStaff.name, solvedByRole: window.currentStaff.role, solvedTimestamp: new Date().toISOString() });
         alert("Task Closed!"); loadRoleView(window.currentStaff);
     };

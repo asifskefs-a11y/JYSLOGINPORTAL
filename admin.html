@@ -69,6 +69,7 @@
                     <button onclick="showAdminTab('tab-tasks')" id="taskAuditBtn" class="admin-tab-btn flex-1 py-4 font-bold transition">Task Audit</button>
                     <button onclick="showAdminTab('tab-staff-list')" id="staffMgmtBtn" class="admin-tab-btn flex-1 py-4 font-bold transition">Staff Management</button>
                     <button onclick="showAdminTab('tab-assets')" id="assetMgmtBtn" class="admin-tab-btn flex-1 py-4 font-bold transition">Asset Register</button>
+                    <button onclick="showAdminTab('tab-disposal')" id="assetDisposalBtn" class="admin-tab-btn flex-1 py-4 font-bold transition">Asset Disposal</button>
                 </div>
 
                 <div class="p-4 space-y-4">
@@ -143,28 +144,116 @@
                                     <option value="IT">IT Assets</option>
                                     <option value="Non-IT">Non-IT Assets</option>
                                 </select>
-                                <select id="asset-status-filter" class="flex-1 bg-white border border-gray-200 p-2 rounded-xl text-xs" onchange="filterAssetTable()">
-                                    <option value="all">All Status</option>
-                                    <option value="Existing">Existing</option>
-                                    <option value="Disposed">Disposed</option>
-                                </select>
                             </div>
                         </div>
-                        <div class="overflow-x-auto rounded-xl border border-gray-100 bg-white">
-                            <table class="w-full text-left text-[9px]" id="asset-master-table">
-                                <thead class="bg-orange-50 uppercase font-bold text-orange-700">
-                                    <tr>
-                                        <th class="p-2">Room Barcode</th>
-                                        <th class="p-2">Asset Barcode</th>
-                                        <th class="p-2">Description</th>
-                                        <th class="p-2">Category</th>
-                                        <th class="p-2">Condition</th>
-                                        <th class="p-2">Status</th>
-                                        <th class="p-2">Disposal Details</th>
-                                        <th class="p-2 text-center">Photo</th>
+                        <div class="overflow-x-auto rounded-xl border border-gray-100 bg-white shadow-sm" style="max-height: 70vh; overflow-y: auto;">
+                            <table class="w-full text-left border-collapse" id="asset-master-table">
+                                <thead class="sticky top-0 bg-[#f8f9fa] z-10 shadow-sm">
+                                    <tr class="text-[11px] uppercase font-bold text-indigo-900 border-b-2 border-indigo-100">
+                                        <th class="p-3 border-r min-w-[150px]">1. Asset Barcode</th>
+                                        <th class="p-3 border-r min-w-[150px]">2. Serial No.</th>
+                                        <th class="p-3 border-r min-w-[200px]">3. Model Description</th>
+                                        <th class="p-3 border-r min-w-[150px]">4. Asset Condition</th>
+                                        <th class="p-3 border-r min-w-[120px]">5. Price Status</th>
+                                        <th class="p-3 border-r min-w-[120px]">6. Asset Unit Cost</th>
+                                        <th class="p-3 border-r min-w-[200px]">7. Asset Description</th>
+                                        <th class="p-3 border-r min-w-[150px]">8. Date Place in Service</th>
+                                        <th class="p-3 border-r min-w-[150px]">9. Manufacturer</th>
+                                        <th class="p-3 border-r min-w-[180px]">10. Major Category</th>
+                                        <th class="p-3 border-r min-w-[180px]">11. Sub Major Category</th>
+                                        <th class="p-3 border-r min-w-[150px]">12. Sub Minor Category</th>
+                                        <th class="p-3 border-r min-w-[120px]">13. DOF Major</th>
+                                        <th class="p-3 border-r min-w-[120px]">14. DOF Minor</th>
+                                        <th class="p-3 border-r min-w-[120px]">15. Category</th>
+                                        <th class="p-3 border-r min-w-[180px]">16. Classification</th>
+                                        <th class="p-3 border-r min-w-[150px]">17. Location Name</th>
+                                        <th class="p-3 border-r min-w-[120px]">18. School ESIS ID</th>
+                                        <th class="p-3 border-r min-w-[200px]">19. School Building</th>
+                                        <th class="p-3 border-r min-w-[150px]">20. Room Name</th>
+                                        <th class="p-3 border-r min-w-[120px]">21. Room No</th>
+                                        <th class="p-3 border-r min-w-[150px]">22. Room Barcode</th>
+                                        <th class="p-3 border-r min-w-[100px]">23. Floor No</th>
+                                        <th class="p-3 border-r min-w-[150px]">24. Floor Description</th>
+                                        <th class="p-3 border-r min-w-[150px]">25. Barcode Status</th>
+                                        <th class="p-3 border-r min-w-[150px]">26. Asset Status</th>
+                                        <th class="p-3 border-r min-w-[180px]">27. Old School Name</th>
+                                        <th class="p-3 border-r min-w-[150px]">28. Transaction No</th>
+                                        <th class="p-3 border-r min-w-[150px]">29. Asset Useful Life</th>
+                                        <th class="p-3 border-r min-w-[180px]">30. Asset Vendor Name</th>
+                                        <th class="p-3 border-r min-w-[150px]">31. Old Asset Barcode</th>
+                                        <th class="p-3 border-r min-w-[150px]">32. FAR Old Barcode</th>
+                                        <th class="p-3 border-r min-w-[150px]">33. Invoice No</th>
+                                        <th class="p-3 border-r min-w-[150px]">34. DN No</th>
+                                        <th class="p-3 border-r min-w-[200px]">35. Remarks</th>
+                                        <th class="p-3 border-r min-w-[180px]">36. Physical Reg No</th>
+                                        <th class="p-3 border-r min-w-[180px]">37. Fixed Asset Reg No</th>
+                                        <th class="p-3 border-r min-w-[150px]">38. Mapping Criteria</th>
+                                        <th class="p-3 border-r min-w-[120px] text-center">39. Audit Photo</th>
+                                        <th class="p-3 border-r min-w-[120px] text-center">40. Disposal Photo</th>
+                                        <th class="p-3 min-w-[100px] text-center text-red-600">Action</th>
                                     </tr>
                                 </thead>
-                                <tbody id="admin-asset-list-body" class="divide-y divide-gray-50"></tbody>
+                                <tbody id="admin-asset-list-body" class="divide-y divide-gray-100 text-gray-800 bg-white"></tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Asset Disposal Tab -->
+                    <div id="tab-disposal" class="admin-tab space-y-4 hidden">
+                        <div class="flex flex-col md:flex-row justify-between items-center gap-4">
+                            <input type="text" id="disposal-search" placeholder="Search Disposed Assets..." class="flex-1 bg-white border border-gray-200 p-3 rounded-xl outline-none text-xs w-full" oninput="filterDisposalTable()">
+                            <button onclick="downloadDisposedAssetReport()" class="bg-red-600 text-white px-4 py-2 rounded-lg font-bold text-xs flex items-center gap-2 whitespace-nowrap">
+                                <i class="fa-solid fa-file-excel"></i> Export Disposed Assets
+                            </button>
+                        </div>
+                        <div class="overflow-x-auto rounded-xl border border-gray-100 bg-white shadow-sm" style="max-height: 70vh; overflow-y: auto;">
+                            <table class="w-full text-left border-collapse" id="asset-disposal-table">
+                                <thead class="sticky top-0 bg-[#f8f9fa] z-10 shadow-sm">
+                                    <tr class="text-[11px] uppercase font-bold text-red-900 border-b-2 border-red-100">
+                                        <th class="p-3 border-r min-w-[150px]">1. Asset Barcode</th>
+                                        <th class="p-3 border-r min-w-[150px]">2. Serial No.</th>
+                                        <th class="p-3 border-r min-w-[200px]">3. Model Description</th>
+                                        <th class="p-3 border-r min-w-[150px]">4. Asset Condition</th>
+                                        <th class="p-3 border-r min-w-[120px]">5. Price Status</th>
+                                        <th class="p-3 border-r min-w-[120px]">6. Asset Unit Cost</th>
+                                        <th class="p-3 border-r min-w-[200px]">7. Asset Description</th>
+                                        <th class="p-3 border-r min-w-[150px]">8. Date Place in Service</th>
+                                        <th class="p-3 border-r min-w-[150px]">9. Manufacturer</th>
+                                        <th class="p-3 border-r min-w-[180px]">10. Major Category</th>
+                                        <th class="p-3 border-r min-w-[180px]">11. Sub Major Category</th>
+                                        <th class="p-3 border-r min-w-[150px]">12. Sub Minor Category</th>
+                                        <th class="p-3 border-r min-w-[120px]">13. DOF Major</th>
+                                        <th class="p-3 border-r min-w-[120px]">14. DOF Minor</th>
+                                        <th class="p-3 border-r min-w-[120px]">15. Category</th>
+                                        <th class="p-3 border-r min-w-[180px]">16. Classification</th>
+                                        <th class="p-3 border-r min-w-[150px]">17. Location Name</th>
+                                        <th class="p-3 border-r min-w-[120px]">18. School ESIS ID</th>
+                                        <th class="p-3 border-r min-w-[200px]">19. School Building</th>
+                                        <th class="p-3 border-r min-w-[150px]">20. Room Name</th>
+                                        <th class="p-3 border-r min-w-[120px]">21. Room No</th>
+                                        <th class="p-3 border-r min-w-[150px]">22. Room Barcode</th>
+                                        <th class="p-3 border-r min-w-[100px]">23. Floor No</th>
+                                        <th class="p-3 border-r min-w-[150px]">24. Floor Description</th>
+                                        <th class="p-3 border-r min-w-[150px]">25. Barcode Status</th>
+                                        <th class="p-3 border-r min-w-[150px]">26. Asset Status</th>
+                                        <th class="p-3 border-r min-w-[180px]">27. Old School Name</th>
+                                        <th class="p-3 border-r min-w-[150px]">28. Transaction No</th>
+                                        <th class="p-3 border-r min-w-[150px]">29. Asset Useful Life</th>
+                                        <th class="p-3 border-r min-w-[180px]">30. Asset Vendor Name</th>
+                                        <th class="p-3 border-r min-w-[150px]">31. Old Asset Barcode</th>
+                                        <th class="p-3 border-r min-w-[150px]">32. FAR Old Barcode</th>
+                                        <th class="p-3 border-r min-w-[150px]">33. Invoice No</th>
+                                        <th class="p-3 border-r min-w-[150px]">34. DN No</th>
+                                        <th class="p-3 border-r min-w-[200px]">35. Remarks</th>
+                                        <th class="p-3 border-r min-w-[180px]">36. Physical Reg No</th>
+                                        <th class="p-3 border-r min-w-[180px]">37. Fixed Asset Reg No</th>
+                                        <th class="p-3 border-r min-w-[150px]">38. Mapping Criteria</th>
+                                        <th class="p-3 border-r min-w-[120px] text-center">39. Audit Photo (After)</th>
+                                        <th class="p-3 border-r min-w-[120px] text-center">40. Disposal Photo (Before)</th>
+                                        <th class="p-3 min-w-[100px] text-center text-red-600">Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="admin-disposal-list-body" class="divide-y divide-gray-100 text-gray-800 bg-white"></tbody>
                             </table>
                         </div>
                     </div>
