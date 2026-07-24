@@ -166,6 +166,21 @@ document.addEventListener('DOMContentLoaded', () => {
         bindLogout('staff-logout');
         bindLogout('admin-logout-btn');
 
+        // --- BIND DELETE ACCOUNT ---
+        const delBtn = document.getElementById('delete-my-account');
+        if (delBtn) {
+            delBtn.onclick = async () => {
+                if (!confirm("Are you sure? This will PERMANENTLY delete your account.")) return;
+                try {
+                    if (window.currentStaff && window.currentStaff.mobile) {
+                        await set(ref(db, 'staff/' + window.currentStaff.mobile), null);
+                        await set(ref(db, 'users/' + window.currentStaff.mobile), null);
+                        window.logoutStaff();
+                    }
+                } catch (e) { alert("Error deleting account: " + e.message); }
+            };
+        }
+
         window.initSigPad();
         window.initVisitorCanvas();
     } catch (e) { console.error("Init Error:", e); }

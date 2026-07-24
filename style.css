@@ -106,7 +106,41 @@ button, a, .btn, [onclick] {
     display: block !important;
 }
 
-/* Redesigned Asset Management Cards */
+/* Redesigned Profile Card Utilities */
+.school-header h1 {
+    font-size: 1.1rem !important;
+    letter-spacing: -0.01em;
+}
+
+.user-info h3 {
+    letter-spacing: -0.02em;
+}
+
+#staff-dash-area .bg-white.rounded-2xl {
+    transition: transform 0.2s ease;
+}
+
+#staff-dash-area .bg-white.rounded-2xl:active {
+    transform: scale(0.99);
+}
+
+.card-footer button {
+    background: transparent !important;
+    border: none !important;
+    padding: 4px 8px !important;
+}
+
+@media screen and (max-width: 480px) {
+    .school-header h1 {
+        font-size: 1rem !important;
+    }
+
+    .avatar-container div {
+        width: 48px !important;
+        height: 48px !important;
+        font-size: 1.1rem !important;
+    }
+}
 #asset-audit-access h2 {
     font-size: 1.3rem !important;
     font-black: 900 !important;
@@ -182,15 +216,43 @@ button, a, .btn, [onclick] {
     display: flex;
     flex-direction: column;
     position: relative;
+    padding: 16px;
+    box-sizing: border-box;
+    overflow-x: hidden;
+}
+
+/* Ensure nothing overflows */
+* {
+    box-sizing: border-box;
 }
 
 /* --- RESPONSIVE DASHBOARD CONTAINERS --- */
 .app-container, .main-card, .dashboard-wrapper, #view-admin-dash > div {
-    width: 95% !important;
-    max-width: 1400px !important;
-    margin: 20px auto !important;
-    padding: 20px !important;
-    box-sizing: border-box !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 auto 20px auto !important;
+    padding: 0 !important;
+}
+
+/* Media Query Overrides for Mobile */
+@media screen and (max-width: 768px) {
+    .app-container {
+        padding: 12px;
+    }
+
+    .stats-grid {
+        grid-template-columns: 1fr !important;
+        gap: 12px !important;
+    }
+
+    .task-card {
+        padding: 12px !important;
+    }
+
+    .action-panel {
+        padding: 16px !important;
+        margin-bottom: 20px !important;
+    }
 }
 
 /* Ensure tables & tab contents expand 100% */
@@ -318,6 +380,88 @@ html, body {
       box-sizing: border-box !important;
       border-radius: 16px !important;
       box-shadow: var(--shadow) !important;
+    }
+
+    /* STRICT MOBILE HEADER FIX */
+    #view-staff > nav {
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: center !important;
+        gap: 12px !important;
+        padding: 16px !important;
+        height: auto !important;
+        background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%) !important;
+        border-radius: 0 0 24px 24px !important;
+        width: 100% !important;
+        box-sizing: border-box !important;
+        position: relative !important;
+    }
+
+    #view-staff > nav a, #view-staff > nav h2, #view-staff > nav button {
+        width: 100% !important;
+        text-align: center !important;
+        justify-content: center !important;
+    }
+
+    /* PROFILE CARD STACKING */
+    #staff-dash-area .bg-white.rounded-\[2rem\] {
+        padding: 24px 16px !important;
+    }
+
+    #staff-dash-area .bg-white.rounded-\[2rem\] > div.flex-col {
+        gap: 20px !important;
+    }
+
+    #staff-dash-area .school-brand {
+        width: 100% !important;
+        text-align: left !important;
+    }
+
+    #staff-dash-area .school-brand h1 {
+        font-size: 1.2rem !important;
+        text-align: left !important;
+        line-height: 1.3 !important;
+    }
+
+    #staff-dash-area .school-brand p {
+        text-align: left !important;
+    }
+
+    #staff-dash-area div.flex.justify-between.items-start {
+        flex-direction: column !important;
+        align-items: flex-start !important;
+        gap: 16px !important;
+        width: 100% !important;
+    }
+
+    #staff-dash-area div.flex.flex-col.items-end {
+        width: 100% !important;
+        align-items: flex-start !important;
+        flex-direction: row-reverse !important;
+        justify-content: flex-end !important;
+        gap: 12px !important;
+        margin-top: 5px !important;
+    }
+
+    #staff-dash-area .bg-indigo-50\/50 {
+        flex-direction: row !important;
+        text-align: left !important;
+        padding: 16px !important;
+        align-items: center !important;
+        gap: 16px !important;
+    }
+
+    #staff-dash-area #userAvatar {
+        width: 50px !important;
+        height: 50px !important;
+        font-size: 1.2rem !important;
+    }
+
+    /* Admin Signature Visibility Fix */
+    .excel-table img {
+        display: block !important;
+        visibility: visible !important;
+        opacity: 1 !important;
     }
 
     /* Fix Cut-off Textboxes & Inputs */

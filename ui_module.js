@@ -3,10 +3,28 @@ import { SHEETS_URL } from './firebase_config.js';
 // --- GLOBAL UTILITIES ---
 window.getDirectDriveImageUrl = (driveUrl) => {
     if (!driveUrl) return 'https://placehold.co/400x300?text=No+Photo';
+
+    // If it's already a direct link or base64, return as is
+    if (driveUrl.startsWith('data:image') || driveUrl.includes('lh3.googleusercontent.com')) {
+        return driveUrl;
+    }
+
     try {
-        const idMatch = driveUrl.match(/[-\w]{25,}/);
-        if (idMatch && idMatch[0]) return 'https://lh3.googleusercontent.com/d/' + idMatch[0];
-    } catch (e) {}
+        // Pattern 1: /file/d/FILE_ID/
+        const dMatch = driveUrl.match(/\/file\/d\/([^\/]+)/);
+        if (dMatch && dMatch[1]) return 'https://lh3.googleusercontent.com/d/' + dMatch[1];
+
+        // Pattern 2: id=FILE_ID
+        const idMatch = driveUrl.match(/[?&]id=([^&]+)/);
+        if (idMatch && idMatch[1]) return 'https://lh3.googleusercontent.com/d/' + idMatch[1];
+
+        // Pattern 3: Raw ID (fallback)
+        const rawMatch = driveUrl.match(/[-\w]{25,}/);
+        if (rawMatch && rawMatch[0]) return 'https://lh3.googleusercontent.com/d/' + rawMatch[0];
+    } catch (e) {
+        console.error("URL Conversion Error:", e);
+    }
+
     return driveUrl;
 };
 

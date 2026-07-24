@@ -76,28 +76,36 @@ window.loadAdminDashboard = async () => {
             if(tasks.exists()) {
                 window.adminTasks = Object.values(tasks.val()).reverse();
                 window.adminTasks.forEach(t => {
-                    const b = window.getDirectDriveImageUrl(t.beforePhotoUrl || t.beforePhoto);
+                    const b = window.getDirectDriveImageUrl(t.beforePhotoUrl || t.beforePhoto || t.taskPhoto);
                     const a = window.getDirectDriveImageUrl(t.afterPhotoUrl || t.afterPhoto);
+                    const school = t.assignedSchool || t.schoolName || t.schoolBuilding || "-";
                     const rDT = t.raisedTimestamp ? new Date(t.raisedTimestamp) : null;
                     const cDT = t.solvedTimestamp ? new Date(t.solvedTimestamp) : null;
+
                     taskBody.innerHTML += `
-                        <tr class="hover:bg-white/5 transition text-gray-800">
-                            <td class="p-2 font-mono opacity-50">${t.id}</td>
-                            <td class="p-2">${t.schoolBuilding || '-'}</td>
+                        <tr class="hover:bg-gray-50 transition text-gray-800 border-b border-gray-100">
+                            <td class="p-2 font-mono text-[9px] opacity-50">${t.id}</td>
+                            <td class="p-2 font-bold text-indigo-600">${school}</td>
                             <td class="p-2 font-bold">${t.location}</td>
-                            <td class="p-2 opacity-70">${t.targetRole}</td>
+                            <td class="p-2 opacity-70">${t.assignedRole || t.targetRole || "-"}</td>
                             <td class="p-2">${t.raisedByName || 'Admin'}</td>
-                            <td class="p-2">${rDT ? rDT.toLocaleDateString() : '-'}</td>
-                            <td class="p-2">${rDT ? rDT.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) : '-'}</td>
+                            <td class="p-2 font-mono text-[9px]">${rDT ? rDT.toLocaleDateString() : '-'}</td>
+                            <td class="p-2 font-mono text-[9px]">${rDT ? rDT.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) : '-'}</td>
                             <td class="p-2">${t.solvedByName || '-'}</td>
-                            <td class="p-2">${cDT ? cDT.toLocaleDateString() : '-'}</td>
-                            <td class="p-2">${cDT ? cDT.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) : '-'}</td>
-                            <td class="p-2 font-bold ${t.status === 'Open' ? 'text-blue-400' : (t.status === 'Closed' ? 'text-green-400' : 'text-red-400')}">${t.status}</td>
-                            <td class="p-2 italic opacity-60">${t.rejectionReason || 'N/A'}</td>
+                            <td class="p-2 font-mono text-[9px]">${cDT ? cDT.toLocaleDateString() : '-'}</td>
+                            <td class="p-2 font-mono text-[9px]">${cDT ? cDT.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) : '-'}</td>
+                            <td class="p-2 font-bold ${t.status === 'Open' ? 'text-blue-500' : (t.status === 'Closed' ? 'text-green-500' : 'text-red-500')}">${t.status}</td>
+                            <td class="p-2 italic text-[9px] opacity-60">${t.rejectionReason || 'N/A'}</td>
                             <td class="p-2">
-                                <div class="flex gap-1 justify-center">
-                                    <img src="${b}" class="h-6 w-6 rounded border border-white/10" onclick="window.openImageZoom('${b}')" onerror="this.style.display='none'">
-                                    ${(t.afterPhotoUrl || t.afterPhoto) ? `<img src="${a}" class="h-6 w-6 rounded border border-white/10" onclick="window.openImageZoom('${a}')" onerror="this.style.display='none'">` : ''}
+                                <div class="flex gap-2 justify-center items-center">
+                                    <div class="text-center">
+                                        <p class="text-[8px] font-bold text-gray-400 uppercase mb-1">Before</p>
+                                        ${b.includes('http') ? `<img src="${b}" referrerpolicy="no-referrer" class="h-12 w-12 rounded shadow-sm border border-gray-200 cursor-pointer hover:scale-150 transition" onclick="window.openImageZoom('${b}')">` : '<span class="text-[8px] text-gray-300">No Photo</span>'}
+                                    </div>
+                                    <div class="text-center">
+                                        <p class="text-[8px] font-bold text-gray-400 uppercase mb-1">After</p>
+                                        ${(t.afterPhotoUrl || t.afterPhoto) ? `<img src="${a}" referrerpolicy="no-referrer" class="h-12 w-12 rounded shadow-sm border border-gray-200 cursor-pointer hover:scale-150 transition" onclick="window.openImageZoom('${a}')">` : '<span class="text-[8px] text-gray-300">No Photo</span>'}
+                                    </div>
                                 </div>
                             </td>
                         </tr>`;
@@ -135,7 +143,7 @@ window.renderAdminTable = (data) => {
                 <td class="p-3 text-green-600 font-bold">${r.timeIn}</td>
                 <td class="p-3 text-red-600 font-bold">${timeOutDisplay}</td>
                 <td class="p-3 text-center">
-                    ${sig ? `<img src="${sig}" class="h-8 mx-auto rounded border border-gray-200 cursor-pointer hover:scale-150 transition" onclick="window.openImageZoom('${sig}')">` : '-'}
+                    ${sig ? `<img src="${sig}" referrerpolicy="no-referrer" class="h-8 mx-auto rounded border border-gray-200 cursor-pointer hover:scale-150 transition" onclick="window.openImageZoom('${sig}')">` : '-'}
                 </td>
             </tr>`;
     });
