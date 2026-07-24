@@ -139,6 +139,33 @@ window.checkStaffAuth = () => {
     } catch (e) { console.error("Auth Check Error:", e); }
 };
 
+window.toggleStaffTab = (tab) => {
+    try {
+        const logTab = document.getElementById('s-tab-login');
+        const regTab = document.getElementById('s-tab-reg');
+        const logForm = document.getElementById('staff-login-form');
+        const regForm = document.getElementById('staff-reg-form');
+
+        if (!logTab || !regTab || !logForm || !regForm) return;
+
+        if (tab === 'login') {
+            logTab.classList.add('text-indigo-600', 'border-indigo-600');
+            logTab.classList.remove('text-gray-400', 'border-transparent');
+            regTab.classList.add('text-gray-400', 'border-transparent');
+            regTab.classList.remove('text-indigo-600', 'border-indigo-600');
+            logForm.classList.remove('hidden');
+            regForm.classList.add('hidden');
+        } else {
+            regTab.classList.add('text-indigo-600', 'border-indigo-600');
+            regTab.classList.remove('text-gray-400', 'border-transparent');
+            logTab.classList.add('text-gray-400', 'border-transparent');
+            logTab.classList.remove('text-indigo-600', 'border-indigo-600');
+            regForm.classList.remove('hidden');
+            logForm.classList.add('hidden');
+        }
+    } catch (e) { console.error("Toggle Tab Error:", e); }
+};
+
 // --- DASHBOARD RENDERING ---
 async function renderDashboard(staff) {
     try {
@@ -171,7 +198,40 @@ async function renderDashboard(staff) {
                 startCheckoutCountdown(new Date(sessionObj.checkInTimestamp), coutBtn);
             }
         } else {
-            if (cinBtn) cinBtn.classList.remove('hidden');
+            if (cinBtn) {
+                cinBtn.classList.remove('hidden');
+                cinBtn.onclick = () => {
+                    window.openSignatureModal("Staff Check-In", async (sigData) => {
+                        try {
+                            const now = new Date();
+                            const res = await window.uploadToDrive({
+                                type: 'signature',
+                                staffName: staff.name,
+                                fileName: `CheckIn_${staff.mobile}_${Date.now()}.png`,
+                                image: sigData
+                            });
+
+                            const session = {
+                                mobile: staff.mobile,
+                                name: staff.name,
+                                status: 'checked_in',
+                                checkInTimestamp: now.toISOString(),
+                                signatureUrl: res.fileUrl || res.signatureUrl
+                            };
+
+                            await set(ref(db, 'staff_attendance/' + staff.mobile + '_' + now.getTime()), {
+                                ...session,
+                                date: now.toLocaleDateString(),
+                                timeIn: now.toLocaleTimeString()
+                            });
+
+                            localStorage.setItem('staff_active_session', JSON.stringify(session));
+                            renderDashboard(staff);
+                            alert("Check-In Successful!");
+                        } catch (e) { alert("Check-In Error: " + e.message); }
+                    });
+                };
+            }
             if (coutBtn) coutBtn.classList.add('hidden');
         }
 
@@ -733,6 +793,56 @@ document.addEventListener('DOMContentLoaded', () => {
                     } else { alert("Invalid Credentials"); }
                 } catch (err) { console.error(err); }
                 finally { if (submitBtn) submitBtn.disabled = false; }
+            };
+        }
+
+        const staffRegForm = document.getElementById('staff-reg-form');
+        if (staffRegForm) {
+            staffRegForm.onsubmit = async (e) => {
+                e.preventDefault();
+                console.log("Registration Started");
+                const name = document.getElementById('s-reg-name').value;
+                const branch = document.getElementById('s-reg-branch').value;
+                const role = document.getElementById('s-reg-role').value;
+                const company = document.getElementById('s-reg-company').value;
+                const pass = document.getElementById('s-reg-pass').value;
+                const confirmPass = document.getElementById('s-reg-confirm').value;
+
+                if (pass !== confirmPass) return alert("Passwords do not match!");
+
+                const submitBtn = e.target.querySelector('button');
+                submitBtn.disabled = true;
+
+                try {
+                    // Gather dynamic fields
+                    const dynamicData = {};
+                    document.querySelectorAll('.dynamic-input').forEach(input => {
+                        dynamicData[input.getAttribute('data-field')] = input.value;
+                    });
+
+                    const mobileField = document.querySelector('[data-field="Mobile Number"]');
+                    const mobile = mobileField ? mobileField.value : company; // Fallback to company if no mobile field
+
+                    if (!mobile) {
+                        submitBtn.disabled = false;
+                        return alert("Mobile Number is required for registration.");
+                    }
+
+                    const data = {
+                        name, branch, role, company, password: pass, mobile,
+                        ...dynamicData,
+                        createdAt: new Date().toISOString()
+                    };
+
+                    await set(ref(db, 'staff/' + mobile), data);
+                    alert("Registration successful! Please login.");
+                    window.toggleStaffTab('login');
+                } catch (err) {
+                    console.error(err);
+                    alert("Registration failed: " + err.message);
+                } finally {
+                    submitBtn.disabled = false;
+                }
             };
         }
 
