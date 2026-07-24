@@ -4,14 +4,26 @@ import { ref, set, update, push, onValue, get } from "https://www.gstatic.com/fi
 // --- SIGNATURE PAD ---
 let sigCanvas, sigCtx, sigDrawing = false, sigCallback = null;
 window.initSigPad = () => {
+    console.log("Initializing Signature Pad");
     sigCanvas = document.getElementById('sig-canvas');
-    if (!sigCanvas) return;
+    if (!sigCanvas) {
+        console.error("Signature canvas not found!");
+        return;
+    }
     sigCtx = sigCanvas.getContext('2d');
 
     const getPos = (e) => {
         const rect = sigCanvas.getBoundingClientRect();
-        const clientX = e.clientX || (e.touches && e.touches[0].clientX);
-        const clientY = e.clientY || (e.touches && e.touches[0].clientY);
+        let clientX, clientY;
+
+        if (e.touches && e.touches.length > 0) {
+            clientX = e.touches[0].clientX;
+            clientY = e.touches[0].clientY;
+        } else {
+            clientX = e.clientX;
+            clientY = e.clientY;
+        }
+
         return {
             x: clientX - rect.left,
             y: clientY - rect.top
@@ -19,11 +31,11 @@ window.initSigPad = () => {
     };
 
     const start = (e) => {
+        console.log("Signature drawing started");
         sigDrawing = true;
         sigCtx.beginPath();
         const p = getPos(e);
         sigCtx.moveTo(p.x, p.y);
-        // Prevent scrolling on touch
         if (e.type === 'touchstart') e.preventDefault();
     };
 
@@ -32,13 +44,15 @@ window.initSigPad = () => {
         const p = getPos(e);
         sigCtx.lineTo(p.x, p.y);
         sigCtx.stroke();
-        // Prevent scrolling on touch
         if (e.type === 'touchmove') e.preventDefault();
     };
 
-    const stop = () => {
-        sigDrawing = false;
-        sigCtx.closePath();
+    const stop = (e) => {
+        if (sigDrawing) {
+            console.log("Signature drawing stopped");
+            sigDrawing = false;
+            sigCtx.closePath();
+        }
     };
 
     // Remove existing listeners if any (optional, depends on how init is called)

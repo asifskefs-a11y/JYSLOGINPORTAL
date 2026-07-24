@@ -129,7 +129,22 @@ document.addEventListener('DOMContentLoaded', () => {
         // --- BIND LOGOUT BUTTONS ---
         const bindLogout = (id) => {
             const btn = document.getElementById(id);
-            if (btn) btn.onclick = window.logoutStaff;
+            if (btn) {
+                console.log("Binding Logout to:", id);
+                btn.onclick = (e) => {
+                    e.preventDefault();
+                    console.log("Logout clicked:", id);
+                    if (typeof window.logoutStaff === 'function') {
+                        window.logoutStaff();
+                    } else {
+                        console.error("logoutStaff function not found!");
+                        // Fallback
+                        localStorage.clear();
+                        sessionStorage.clear();
+                        window.location.href = 'staff-login.html';
+                    }
+                };
+            }
         };
         bindLogout('staff-logout-btn');
         bindLogout('staff-logout');

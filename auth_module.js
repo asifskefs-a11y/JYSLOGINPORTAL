@@ -3,11 +3,12 @@ import { ref, set, get, child } from "https://www.gstatic.com/firebasejs/10.7.1/
 
 // --- AUTHENTICATION FLOW ---
 window.logoutStaff = () => {
+    console.log("Global Logout Triggered");
     try {
-        localStorage.removeItem('loggedStaff');
-        localStorage.removeItem('staff_active_session');
-        localStorage.removeItem('isAdminLoggedIn');
-        window.location.href = 'index.html';
+        localStorage.clear();
+        sessionStorage.clear();
+        console.log("Storage cleared, redirecting...");
+        window.location.href = 'staff-login.html';
     } catch (e) { console.error("Logout Error:", e); }
 };
 

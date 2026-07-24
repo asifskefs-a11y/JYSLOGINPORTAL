@@ -44,7 +44,7 @@ button, a, .btn, [onclick] {
   box-shadow: var(--shadow);
   position: sticky;
   top: 0;
-  z-index: 100;
+  z-index: 1000;
 }
 .brand-section { display: flex; align-items: center; gap: 15px; }
 .school-title { font-size: 1.1rem; font-weight: 700; color: var(--primary-dark); line-height: 1.2; }
@@ -314,6 +314,15 @@ canvas#sig-canvas, canvas#v-sig-pad {
     z-index: 10005 !important;
     position: relative !important;
     background-color: #ffffff !important;
+}
+
+/* Logout Button Interaction Fix */
+#staff-logout-btn, #staff-logout, #admin-logout-btn, .logout-btn {
+    pointer-events: auto !important;
+    cursor: pointer !important;
+    z-index: 99999 !important;
+    position: relative !important;
+    visibility: visible !important;
 }
 
 #signature-modal, #task-modal, #reject-modal, #asset-disposal-modal, #password-modal {

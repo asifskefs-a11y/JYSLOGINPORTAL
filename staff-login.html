@@ -20,7 +20,7 @@
                     <span>Back</span>
                 </a>
                 <h2 class="text-xl font-bold">Staff Portal</h2>
-                <button id="staff-logout-btn" class="hidden glass-morphism px-4 py-2 rounded-lg text-xs font-bold">Logout</button>
+                <button id="staff-logout-btn" onclick="window.logoutStaff()" class="hidden glass-morphism px-4 py-2 rounded-lg text-xs font-bold">Logout</button>
             </nav>
 
             <div id="staff-auth-area" class="w-full bg-white text-gray-800 rounded-2xl shadow-2xl overflow-hidden">
@@ -73,7 +73,7 @@
                     <div class="flex items-center gap-4">
                         <div class="avatar" id="userAvatar">JY</div>
                         <button id="delete-my-account" class="text-[10px] font-bold text-red-400 uppercase underline mr-2">Delete My Account</button>
-                        <button id="staff-logout" class="text-xs font-bold text-red-500 uppercase">Logout</button>
+                        <button id="staff-logout" onclick="window.logoutStaff()" class="logout-btn text-xs font-bold text-red-500 uppercase">Logout</button>
                     </div>
                 </nav>
 
