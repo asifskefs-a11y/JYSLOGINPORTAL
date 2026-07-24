@@ -1,4 +1,5 @@
-import { getDatabase, ref, set, get, update, child } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+import { db } from './firebase_config.js';
+import { ref, set, get, update, child } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
 // --- ASSET MODULE LOGIC ---
 let currentRoomContext = null;
@@ -8,8 +9,6 @@ let currentScanTarget = null;
 let activeDisposalBarcode = null;
 let disposalPhotoBase64 = "";
 let initialAuditPhotoBase64 = "";
-
-const db = getDatabase();
 
 window.handleInitialAuditPhoto = async (e) => {
     try {
