@@ -103,8 +103,20 @@ window.startCameraScanner = async (inputId) => {
         await html5QrCode.start(
             { facingMode: "environment" },
             config,
-            (decodedText) => {
+            async (decodedText) => {
                 try {
+                    // --- DUPLICATE CHECK FOR ASSET BARCODE ---
+                    if (currentScanTarget === 'f1_asset_barcode') {
+                        const snap = await get(child(ref(db), `assets/${decodedText}`));
+                        if (snap.exists()) {
+                            window.stopCameraScanner();
+                            alert("Error: Asset Barcode already registered.");
+                            const input = document.getElementById(currentScanTarget);
+                            if (input) input.value = "";
+                            return;
+                        }
+                    }
+
                     window.stopCameraScanner();
                     const input = document.getElementById(currentScanTarget);
                     if (input) {
