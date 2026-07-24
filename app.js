@@ -197,45 +197,67 @@ async function renderDashboard(staff) {
                 if (cinBtn) cinBtn.classList.add('hidden');
                 if (coutBtn) {
                     coutBtn.classList.remove('hidden');
-                    startCheckoutCountdown(new Date(sessionObj.checkInTimestamp), coutBtn);
+                    coutBtn.innerText = "Check Out";
+                    coutBtn.disabled = false;
+                    coutBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+                    coutBtn.onclick = () => {
+                        window.openPasswordModal("Verify Check-Out", async () => {
+                            try {
+                                const mobile = staff.mobile;
+                                const now = new Date();
+
+                                await set(ref(db, 'active_staff_sessions/' + mobile), null);
+                                localStorage.removeItem('staff_active_session');
+
+                                await push(ref(db, 'staff_attendance_logs'), {
+                                    mobile: mobile,
+                                    name: staff.name,
+                                    action: 'checkout',
+                                    timestamp: now.toISOString(),
+                                    date: now.toLocaleDateString(),
+                                    timeOut: now.toLocaleTimeString()
+                                });
+
+                                alert("Checked out successfully!");
+                            } catch (e) { alert("Checkout error: " + e.message); }
+                        });
+                    };
                 }
                 localStorage.setItem('staff_active_session', JSON.stringify(sessionObj));
             } else {
                 if (cinBtn) {
                     cinBtn.classList.remove('hidden');
                     cinBtn.onclick = () => {
-                        console.log("Check-In Triggered");
-                        window.openSignatureModal("Staff Check-In", async (sigData) => {
-                            try {
-                                const now = new Date();
-                                const res = await window.uploadToDrive({
-                                    type: 'signature',
-                                    staffName: staff.name,
-                                    fileName: `CheckIn_${staff.mobile}_${Date.now()}.png`,
-                                    image: sigData
-                                });
+                        window.openPasswordModal("Verify Check-In", () => {
+                            window.openSignatureModal("Staff Check-In Signature", async (sigData) => {
+                                try {
+                                    const now = new Date();
+                                    const res = await window.uploadToDrive({
+                                        type: 'signature',
+                                        staffName: staff.name,
+                                        fileName: `CheckIn_${staff.mobile}_${Date.now()}.png`,
+                                        image: sigData
+                                    });
 
-                                const session = {
-                                    mobile: staff.mobile,
-                                    name: staff.name,
-                                    status: 'checked_in',
-                                    checkInTimestamp: now.toISOString(),
-                                    signatureUrl: res.fileUrl || res.signatureUrl
-                                };
+                                    const session = {
+                                        mobile: staff.mobile,
+                                        name: staff.name,
+                                        status: 'checked_in',
+                                        checkInTimestamp: now.toISOString(),
+                                        signatureUrl: res.fileUrl || res.signatureUrl
+                                    };
 
-                                // Save to logs
-                                await set(ref(db, 'staff_attendance/' + staff.mobile + '_' + now.getTime()), {
-                                    ...session,
-                                    date: now.toLocaleDateString(),
-                                    timeIn: now.toLocaleTimeString()
-                                });
+                                    await set(ref(db, 'staff_attendance/' + staff.mobile + '_' + now.getTime()), {
+                                        ...session,
+                                        date: now.toLocaleDateString(),
+                                        timeIn: now.toLocaleTimeString()
+                                    });
 
-                                // Save to active session node for real-time sync
-                                await set(ref(db, 'active_staff_sessions/' + staff.mobile), session);
-
-                                localStorage.setItem('staff_active_session', JSON.stringify(session));
-                                alert("Check-In Successful!");
-                            } catch (e) { alert("Check-In Error: " + e.message); }
+                                    await set(ref(db, 'active_staff_sessions/' + staff.mobile), session);
+                                    localStorage.setItem('staff_active_session', JSON.stringify(session));
+                                    alert("Check-In Successful!");
+                                } catch (e) { alert("Check-In Error: " + e.message); }
+                            });
                         });
                     };
                 }
@@ -281,63 +303,7 @@ async function renderDashboard(staff) {
     } catch (e) { console.error("Dashboard Render Error:", e); }
 }
 
-function startCheckoutCountdown(checkInTime, coutBtn) {
-    const thirtyMinMs = 30 * 60 * 1000;
-    const update = () => {
-        const remaining = thirtyMinMs - (new Date() - checkInTime);
-        if (remaining <= 0) {
-            coutBtn.disabled = false;
-            coutBtn.classList.remove('opacity-50', 'cursor-not-allowed');
-            coutBtn.innerText = "Check Out";
-            coutBtn.onclick = async () => {
-                if (confirm("Confirm Check-Out?")) {
-                    try {
-                        const mobile = window.currentStaff.mobile;
-                        // Sign the checkout
-                        window.openSignatureModal("Staff Check-Out", async (sigData) => {
-                            const now = new Date();
-                            const res = await window.uploadToDrive({
-                                type: 'signature',
-                                staffName: window.currentStaff.name,
-                                fileName: `CheckOut_${mobile}_${Date.now()}.png`,
-                                image: sigData
-                            });
-
-                            // Update the last log entry with checkout info or create a new one?
-                            // Based on current structure, we probably just clear the active session.
-                            await set(ref(db, 'active_staff_sessions/' + mobile), null);
-                            localStorage.removeItem('staff_active_session');
-
-                            // Log the checkout event
-                            await push(ref(db, 'staff_attendance_logs'), {
-                                mobile: mobile,
-                                name: window.currentStaff.name,
-                                action: 'checkout',
-                                timestamp: now.toISOString(),
-                                date: now.toLocaleDateString(),
-                                timeOut: now.toLocaleTimeString(),
-                                signatureUrl: res.fileUrl || res.signatureUrl
-                            });
-
-                            alert("Checked out successfully!");
-                            // Re-render dashboard to show Check-In button
-                            renderDashboard(window.currentStaff);
-                        });
-                    } catch (e) { alert("Checkout error: " + e.message); }
-                }
-            };
-            return;
-        }
-        coutBtn.disabled = true;
-        coutBtn.classList.add('opacity-50', 'cursor-not-allowed');
-        const min = Math.floor(remaining / 60000);
-        const sec = Math.floor((remaining % 60000) / 1000);
-        coutBtn.innerText = `Wait ${min}:${sec.toString().padStart(2, '0')}`;
-        setTimeout(update, 1000);
-    };
-    update();
-}
-
+// --- DASHBOARD DATA LOADING ---
 async function loadRoleView(staff) {
     try {
         const container = document.getElementById('tasksContainer');
@@ -805,6 +771,52 @@ window.closeSignatureModal = () => {
 window.clearSigCanvas = () => {
     if (sigCtx) sigCtx.clearRect(0, 0, sigCanvas.width, sigCanvas.height);
 };
+
+// --- PASSWORD AUTH MODAL ---
+let passwordCallback = null;
+window.openPasswordModal = (title, callback) => {
+    const titleEl = document.getElementById('password-modal-title');
+    const modalEl = document.getElementById('password-modal');
+    const passInput = document.getElementById('modal-auth-pass');
+    const errEl = document.getElementById('password-error');
+
+    if (titleEl) titleEl.innerText = title;
+    if (modalEl) modalEl.classList.remove('hidden');
+    if (passInput) {
+        passInput.value = "";
+        passInput.focus();
+    }
+    if (errEl) errEl.classList.add('hidden');
+
+    passwordCallback = callback;
+};
+
+window.closePasswordModal = () => {
+    const modalEl = document.getElementById('password-modal');
+    if (modalEl) modalEl.classList.add('hidden');
+    passwordCallback = null;
+};
+
+const passConfirmBtn = document.getElementById('password-confirm-btn');
+if (passConfirmBtn) {
+    passConfirmBtn.onclick = () => {
+        const passInput = document.getElementById('modal-auth-pass');
+        const errEl = document.getElementById('password-error');
+        if (!passInput) return;
+
+        const entered = passInput.value;
+        const actual = window.currentStaff ? window.currentStaff.password : "";
+
+        if (entered === actual && actual !== "") {
+            if (passwordCallback) passwordCallback();
+            closePasswordModal();
+        } else {
+            if (errEl) errEl.classList.remove('hidden');
+            passInput.value = "";
+            passInput.focus();
+        }
+    };
+}
 
 const sigConfirmBtn = document.getElementById('sig-confirm-btn');
 if (sigConfirmBtn) {

@@ -482,6 +482,27 @@
         <img id="modalImage" src="" alt="Enlarged View">
     </div>
 
+    <!-- PASSWORD PROMPT MODAL -->
+    <div id="password-modal" class="fixed inset-0 bg-black/90 backdrop-blur-sm z-[150] hidden flex items-center justify-center p-4">
+        <div class="bg-white w-full max-w-sm rounded-3xl overflow-hidden shadow-2xl p-6 text-gray-800">
+            <div class="text-center mb-6">
+                <div class="w-16 h-16 bg-indigo-100 text-indigo-600 rounded-full mx-auto flex items-center justify-center mb-2">
+                    <i class="fa-solid fa-lock text-2xl"></i>
+                </div>
+                <h3 class="text-lg font-bold" id="password-modal-title">Verification Required</h3>
+                <p class="text-xs text-gray-400">Please enter your password to proceed</p>
+            </div>
+            <div class="space-y-4">
+                <input type="password" id="modal-auth-pass" placeholder="Enter Password" class="w-full p-4 border rounded-xl text-center font-bold tracking-widest outline-none focus:ring-2 focus:ring-indigo-600">
+                <div id="password-error" class="hidden text-center text-red-500 text-[10px] font-bold">Incorrect Password. Please try again.</div>
+                <div class="flex gap-4">
+                    <button onclick="closePasswordModal()" class="flex-1 py-3 border-2 border-gray-100 text-gray-500 font-bold rounded-xl active:bg-gray-50 transition text-sm">Cancel</button>
+                    <button id="password-confirm-btn" class="flex-1 py-3 bg-indigo-600 text-white font-bold rounded-xl active:bg-indigo-700 shadow-lg transition text-sm">Verify</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script type="module" src="app.js"></script>
     <script type="module" src="audit_module.js"></script>
 </body>
