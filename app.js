@@ -255,6 +255,12 @@ async function renderDashboard(staff) {
 
         const roleNormalized = (staff.role || "").toLowerCase().trim().replace(/ /g, '').replace(/_/g, '');
         const assetAuditAccess = document.getElementById('asset-audit-access');
+        const securityArea = document.getElementById('security-task-area');
+
+        // --- ROLE-BASED UI RESTRICTIONS ---
+        if (securityArea) {
+            securityArea.classList.toggle('hidden', roleNormalized !== 'security');
+        }
 
         const authorizedRoles = ['cleanerleader', 'rttechnician', 'security', 'admin'];
         if (assetAuditAccess) {
