@@ -1,5 +1,7 @@
 import { db } from './firebase_config.js';
-import { ref, get, update } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+import { ref, get, update, push, set } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+
+let capturedTaskPhotoBase64 = "";
 
 // --- DASHBOARD DATA LOADING ---
 window.loadRoleView = async (staff) => {
@@ -14,11 +16,17 @@ window.loadRoleView = async (staff) => {
 
         if(taskSnap.exists()) {
             const allTasks = Object.values(taskSnap.val());
-            total = allTasks.length;
-            pending = allTasks.filter(t => t.status === 'Open').length;
-            completed = allTasks.filter(t => t.status === 'Closed').length;
 
-            const filteredTasks = allTasks.filter(t => t.targetRole === staff.role && t.status === 'Open');
+            // FILTER LOGIC: Match by exact UserId OR (School + Role)
+            const filteredTasks = allTasks.filter(t => {
+                const isMySpecificTask = t.assignedUserId === staff.mobile;
+                const isMyRoleTask = t.assignedSchool === staff.branch && t.assignedRole === staff.role;
+                return (isMySpecificTask || isMyRoleTask) && t.status === 'Open';
+            });
+
+            total = allTasks.length;
+            pending = filteredTasks.length;
+            completed = allTasks.filter(t => (t.assignedUserId === staff.mobile || (t.assignedSchool === staff.branch && t.assignedRole === staff.role)) && t.status === 'Closed').length;
 
             if(filteredTasks.length > 0) {
                 filteredTasks.forEach(t => {
@@ -33,14 +41,14 @@ window.loadRoleView = async (staff) => {
                                 </div>
                                 <span class="badge ${t.status === 'Open' ? 'badge-pending' : 'badge-completed'}">${t.status}</span>
                             </div>
-                            <p style="font-size:0.85rem; color:var(--primary-dark); margin:12px 0; font-weight:500;">${t.details}</p>
+                            <p style="font-size:0.85rem; color:var(--primary-dark); margin:12px 0; font-weight:500;">${t.details || t.reason || "Maintenance Required"}</p>
                             <div class="image-preview-container">
-                                <div class="img-box" onclick="window.openZoomModal('${bImg}')">
+                                <div class="img-box" onclick="window.openImageZoom('${bImg}')">
                                     <img src="${bImg}">
                                     <span class="img-label">Before</span>
                                 </div>
                                 ${(t.afterPhotoUrl || t.afterPhoto) ? `
-                                <div class="img-box" onclick="window.openZoomModal('${aImg}')">
+                                <div class="img-box" onclick="window.openImageZoom('${aImg}')">
                                     <img src="${aImg}">
                                     <span class="img-label">After</span>
                                 </div>` : ''}
@@ -68,7 +76,120 @@ window.loadRoleView = async (staff) => {
     } catch (e) { console.error("Role View Error:", e); }
 };
 
-// --- TASK MODAL LOGIC ---
+// --- TASK CREATION LOGIC ---
+window.handleTaskImageCapture = async (e) => {
+    try {
+        const file = e.target.files[0];
+        if (!file) return;
+        const btnText = document.getElementById('cameraBtnText');
+        if (btnText) btnText.innerText = "Compressing...";
+
+        capturedTaskPhotoBase64 = await window.compressImageFile(file, 1024, 1024, 0.7);
+
+        const preview = document.getElementById('taskPhotoPreview');
+        const container = document.getElementById('taskPhotoPreviewContainer');
+        if (preview && container) {
+            preview.src = capturedTaskPhotoBase64;
+            container.classList.remove('hidden');
+        }
+        if (btnText) btnText.innerText = "Photo Captured ✓";
+    } catch (err) { console.error(err); }
+};
+
+window.removeTaskPhoto = () => {
+    capturedTaskPhotoBase64 = "";
+    document.getElementById('cameraInput').value = "";
+    document.getElementById('taskPhotoPreviewContainer').classList.add('hidden');
+    document.getElementById('cameraBtnText').innerText = "Capture Task Photo";
+};
+
+window.filterStaffBySchoolAndRole = async () => {
+    const school = document.getElementById('taskSchoolSelect').value;
+    const role = document.getElementById('taskRoleSelect').value;
+    const staffSelect = document.getElementById('assignedStaffSelect');
+
+    if (!staffSelect) return;
+    staffSelect.innerHTML = '<option value="">Loading Staff...</option>';
+
+    try {
+        const snap = await get(ref(db, 'staff'));
+        if (snap.exists()) {
+            const allStaff = Object.values(snap.val());
+            const filtered = allStaff.filter(s => {
+                const matchSchool = school ? s.branch === school : true;
+                const matchRole = role ? s.role === role : true;
+                return matchSchool && matchRole;
+            });
+
+            staffSelect.innerHTML = '<option value="">Assign Specific Staff (Optional)</option>';
+            filtered.forEach(s => {
+                staffSelect.innerHTML += `<option value="${s.mobile}">${s.name} (${s.mobile})</option>`;
+            });
+            if (filtered.length === 0) staffSelect.innerHTML = '<option value="">No matching staff found</option>';
+        }
+    } catch (e) { console.error(e); }
+};
+
+window.submitNewMaintenanceTask = async () => {
+    const school = document.getElementById('taskSchoolSelect').value;
+    const role = document.getElementById('taskRoleSelect').value;
+    const staffId = document.getElementById('assignedStaffSelect').value;
+    const area = document.getElementById('areaNameInput').value;
+    const details = document.getElementById('taskDetailsInput').value;
+    const btn = document.getElementById('submitTaskBtn');
+
+    if (!school || !role || !area || !details || !capturedTaskPhotoBase64) {
+        return alert("All fields including School, Role, Area, Details, and Photo are mandatory!");
+    }
+
+    btn.disabled = true;
+    btn.innerText = "UPLOADING & SAVING...";
+
+    try {
+        const taskId = "TASK-" + Date.now();
+
+        // Upload photo to Drive
+        const uploadRes = await window.uploadToDrive({
+            type: 'task_photo',
+            fileName: `${taskId}_BEFORE.jpg`,
+            image: capturedTaskPhotoBase64
+        });
+
+        if (uploadRes.status !== 'success' && !uploadRes.fileUrl) {
+            throw new Error("Photo upload failed. Please try again.");
+        }
+
+        const taskData = {
+            id: taskId,
+            assignedSchool: school,
+            assignedRole: role,
+            assignedUserId: staffId || "all", // "all" means anyone with the role in that school
+            location: area,
+            details: details,
+            beforePhotoUrl: uploadRes.fileUrl || uploadRes.signatureUrl,
+            status: 'Open',
+            raisedByName: window.currentStaff ? window.currentStaff.name : "Security",
+            raisedTimestamp: new Date().toISOString(),
+            timestamp: new Date().toLocaleString()
+        };
+
+        await set(ref(db, 'tasks/' + taskId), taskData);
+        alert("Maintenance Task Created Successfully!");
+
+        // Reset form
+        document.getElementById('areaNameInput').value = "";
+        document.getElementById('taskDetailsInput').value = "";
+        window.removeTaskPhoto();
+        window.loadRoleView(window.currentStaff);
+    } catch (err) {
+        alert("Error creating task: " + err.message);
+    } finally {
+        btn.disabled = false;
+        btn.innerText = "CREATE & ROUTE TASK";
+    }
+};
+
+// --- TASK ACTION LOGIC ---
 window.openTaskModal = () => {
     try {
         const targetSelect = document.getElementById('task-target');

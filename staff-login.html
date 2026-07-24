@@ -145,19 +145,44 @@
                     <!-- CREATE TASK PANEL (RESTRICTED TO SECURITY) -->
                     <div id="security-task-area" class="action-panel hidden text-gray-800">
                         <h2><i class="fa-solid fa-plus-circle" style="color: var(--primary-teal);"></i> Create New Maintenance Task</h2>
-                        <div class="form-group">
-                            <input type="text" id="areaNameInput" placeholder="Area Name (e.g., Classroom 12B)">
-                            <select id="departmentSelect">
-                                <option value="">Select Target Role</option>
-                                <option value="Housekeeping">Housekeeping</option>
-                                <option value="RT Technician">RT Technician</option>
-                                <option value="Cleaner Leader">Cleaner Leader</option>
+                        <div class="space-y-4">
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <select id="taskSchoolSelect" class="p-3 border rounded-xl bg-white text-sm" onchange="window.filterStaffBySchoolAndRole()">
+                                    <option value="">Select School</option>
+                                    <option value="Jern Yafoor School 1">Jern Yafoor School 1</option>
+                                    <option value="Jern Yafoor School 2">Jern Yafoor School 2</option>
+                                </select>
+                                <select id="taskRoleSelect" class="p-3 border rounded-xl bg-white text-sm" onchange="window.filterStaffBySchoolAndRole()">
+                                    <option value="">Select Target Role</option>
+                                    <option value="Cleaner Leader">Cleaner Leader</option>
+                                    <option value="RT Technician">RT Technician</option>
+                                    <option value="Housekeeping">Housekeeping</option>
+                                </select>
+                            </div>
+
+                            <select id="assignedStaffSelect" class="w-full p-3 border rounded-xl bg-white text-sm">
+                                <option value="">Assign Specific Staff (Optional)</option>
                             </select>
-                            <input type="file" id="cameraInput" accept="image/*" capture="environment" class="hidden" onchange="handleTaskImageCapture(event)">
-                            <button class="btn btn-outline" onclick="document.getElementById('cameraInput').click()">
-                                <i class="fa-solid fa-camera"></i> <span id="cameraBtnText">Take Photo</span>
-                            </button>
-                            <button id="submitTaskBtn" class="btn btn-teal" onclick="submitNewMaintenanceTask()">Create Task</button>
+
+                            <input type="text" id="areaNameInput" placeholder="Area Name (e.g., Classroom 12B)" class="w-full p-3 border rounded-xl text-sm">
+
+                            <textarea id="taskDetailsInput" placeholder="Task Details / Problem Description..." class="w-full p-3 border rounded-xl text-sm h-24"></textarea>
+
+                            <div class="flex flex-col gap-3">
+                                <input type="file" id="cameraInput" accept="image/*" capture="environment" class="hidden" onchange="window.handleTaskImageCapture(event)">
+                                <button class="w-full py-4 border-2 border-dashed border-teal-200 rounded-2xl text-teal-600 font-bold flex items-center justify-center gap-2" onclick="document.getElementById('cameraInput').click()">
+                                    <i class="fa-solid fa-camera text-xl"></i> <span id="cameraBtnText">Capture Task Photo</span>
+                                </button>
+
+                                <div id="taskPhotoPreviewContainer" class="hidden relative rounded-2xl overflow-hidden border-2 border-teal-100 h-48">
+                                    <img id="taskPhotoPreview" src="" class="w-full h-full object-cover">
+                                    <button onclick="window.removeTaskPhoto()" class="absolute top-2 right-2 bg-red-500 text-white p-2 rounded-full shadow-lg">
+                                        <i class="fa-solid fa-xmark"></i>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <button id="submitTaskBtn" class="w-full bg-teal-600 text-white py-4 rounded-2xl font-black shadow-xl transition active:scale-95" onclick="window.submitNewMaintenanceTask()">CREATE & ROUTE TASK</button>
                         </div>
                     </div>
 
