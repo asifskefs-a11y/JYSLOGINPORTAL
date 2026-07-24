@@ -1,3 +1,4 @@
+/* VERSION 2.0 - PASSWORD AUTHENTICATION - NO TIMERS */
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 import { getDatabase, ref, set, get, update, child, onValue, push } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
