@@ -185,6 +185,7 @@ window.renderDashboard = async (staff) => {
                                         status: 'checked_in',
                                         checkInTimestamp: now.toISOString(),
                                         signatureUrl: res.fileUrl || res.signatureUrl,
+                                        checkInSignature: res.fileUrl || res.signatureUrl, // Duplicate key for redundancy
                                         attendanceKey: attendanceKey
                                     };
 

@@ -46,13 +46,14 @@ window.loadAdminDashboard = async () => {
                     ...x,
                     type: 'staff',
                     id: x.mobile,
+                    // Merge profile fields with correct mapping
                     fullName: profile.fullName || profile.name || x.name,
                     mobileNumber: profile.mobileNumber || profile.mobile || x.mobile,
                     adcPassNumber: profile.adcPassNumber || profile["ADEK Pass Number"] || profile.adekPass || "-",
-                    companyName: profile.companyName || profile.company || "-",
+                    companyName: profile.companyName || profile["Company Name"] || "-", // Map string name
                     schoolName: profile.schoolName || profile.branch || "-",
                     position: profile.position || profile.role || "-",
-                    companyIdNumber: profile.companyIdNumber || profile.companyId || profile.company || "-"
+                    companyIdNumber: profile.companyIdNumber || profile.companyId || profile.company || "-" // Map ID number
                 });
             });
         }
@@ -116,7 +117,7 @@ window.renderAdminTable = (data) => {
     if (!body) return;
     body.innerHTML = '';
     data.forEach(r => {
-        const sig = window.getDirectDriveImageUrl(r.signatureUrl || r.signature);
+        const sig = window.getDirectDriveImageUrl(r.checkInSignature || r.checkInSignatureUrl || r.signatureUrl || r.signature);
         const isStaff = r.type === 'staff';
         const timeOutDisplay = (r.checkOutTime || r.timeOut) ? (r.checkOutTime || r.timeOut) : (r.status === 'completed' || r.status === 'checked_out' ? 'RECORDED' : 'ACTIVE');
 
