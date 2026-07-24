@@ -281,6 +281,13 @@ html, body {
       border: 1px solid var(--border-color) !important;
       display: block !important;
     }
+
+    /* Force single column for registration grid on mobile */
+    #staff-reg-form .grid {
+        display: flex !important;
+        flex-direction: column !important;
+        gap: 15px !important;
+    }
     textarea { height: auto !important; min-height: 100px !important; }
 
     /* Enlarge Homepage Icons & Logo */
