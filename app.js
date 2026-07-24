@@ -186,63 +186,75 @@ async function renderDashboard(staff) {
         if (avatar) avatar.innerText = initials;
         if (roleDisplay) roleDisplay.innerText = staff.role || "Staff";
 
-        const activeSession = localStorage.getItem('staff_active_session');
-        const sessionObj = activeSession ? JSON.parse(activeSession) : null;
         const cinBtn = document.getElementById('s-checkin-btn');
         const coutBtn = document.getElementById('s-checkout-btn');
 
-        if (sessionObj && sessionObj.mobile === staff.mobile && sessionObj.status === 'checked_in') {
-            if (cinBtn) cinBtn.classList.add('hidden');
-            if (coutBtn) {
-                coutBtn.classList.remove('hidden');
-                startCheckoutCountdown(new Date(sessionObj.checkInTimestamp), coutBtn);
+        // --- REAL-TIME SESSION SYNC ---
+        onValue(ref(db, 'active_staff_sessions/' + staff.mobile), (snapshot) => {
+            const sessionObj = snapshot.val();
+
+            if (sessionObj && sessionObj.status === 'checked_in') {
+                if (cinBtn) cinBtn.classList.add('hidden');
+                if (coutBtn) {
+                    coutBtn.classList.remove('hidden');
+                    startCheckoutCountdown(new Date(sessionObj.checkInTimestamp), coutBtn);
+                }
+                localStorage.setItem('staff_active_session', JSON.stringify(sessionObj));
+            } else {
+                if (cinBtn) {
+                    cinBtn.classList.remove('hidden');
+                    cinBtn.onclick = () => {
+                        console.log("Check-In Triggered");
+                        window.openSignatureModal("Staff Check-In", async (sigData) => {
+                            try {
+                                const now = new Date();
+                                const res = await window.uploadToDrive({
+                                    type: 'signature',
+                                    staffName: staff.name,
+                                    fileName: `CheckIn_${staff.mobile}_${Date.now()}.png`,
+                                    image: sigData
+                                });
+
+                                const session = {
+                                    mobile: staff.mobile,
+                                    name: staff.name,
+                                    status: 'checked_in',
+                                    checkInTimestamp: now.toISOString(),
+                                    signatureUrl: res.fileUrl || res.signatureUrl
+                                };
+
+                                // Save to logs
+                                await set(ref(db, 'staff_attendance/' + staff.mobile + '_' + now.getTime()), {
+                                    ...session,
+                                    date: now.toLocaleDateString(),
+                                    timeIn: now.toLocaleTimeString()
+                                });
+
+                                // Save to active session node for real-time sync
+                                await set(ref(db, 'active_staff_sessions/' + staff.mobile), session);
+
+                                localStorage.setItem('staff_active_session', JSON.stringify(session));
+                                alert("Check-In Successful!");
+                            } catch (e) { alert("Check-In Error: " + e.message); }
+                        });
+                    };
+                }
+                if (coutBtn) coutBtn.classList.add('hidden');
+                localStorage.removeItem('staff_active_session');
             }
-        } else {
-            if (cinBtn) {
-                cinBtn.classList.remove('hidden');
-                cinBtn.onclick = () => {
-                    console.log("Check-In Triggered");
-                    window.openSignatureModal("Staff Check-In", async (sigData) => {
-                        try {
-                            const now = new Date();
-                            const res = await window.uploadToDrive({
-                                type: 'signature',
-                                staffName: staff.name,
-                                fileName: `CheckIn_${staff.mobile}_${Date.now()}.png`,
-                                image: sigData
-                            });
+        });
 
-                            const session = {
-                                mobile: staff.mobile,
-                                name: staff.name,
-                                status: 'checked_in',
-                                checkInTimestamp: now.toISOString(),
-                                signatureUrl: res.fileUrl || res.signatureUrl
-                            };
-
-                            await set(ref(db, 'staff_attendance/' + staff.mobile + '_' + now.getTime()), {
-                                ...session,
-                                date: now.toLocaleDateString(),
-                                timeIn: now.toLocaleTimeString()
-                            });
-
-                            localStorage.setItem('staff_active_session', JSON.stringify(session));
-                            renderDashboard(staff);
-                            alert("Check-In Successful!");
-                        } catch (e) { alert("Check-In Error: " + e.message); }
-                    });
-                };
-            }
-            if (coutBtn) coutBtn.classList.add('hidden');
-        }
+        // Add page focus check for immediate refresh
+        window.onfocus = () => {
+            get(ref(db, 'active_staff_sessions/' + staff.mobile)).then((snapshot) => {
+                if (snapshot.exists()) {
+                    localStorage.setItem('staff_active_session', JSON.stringify(snapshot.val()));
+                }
+            });
+        };
 
         const roleNormalized = (staff.role || "").toLowerCase().trim().replace(/ /g, '').replace(/_/g, '');
-        const securityArea = document.getElementById('security-task-area');
         const assetAuditAccess = document.getElementById('asset-audit-access');
-
-        if (securityArea) {
-            securityArea.classList.toggle('hidden', roleNormalized !== 'security' && roleNormalized !== 'admin');
-        }
 
         const authorizedRoles = ['cleanerleader', 'rttechnician', 'security', 'admin'];
         if (assetAuditAccess) {
@@ -265,6 +277,43 @@ function startCheckoutCountdown(checkInTime, coutBtn) {
             coutBtn.disabled = false;
             coutBtn.classList.remove('opacity-50', 'cursor-not-allowed');
             coutBtn.innerText = "Check Out";
+            coutBtn.onclick = async () => {
+                if (confirm("Confirm Check-Out?")) {
+                    try {
+                        const mobile = window.currentStaff.mobile;
+                        // Sign the checkout
+                        window.openSignatureModal("Staff Check-Out", async (sigData) => {
+                            const now = new Date();
+                            const res = await window.uploadToDrive({
+                                type: 'signature',
+                                staffName: window.currentStaff.name,
+                                fileName: `CheckOut_${mobile}_${Date.now()}.png`,
+                                image: sigData
+                            });
+
+                            // Update the last log entry with checkout info or create a new one?
+                            // Based on current structure, we probably just clear the active session.
+                            await set(ref(db, 'active_staff_sessions/' + mobile), null);
+                            localStorage.removeItem('staff_active_session');
+
+                            // Log the checkout event
+                            await push(ref(db, 'staff_attendance_logs'), {
+                                mobile: mobile,
+                                name: window.currentStaff.name,
+                                action: 'checkout',
+                                timestamp: now.toISOString(),
+                                date: now.toLocaleDateString(),
+                                timeOut: now.toLocaleTimeString(),
+                                signatureUrl: res.fileUrl || res.signatureUrl
+                            });
+
+                            alert("Checked out successfully!");
+                            // Re-render dashboard to show Check-In button
+                            renderDashboard(window.currentStaff);
+                        });
+                    } catch (e) { alert("Checkout error: " + e.message); }
+                }
+            };
             return;
         }
         coutBtn.disabled = true;

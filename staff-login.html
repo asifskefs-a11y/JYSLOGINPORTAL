@@ -135,27 +135,8 @@
                         </div>
                     </div>
 
-                    <!-- CREATE TASK PANEL -->
-                    <div id="security-task-area" class="action-panel hidden text-gray-800">
-                        <h2><i class="fa-solid fa-plus-circle" style="color: var(--primary-teal);"></i> Create New Maintenance Task</h2>
-                        <div class="form-group">
-                            <input type="text" id="areaNameInput" placeholder="Area Name (e.g., Classroom 12B)">
-                            <select id="departmentSelect">
-                                <option value="">Select Target Role</option>
-                                <option value="Housekeeping">Housekeeping</option>
-                                <option value="RT Technician">RT Technician</option>
-                                <option value="Cleaner Leader">Cleaner Leader</option>
-                            </select>
-                            <input type="file" id="cameraInput" accept="image/*" capture="environment" class="hidden" onchange="handleTaskImageCapture(event)">
-                            <button class="btn btn-outline" onclick="document.getElementById('cameraInput').click()">
-                                <i class="fa-solid fa-camera"></i> <span id="cameraBtnText">Take Photo</span>
-                            </button>
-                            <button id="submitTaskBtn" class="btn btn-teal" onclick="submitNewMaintenanceTask()">Create Task</button>
-                        </div>
-                    </div>
-
                     <!-- ACTIVE TASKS LIST -->
-                    <h2 style="font-size: 1.2rem; margin-bottom: 15px; font-weight: 700; color: #1e1b4b;">Active Task Cards</h2>
+                    <h2 style="font-size: 1.2rem; margin-bottom: 15px; font-weight: 700; color: #1e1b4b; clear: both;">Active Task Cards</h2>
                     <div class="tasks-grid" id="tasksContainer">
                         <!-- Task Cards render here -->
                     </div>
