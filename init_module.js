@@ -126,6 +126,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (path.includes('visitor.html')) window.checkVisitorSession();
 
+        // --- BIND LOGOUT BUTTONS ---
+        const bindLogout = (id) => {
+            const btn = document.getElementById(id);
+            if (btn) btn.onclick = window.logoutStaff;
+        };
+        bindLogout('staff-logout-btn');
+        bindLogout('staff-logout');
+        bindLogout('admin-logout-btn');
+
         window.initSigPad();
         window.initVisitorCanvas();
     } catch (e) { console.error("Init Error:", e); }

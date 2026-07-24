@@ -307,13 +307,17 @@ html, body {
       cursor: pointer !important;
     }
 
-    /* Signature Modal Fix */
-#signature-modal {
-    z-index: 9999 !important;
+    /* Global Signature Fixes */
+canvas#sig-canvas, canvas#v-sig-pad {
+    pointer-events: auto !important;
+    touch-action: none !important;
+    z-index: 10005 !important;
+    position: relative !important;
+    background-color: #ffffff !important;
 }
 
-canvas {
-    touch-action: none !important; /* Critical for mobile drawing */
+#signature-modal, #task-modal, #reject-modal, #asset-disposal-modal, #password-modal {
+    z-index: 99999 !important;
 }
 
     /* Signature Pad Fix (Proper Rectangle) */

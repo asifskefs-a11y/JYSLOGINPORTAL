@@ -79,6 +79,7 @@ window.openSignatureModal = (title, callback) => {
     sigCallback = callback;
 
     setTimeout(() => {
+        window.initSigPad();
         if (!sigCanvas) return;
         // Correctly set internal resolution to match display size
         sigCanvas.width = sigCanvas.offsetWidth;
@@ -91,7 +92,7 @@ window.openSignatureModal = (title, callback) => {
         sigCtx.lineJoin = 'round';
         sigCtx.strokeStyle = '#4f46e5';
         sigCtx.clearRect(0, 0, sigCanvas.width, sigCanvas.height);
-    }, 100);
+    }, 200);
 };
 
 window.closeSignatureModal = () => {
