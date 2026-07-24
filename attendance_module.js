@@ -7,33 +7,91 @@ window.initSigPad = () => {
     sigCanvas = document.getElementById('sig-canvas');
     if (!sigCanvas) return;
     sigCtx = sigCanvas.getContext('2d');
-    const getPos = (e) => { const rect = sigCanvas.getBoundingClientRect(); return { x: (e.clientX || (e.touches && e.touches[0].clientX)) - rect.left, y: (e.clientY || (e.touches && e.touches[0].clientY)) - rect.top }; };
-    const start = (e) => { sigDrawing = true; sigCtx.beginPath(); const p = getPos(e); sigCtx.moveTo(p.x, p.y); };
-    const move = (e) => { if (!sigDrawing) return; e.preventDefault(); const p = getPos(e); sigCtx.lineTo(p.x, p.y); sigCtx.stroke(); };
-    const stop = () => sigDrawing = false;
-    sigCanvas.addEventListener('mousedown', start); sigCanvas.addEventListener('mousemove', move); window.addEventListener('mouseup', stop);
-    sigCanvas.addEventListener('touchstart', start, {passive: false}); sigCanvas.addEventListener('touchmove', move, {passive: false}); sigCanvas.addEventListener('touchend', stop);
+
+    const getPos = (e) => {
+        const rect = sigCanvas.getBoundingClientRect();
+        const clientX = e.clientX || (e.touches && e.touches[0].clientX);
+        const clientY = e.clientY || (e.touches && e.touches[0].clientY);
+        return {
+            x: clientX - rect.left,
+            y: clientY - rect.top
+        };
+    };
+
+    const start = (e) => {
+        sigDrawing = true;
+        sigCtx.beginPath();
+        const p = getPos(e);
+        sigCtx.moveTo(p.x, p.y);
+        // Prevent scrolling on touch
+        if (e.type === 'touchstart') e.preventDefault();
+    };
+
+    const move = (e) => {
+        if (!sigDrawing) return;
+        const p = getPos(e);
+        sigCtx.lineTo(p.x, p.y);
+        sigCtx.stroke();
+        // Prevent scrolling on touch
+        if (e.type === 'touchmove') e.preventDefault();
+    };
+
+    const stop = () => {
+        sigDrawing = false;
+        sigCtx.closePath();
+    };
+
+    // Remove existing listeners if any (optional, depends on how init is called)
+    sigCanvas.removeEventListener('mousedown', start);
+    sigCanvas.removeEventListener('mousemove', move);
+    window.removeEventListener('mouseup', stop);
+
+    // Mouse Listeners
+    sigCanvas.addEventListener('mousedown', start);
+    sigCanvas.addEventListener('mousemove', move);
+    window.addEventListener('mouseup', stop);
+
+    // Touch Listeners
+    sigCanvas.addEventListener('touchstart', start, { passive: false });
+    sigCanvas.addEventListener('touchmove', move, { passive: false });
+    sigCanvas.addEventListener('touchend', stop, { passive: false });
 };
 
 window.getCompressedSignature = (canvas) => {
-    const offscreen = document.createElement('canvas'); offscreen.width = 300; offscreen.height = 150;
-    const ctx = offscreen.getContext('2d'); ctx.fillStyle = "#FFFFFF"; ctx.fillRect(0, 0, 300, 150);
-    ctx.drawImage(canvas, 0, 0, 300, 150); return offscreen.toDataURL("image/jpeg", 0.3);
+    const offscreen = document.createElement('canvas');
+    offscreen.width = 300;
+    offscreen.height = 150;
+    const ctx = offscreen.getContext('2d');
+    ctx.fillStyle = "#FFFFFF";
+    ctx.fillRect(0, 0, 300, 150);
+    ctx.drawImage(canvas, 0, 0, 300, 150);
+    return offscreen.toDataURL("image/jpeg", 0.3);
 };
 
 window.openSignatureModal = (title, callback) => {
     const titleEl = document.getElementById('sig-modal-title');
     const modalEl = document.getElementById('signature-modal');
     if (titleEl) titleEl.innerText = title;
-    if (modalEl) modalEl.classList.remove('hidden');
+    if (modalEl) {
+        modalEl.classList.remove('hidden');
+        modalEl.style.display = 'flex';
+    }
     sigCallback = callback;
+
     setTimeout(() => {
         if (!sigCanvas) return;
-        sigCanvas.width = sigCanvas.parentElement.offsetWidth;
-        sigCanvas.height = sigCanvas.parentElement.offsetHeight;
-        sigCtx.lineWidth = 3; sigCtx.lineCap = 'round'; sigCtx.strokeStyle = '#4f46e5';
-    }, 50);
-    if (sigCtx) sigCtx.clearRect(0, 0, sigCanvas.width, sigCanvas.height);
+        // Correctly set internal resolution to match display size
+        sigCanvas.width = sigCanvas.offsetWidth;
+        sigCanvas.height = sigCanvas.offsetHeight;
+
+        // Re-initialize context styles after resize
+        sigCtx = sigCanvas.getContext('2d');
+        sigCtx.lineWidth = 3;
+        sigCtx.lineCap = 'round';
+        sigCtx.lineJoin = 'round';
+        sigCtx.strokeStyle = '#4f46e5';
+        sigCtx.clearRect(0, 0, sigCanvas.width, sigCanvas.height);
+    }, 100);
 };
 
 window.closeSignatureModal = () => {

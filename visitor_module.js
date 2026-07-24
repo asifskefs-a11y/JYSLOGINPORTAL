@@ -2,19 +2,58 @@ import { db } from './firebase_config.js';
 import { ref, set } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
 // --- VISITOR SYSTEM ---
-let vCanvas, vCtx;
+let vCanvas, vCtx, vDrawing = false;
 window.initVisitorCanvas = () => {
     vCanvas = document.getElementById('v-sig-pad');
     if (!vCanvas) return;
     vCtx = vCanvas.getContext('2d');
-    const getPos = (e) => { const rect = vCanvas.getBoundingClientRect(); return { x: (e.clientX || (e.touches && e.touches[0].clientX)) - rect.left, y: (e.clientY || (e.touches && e.touches[0].clientY)) - rect.top }; };
-    const start = (e) => { vCtx.beginPath(); const p = getPos(e); vCtx.moveTo(p.x, p.y); };
-    const move = (e) => { e.preventDefault(); const p = getPos(e); vCtx.lineTo(p.x, p.y); vCtx.stroke(); };
-    vCanvas.addEventListener('mousedown', start); vCanvas.addEventListener('mousemove', (e) => { if(e.buttons==1) move(e); });
-    vCanvas.addEventListener('touchstart', start, {passive: false}); vCanvas.addEventListener('touchmove', move, {passive: false});
-    vCanvas.width = vCanvas.parentElement.offsetWidth;
-    vCanvas.height = vCanvas.parentElement.offsetHeight;
-    vCtx.lineWidth = 2; vCtx.strokeStyle = '#4f46e5';
+
+    const getPos = (e) => {
+        const rect = vCanvas.getBoundingClientRect();
+        const clientX = e.clientX || (e.touches && e.touches[0].clientX);
+        const clientY = e.clientY || (e.touches && e.touches[0].clientY);
+        return {
+            x: clientX - rect.left,
+            y: clientY - rect.top
+        };
+    };
+
+    const start = (e) => {
+        vDrawing = true;
+        vCtx.beginPath();
+        const p = getPos(e);
+        vCtx.moveTo(p.x, p.y);
+        if (e.type === 'touchstart') e.preventDefault();
+    };
+
+    const move = (e) => {
+        if (!vDrawing) return;
+        const p = getPos(e);
+        vCtx.lineTo(p.x, p.y);
+        vCtx.stroke();
+        if (e.type === 'touchmove') e.preventDefault();
+    };
+
+    const stop = () => {
+        vDrawing = false;
+        vCtx.closePath();
+    };
+
+    vCanvas.width = vCanvas.offsetWidth;
+    vCanvas.height = vCanvas.offsetHeight;
+
+    vCanvas.addEventListener('mousedown', start);
+    vCanvas.addEventListener('mousemove', move);
+    window.addEventListener('mouseup', stop);
+
+    vCanvas.addEventListener('touchstart', start, { passive: false });
+    vCanvas.addEventListener('touchmove', move, { passive: false });
+    vCanvas.addEventListener('touchend', stop, { passive: false });
+
+    vCtx.lineWidth = 2;
+    vCtx.lineCap = 'round';
+    vCtx.lineJoin = 'round';
+    vCtx.strokeStyle = '#4f46e5';
 };
 
 window.clearVisitorSig = () => {
