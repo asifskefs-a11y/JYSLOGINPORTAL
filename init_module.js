@@ -72,9 +72,9 @@ document.addEventListener('DOMContentLoaded', () => {
                         dynamicData[input.getAttribute('data-field')] = input.value;
                     });
 
-                    if (!mobileNumber) {
+                    if (!adek) {
                         submitBtn.disabled = false;
-                        return alert("Mobile Number is required.");
+                        return alert("ADEK Pass Number is required.");
                     }
 
                     const data = {
@@ -145,11 +145,24 @@ document.addEventListener('DOMContentLoaded', () => {
             };
         }
 
-        if (path.includes('admin.html') && localStorage.getItem('isAdminLoggedIn') === 'true') {
-            window.isAdminLoggedIn = true;
-            document.getElementById('view-admin-auth')?.classList.add('hidden');
-            document.getElementById('view-admin-dash')?.classList.remove('hidden');
-            window.loadAdminDashboard();
+        if (path.includes('admin.html')) {
+            const isAdmin = localStorage.getItem('isAdminLoggedIn') === 'true';
+            const authSection = document.getElementById('view-admin-auth');
+            const dashSection = document.getElementById('view-admin-dash');
+
+            if (isAdmin) {
+                window.isAdminLoggedIn = true;
+                if (authSection) authSection.classList.add('hidden');
+                if (dashSection) dashSection.classList.remove('hidden');
+                window.loadAdminDashboard();
+            } else {
+                if (authSection) {
+                    authSection.classList.remove('hidden');
+                    authSection.classList.add('active');
+                    authSection.style.display = 'flex';
+                }
+                if (dashSection) dashSection.classList.add('hidden');
+            }
         }
 
         if (path.includes('staff-login.html')) {

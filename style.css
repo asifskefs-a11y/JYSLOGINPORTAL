@@ -1,4 +1,49 @@
-:root {
+/* --- APP LAUNCH VIDEO OVERLAY --- */
+#launchVideoOverlay {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 100vw !important;
+    height: 100vh !important;
+    background: #000 !important;
+    z-index: 999999 !important;
+    overflow: hidden !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+}
+
+#appLaunchVideo {
+    width: 100% !important;
+    height: 100% !important;
+    object-fit: cover !important;
+    background: #000;
+    pointer-events: none !important;
+}
+
+/* Hide Browser Video Controls Entirely */
+#appLaunchVideo::-webkit-media-controls {
+    display: none !important;
+}
+#appLaunchVideo::-webkit-media-controls-enclosure {
+    display: none !important;
+}
+#appLaunchVideo::-webkit-media-controls-panel {
+    display: none !important;
+}
+#appLaunchVideo::-moz-media-controls {
+    display: none !important;
+}
+
+#skipVideoBtn {
+    pointer-events: auto !important;
+    cursor: pointer !important;
+}
+
+.fade-out {
+    opacity: 0 !important;
+    pointer-events: none !important;
+}
   --primary-teal: #00A8B5;
   --primary-dark: #0A2540;
   --bg-light: #F4F7FE;
@@ -347,6 +392,17 @@ html, body {
 }
 
 /* Fix for top-level navbar in staff-login.html */
+/* Force hide any legacy registration elements */
+#s-tab-reg, #register-tab, .register-link, [onclick*="toggleStaffTab('reg')"] {
+    display: none !important;
+    visibility: hidden !important;
+    height: 0 !important;
+    width: 0 !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    overflow: hidden !important;
+}
+
 #view-staff > nav {
     margin-top: 10px;
     background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%) !important;
@@ -399,7 +455,18 @@ html, body {
     }
 
     /* STRICT MOBILE HEADER FIX */
-    #view-staff > nav {
+    /* Force hide any legacy registration elements */
+#s-tab-reg, #register-tab, .register-link, [onclick*="toggleStaffTab('reg')"] {
+    display: none !important;
+    visibility: hidden !important;
+    height: 0 !important;
+    width: 0 !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    overflow: hidden !important;
+}
+
+#view-staff > nav {
         display: flex !important;
         flex-direction: column !important;
         align-items: center !important;

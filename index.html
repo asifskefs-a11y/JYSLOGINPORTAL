@@ -11,6 +11,15 @@
 </head>
 <body class="text-white">
 
+    <!-- APP LAUNCH VIDEO OVERLAY (Local Asset Version) -->
+    <div id="launchVideoOverlay" class="fixed inset-0 w-full h-full bg-black z-[999999] flex items-center justify-center transition-opacity duration-1000">
+        <video id="appLaunchVideo" class="w-full h-full object-cover" autoplay muted playsinline webkit-playsinline disablePictureInPicture preload="auto" style="pointer-events: none;">
+            <source src="launch_video.mp4" type="video/mp4">
+            Your browser does not support the video tag.
+        </video>
+        <button id="skipVideoBtn" class="absolute top-8 right-8 px-8 py-3 bg-black/40 backdrop-blur-md text-white border border-white/20 rounded-full font-bold text-[10px] uppercase tracking-widest hover:bg-black/60 transition-all z-[1000000] active:scale-95 shadow-2xl">Skip Intro</button>
+    </div>
+
     <div class="app-container">
         <!-- LANDING VIEW -->
         <section id="view-landing" class="view-section active items-center justify-center p-4 flex-1">

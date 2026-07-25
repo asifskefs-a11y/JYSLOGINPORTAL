@@ -14,16 +14,17 @@
 </head>
 <body class="text-white">
     <div class="app-container">
+        <nav class="flex items-center justify-between p-3 bg-transparent w-full box-border z-[1000]">
+            <a href="index.html" class="flex items-center gap-1 px-3 py-2 bg-indigo-600 hover:bg-indigo-700 rounded-xl transition no-underline text-white font-bold text-xs shadow-md">
+                <i class="fa-solid f-arrow-left"></i>
+                <span>Back</span>
+            </a>
+            <h2 class="text-base font-black tracking-tight text-indigo-900 uppercase">Admin Portal</h2>
+            <div class="w-[60px]"></div> <!-- Spacer to center title if needed, or for consistency -->
+        </nav>
+
         <!-- ADMIN AUTH VIEW -->
         <section id="view-admin-auth" class="view-section p-4 items-center justify-center flex-1 active">
-            <nav class="w-full flex items-center justify-between mb-12 text-white">
-                <a href="index.html" class="btn btn-outline" style="text-decoration: none;">
-                    <i class="fa-solid fa-arrow-left"></i>
-                    <span>Back</span>
-                </a>
-                <h2 class="text-lg font-bold uppercase tracking-widest text-white">Admin Login</h2>
-            </nav>
-
             <div class="w-full bg-white text-gray-800 rounded-3xl shadow-2xl p-8">
                 <form id="admin-login-form" class="space-y-6">
                     <div class="text-center mb-6">

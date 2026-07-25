@@ -148,6 +148,42 @@ window.compressImageFile = async (file, maxWidth = 1200, maxHeight = 1200, quali
 
 window.openImageZoom = (url) => { if(!url || url.includes('placeholder')) return; window.open(url, '_blank'); };
 
+// --- APP LAUNCH VIDEO LOGIC (Local Asset Version) ---
+const handleLaunchVideo = () => {
+    const overlay = document.getElementById('launchVideoOverlay');
+    const video = document.getElementById('appLaunchVideo');
+    const skipBtn = document.getElementById('skipVideoBtn');
+
+    if (!overlay || !video) return;
+
+    const hideOverlay = () => {
+        overlay.classList.add('fade-out');
+        setTimeout(() => {
+            overlay.style.display = 'none';
+            if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
+        }, 1000);
+    };
+
+    // Native ended event for local playback
+    video.onended = hideOverlay;
+
+    if (skipBtn) {
+        skipBtn.onclick = hideOverlay;
+    }
+
+    // Programmatically play local asset
+    video.play().catch(err => {
+        console.warn("Autoplay restriction:", err);
+        // Fallback: If browser blocks, let skip handle it or auto-dismiss
+        setTimeout(hideOverlay, 5000);
+    });
+};
+
+// Initialize if on landing page
+if (document.getElementById('launchVideoOverlay')) {
+    window.addEventListener('DOMContentLoaded', handleLaunchVideo);
+}
+
 // --- GLOBAL NAVIGATION ---
 window.showView = (viewId) => {
     try {
