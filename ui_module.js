@@ -171,11 +171,11 @@ const handleLaunchVideo = () => {
         skipBtn.onclick = hideOverlay;
     }
 
-    // Programmatically play local asset
+    // Trigger Play
     video.play().catch(err => {
         console.warn("Autoplay restriction:", err);
-        // Fallback: If browser blocks, let skip handle it or auto-dismiss
-        setTimeout(hideOverlay, 5000);
+        // If browser blocks autoplay (e.g., battery saver), dismiss overlay to avoid blank screen
+        hideOverlay();
     });
 };
 
