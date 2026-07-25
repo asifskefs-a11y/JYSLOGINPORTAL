@@ -319,15 +319,23 @@ window.renderDashboard = async (staff) => {
         const roleNormalized = (staff.role || "").toLowerCase().trim().replace(/ /g, '').replace(/_/g, '');
         const assetAuditAccess = document.getElementById('asset-audit-access');
         const securityArea = document.getElementById('security-task-area');
+        const securityTracker = document.getElementById('security-raised-tasks-area');
 
         if (roleNormalized !== 'security') {
             if (securityArea) {
                 console.log("Removing Security Area for non-security role:", roleNormalized);
                 securityArea.remove();
             }
-        } else if (securityArea) {
-            securityArea.classList.remove('hidden');
-            securityArea.style.display = 'block';
+            if (securityTracker) securityTracker.remove();
+        } else {
+            if (securityArea) {
+                securityArea.classList.remove('hidden');
+                securityArea.style.display = 'block';
+            }
+            if (securityTracker) {
+                securityTracker.classList.remove('hidden');
+                window.initRaisedTasksTracker('security-my-tasks-container');
+            }
         }
 
         const authorizedRoles = ['cleanerleader', 'rttechnician', 'security', 'admin'];

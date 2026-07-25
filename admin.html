@@ -10,6 +10,15 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
+    <script>
+      window.OneSignalDeferred = window.OneSignalDeferred || [];
+      OneSignalDeferred.push(async function(OneSignal) {
+        await OneSignal.init({
+          appId: "7ae3b343-98cb-4e23-b5ee-7820c58582c3",
+        });
+      });
+    </script>
     <link rel="stylesheet" href="style.css">
 </head>
 <body class="text-white">
@@ -20,7 +29,7 @@
                 <span>Back</span>
             </a>
             <h2 class="text-base font-black tracking-tight text-indigo-900 uppercase">Admin Portal</h2>
-            <div class="w-[60px]"></div> <!-- Spacer to center title if needed, or for consistency -->
+            <div class="w-[60px]"></div>
         </nav>
 
         <!-- ADMIN AUTH VIEW -->
@@ -65,37 +74,73 @@
             </nav>
 
             <div class="max-w-7xl mx-auto glass-morphism rounded-3xl overflow-hidden shadow-2xl bg-white text-gray-800">
-                <div class="flex bg-slate-50 border-b border-gray-200 overflow-x-auto">
-                    <button onclick="showAdminTab('tab-master')" id="masterLogsBtn" class="admin-tab-btn flex-1 py-4 font-bold transition active-tab">Master Logs</button>
-                    <button onclick="showAdminTab('tab-tasks')" id="taskAuditBtn" class="admin-tab-btn flex-1 py-4 font-bold transition">Task Audit</button>
-                    <button onclick="showAdminTab('tab-staff-list')" id="staffMgmtBtn" class="admin-tab-btn flex-1 py-4 font-bold transition">Staff Management</button>
-                    <button onclick="showAdminTab('tab-assets')" id="assetMgmtBtn" class="admin-tab-btn flex-1 py-4 font-bold transition">Asset Register</button>
-                    <button onclick="showAdminTab('tab-disposal')" id="assetDisposalBtn" class="admin-tab-btn flex-1 py-4 font-bold transition">Asset Disposal</button>
+                <!-- REDESIGNED NAVIGATION TABS -->
+                <div class="flex bg-slate-50 border-b border-gray-200 overflow-x-auto no-scrollbar">
+                    <button onclick="showAdminTab('tab-visitor-logs')" id="tabVisitorLogs" class="admin-tab-btn flex-1 py-4 px-6 font-bold transition active-tab whitespace-nowrap min-w-max">Visitor Logs</button>
+                    <button onclick="showAdminTab('tab-staff-logs')" id="tabStaffLogs" class="admin-tab-btn flex-1 py-4 px-6 font-bold transition whitespace-nowrap min-w-max">Staff Attendance</button>
+                    <button onclick="showAdminTab('tab-tasks')" id="taskAuditBtn" class="admin-tab-btn flex-1 py-4 px-6 font-bold transition whitespace-nowrap min-w-max">Global Task Audit</button>
+                    <button onclick="showAdminTab('tab-my-tasks')" id="myTasksTrackerBtn" class="admin-tab-btn flex-1 py-4 px-6 font-bold transition whitespace-nowrap min-w-max text-orange-600">My Raised Tasks</button>
+                    <button onclick="showAdminTab('tab-staff-list')" id="staffMgmtBtn" class="admin-tab-btn flex-1 py-4 px-6 font-bold transition whitespace-nowrap min-w-max">Staff Directory</button>
+                    <button onclick="showAdminTab('tab-assets')" id="assetMgmtBtn" class="admin-tab-btn flex-1 py-4 px-6 font-bold transition whitespace-nowrap min-w-max">Asset Register</button>
+                    <button onclick="showAdminTab('tab-disposal')" id="assetDisposalBtn" class="admin-tab-btn flex-1 py-4 px-6 font-bold transition whitespace-nowrap min-w-max">Asset Disposal</button>
                 </div>
 
                 <div class="p-4 space-y-4">
-                    <!-- Master Logs -->
-                    <div id="tab-master" class="admin-tab active space-y-4">
-                         <div class="flex flex-col md:flex-row gap-2">
-                            <input type="text" id="admin-search" placeholder="Search Logs..." class="flex-1 bg-white border border-gray-200 p-3 rounded-xl outline-none text-xs" oninput="filterAdminTable()">
-                            <div class="flex gap-2">
-                                <input type="date" id="admin-date-filter" class="flex-1 bg-white border border-gray-200 p-2 rounded-xl text-xs" onchange="filterAdminTable()">
-                                <select id="admin-type-filter" class="flex-1 bg-white border border-gray-200 p-2 rounded-xl text-xs" onchange="filterAdminTable()">
-                                    <option value="all">All</option>
-                                    <option value="visitor">Visitors</option>
-                                    <option value="staff">Staff</option>
-                                </select>
+                    <!-- My Raised Tasks Tab -->
+                    <div id="tab-my-tasks" class="admin-tab space-y-4 hidden">
+                        <div class="px-2 flex items-center justify-between">
+                            <div>
+                                <h3 class="text-orange-600 font-black text-lg uppercase tracking-tight">My Tasks Tracker</h3>
+                                <p class="text-[10px] text-slate-400 font-bold uppercase">Real-time status of tasks raised by Admin</p>
+                            </div>
+                            <div class="flex bg-slate-100 p-1 rounded-xl shadow-inner">
+                                <button onclick="window.switchRaisedTaskView('active')" id="admin-raised-tab-active" class="px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all bg-white text-indigo-600 shadow-sm">Active</button>
+                                <button onclick="window.switchRaisedTaskView('history')" id="admin-raised-tab-history" class="px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all text-slate-400">History</button>
                             </div>
                         </div>
-                        <div class="overflow-x-auto rounded-xl border border-gray-100">
-                            <table class="w-full text-left text-[10px] excel-table" id="main-admin-table">
+                        <div id="admin-my-tasks-container"></div>
+                    </div>
+                    <!-- Table 1: Visitor Logs (Default Visible) -->
+                    <div id="tab-visitor-logs" class="admin-tab active space-y-4">
+                         <div class="flex flex-col md:flex-row gap-2">
+                            <input type="text" id="visitor-search" placeholder="Search Visitor Logs..." class="flex-1 bg-white border border-gray-200 p-3 rounded-xl outline-none text-xs" oninput="window.filterVisitorTable()">
+                            <input type="date" id="visitor-date-filter" class="bg-white border border-gray-200 p-2 rounded-xl text-xs" onchange="window.filterVisitorTable()">
+                        </div>
+                        <div class="overflow-x-auto rounded-xl border border-gray-100 shadow-sm custom-scrollbar">
+                            <table class="w-full text-left text-[10px] excel-table" id="visitorLogsTable">
                                 <thead class="bg-slate-50 uppercase font-bold text-indigo-600">
                                     <tr>
                                         <th class="p-3">Type</th>
-                                        <th class="p-3">Mobile Number</th>
+                                        <th class="p-3">Pass No</th>
                                         <th class="p-3">Full Name</th>
-                                        <th class="p-3">ADC Pass Number</th>
-                                        <th class="p-3">Company Name</th>
+                                        <th class="p-3">Mobile</th>
+                                        <th class="p-3">Company</th>
+                                        <th class="p-3">Purpose</th>
+                                        <th class="p-3">Date</th>
+                                        <th class="p-3">In</th>
+                                        <th class="p-3">Out</th>
+                                        <th class="p-3">Status</th>
+                                        <th class="p-3 text-center">Sig</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="visitor-logs-body" class="divide-y divide-gray-50"></tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Table 2: Staff Logs (Default Hidden) -->
+                    <div id="tab-staff-logs" class="admin-tab hidden space-y-4">
+                         <div class="flex flex-col md:flex-row gap-2">
+                            <input type="text" id="staff-search" placeholder="Search Staff Logs..." class="flex-1 bg-white border border-gray-200 p-3 rounded-xl outline-none text-xs" oninput="window.filterStaffTable()">
+                            <input type="date" id="staff-date-filter" class="bg-white border border-gray-200 p-2 rounded-xl text-xs" onchange="window.filterStaffTable()">
+                        </div>
+                        <div class="overflow-x-auto rounded-xl border border-gray-100 shadow-sm custom-scrollbar">
+                            <table class="w-full text-left text-[10px] excel-table" id="staffLogsTable">
+                                <thead class="bg-slate-50 uppercase font-bold text-indigo-600">
+                                    <tr>
+                                        <th class="p-3">Type</th>
+                                        <th class="p-3">Full Name</th>
+                                        <th class="p-3">Mobile</th>
                                         <th class="p-3">School Name</th>
                                         <th class="p-3">Position</th>
                                         <th class="p-3">Company ID</th>
@@ -105,7 +150,7 @@
                                         <th class="p-3 text-center">Sig</th>
                                     </tr>
                                 </thead>
-                                <tbody id="admin-table-body" class="divide-y divide-gray-50"></tbody>
+                                <tbody id="staff-attendance-body" class="divide-y divide-gray-50"></tbody>
                             </table>
                         </div>
                     </div>
@@ -119,6 +164,7 @@
                                         <th class="p-2">Task ID</th>
                                         <th class="p-2">School</th>
                                         <th class="p-2">Area</th>
+                                        <th class="p-2">Details</th>
                                         <th class="p-2">Dept</th>
                                         <th class="p-2">Raised By</th>
                                         <th class="p-2">Raised Date</th>
@@ -374,15 +420,15 @@
         </div>
     </div>
 
-    <script type="module" src="firebase_config.js?v=2.1"></script>
-    <script type="module" src="ui_module.js?v=2.1"></script>
-    <script type="module" src="auth_module.js?v=2.1"></script>
-    <script type="module" src="attendance_module.js?v=2.1"></script>
-    <script type="module" src="task_module.js?v=2.1"></script>
-    <script type="module" src="admin_module.js?v=2.1"></script>
-    <script type="module" src="export_module.js?v=2.1"></script>
-    <script type="module" src="visitor_module.js?v=2.1"></script>
-    <script type="module" src="init_module.js?v=2.1"></script>
-    <script type="module" src="audit_module.js?v=2.1"></script>
+    <script type="module" src="firebase_config.js?v=2.2"></script>
+    <script type="module" src="ui_module.js?v=2.2"></script>
+    <script type="module" src="auth_module.js?v=2.2"></script>
+    <script type="module" src="attendance_module.js?v=2.2"></script>
+    <script type="module" src="task_module.js?v=2.2"></script>
+    <script type="module" src="admin_module.js?v=2.2"></script>
+    <script type="module" src="export_module.js?v=2.2"></script>
+    <script type="module" src="visitor_module.js?v=2.2"></script>
+    <script type="module" src="init_module.js?v=2.2"></script>
+    <script type="module" src="audit_module.js?v=2.2"></script>
 </body>
 </html>

@@ -9,6 +9,45 @@ let currentScanTarget = null;
 let activeDisposalBarcode = null;
 let disposalPhotoBase64 = "";
 let initialAuditPhotoBase64 = "";
+let damageAuditPhotoBase64 = "";
+let assetTemplates = {};
+
+// --- MASTER TEMPLATE LOGIC ---
+window.toggleTemplateMode = async () => {
+    const isChecked = document.getElementById('use-template-toggle').checked;
+    const select = document.getElementById('master-template-select');
+    const preview = document.getElementById('template-photo-preview');
+    const uploadBtn = document.querySelector('button[onclick*="f40_audit_photo_input"]');
+
+    if (isChecked) {
+        select.classList.remove('hidden');
+        uploadBtn.classList.add('hidden');
+        // Fetch templates from DB
+        const snap = await get(ref(db, 'asset_templates'));
+        if (snap.exists()) {
+            assetTemplates = snap.val();
+            select.innerHTML = '<option value="">Select Category Model...</option>';
+            Object.keys(assetTemplates).forEach(cat => {
+                select.innerHTML += `<option value="${cat}">${cat}</option>`;
+            });
+        }
+    } else {
+        select.classList.add('hidden');
+        preview.classList.add('hidden');
+        uploadBtn.classList.remove('hidden');
+    }
+};
+
+window.previewTemplatePhoto = () => {
+    const cat = document.getElementById('master-template-select').value;
+    const preview = document.getElementById('template-photo-preview');
+    if (cat && assetTemplates[cat]) {
+        preview.classList.remove('hidden');
+        preview.querySelector('img').src = window.getDirectDriveImageUrl(assetTemplates[cat]);
+    } else {
+        preview.classList.add('hidden');
+    }
+};
 
 window.handleInitialAuditPhoto = async (e) => {
     try {
@@ -83,6 +122,127 @@ window.generatePhysRegNo = async () => {
 };
 
 // --- CAMERA SCANNER LOGIC ---
+// --- AUDIT UPDATE LOGIC ---
+let activeAuditBarcode = null;
+
+window.handleAuditConditionChange = () => {
+    const condition = document.getElementById('audit-condition-select').value;
+    const photoArea = document.getElementById('damage-photo-area');
+    if (condition === 'BROKEN / DAMAGED') {
+        photoArea.classList.remove('hidden');
+    } else {
+        photoArea.classList.add('hidden');
+        damageAuditPhotoBase64 = "";
+        document.getElementById('damage-photo-preview').classList.add('hidden');
+    }
+};
+
+window.handleDamagePhotoCapture = async (e) => {
+    try {
+        const file = e.target.files[0];
+        if (!file) return;
+        const btnText = document.getElementById('damage-btn-text');
+        if (btnText) btnText.innerText = "Compressing...";
+        damageAuditPhotoBase64 = await window.compressImageFile(file, 1000, 1000, 0.7);
+        const preview = document.getElementById('damage-photo-preview');
+        if (preview) {
+            preview.classList.remove('hidden');
+            preview.querySelector('img').src = damageAuditPhotoBase64;
+        }
+        if (btnText) btnText.innerText = "Damage Photo Captured ✓";
+    } catch (e) { console.error(e); }
+};
+
+window.submitAuditUpdate = async () => {
+    if (!activeAuditBarcode) return;
+    const condition = document.getElementById('audit-condition-select').value;
+    const btn = document.getElementById('submit-audit-update-btn');
+
+    if (condition === 'BROKEN / DAMAGED' && !damageAuditPhotoBase64) {
+        return alert("Photo of damage is mandatory!");
+    }
+
+    btn.disabled = true;
+    btn.innerText = "UPDATING AUDIT...";
+
+    try {
+        let damageUrl = "";
+        if (damageAuditPhotoBase64) {
+            const res = await window.uploadToDrive({
+                type: 'disposed_asset',
+                fileName: `AuditDamage_${activeAuditBarcode}.jpg`,
+                image: damageAuditPhotoBase64
+            });
+            damageUrl = res.fileUrl || res.signatureUrl;
+        }
+
+        const updates = {
+            assetCondition: condition,
+            lastAuditTimestamp: new Date().toLocaleString(),
+            lastAuditBy: window.currentStaff ? window.currentStaff.name : "System"
+        };
+
+        if (damageUrl) {
+            updates.disposalDamagedPhoto = damageUrl;
+            updates.afterPhotoUrl = damageUrl;
+        }
+
+        await update(ref(db, `assets/${activeAuditBarcode}`), updates);
+        alert("Audit status updated successfully!");
+        window.checkDuplicateBarcode(activeAuditBarcode); // Refresh preview
+    } catch (e) { alert("Error: " + e.message); }
+    finally {
+        btn.disabled = false;
+        btn.innerText = "SAVE AUDIT STATUS";
+    }
+};
+
+window.checkDuplicateBarcode = async (barcode) => {
+    const val = barcode ? barcode.trim() : "";
+    const previewContainer = document.getElementById('duplicate-asset-preview');
+    const contentArea = document.getElementById('duplicate-card-content');
+    const submitBtn = document.querySelector('#master-asset-form button[type="submit"]');
+
+    if (!val) {
+        if (previewContainer) previewContainer.classList.add('hidden');
+        if (submitBtn) submitBtn.disabled = false;
+        activeAuditBarcode = null;
+        return;
+    }
+
+    try {
+        const snap = await get(child(ref(db), `assets/${val}`));
+        if (snap.exists()) {
+            const a = snap.val();
+            activeAuditBarcode = val;
+            if (submitBtn) submitBtn.disabled = true;
+            if (previewContainer) {
+                previewContainer.classList.remove('hidden');
+
+                const photoUrl = window.getDirectDriveImageUrl(a.auditPhotoUrl || a.audit_photo || a.beforePhotoUrl || a.photoUrl ||
+                               (a.initialAuditPhoto ? (typeof a.initialAuditPhoto === 'object' ? a.initialAuditPhoto.fileUrl : a.initialAuditPhoto) : null));
+
+                // Element Assignments
+                document.getElementById('dup-photo').src = photoUrl;
+                document.getElementById('dup-name').innerText = a.assetDescription || a.modelDescription || 'Unnamed Asset';
+                document.getElementById('dup-cat').innerText = `${a.majorCategory || '-'} | ${a.classification || '-'}`;
+                document.getElementById('dup-serial').innerText = a.serialNo || a.serialNumber || '-';
+                document.getElementById('dup-loc').innerText = `${a.buildingName || a.schoolName || '-'} / ${a.roomNo || a.roomName || '-'}`;
+                document.getElementById('dup-date').innerText = a.auditTimestamp || a.registeredDate || '-';
+                document.getElementById('dup-by').innerText = a.auditBy || a.staffName || '-';
+
+                // Reset Condition UI
+                document.getElementById('audit-condition-select').value = a.assetCondition || "GOOD";
+                window.handleAuditConditionChange();
+            }
+        } else {
+            if (previewContainer) previewContainer.classList.add('hidden');
+            if (submitBtn) submitBtn.disabled = false;
+            activeAuditBarcode = null;
+        }
+    } catch (e) { console.error("Duplicate check error:", e); }
+};
+
 window.startCameraScanner = async (inputId) => {
     try {
         currentScanTarget = inputId;
@@ -104,26 +264,19 @@ window.startCameraScanner = async (inputId) => {
             config,
             async (decodedText) => {
                 try {
-                    // --- DUPLICATE CHECK FOR ASSET BARCODE ---
-                    if (currentScanTarget === 'f1_asset_barcode') {
-                        const snap = await get(child(ref(db), `assets/${decodedText}`));
-                        if (snap.exists()) {
-                            window.stopCameraScanner();
-                            alert("Error: Asset Barcode already registered.");
-                            const input = document.getElementById(currentScanTarget);
-                            if (input) input.value = "";
-                            return;
-                        }
-                    }
-
-                    window.stopCameraScanner();
+                    // Update input value
                     const input = document.getElementById(currentScanTarget);
                     if (input) {
                         input.value = decodedText;
-                        if (currentScanTarget === 'f22_room_barcode') {
+
+                        // Run duplicate check if target is asset barcode
+                        if (currentScanTarget === 'f1_asset_barcode') {
+                            await window.checkDuplicateBarcode(decodedText);
+                        } else if (currentScanTarget === 'f22_room_barcode') {
                             window.fetchRoomDetails(decodedText);
                         }
                     }
+                    window.stopCameraScanner();
                 } catch (e) { console.error("Scan processing error:", e); }
             },
             () => {}

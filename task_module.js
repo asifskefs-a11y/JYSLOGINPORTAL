@@ -1,7 +1,30 @@
 import { db } from './firebase_config.js';
-import { ref, get, update, push, set } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+import { ref, get, update, push, set, onValue } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
 let capturedTaskPhotoBase64 = "";
+
+let currentTaskView = 'active'; // Default view for Staff Dashboard
+
+window.switchTaskView = (view) => {
+    currentTaskView = view;
+    const activeBtn = document.getElementById('task-tab-active');
+    const historyBtn = document.getElementById('task-tab-history');
+
+    if (activeBtn && historyBtn) {
+        if (view === 'active') {
+            activeBtn.classList.add('bg-white', 'text-indigo-600', 'shadow-sm');
+            activeBtn.classList.remove('text-slate-400');
+            historyBtn.classList.remove('bg-white', 'text-indigo-600', 'shadow-sm');
+            historyBtn.classList.add('text-slate-400');
+        } else {
+            historyBtn.classList.add('bg-white', 'text-indigo-600', 'shadow-sm');
+            historyBtn.classList.remove('text-slate-400');
+            activeBtn.classList.remove('bg-white', 'text-indigo-600', 'shadow-sm');
+            activeBtn.classList.add('text-slate-400');
+        }
+    }
+    window.loadRoleView(window.currentStaff);
+};
 
 // --- DASHBOARD DATA LOADING ---
 window.loadRoleView = async (staff) => {
@@ -17,29 +40,47 @@ window.loadRoleView = async (staff) => {
         if(taskSnap.exists()) {
             const allTasks = Object.values(taskSnap.val());
 
-            // FILTER LOGIC: Match by exact UserId OR (School + Role)
-            const filteredTasks = allTasks.filter(t => {
-                const isMySpecificTask = t.assignedUserId === staff.mobile;
-                const isMyRoleTask = t.assignedSchool === staff.branch && t.assignedRole === staff.role;
-                return (isMySpecificTask || isMyRoleTask) && t.status === 'Open';
+            // Stats calculation (Global for that user context)
+            const myBaseTasks = allTasks.filter(t => t.assignedUserId === staff.mobile || (t.assignedSchool === staff.branch && t.assignedRole === staff.role));
+            total = myBaseTasks.length;
+            pending = myBaseTasks.filter(t => t.status === 'Open' || t.status === 'Accepted').length;
+            completed = myBaseTasks.filter(t => t.status === 'Closed').length;
+
+            // FILTER LOGIC based on toggle: Active (Open/Accepted) vs History (Closed/Rejected)
+            const filteredTasks = myBaseTasks.filter(t => {
+                if (currentTaskView === 'active') {
+                    return t.status === 'Open' || t.status === 'Accepted';
+                } else {
+                    return t.status === 'Closed' || t.status === 'Rejected';
+                }
             });
 
-            total = allTasks.length;
-            pending = filteredTasks.length;
-            completed = allTasks.filter(t => (t.assignedUserId === staff.mobile || (t.assignedSchool === staff.branch && t.assignedRole === staff.role)) && t.status === 'Closed').length;
+            // Sort by most recent
+            filteredTasks.sort((a, b) => new Date(b.raisedTimestamp || 0) - new Date(a.raisedTimestamp || 0));
 
             if(filteredTasks.length > 0) {
                 filteredTasks.forEach(t => {
                     const bImg = window.getDirectDriveImageUrl(t.beforePhotoUrl || t.beforePhoto);
                     const aImg = window.getDirectDriveImageUrl(t.afterPhotoUrl || t.afterPhoto);
+
+                    // Metadata Badges
+                    const raisedByInfo = `Raised By: ${t.raisedByName || "Admin"} (${t.raisedByRole || "Security"})`;
+                    const locationInfo = `School: ${t.assignedSchool || "JYS 1"}`;
+
+                    const isHistory = t.status === 'Closed' || t.status === 'Rejected';
+
                     taskHtml += `
-                        <div class="task-card text-gray-800">
+                        <div class="task-card text-gray-800 ${isHistory ? 'opacity-90' : ''}">
                             <div class="task-header">
                                 <div>
                                     <h4 style="font-weight:700; font-size:1rem; color:var(--primary-dark);">${t.location}</h4>
-                                    <p style="font-size:0.75rem; color:var(--text-gray);">${t.timestamp}</p>
+                                    <div class="flex flex-wrap gap-2 mt-1">
+                                        <span class="px-2 py-0.5 bg-indigo-50 text-indigo-600 text-[9px] font-bold rounded border border-indigo-100">${raisedByInfo}</span>
+                                        <span class="px-2 py-0.5 bg-slate-50 text-slate-600 text-[9px] font-bold rounded border border-slate-100">${locationInfo}</span>
+                                    </div>
+                                    <p style="font-size:0.75rem; color:var(--text-gray); margin-top:5px;">${t.timestamp}</p>
                                 </div>
-                                <span class="badge ${t.status === 'Open' ? 'badge-pending' : 'badge-completed'}">${t.status}</span>
+                                <span class="badge ${t.status === 'Open' ? 'badge-pending' : (t.status === 'Closed' ? 'badge-completed' : 'bg-red-100 text-red-600')}">${t.status}</span>
                             </div>
                             <p style="font-size:0.85rem; color:var(--primary-dark); margin:12px 0; font-weight:500;">${t.details || t.reason || "Maintenance Required"}</p>
                             <div class="image-preview-container">
@@ -53,16 +94,30 @@ window.loadRoleView = async (staff) => {
                                     <span class="img-label">After</span>
                                 </div>` : ''}
                             </div>
-                            <div style="display:flex; gap:10px; margin-top:10px;">
-                                <button class="btn btn-teal" style="flex:1; font-size:0.8rem;" onclick="window.closeTaskAction('${t.id}')">Resolve</button>
-                                <button class="btn btn-outline" style="flex:1; font-size:0.8rem;" onclick="window.openRejectModal('${t.id}')">Reject</button>
+
+                            ${!isHistory ? `
+                            <div class="task-actions-container" style="display:flex; gap:10px; margin-top:10px; width:100%;">
+                                <button class="btn btn-task-accept" style="flex:1; background:#10b981; color:white; font-weight:700; padding:12px; border-radius:10px; font-size:0.85rem;" onclick="window.closeTaskAction('${t.id}')">Accept & Resolve</button>
+                                <button class="btn btn-task-reject" style="flex:1; background:#ef4444; color:white; font-weight:700; padding:12px; border-radius:10px; font-size:0.85rem;" onclick="window.openRejectModal('${t.id}')">Reject</button>
                             </div>
+                            ` : `
+                            <div class="mt-3 p-3 bg-slate-50 rounded-xl border border-slate-100">
+                                <div class="flex justify-between items-center text-[10px]">
+                                    <span class="font-bold text-slate-400 uppercase tracking-widest">Audit Trail</span>
+                                    <span class="text-slate-500 font-mono">${t.solvedTimestamp ? new Date(t.solvedTimestamp).toLocaleString() : (t.rejectedTimestamp ? new Date(t.rejectedTimestamp).toLocaleString() : '')}</span>
+                                </div>
+                                <p class="text-[11px] mt-1 font-bold text-slate-700">
+                                    ${t.status === 'Closed' ? `Resolved by ${t.solvedByName || 'Staff'}` : `Rejected: ${t.rejectionReason || 'No reason provided'}`}
+                                </p>
+                            </div>
+                            `}
                         </div>`;
                 });
             } else {
-                taskHtml = '<div class="col-span-full bg-white p-10 rounded-xl text-center text-gray-400 border border-dashed text-gray-800">No pending tasks for your position.</div>';
+                taskHtml = `<div class="col-span-full bg-white p-10 rounded-xl text-center text-gray-400 border border-dashed text-gray-800">No ${currentTaskView} tasks found.</div>`;
             }
-        } else {
+        }
+else {
             taskHtml = '<div class="col-span-full bg-white p-10 rounded-xl text-center text-gray-400 border border-dashed text-gray-800">No tasks found.</div>';
         }
 
@@ -179,7 +234,14 @@ window.submitNewMaintenanceTask = async () => {
             details: details,
             beforePhotoUrl: uploadRes.fileUrl || uploadRes.signatureUrl,
             status: 'Open',
+
+            // TASK ORIGIN & CREATOR METADATA
+            createdById: window.currentStaff ? window.currentStaff.mobile : "admin_system",
+            createdByName: window.currentStaff ? window.currentStaff.name : "Admin",
+            createdByRole: window.isAdminLoggedIn ? "ADMIN" : (window.currentStaff ? window.currentStaff.role.toUpperCase() : "SYSTEM"),
+
             raisedByName: window.currentStaff ? window.currentStaff.name : "Security",
+            raisedByRole: window.currentStaff ? window.currentStaff.role : "Security",
             raisedTimestamp: new Date().toISOString(),
             timestamp: new Date().toLocaleString()
         };
@@ -257,4 +319,129 @@ window.submitRejection = async () => {
     if(!reason) return alert("Reason required.");
     await update(ref(db, 'tasks/' + window.activeRejectId), { status: 'Rejected', rejectionReason: reason, rejectedByName: window.currentStaff.name, rejectedByRole: window.currentStaff.role, rejectedTimestamp: new Date().toISOString() });
     alert("Rejected."); window.closeRejectModal(); window.loadRoleView(window.currentStaff);
+};
+
+// --- MY RAISED TASKS TRACKER (FOR ADMIN & SECURITY) ---
+let currentRaisedTaskView = 'active';
+
+window.switchRaisedTaskView = (view) => {
+    currentRaisedTaskView = view;
+    ['raised-tab-', 'admin-raised-tab-'].forEach(prefix => {
+        const activeBtn = document.getElementById(prefix + 'active');
+        const historyBtn = document.getElementById(prefix + 'history');
+        if (activeBtn && historyBtn) {
+            if (view === 'active') {
+                activeBtn.classList.add('bg-white', 'text-indigo-600', 'shadow-sm');
+                activeBtn.classList.remove('text-slate-400');
+                historyBtn.classList.remove('bg-white', 'text-indigo-600', 'shadow-sm');
+                historyBtn.classList.add('text-slate-400');
+            } else {
+                historyBtn.classList.add('bg-white', 'text-indigo-600', 'shadow-sm');
+                historyBtn.classList.remove('text-slate-400');
+                activeBtn.classList.remove('bg-white', 'text-indigo-600', 'shadow-sm');
+                activeBtn.classList.add('text-slate-400');
+            }
+        }
+    });
+
+    if (window.isAdminLoggedIn) {
+        window.initRaisedTasksTracker('admin-my-tasks-container');
+    } else {
+        window.initRaisedTasksTracker('security-my-tasks-container');
+    }
+};
+
+window.initRaisedTasksTracker = (containerId) => {
+    const container = document.getElementById(containerId);
+    if (!container) return;
+
+    const user = window.currentStaff || { mobile: "admin_system", role: "ADMIN" };
+    const userRole = window.isAdminLoggedIn ? "ADMIN" : (user.role ? user.role.toUpperCase() : "SYSTEM");
+
+    onValue(ref(db, 'tasks'), (snapshot) => {
+        if (!snapshot.exists()) {
+            container.innerHTML = `<div class="p-6 text-center text-gray-400 italic">No ${currentRaisedTaskView} tasks raised by you yet.</div>`;
+            return;
+        }
+
+        const allTasks = Object.values(snapshot.val());
+
+        // Filter by Creator
+        const myBaseTasks = allTasks.filter(t => {
+            const isCreatedByMe = (t.createdById === user.mobile) || (t.raisedByName === user.name);
+            const isAdminView = (userRole === "ADMIN");
+            return isCreatedByMe || isAdminView;
+        });
+
+        // Filter by Status (Active vs History)
+        const myFilteredTasks = myBaseTasks.filter(t => {
+            if (currentRaisedTaskView === 'active') {
+                return t.status === 'Open' || t.status === 'Accepted';
+            } else {
+                return t.status === 'Closed' || t.status === 'Rejected';
+            }
+        });
+
+        myFilteredTasks.sort((a, b) => new Date(b.raisedTimestamp || 0) - new Date(a.raisedTimestamp || 0));
+
+        if (myFilteredTasks.length === 0) {
+            container.innerHTML = `<div class="p-6 text-center text-gray-400 italic">No ${currentRaisedTaskView} tasks raised by you yet.</div>`;
+            return;
+        }
+
+        let html = `
+            <div class="overflow-x-auto rounded-xl border border-gray-100 bg-white">
+                <table class="w-full text-left text-xs">
+                    <thead class="bg-slate-50 uppercase font-bold text-indigo-600">
+                        <tr>
+                            <th class="p-3">Task/Location</th>
+                            <th class="p-3">Issue Details</th>
+                            <th class="p-3">Assigned To</th>
+                            <th class="p-3">Created</th>
+                            <th class="p-3 text-center">Status</th>
+                            <th class="p-3 text-center">Proof/Reason</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-50">
+        `;
+
+        myFilteredTasks.forEach(t => {
+            const statusColors = {
+                'Open': 'bg-orange-100 text-orange-600',
+                'Accepted': 'bg-blue-100 text-blue-600',
+                'Closed': 'bg-green-100 text-green-600',
+                'Rejected': 'bg-red-100 text-red-600'
+            };
+            const color = statusColors[t.status] || 'bg-gray-100 text-gray-600';
+            const compImg = t.afterPhotoUrl ? window.getDirectDriveImageUrl(t.afterPhotoUrl) : null;
+
+            html += `
+                <tr class="hover:bg-slate-50 transition text-gray-800">
+                    <td class="p-3">
+                        <div class="font-bold text-indigo-900">${t.location}</div>
+                    </td>
+                    <td class="p-3">
+                        <div class="text-[9px] opacity-70 italic max-w-[150px] overflow-hidden truncate">${t.details || t.description || "No details"}</div>
+                    </td>
+                    <td class="p-3">
+                        <div class="font-bold">${t.assignedUserName || "All"}</div>
+                        <div class="text-[9px] opacity-60">${t.assignedRole}</div>
+                    </td>
+                    <td class="p-3 text-[10px] opacity-60">${t.timestamp}</td>
+                    <td class="p-3 text-center">
+                        <span class="px-2 py-1 rounded-full text-[9px] font-black uppercase ${color}">${t.status}</span>
+                    </td>
+                    <td class="p-3 text-center">
+                        ${compImg ?
+                            `<img src="${compImg}" class="w-8 h-8 rounded border border-indigo-100 shadow-sm mx-auto cursor-pointer hover:scale-150 transition" onclick="window.openImageZoom('${compImg}')">` :
+                            (t.rejectionReason ? `<button class="text-red-500 underline text-[9px] font-bold" onclick="alert('Rejection Reason: ${t.rejectionReason}')">View Reason</button>` : '<span class="text-gray-300">-</span>')
+                        }
+                    </td>
+                </tr>
+            `;
+        });
+
+        html += `</tbody></table></div>`;
+        container.innerHTML = html;
+    });
 };

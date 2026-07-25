@@ -11,6 +11,15 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/html5-qrcode"></script>
+    <script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
+    <script>
+      window.OneSignalDeferred = window.OneSignalDeferred || [];
+      OneSignalDeferred.push(async function(OneSignal) {
+        await OneSignal.init({
+          appId: "7ae3b343-98cb-4e23-b5ee-7820c58582c3",
+        });
+      });
+    </script>
     <link rel="stylesheet" href="style.css">
 </head>
 <body class="text-white">
@@ -172,9 +181,27 @@
                         </div>
                     </div>
 
+                    <!-- SECURITY TASK STATUS TRACKER -->
+                    <div id="security-raised-tasks-area" class="hidden space-y-4 mb-8">
+                        <div class="flex items-center justify-between">
+                            <h2 class="text-lg font-black text-indigo-900 tracking-tight">Status of Tasks I Raised</h2>
+                            <div class="flex bg-slate-100 p-1 rounded-xl shadow-inner">
+                                <button onclick="window.switchRaisedTaskView('active')" id="raised-tab-active" class="px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all bg-white text-indigo-600 shadow-sm">Active</button>
+                                <button onclick="window.switchRaisedTaskView('history')" id="raised-tab-history" class="px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all text-slate-400">History</button>
+                            </div>
+                        </div>
+                        <div id="security-my-tasks-container"></div>
+                    </div>
+
                     <!-- ACTIVE TASKS LIST -->
                     <div class="tasks-section-header">
-                        <h2 class="text-lg font-black text-indigo-900 mb-4 tracking-tight">Active Task Section</h2>
+                        <div class="flex items-center justify-between mb-4">
+                            <h2 class="text-lg font-black text-indigo-900 tracking-tight">Tasks Management</h2>
+                            <div class="flex bg-slate-100 p-1 rounded-xl shadow-inner">
+                                <button onclick="window.switchTaskView('active')" id="task-tab-active" class="px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all bg-white text-indigo-600 shadow-sm">Active</button>
+                                <button onclick="window.switchTaskView('history')" id="task-tab-history" class="px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all text-slate-400">History</button>
+                            </div>
+                        </div>
                     </div>
                     <div class="tasks-grid" id="tasksContainer">
                         <!-- Task Cards render here -->
@@ -199,9 +226,87 @@
                             <i id="sec-a-icon" class="fa-solid fa-chevron-down"></i>
                         </button>
                         <div id="sec-a-content" class="p-4 space-y-4">
+                            <!-- DUPLICATE ASSET WARNING & PREVIEW -->
+                            <div id="duplicate-asset-preview" class="hidden animate-pulse">
+                                <div class="bg-red-50 border-2 border-red-200 rounded-2xl p-4 mb-4">
+                                    <div class="flex items-center gap-2 text-red-600 font-black text-xs uppercase mb-3">
+                                        <i class="fa-solid fa-circle-exclamation text-lg"></i>
+                                        <span>This Asset Barcode is Already Registered!</span>
+                                    </div>
+                                    <div id="duplicate-card-content" class="flex flex-col md:flex-row gap-4 bg-white p-3 rounded-xl shadow-sm border border-red-100">
+                                        <div class="duplicate-photo-container w-full md:w-32 h-32 rounded-lg overflow-hidden border bg-gray-50 flex-shrink-0">
+                                            <img id="dup-photo" src="" class="w-full h-full object-cover">
+                                        </div>
+                                        <div class="flex-1 space-y-1">
+                                            <h4 id="dup-name" class="text-sm font-black text-indigo-900 uppercase"></h4>
+                                            <p id="dup-cat" class="text-[10px] font-bold text-slate-500 uppercase"></p>
+                                            <div class="grid grid-cols-2 gap-x-4 gap-y-2 pt-2 border-t border-gray-50">
+                                                <div>
+                                                    <p class="text-[8px] text-gray-400 uppercase font-black">Serial No</p>
+                                                    <p id="dup-serial" class="text-[10px] font-mono font-bold text-gray-700"></p>
+                                                </div>
+                                                <div>
+                                                    <p class="text-[8px] text-gray-400 uppercase font-black">Location</p>
+                                                    <p id="dup-loc" class="text-[10px] font-bold text-gray-700"></p>
+                                                </div>
+                                                <div>
+                                                    <p class="text-[8px] text-gray-400 uppercase font-black">Registered On</p>
+                                                    <p id="dup-date" class="text-[10px] font-bold text-gray-700"></p>
+                                                </div>
+                                                <div>
+                                                    <p class="text-[8px] text-gray-400 uppercase font-black">Registered By</p>
+                                                    <p id="dup-by" class="text-[10px] font-bold text-gray-700"></p>
+                                                </div>
+                                            </div>
+
+                                            <!-- CONDITIONAL DAMAGE AUDIT UI -->
+                                            <div class="mt-4 pt-3 border-t border-red-50 space-y-3">
+                                                <p class="text-[10px] font-black text-red-600 uppercase tracking-widest">Perform Audit Update</p>
+                                                <select id="audit-condition-select" class="w-full p-2 border rounded-lg bg-white text-xs font-bold" onchange="window.handleAuditConditionChange()">
+                                                    <option value="GOOD">GOOD CONDITION</option>
+                                                    <option value="NEEDS MAINTENANCE">NEEDS MAINTENANCE</option>
+                                                    <option value="BROKEN / DAMAGED">BROKEN / DAMAGED</option>
+                                                </select>
+
+                                                <div id="damage-photo-area" class="hidden space-y-2">
+                                                    <label class="block text-[8px] font-black text-red-500 uppercase">Damage Proof Mandatory</label>
+                                                    <input type="file" id="damage-photo-input" accept="image/*" capture="environment" class="hidden" onchange="window.handleDamagePhotoCapture(event)">
+                                                    <button type="button" onclick="document.getElementById('damage-photo-input').click()" class="w-full py-2 border-2 border-dashed border-red-200 rounded-xl text-red-600 font-bold text-[10px] flex items-center justify-center gap-2">
+                                                        <i class="fa-solid fa-camera"></i> <span id="damage-btn-text">Capture Damage Photo</span>
+                                                    </button>
+                                                    <div id="damage-photo-preview" class="hidden h-24 rounded-lg overflow-hidden border">
+                                                        <img src="" class="w-full h-full object-contain bg-black">
+                                                    </div>
+                                                </div>
+
+                                                <button type="button" id="submit-audit-update-btn" onclick="window.submitAuditUpdate()" class="w-full bg-red-600 text-white py-3 rounded-xl font-black text-xs shadow-lg active:scale-95 transition">SAVE AUDIT STATUS</button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
                             <div class="flex gap-2">
-                                <input type="text" id="f1_asset_barcode" placeholder="1. Asset Barcode" class="flex-1 p-3 border rounded-xl text-sm text-gray-800">
+                                <input type="text" id="f1_asset_barcode" placeholder="1. Asset Barcode" class="flex-1 p-3 border rounded-xl text-sm text-gray-800" oninput="window.checkDuplicateBarcode(this.value)">
                                 <button type="button" onclick="startCameraScanner('f1_asset_barcode')" class="bg-indigo-600 text-white p-3 rounded-xl"><i class="fa-solid fa-camera"></i></button>
+                            </div>
+
+                            <!-- MASTER PHOTO TEMPLATE SELECTION -->
+                            <div class="p-3 bg-indigo-50/50 rounded-xl border border-indigo-100 flex flex-col gap-3">
+                                <div class="flex items-center justify-between">
+                                    <label class="text-[10px] font-black text-indigo-900 uppercase">Master Design Template</label>
+                                    <label class="relative inline-flex items-center cursor-pointer">
+                                        <input type="checkbox" id="use-template-toggle" class="sr-only peer" onchange="window.toggleTemplateMode()">
+                                        <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
+                                        <span class="ml-2 text-[10px] font-bold text-gray-500 uppercase">Use Template</span>
+                                    </label>
+                                </div>
+                                <select id="master-template-select" class="hidden w-full p-2 border rounded-lg bg-white text-xs text-gray-800" onchange="window.previewTemplatePhoto()">
+                                    <option value="">Select Category Model...</option>
+                                </select>
+                                <div id="template-photo-preview" class="hidden h-24 rounded-lg overflow-hidden border">
+                                    <img src="" class="w-full h-full object-contain bg-black">
+                                </div>
                             </div>
                             <div class="flex gap-2">
                                 <input type="text" id="f2_serial_no" placeholder="2. Serial No." class="flex-1 p-3 border rounded-xl text-sm text-gray-800">

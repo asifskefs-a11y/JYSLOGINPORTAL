@@ -1,5 +1,5 @@
 import { db } from './firebase_config.js';
-import { ref, set, get } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+import { ref, set, get, update } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
 // --- VISITOR SYSTEM ---
 let vCanvas, vCtx, vDrawing = false;
@@ -64,6 +64,8 @@ window.checkVisitorSession = () => {
     const active = localStorage.getItem('vActive');
     const signInArea = document.getElementById('v-signin-area');
     const signOutArea = document.getElementById('v-signout-area');
+    const signOutBtn = document.getElementById('v-signout-btn');
+
     if(active) {
         const data = JSON.parse(active);
         if (signInArea) signInArea.classList.add('hidden');
@@ -75,6 +77,27 @@ window.checkVisitorSession = () => {
             if (activeName) activeName.innerText = data.name;
             if (activeId) activeId.innerText = data.id;
             if (activeTimeIn) activeTimeIn.innerText = data.timeIn;
+        }
+
+        // Fix for Sign-Out button event listener
+        if (signOutBtn) {
+            signOutBtn.onclick = async () => {
+                try {
+                    const now = new Date();
+                    const outTime = now.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', hour12: true});
+
+                    await update(ref(db, 'visitors/' + data.id), {
+                        outTime: outTime,
+                        status: 'SIGNED OUT'
+                    });
+
+                    localStorage.removeItem('vActive');
+                    alert("Signed Out Successfully!");
+                    window.checkVisitorSession();
+                } catch (e) {
+                    alert("Error during sign-out: " + e.message);
+                }
+            };
         }
     } else {
         if (signInArea) signInArea.classList.remove('hidden');

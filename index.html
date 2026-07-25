@@ -7,12 +7,21 @@
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
+    <script>
+      window.OneSignalDeferred = window.OneSignalDeferred || [];
+      OneSignalDeferred.push(async function(OneSignal) {
+        await OneSignal.init({
+          appId: "7ae3b343-98cb-4e23-b5ee-7820c58582c3",
+        });
+      });
+    </script>
     <link rel="stylesheet" href="style.css">
 </head>
 <body class="text-white">
 
     <!-- APP LAUNCH VIDEO OVERLAY (Local Asset Version) -->
-    <div id="launchVideoOverlay" class="fixed inset-0 w-full h-full bg-black z-[999999] flex items-center justify-center transition-opacity duration-1000">
+    <div id="launchVideoOverlay" class="fixed inset-0 w-full h-full bg-black z-[999999] items-center justify-center transition-opacity duration-1000 hidden">
         <video id="appLaunchVideo" class="w-full h-full object-cover" autoplay muted playsinline webkit-playsinline disablePictureInPicture preload="auto" style="pointer-events: none;">
             <source src="launch_video.mp4" type="video/mp4">
             Your browser does not support the video tag.

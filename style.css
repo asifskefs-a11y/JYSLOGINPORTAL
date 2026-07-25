@@ -17,12 +17,15 @@
 }
 
 #appLaunchVideo {
-    width: 100% !important;
-    height: 100% !important;
-    object-fit: cover !important;
+    width: auto !important;
+    height: auto !important;
+    max-width: 100% !important;
+    max-height: 100% !important;
+    object-fit: contain !important;
     object-position: center !important;
     background: #000;
     pointer-events: none !important;
+    margin: auto !important;
 }
 
 /* Hide Browser Video Controls Entirely */
@@ -42,8 +45,8 @@
 #skipVideoBtn {
     pointer-events: auto !important;
     cursor: pointer !important;
-    top: calc(1.5rem + env(safe-area-inset-top)) !important;
-    right: calc(1.5rem + env(safe-area-inset-right)) !important;
+    top: max(20px, env(safe-area-inset-top)) !important;
+    right: max(20px, env(safe-area-inset-right)) !important;
     z-index: 1000000 !important;
 }
 
@@ -390,7 +393,58 @@ html, body {
 /* ========================================================= */
 /* 📱 MOBILE LAYOUT RESET & VISIBILITY FIX                   */
 /* ========================================================= */
-/* Resetting Tailwind/Global Overrides for Cleaner Look */
+/* Horizontal Scrollable Tabs for Mobile */
+.no-scrollbar::-webkit-scrollbar {
+    display: none;
+}
+.no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+}
+
+.admin-tab-btn.active-tab {
+    background-color: var(--white);
+    color: var(--primary-teal) !important;
+    border-bottom: 3px solid var(--primary-teal);
+    position: relative;
+    z-index: 10;
+}
+
+/* Specific styling for new Admin Tabs */
+#tabVisitorLogs, #tabStaffLogs {
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+#tabVisitorLogs.active-tab, #tabStaffLogs.active-tab {
+    background: #e0f2fe !important;
+    border-bottom: 4px solid #0369a1 !important;
+    color: #0369a1 !important;
+}
+
+/* Custom Scrollbar for Responsive Tables */
+.custom-scrollbar::-webkit-scrollbar {
+    height: 6px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+    background: #f1f5f9;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 10px;
+}
+
+.truncate {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+@media screen and (max-width: 768px) {
+    .overflow-x-auto {
+        -webkit-overflow-scrolling: touch;
+    }
+}
 .glass-morphism {
     background: rgba(255, 255, 255, 0.8) !important;
     backdrop-filter: blur(12px) !important;
@@ -445,10 +499,27 @@ html, body {
       width: 100% !important;
       max-width: 100% !important;
       margin: 0 !important;
-      padding: 0 !important;
+      padding: 12px !important;
       display: block !important; /* Remove flex on mobile to allow natural scroll */
       height: auto !important;
       min-height: 100vh !important;
+    }
+
+    #duplicate-card-content {
+        flex-direction: column !important;
+        align-items: center !important;
+        text-align: center !important;
+    }
+
+    #duplicate-card-content .md\:w-32 {
+        width: 120px !important;
+        height: 120px !important;
+        margin-bottom: 10px !important;
+    }
+
+    #duplicate-card-content .grid-cols-2 {
+        grid-template-columns: 1fr !important;
+        text-align: left !important;
     }
 
     .portal-container, .container, .main-card, #staff-auth-area, #view-admin-dash > div {
@@ -578,6 +649,25 @@ html, body {
     #view-landing .w-24 {
       width: 90px !important;
       height: 90px !important;
+    }
+
+    /* Task Action Buttons Optimization */
+    .task-actions-container {
+        display: flex !important;
+        flex-direction: row !important;
+        gap: 8px !important;
+        width: 100% !important;
+        margin-top: 15px !important;
+    }
+
+    .btn-task-accept, .btn-task-reject {
+        flex: 1 !important;
+        min-height: 48px !important;
+        font-size: 0.8rem !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        border: none !important;
     }
     #view-landing .bg-indigo-600, #view-landing .bg-purple-600 {
       padding: 1.5rem !important; /* Scale up purple icons */

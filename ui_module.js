@@ -148,7 +148,7 @@ window.compressImageFile = async (file, maxWidth = 1200, maxHeight = 1200, quali
 
 window.openImageZoom = (url) => { if(!url || url.includes('placeholder')) return; window.open(url, '_blank'); };
 
-// --- APP LAUNCH VIDEO LOGIC (Local Asset Version) ---
+// --- APP LAUNCH VIDEO LOGIC (Session-Based Persistence Version) ---
 const handleLaunchVideo = () => {
     const overlay = document.getElementById('launchVideoOverlay');
     const video = document.getElementById('appLaunchVideo');
@@ -156,7 +156,21 @@ const handleLaunchVideo = () => {
 
     if (!overlay || !video) return;
 
+    // Use sessionStorage for per-tab persistence (replays on fresh link/QR)
+    if (sessionStorage.getItem('videoPlayedThisSession') === 'true') {
+        overlay.classList.add('hidden');
+        overlay.style.display = 'none';
+        overlay.remove(); // Clean up instantly
+        return;
+    }
+
+    // New Session: Prepare and Show
+    overlay.classList.remove('hidden');
+    overlay.classList.add('flex'); // Enable layout
+
     const hideOverlay = () => {
+        // Set session flag so it won't replay while navigating
+        sessionStorage.setItem('videoPlayedThisSession', 'true');
         overlay.classList.add('fade-out');
         setTimeout(() => {
             overlay.style.display = 'none';
