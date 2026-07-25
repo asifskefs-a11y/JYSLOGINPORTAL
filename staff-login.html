@@ -24,46 +24,17 @@
             </nav>
 
             <div id="staff-auth-area" class="w-full bg-white text-gray-800 rounded-2xl shadow-2xl overflow-hidden">
-                <div class="flex border-b">
-                    <button onclick="toggleStaffTab('login')" id="s-tab-login" class="flex-1 py-4 font-bold text-indigo-600 border-b-2 border-indigo-600">Login</button>
-                    <button onclick="toggleStaffTab('reg')" id="s-tab-reg" class="flex-1 py-4 font-bold text-gray-400 border-b-2 border-transparent">Register</button>
+                <div class="flex border-b bg-slate-50/50">
+                    <div class="flex-1 py-4 font-black text-indigo-600 text-center border-b-2 border-indigo-600 uppercase tracking-widest text-sm">Staff Secure Login</div>
                 </div>
-                <div class="p-6">
-                    <form id="staff-login-form" class="space-y-4">
-                        <input type="tel" id="s-log-mobile" placeholder="Mobile Number" required class="w-full p-2 border rounded-lg text-sm">
-                        <input type="password" id="s-log-pass" placeholder="Password" required class="w-full p-2 border rounded-lg text-sm">
-                        <button type="submit" class="w-full bg-indigo-600 text-white py-3 rounded-lg font-bold">Sign In</button>
-                    </form>
-                    <form id="staff-reg-form" class="hidden space-y-4">
-                        <input type="text" id="s-reg-name" placeholder="Full Name" required class="w-full p-2 border rounded-lg text-sm">
-
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <input type="tel" id="s-reg-mobile" placeholder="Mobile Number" required class="w-full p-2 border rounded-lg text-sm">
-                            <input type="text" id="s-reg-adek" placeholder="ADEK Pass Number" required class="w-full p-2 border rounded-lg text-sm">
-                        </div>
-
-                        <input type="text" id="s-reg-company-name" placeholder="Company Name" required class="w-full p-2 border rounded-lg text-sm">
-
-                        <!-- Dynamic Fields Container (Optional Additional Fields) -->
-                        <div id="dynamic-reg-fields" class="space-y-4"></div>
-
-                        <select id="s-reg-branch" required class="w-full p-2 border rounded-lg bg-white text-sm">
-                            <option value="">Select Jern Yafoor School Branch</option>
-                            <option value="Jern Yafoor School 1">Jern Yafoor School 1</option>
-                            <option value="Jern Yafoor School 2">Jern Yafoor School 2</option>
-                        </select>
-
-                        <select id="s-reg-role" required class="w-full p-2 border rounded-lg bg-white text-sm">
-                            <option value="">Select Position</option>
-                            <option value="Cleaner">Cleaner</option>
-                            <option value="Cleaner Leader">Cleaner Leader</option>
-                            <option value="RT Technician">RT Technician</option>
-                            <option value="Security">Security</option>
-                        </select>
-                        <input type="text" id="s-reg-company" placeholder="Company ID Number" required class="w-full p-2 border rounded-lg text-sm">
-                        <input type="password" id="s-reg-pass" placeholder="Password" required class="w-full p-2 border rounded-lg text-sm">
-                        <input type="password" id="s-reg-confirm" placeholder="Confirm Password" required class="w-full p-2 border rounded-lg text-sm">
-                        <button type="submit" class="w-full bg-indigo-600 text-white py-3 rounded-lg font-bold">Register Staff</button>
+                <div class="p-8">
+                    <div class="text-center mb-6">
+                        <p class="text-[10px] text-gray-400 font-bold uppercase tracking-tighter">Enter your Admin-assigned credentials</p>
+                    </div>
+                    <form id="staff-login-form" class="space-y-5">
+                        <input type="text" id="s-log-adek" placeholder="ADEK Pass Number" required class="w-full p-4 border rounded-xl text-sm focus:ring-2 focus:ring-indigo-600 outline-none transition-all">
+                        <input type="password" id="s-log-pass" placeholder="Assigned Password" required class="w-full p-4 border rounded-xl text-sm focus:ring-2 focus:ring-indigo-600 outline-none transition-all">
+                        <button type="submit" class="w-full bg-indigo-600 text-white py-4 rounded-xl font-black text-lg shadow-lg active:scale-[0.98] transition-all uppercase tracking-widest">Sign In</button>
                     </form>
                 </div>
             </div>
@@ -78,8 +49,8 @@
                         </div>
 
                         <div class="flex items-center gap-4">
-                            <div class="avatar-container">
-                                <div class="w-14 h-14 bg-indigo-600 text-white rounded-full flex items-center justify-center font-black text-xl shadow-md border-2 border-white" id="userAvatar">E</div>
+                            <div class="avatar-container relative group" id="staffAvatarWrapper">
+                                <div class="w-14 h-14 bg-indigo-600 text-white rounded-full flex items-center justify-center font-black text-xl shadow-md border-2 border-white overflow-hidden" id="userAvatar">E</div>
                             </div>
                             <div class="user-info flex-1 min-w-0">
                                 <h3 class="text-base font-black text-indigo-900 truncate" id="userNameDisplay">Eqbal</h3>

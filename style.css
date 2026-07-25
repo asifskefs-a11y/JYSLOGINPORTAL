@@ -107,6 +107,22 @@ button, a, .btn, [onclick] {
 }
 
 /* Redesigned Profile Card Utilities */
+.profile-img-circle {
+    width: 60px !important;
+    height: 60px !important;
+    border-radius: 50% !important;
+    object-fit: cover !important;
+    border: 2px solid #ffffff !important;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15) !important;
+    z-index: 2;
+}
+
+.avatar-initials {
+    position: relative;
+    z-index: 1;
+    font-weight: 900;
+}
+
 .school-header h1 {
     font-size: 1.1rem !important;
     letter-spacing: -0.01em;

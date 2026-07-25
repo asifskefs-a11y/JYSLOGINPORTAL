@@ -72,14 +72,25 @@ window.initSigPad = () => {
 };
 
 window.getCompressedSignature = (canvas) => {
+    // Create an offscreen canvas for resizing
     const offscreen = document.createElement('canvas');
-    offscreen.width = 300;
-    offscreen.height = 150;
+    // Extreme optimization for slow internet: 200x100 resolution
+    offscreen.width = 200;
+    offscreen.height = 100;
     const ctx = offscreen.getContext('2d');
+
+    // Fill white background (crucial for JPEG)
     ctx.fillStyle = "#FFFFFF";
-    ctx.fillRect(0, 0, 300, 150);
-    ctx.drawImage(canvas, 0, 0, 300, 150);
-    return offscreen.toDataURL("image/jpeg", 0.3);
+    ctx.fillRect(0, 0, 200, 100);
+
+    // Smooth scaling
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
+
+    ctx.drawImage(canvas, 0, 0, 200, 100);
+
+    // 0.2 quality JPEG is highly compressed (~3-5KB) but still very readable for signatures
+    return offscreen.toDataURL("image/jpeg", 0.2);
 };
 
 window.openSignatureModal = (title, callback) => {
@@ -192,7 +203,18 @@ window.renderDashboard = async (staff) => {
         const userNameDisplay = document.getElementById('userNameDisplay');
         const userBranchDisplay = document.getElementById('userBranchDisplay');
 
-        if (avatar) avatar.innerText = initials;
+        if (avatar) {
+            const initialsHtml = `<span class="avatar-initials">${initials}</span>`;
+            if (staff.profilePicUrl) {
+                const directUrl = window.formatDriveImageUrl(staff.profilePicUrl);
+                avatar.innerHTML = `
+                    ${initialsHtml}
+                    <img src="${directUrl}" referrerpolicy="no-referrer" class="profile-img-circle absolute inset-0 w-full h-full object-cover rounded-full" style="display:block;" onerror="this.style.display='none'">
+                `;
+            } else {
+                avatar.innerHTML = initialsHtml;
+            }
+        }
         if (roleDisplay) roleDisplay.innerText = staff.role || "Staff";
         if (userNameDisplay) userNameDisplay.innerText = staff.name || "Staff Member";
         if (userBranchDisplay) userBranchDisplay.innerText = staff.branch || "School 1";

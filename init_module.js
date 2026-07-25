@@ -10,22 +10,39 @@ document.addEventListener('DOMContentLoaded', () => {
         if (staffLoginForm) {
             staffLoginForm.onsubmit = async (e) => {
                 e.preventDefault();
-                const mobile = document.getElementById('s-log-mobile').value;
-                const pass = document.getElementById('s-log-pass').value;
+                const adek = document.getElementById('s-log-adek').value.trim();
+                const pass = document.getElementById('s-log-pass').value.trim();
                 const submitBtn = e.target.querySelector('button');
                 if (submitBtn) submitBtn.disabled = true;
+
                 try {
-                    const snap = await get(child(ref(db), 'staff/' + mobile));
-                    if (snap.exists() && snap.val().password === pass) {
-                        const data = snap.val();
-                        if ((data.role || "").toLowerCase().trim() === 'admin') {
-                            localStorage.setItem('isAdminLoggedIn', 'true');
-                            window.location.href = 'admin.html';
-                            return;
+                    // Fetch all staff and find the one with matching ADEK Pass
+                    const snap = await get(ref(db, 'staff'));
+                    if (snap.exists()) {
+                        const allStaff = snap.val();
+                        let foundUser = null;
+
+                        // Loop through keys to find matching ADEK Pass Number
+                        for (const mobile in allStaff) {
+                            const user = allStaff[mobile];
+                            if ((user.adcPassNumber === adek || user.adekPass === adek) && user.password === pass) {
+                                foundUser = user;
+                                break;
+                            }
                         }
-                        localStorage.setItem('loggedStaff', JSON.stringify(data));
-                        window.renderDashboard(data);
-                    } else { alert("Invalid Credentials"); }
+
+                        if (foundUser) {
+                            if ((foundUser.role || "").toLowerCase().trim() === 'admin') {
+                                localStorage.setItem('isAdminLoggedIn', 'true');
+                                window.location.href = 'admin.html';
+                                return;
+                            }
+                            localStorage.setItem('loggedStaff', JSON.stringify(foundUser));
+                            window.renderDashboard(foundUser);
+                        } else {
+                            alert("Invalid ADEK Pass or Password");
+                        }
+                    } else { alert("No registered staff found."); }
                 } catch (err) { console.error(err); }
                 finally { if (submitBtn) submitBtn.disabled = false; }
             };

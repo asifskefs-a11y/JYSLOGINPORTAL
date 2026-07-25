@@ -137,10 +137,25 @@
 
                     <!-- Staff Management -->
                     <div id="tab-staff-list" class="admin-tab space-y-4 hidden">
-                        <div class="overflow-x-auto rounded-xl border border-gray-100">
+                        <div class="flex justify-between items-center px-2">
+                            <h3 class="text-indigo-900 font-black text-lg uppercase tracking-tight">Staff Directory</h3>
+                            <button onclick="openAddStaffModal()" class="bg-indigo-600 text-white px-4 py-2 rounded-xl font-bold text-xs shadow-lg active:scale-95 transition flex items-center gap-2">
+                                <i class="fa-solid fa-user-plus"></i> Add New Staff
+                            </button>
+                        </div>
+                        <div class="overflow-x-auto rounded-xl border border-gray-100 bg-white">
                             <table class="w-full text-left text-[10px]">
                                 <thead class="bg-slate-50 uppercase font-bold text-purple-600">
-                                    <tr><th class="p-3">Staff Name</th><th class="p-3">School Branch</th><th class="p-3">Position</th><th class="p-3">Company</th><th class="p-3">Mobile</th><th class="p-3 text-center">Action</th></tr>
+                                    <tr>
+                                        <th class="p-3 text-center">Photo</th>
+                                        <th class="p-3">Staff Name</th>
+                                        <th class="p-3">ADEK Pass</th>
+                                        <th class="p-3">School Branch</th>
+                                        <th class="p-3">Position</th>
+                                        <th class="p-3">Company</th>
+                                        <th class="p-3">Mobile</th>
+                                        <th class="p-3 text-center">Action</th>
+                                    </tr>
                                 </thead>
                                 <tbody id="admin-staff-list-body" class="divide-y divide-gray-50"></tbody>
                             </table>
@@ -303,6 +318,57 @@
                     <input type="file" id="task-photo-in" accept="image/*" capture="environment" class="w-full p-2 border rounded-xl">
                 </div>
                 <button type="submit" id="task-submit-btn" class="w-full bg-indigo-600 text-white py-4 rounded-2xl font-bold shadow-lg">Save & Route Task</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- ADD STAFF MODAL -->
+    <div id="add-staff-modal" class="fixed inset-0 bg-black/90 backdrop-blur-md z-[100] hidden flex items-center justify-center p-4">
+        <div class="bg-white w-full max-w-md rounded-3xl overflow-hidden shadow-2xl text-gray-800">
+            <div class="p-6 border-b flex justify-between items-center bg-purple-600 text-white">
+                <h3 class="text-lg font-bold">Add New Staff Member</h3>
+                <button onclick="closeAddStaffModal()"><i class="fa-solid fa-xmark text-xl"></i></button>
+            </div>
+            <form id="add-staff-form" class="p-6 space-y-4 max-h-[80vh] overflow-y-auto">
+                <div class="flex flex-col items-center mb-4">
+                    <div class="relative group cursor-pointer" onclick="document.getElementById('adminStaffProfilePic').click()">
+                        <div id="adminStaffPhotoPreview" class="w-24 h-24 bg-slate-100 rounded-full flex items-center justify-center border-4 border-slate-50 shadow-inner overflow-hidden">
+                            <i class="fa-solid fa-user text-3xl text-slate-300"></i>
+                        </div>
+                        <div class="absolute inset-0 bg-black/20 rounded-full opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                            <i class="fa-solid fa-camera text-white"></i>
+                        </div>
+                    </div>
+                    <input type="file" id="adminStaffProfilePic" accept="image/*" class="hidden" onchange="handleAdminStaffPhotoSelect(event)">
+                    <p class="text-[10px] text-slate-400 mt-2 font-bold uppercase tracking-widest">Click to upload photo</p>
+                </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <input type="text" id="add-staff-name" placeholder="Full Name" required class="p-3 border rounded-xl text-sm w-full">
+                    <input type="tel" id="add-staff-mobile" placeholder="Mobile Number" required class="p-3 border rounded-xl text-sm w-full">
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <input type="text" id="add-staff-adek" placeholder="ADEK Pass Number" required class="p-3 border rounded-xl text-sm w-full">
+                    <input type="text" id="add-staff-company-name" placeholder="Company Name" required class="p-3 border rounded-xl text-sm w-full">
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <select id="add-staff-branch" required class="p-3 border rounded-xl text-sm w-full bg-white">
+                        <option value="">Select School</option>
+                        <option value="Jern Yafoor School 1">Jern Yafoor School 1</option>
+                        <option value="Jern Yafoor School 2">Jern Yafoor School 2</option>
+                    </select>
+                    <select id="add-staff-role" required class="p-3 border rounded-xl text-sm w-full bg-white">
+                        <option value="">Position</option>
+                        <option value="Cleaner">Cleaner</option>
+                        <option value="Cleaner Leader">Cleaner Leader</option>
+                        <option value="RT Technician">RT Technician</option>
+                        <option value="Security">Security</option>
+                    </select>
+                </div>
+                <input type="text" id="add-staff-company-id" placeholder="Company ID Number" required class="p-3 border rounded-xl text-sm w-full">
+                <input type="password" id="add-staff-pass" placeholder="Assign Password" required class="p-3 border rounded-xl text-sm w-full">
+
+                <button type="submit" id="add-staff-submit-btn" class="w-full bg-purple-600 text-white py-4 rounded-2xl font-black shadow-lg active:scale-95 transition">REGISTER NEW STAFF</button>
             </form>
         </div>
     </div>

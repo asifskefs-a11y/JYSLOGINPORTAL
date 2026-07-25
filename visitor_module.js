@@ -1,5 +1,5 @@
 import { db } from './firebase_config.js';
-import { ref, set } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+import { ref, set, get } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
 // --- VISITOR SYSTEM ---
 let vCanvas, vCtx, vDrawing = false;
@@ -79,16 +79,35 @@ window.checkVisitorSession = () => {
     } else {
         if (signInArea) signInArea.classList.remove('hidden');
         if (signOutArea) signOutArea.classList.add('hidden');
+        // Ensure form is initialized when session is clear
         window.initVisitorForm();
     }
 };
 
-window.initVisitorForm = () => {
+window.initVisitorForm = async () => {
     const vId = document.getElementById('v-id');
     const vDate = document.getElementById('v-date');
     if (!vId || !vDate) return;
     const now = new Date();
-    vId.value = "VIS-" + Math.random().toString(36).substring(2, 7).toUpperCase();
+
+    // NEW JYS-0001 FORMAT LOGIC
+    try {
+        const snap = await get(ref(db, 'visitors'));
+        let count = 1;
+        if (snap.exists()) {
+            count = Object.keys(snap.val()).length + 1;
+        }
+        vId.value = "JYS-" + count.toString().padStart(4, '0');
+    } catch (e) {
+        vId.value = "JYS-" + Math.floor(Math.random() * 9000 + 1000);
+    }
+
+    // Force visibility and set date/time
     vDate.value = now.toLocaleDateString('en-US') + " " + now.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', hour12: true});
+
+    // Ensure the fields are not being hidden by CSS inline
+    vId.parentElement.style.display = "block";
+    vDate.parentElement.style.display = "block";
+
     setTimeout(window.initVisitorCanvas, 50);
 };
