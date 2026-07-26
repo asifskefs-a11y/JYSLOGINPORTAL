@@ -254,6 +254,34 @@ button, a, .btn, [onclick] {
     border: 1px solid var(--border-color) !important;
     border-radius: 10px !important;
     outline: none;
+    color: #111827 !important;
+    background-color: #ffffff !important;
+}
+
+/* Explicit contrast for all interactive form elements */
+input, select, textarea, .form-control {
+    color: #111827 !important;
+    background-color: #ffffff !important;
+    border: 1px solid #d1d5db !important;
+    opacity: 1 !important;
+}
+
+select option {
+    color: #111827 !important;
+    background-color: #ffffff !important;
+}
+
+::placeholder {
+    color: #6b7280 !important;
+    opacity: 1 !important;
+}
+
+#task-form input, #task-form select, #task-form textarea,
+#add-staff-form input, #add-staff-form select, #add-staff-form textarea {
+    color: #111827 !important;
+    background-color: #ffffff !important;
+    border: 1px solid #d1d5db !important;
+    opacity: 1 !important;
 }
 
 .btn { padding: 10px 20px !important; border: none !important; border-radius: 8px !important; cursor: pointer !important; font-weight: 500 !important; display: inline-flex !important; align-items: center !important; gap: 8px !important; transition: all 0.2s ease !important; }

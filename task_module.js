@@ -160,9 +160,9 @@ window.removeTaskPhoto = () => {
 };
 
 window.filterStaffBySchoolAndRole = async () => {
-    const school = document.getElementById('taskSchoolSelect').value;
-    const role = document.getElementById('taskRoleSelect').value;
-    const staffSelect = document.getElementById('assignedStaffSelect');
+    const school = (document.getElementById('taskSchoolSelect') || document.getElementById('task-school')).value;
+    const role = (document.getElementById('taskRoleSelect') || document.getElementById('task-target')).value;
+    const staffSelect = document.getElementById('assignedStaffSelect') || document.getElementById('task-assigned-staff');
 
     if (!staffSelect) return;
     staffSelect.innerHTML = '<option value="">Loading Staff...</option>';
@@ -193,22 +193,29 @@ window.filterStaffBySchoolAndRole = async () => {
     }
 };
 
-window.submitNewMaintenanceTask = async () => {
-    const school = document.getElementById('taskSchoolSelect').value;
-    const role = document.getElementById('taskRoleSelect').value;
-    const staffSelect = document.getElementById('assignedStaffSelect');
-    const staffId = staffSelect.value;
-    const staffName = staffSelect.options[staffSelect.selectedIndex]?.getAttribute('data-name') || "";
-    const area = document.getElementById('areaNameInput').value;
-    const details = document.getElementById('taskDetailsInput').value;
-    const btn = document.getElementById('submitTaskBtn');
+window.submitNewMaintenanceTask = async (e) => {
+    if (e && e.preventDefault) e.preventDefault();
+
+    const school = document.getElementById('taskSchoolSelect') ? document.getElementById('taskSchoolSelect').value :
+                   (document.getElementById('task-school') ? document.getElementById('task-school').value : "");
+    const role = document.getElementById('taskRoleSelect') ? document.getElementById('taskRoleSelect').value :
+                 (document.getElementById('task-target') ? document.getElementById('task-target').value : "");
+    const staffSelect = document.getElementById('assignedStaffSelect') || document.getElementById('task-assigned-staff');
+    const staffId = staffSelect ? staffSelect.value : "";
+    const staffName = staffSelect ? (staffSelect.options[staffSelect.selectedIndex]?.getAttribute('data-name') || "") : "";
+    const area = document.getElementById('areaNameInput') ? document.getElementById('areaNameInput').value :
+                 (document.getElementById('task-loc') ? document.getElementById('task-loc').value : "");
+    const details = document.getElementById('taskDetailsInput') ? document.getElementById('taskDetailsInput').value :
+                    (document.getElementById('task-desc') ? document.getElementById('task-desc').value : "");
+    const priority = document.getElementById('task-priority') ? document.getElementById('task-priority').value : "Medium";
+    const btn = document.getElementById('submitTaskBtn') || document.getElementById('task-submit-btn');
 
     if (!school || !role || !area || !details || !capturedTaskPhotoBase64) {
         return alert("All fields including School, Role, Area, Details, and Photo are mandatory!");
     }
 
     btn.disabled = true;
-    btn.innerText = "UPLOADING & SAVING...";
+    btn.innerText = "SAVING & ROUTING TASK...";
 
     try {
         const taskId = "TASK-" + Date.now();
@@ -266,10 +273,22 @@ window.submitNewMaintenanceTask = async () => {
 window.openTaskModal = () => {
     try {
         const targetSelect = document.getElementById('task-target');
-        if (!targetSelect) return;
-        targetSelect.innerHTML = '<option value="">Target Role</option>';
-        const roles = window.isAdminLoggedIn ? ['Security', 'RT Technician', 'Cleaner'] : ['Cleaner Leader', 'RT Technician'];
-        roles.forEach(r => targetSelect.innerHTML += `<option value="${r}">${r}</option>`);
+        const schoolSelect = document.getElementById('task-school');
+
+        if (targetSelect) {
+            targetSelect.innerHTML = '<option value="">Target Role</option>';
+            const roles = window.isAdminLoggedIn ?
+                ['Security', 'RT Technician', 'Cleaner', 'Cleaner Leader', 'Technician'] :
+                ['Cleaner Leader', 'RT Technician', 'Technician'];
+            roles.forEach(r => targetSelect.innerHTML += `<option value="${r}">${r}</option>`);
+        }
+
+        // Ensure school select is visible and reset
+        if (schoolSelect) {
+            schoolSelect.style.display = "block";
+            schoolSelect.value = "";
+        }
+
         const modal = document.getElementById('task-modal');
         if (modal) modal.classList.remove('hidden');
     } catch (e) { console.error("Open task modal error:", e); }
@@ -278,6 +297,12 @@ window.openTaskModal = () => {
 window.closeTaskModal = () => {
     const modal = document.getElementById('task-modal');
     if (modal) modal.classList.add('hidden');
+    // Reset form fields
+    const form = document.getElementById('task-form');
+    if (form) form.reset();
+
+    // Clear photo preview
+    if (window.removeTaskPhoto) window.removeTaskPhoto();
 };
 
 window.closeTaskAction = async (taskId) => {

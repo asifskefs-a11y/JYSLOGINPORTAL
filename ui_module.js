@@ -228,5 +228,66 @@ window.showView = (viewId) => {
         }
         window.scrollTo(0, 0);
         window.dispatchEvent(new CustomEvent('viewChanged', { detail: { viewId } }));
+
+        // Check Notification Permission after dashboard loads
+        if (viewId === 'view-admin-dash' || viewId === 'staff-dash-area' || document.getElementById('staff-dash-area')) {
+            window.checkNotificationStatus();
+        }
     } catch (e) { console.error("Nav Error:", e); }
+};
+
+// --- ONESIGNAL NOTIFICATION LOGIC ---
+window.checkNotificationStatus = async () => {
+    window.OneSignalDeferred = window.OneSignalDeferred || [];
+    window.OneSignalDeferred.push(async function(OneSignal) {
+        try {
+            // Verify Service Worker for Mobile Origin
+            if ('serviceWorker' in navigator) {
+                navigator.serviceWorker.getRegistrations().then(registrations => {
+                    console.log("ONESIGNAL_DEBUG: Active Service Workers:", registrations.length);
+                });
+            }
+
+            const permission = await OneSignal.Notifications.permission;
+            console.log("ONESIGNAL_DEBUG: Current Permission:", permission);
+
+            // permission is true if granted, false if not
+            if (permission) {
+                console.log("ONESIGNAL_DEBUG: Permission already granted.");
+                return;
+            }
+
+            const modal = document.getElementById('notification-modal');
+            if (modal) {
+                modal.classList.remove('hidden');
+                modal.style.display = 'flex';
+            }
+        } catch (e) { console.error("OneSignal Status Error:", e); }
+    });
+};
+
+window.requestNotificationPermission = async () => {
+    window.OneSignalDeferred = window.OneSignalDeferred || [];
+    window.OneSignalDeferred.push(async function(OneSignal) {
+        try {
+            console.log("Requesting OneSignal Permission...");
+            const result = await OneSignal.Notifications.requestPermission();
+            console.log("Permission Result:", result);
+
+            const modal = document.getElementById('notification-modal');
+            if (modal) {
+                modal.classList.add('hidden');
+                modal.style.display = 'none';
+            }
+
+            if (result) {
+                alert("Notifications Enabled Successfully!");
+                // Force reload to ensure registration is fully active on mobile
+                location.reload();
+            }
+        } catch (e) {
+            console.error("Permission Request Error:", e);
+            alert("Error: Could not enable notifications. Please check browser settings.");
+        }
+    });
 };

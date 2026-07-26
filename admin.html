@@ -16,6 +16,11 @@
       OneSignalDeferred.push(async function(OneSignal) {
         await OneSignal.init({
           appId: "7ae3b343-98cb-4e23-b5ee-7820c58582c3",
+          safari_web_id: "web.onesignal.auto.6433e8ca-4e50-482a-9e8c-8a8f152d113a",
+          notifyButton: {
+            enable: false,
+          },
+          allowLocalhostAsSecureOrigin: true,
         });
       });
     </script>
@@ -344,22 +349,35 @@
 
     <!-- TASK CREATION MODAL (Reuse from Staff if needed) -->
     <div id="task-modal" class="fixed inset-0 bg-black/90 backdrop-blur-md z-50 hidden flex items-center justify-center p-4">
-        <div class="bg-white w-full max-w-md rounded-3xl overflow-hidden shadow-2xl text-gray-800">
+        <div class="bg-white w-full max-w-3xl rounded-3xl overflow-hidden shadow-2xl text-gray-800">
             <div class="p-6 border-b flex justify-between items-center bg-indigo-600 text-white">
                 <h3 class="text-lg font-bold">Raise New Issue / Task</h3>
                 <button onclick="closeTaskModal()"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg></button>
             </div>
-            <form id="task-form" class="p-6 space-y-4">
-                <input type="text" id="task-loc" placeholder="Location (e.g. Block A, Room 102)" required class="w-full p-3 border rounded-xl">
-                <textarea id="task-desc" placeholder="Problem Details..." required class="w-full p-3 border rounded-xl h-24"></textarea>
-                <div class="grid grid-cols-2 gap-4">
-                    <select id="task-priority" required class="p-3 border rounded-xl bg-white">
-                        <option value="Low">Low Priority</option>
-                        <option value="Medium">Medium</option>
-                        <option value="High">High</option>
+            <form id="task-form" class="p-6 space-y-4" onsubmit="window.submitNewMaintenanceTask(event)">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <select id="task-school" required class="p-3 border rounded-xl bg-white text-sm" onchange="window.filterStaffBySchoolAndRole()">
+                        <option value="">Select School</option>
+                        <option value="Jern Yafoor School 1">Jern Yafoor School 1</option>
+                        <option value="Jern Yafoor School 2">Jern Yafoor School 2</option>
                     </select>
-                    <select id="task-target" required class="p-3 border rounded-xl bg-white"></select>
+                    <select id="task-target" required class="p-3 border rounded-xl bg-white text-sm" onchange="window.filterStaffBySchoolAndRole()">
+                        <option value="">Target Role</option>
+                    </select>
                 </div>
+
+                <select id="task-assigned-staff" class="w-full p-3 border rounded-xl bg-white text-sm">
+                    <option value="">Assign Specific Staff (Optional)</option>
+                </select>
+
+                <input type="text" id="task-loc" placeholder="Location (e.g. Block A, Room 102)" required class="w-full p-3 border rounded-xl text-sm">
+                <textarea id="task-desc" placeholder="Problem Details..." required class="w-full p-3 border rounded-xl h-24 text-sm"></textarea>
+
+                <select id="task-priority" required class="w-full p-3 border rounded-xl bg-white text-sm">
+                    <option value="Low">Low Priority</option>
+                    <option value="Medium">Medium</option>
+                    <option value="High">High</option>
+                </select>
                 <div>
                     <label class="block text-xs font-bold text-gray-500 mb-2">Before Work Photo (Mandatory)</label>
                     <input type="file" id="task-photo-in" accept="image/*" capture="environment" class="w-full p-2 border rounded-xl">
@@ -410,6 +428,7 @@
                         <option value="Cleaner Leader">Cleaner Leader</option>
                         <option value="RT Technician">RT Technician</option>
                         <option value="Security">Security</option>
+                        <option value="Technician">Technician</option>
                     </select>
                 </div>
                 <input type="text" id="add-staff-company-id" placeholder="Company ID Number" required class="p-3 border rounded-xl text-sm w-full">
@@ -417,6 +436,19 @@
 
                 <button type="submit" id="add-staff-submit-btn" class="w-full bg-purple-600 text-white py-4 rounded-2xl font-black shadow-lg active:scale-95 transition">REGISTER NEW STAFF</button>
             </form>
+        </div>
+    </div>
+
+    <!-- NOTIFICATION PERMISSION MODAL -->
+    <div id="notification-modal" class="fixed inset-0 bg-black/90 backdrop-blur-md z-[200] hidden flex items-center justify-center p-4">
+        <div class="bg-white w-full max-w-sm rounded-3xl overflow-hidden shadow-2xl p-8 text-center text-gray-800">
+            <div class="w-20 h-20 bg-indigo-100 text-indigo-600 rounded-full mx-auto flex items-center justify-center mb-6 animate-bounce">
+                <i class="fa-solid fa-bell text-3xl"></i>
+            </div>
+            <h3 class="text-xl font-black text-indigo-900 mb-2 uppercase tracking-tight">Enable Alerts</h3>
+            <p class="text-sm text-gray-500 mb-8 font-medium">Get real-time updates when tasks are completed or issues are raised.</p>
+            <button onclick="window.requestNotificationPermission()" class="w-full bg-indigo-600 text-white py-4 rounded-2xl font-black shadow-xl active:scale-95 transition uppercase tracking-widest">Enable Notifications Now</button>
+            <button onclick="document.getElementById('notification-modal').classList.add('hidden')" class="mt-4 text-[10px] font-bold text-gray-400 uppercase underline">Maybe Later</button>
         </div>
     </div>
 

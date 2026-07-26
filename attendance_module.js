@@ -348,5 +348,10 @@ window.renderDashboard = async (staff) => {
         }
 
         window.loadRoleView(staff);
+
+        // OneSignal Notification Status Check
+        if (window.checkNotificationStatus) {
+            setTimeout(window.checkNotificationStatus, 2000);
+        }
     } catch (e) { console.error("Dashboard Render Error:", e); }
 };

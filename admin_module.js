@@ -131,6 +131,11 @@ window.loadAdminDashboard = async () => {
         if (window.initRaisedTasksTracker) {
             window.initRaisedTasksTracker('admin-my-tasks-container');
         }
+
+        // OneSignal Notification Status Check
+        if (window.checkNotificationStatus) {
+            setTimeout(window.checkNotificationStatus, 2000);
+        }
     } catch (err) { console.error("Admin Load Error:", err); }
 };
 
