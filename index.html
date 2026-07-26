@@ -8,6 +8,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
+    <link rel="manifest" href="manifest.json">
     <script>
       window.OneSignalDeferred = window.OneSignalDeferred || [];
       OneSignalDeferred.push(async function(OneSignal) {
@@ -17,7 +18,8 @@
           notifyButton: {
             enable: false,
           },
-          allowLocalhostAsSecureOrigin: true, // For debugging
+          allowLocalhostAsSecureOrigin: true,
+          serviceWorkerPath: "OneSignalSDKWorker.js",
         });
       });
     </script>
@@ -39,16 +41,17 @@
         <section id="view-landing" class="view-section active items-center justify-center p-4 flex-1">
             <div class="portal-container">
                 <header class="text-center mb-12">
-                    <div class="w-24 h-24 bg-white rounded-full mx-auto mb-4 flex items-center justify-center shadow-lg border-4 border-indigo-500 overflow-hidden relative">
-                        <img src="logo.png" class="w-full h-full object-contain rounded-full" alt="JYS Logo" onerror="this.style.display='none'; this.nextElementSibling.classList.remove('hidden'); this.nextElementSibling.classList.add('flex');">
-                        <div class="hidden absolute inset-0 items-center justify-center text-indigo-900 font-black text-xl">JYS</div>
+                    <div class="w-full flex items-center justify-center mb-6">
+                        <div class="logo-circular-frame h-[240px] w-[240px] flex items-center justify-center">
+                            <img src="schoollogo.png" class="w-full h-full object-contain" alt="JYS Logo">
+                        </div>
                     </div>
                     <h1 class="text-3xl md:text-5xl font-black tracking-tight text-indigo-900 drop-shadow-md">Welcome To Jarn Yafoor School</h1>
                     <p class="text-lg md:text-xl mt-2 font-bold text-indigo-700 bg-white/30 backdrop-blur-sm inline-block px-4 py-1 rounded-full border border-white/50">JYS Login Portal</p>
                 </header>
 
-                <main class="portal-options">
-                    <a href="visitor.html" class="flex flex-col items-center justify-center bg-slate-50 border border-slate-100 rounded-3xl p-8 transition-all duration-300 transform active:scale-95 hover:shadow-xl group text-center" style="text-decoration: none;">
+                <main class="portal-main-container flex flex-col md:flex-row items-center justify-center gap-6 mt-12 w-full max-w-4xl mx-auto">
+                    <a href="visitor.html" class="portal-card flex flex-col items-center justify-center bg-slate-50 border border-slate-100 rounded-3xl p-8 transition-all duration-300 transform active:scale-95 hover:shadow-xl group text-center flex-1 min-w-[280px]" style="text-decoration: none;">
                         <div class="bg-indigo-600 p-5 rounded-full mb-4 group-hover:bg-indigo-500 transition-colors shadow-lg">
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
@@ -58,7 +61,7 @@
                         <p class="text-sm mt-2 text-[#555555] font-medium">Register and track visitors</p>
                     </a>
 
-                    <a href="staff-login.html" class="flex flex-col items-center justify-center bg-slate-50 border border-slate-100 rounded-3xl p-8 transition-all duration-300 transform active:scale-95 hover:shadow-xl group text-center" style="text-decoration: none;">
+                    <a href="staff-login.html" class="portal-card flex flex-col items-center justify-center bg-slate-50 border border-slate-100 rounded-3xl p-8 transition-all duration-300 transform active:scale-95 hover:shadow-xl group text-center flex-1 min-w-[280px]" style="text-decoration: none;">
                         <div class="bg-purple-600 p-5 rounded-full mb-4 group-hover:bg-purple-500 transition-colors shadow-lg">
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />

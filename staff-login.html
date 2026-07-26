@@ -12,6 +12,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/html5-qrcode"></script>
     <script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
+    <link rel="manifest" href="manifest.json">
     <script>
       window.OneSignalDeferred = window.OneSignalDeferred || [];
       OneSignalDeferred.push(async function(OneSignal) {
@@ -22,6 +23,7 @@
             enable: false,
           },
           allowLocalhostAsSecureOrigin: true,
+          serviceWorkerPath: "OneSignalSDKWorker.js",
         });
       });
     </script>

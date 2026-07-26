@@ -7,7 +7,6 @@ window.initSigPad = () => {
     console.log("Initializing Signature Pad");
     sigCanvas = document.getElementById('sig-canvas');
     if (!sigCanvas) {
-        console.error("Signature canvas not found!");
         return;
     }
     sigCtx = sigCanvas.getContext('2d');

@@ -72,7 +72,10 @@ window.loadAdminDashboard = async () => {
                         <td class="p-3 text-[9px] opacity-70">${x.companyName || x.company || "-"}</td>
                         <td class="p-3 font-mono text-[9px]">${x.mobile}</td>
                         <td class="p-3 text-center">
-                            <button onclick="window.deleteStaffAccount('${x.mobile}', '${x.name}')" class="text-red-500 hover:text-red-700 font-bold text-[10px] uppercase underline tracking-tighter">Delete</button>
+                            <div class="flex items-center justify-center gap-2">
+                                <button onclick="window.openEditStaffModal('${x.mobile}')" class="text-indigo-600 hover:text-indigo-800 font-bold text-[10px] uppercase underline tracking-tighter">Edit</button>
+                                <button onclick="window.deleteStaffAccount('${x.mobile}', '${x.name}')" class="text-red-500 hover:text-red-700 font-bold text-[10px] uppercase underline tracking-tighter">Delete</button>
+                            </div>
                         </td>
                     </tr>`;
             });
@@ -131,6 +134,21 @@ window.loadAdminDashboard = async () => {
         if (window.initRaisedTasksTracker) {
             window.initRaisedTasksTracker('admin-my-tasks-container');
         }
+
+        // Update KPI Cards
+        const visitorsToday = allRecords.filter(r => r.type === 'visitor' && r.date === new Date().toLocaleDateString('en-US')).length;
+        const activeTasks = window.adminTasks ? window.adminTasks.filter(t => t.status === 'Open' || t.status === 'Accepted').length : 0;
+        const staffPresent = allRecords.filter(r => r.type === 'staff' && (r.status === 'checked_in' || !r.timeOut)).length;
+
+        const kpiV = document.getElementById('kpi-visitors');
+        const kpiT = document.getElementById('kpi-tasks');
+        const kpiS = document.getElementById('kpi-staff');
+        const kpiA = document.getElementById('kpi-alerts');
+
+        if (kpiV) kpiV.innerText = visitorsToday;
+        if (kpiT) kpiT.innerText = activeTasks;
+        if (kpiS) kpiS.innerText = staffPresent;
+        if (kpiA) kpiA.innerText = (activeTasks > 5) ? "High Load" : "Normal";
 
         // OneSignal Notification Status Check
         if (window.checkNotificationStatus) {
@@ -228,6 +246,116 @@ window.filterVisitorTable = () => {
 };
 
 window.deleteStaffAccount = async (mobile, name) => { if(confirm(`Delete account for ${name}?`)) { try { await set(ref(db, 'staff/' + mobile), null); await set(ref(db, 'users/' + mobile), null); alert("Deleted."); window.loadAdminDashboard(); } catch (e) { alert(e.message); } } };
+
+// --- EDIT STAFF MODAL LOGIC ---
+let editStaffPhotoBase64 = "";
+
+window.openEditStaffModal = async (mobile) => {
+    try {
+        const snap = await get(ref(db, 'staff/' + mobile));
+        if (!snap.exists()) return alert("Staff not found.");
+        const x = snap.val();
+
+        document.getElementById('edit-staff-id').value = x.mobile;
+        document.getElementById('edit-staff-name').value = x.name || "";
+        document.getElementById('edit-staff-mobile').value = x.mobile || "";
+        document.getElementById('edit-staff-adek').value = x.adcPassNumber || x.adekPass || "";
+        document.getElementById('edit-staff-company-name').value = x.companyName || "";
+        document.getElementById('edit-staff-branch').value = x.branch || "";
+        document.getElementById('edit-staff-role').value = x.role || "";
+        document.getElementById('edit-staff-company-id').value = x.companyIdNumber || x.company || "";
+        document.getElementById('edit-staff-pass').value = x.password || "";
+
+        const preview = document.getElementById('editStaffPhotoPreview');
+        if (x.profilePicUrl) {
+            const directUrl = window.formatDriveImageUrl(x.profilePicUrl);
+            preview.innerHTML = `<img src="${directUrl}" class="w-full h-full object-cover">`;
+        } else {
+            preview.innerHTML = '<i class="fa-solid fa-user text-3xl text-slate-300"></i>';
+        }
+
+        editStaffPhotoBase64 = "";
+        document.getElementById('edit-staff-modal').classList.remove('hidden');
+    } catch (e) { alert("Error loading details: " + e.message); }
+};
+
+window.closeEditStaffModal = () => {
+    document.getElementById('edit-staff-modal').classList.add('hidden');
+    document.getElementById('edit-staff-form').reset();
+    editStaffPhotoBase64 = "";
+};
+
+window.handleEditStaffPhotoSelect = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const preview = document.getElementById('editStaffPhotoPreview');
+    preview.innerHTML = '<i class="fa-solid fa-spinner fa-spin text-indigo-600"></i>';
+    try {
+        editStaffPhotoBase64 = await window.compressImageFile(file, 500, 500, 0.7);
+        preview.innerHTML = `<img src="${editStaffPhotoBase64}" class="w-full h-full object-cover">`;
+    } catch (err) {
+        console.error(err);
+        preview.innerHTML = '<i class="fa-solid fa-circle-exclamation text-red-500"></i>';
+    }
+};
+
+const editStaffForm = document.getElementById('edit-staff-form');
+if (editStaffForm) {
+    editStaffForm.onsubmit = async (e) => {
+        e.preventDefault();
+        const submitBtn = document.getElementById('edit-staff-submit-btn');
+        const mobile = document.getElementById('edit-staff-id').value;
+        const name = document.getElementById('edit-staff-name').value;
+        const adek = document.getElementById('edit-staff-adek').value;
+        const companyName = document.getElementById('edit-staff-company-name').value;
+        const branch = document.getElementById('edit-staff-branch').value;
+        const role = document.getElementById('edit-staff-role').value;
+        const companyId = document.getElementById('edit-staff-company-id').value;
+        const pass = document.getElementById('edit-staff-pass').value;
+
+        submitBtn.disabled = true;
+        submitBtn.innerText = "UPDATING...";
+
+        try {
+            const updates = {
+                name: name, fullName: name,
+                adcPassNumber: adek, adekPass: adek,
+                companyName: companyName, company: companyId,
+                companyIdNumber: companyId,
+                branch: branch, schoolName: branch,
+                role: role, position: role,
+                password: pass,
+                updatedAt: new Date().toISOString()
+            };
+
+            if (editStaffPhotoBase64) {
+                const cleanName = name.replace(/\s+/g, '_');
+                const uploadRes = await window.uploadToDrive({
+                    type: 'active_asset',
+                    folderType: 'Staff_Profile_Photos',
+                    fileName: `Profile_${adek}_${cleanName}.jpg`,
+                    image: editStaffPhotoBase64
+                });
+                if (uploadRes.status === 'success') {
+                    const rawUrl = uploadRes.fileUrl || uploadRes.signatureUrl;
+                    updates.profilePicUrl = window.formatDriveImageUrl ? window.formatDriveImageUrl(rawUrl) : rawUrl;
+                }
+            }
+
+            await update(ref(db, 'staff/' + mobile), updates);
+            await update(ref(db, 'users/' + mobile), updates);
+
+            alert("Staff details updated successfully!");
+            window.closeEditStaffModal();
+            window.loadAdminDashboard();
+        } catch (err) {
+            alert("Error: " + err.message);
+        } finally {
+            submitBtn.disabled = false;
+            submitBtn.innerText = "SAVE UPDATED DETAILS";
+        }
+    };
+}
 
 // --- ADD STAFF MODAL LOGIC ---
 let addStaffPhotoBase64 = "";

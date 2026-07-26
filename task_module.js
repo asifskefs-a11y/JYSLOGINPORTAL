@@ -139,7 +139,8 @@ window.handleTaskImageCapture = async (e) => {
         const btnText = document.getElementById('cameraBtnText');
         if (btnText) btnText.innerText = "Compressing...";
 
-        capturedTaskPhotoBase64 = await window.compressImageFile(file, 1024, 1024, 0.7);
+        // Optimized for reliability: 800px max and lower quality to reduce payload size
+        capturedTaskPhotoBase64 = await window.compressImageFile(file, 800, 800, 0.6);
 
         const preview = document.getElementById('taskPhotoPreview');
         const container = document.getElementById('taskPhotoPreviewContainer');
@@ -196,21 +197,27 @@ window.filterStaffBySchoolAndRole = async () => {
 window.submitNewMaintenanceTask = async (e) => {
     if (e && e.preventDefault) e.preventDefault();
 
-    const school = document.getElementById('taskSchoolSelect') ? document.getElementById('taskSchoolSelect').value :
-                   (document.getElementById('task-school') ? document.getElementById('task-school').value : "");
-    const role = document.getElementById('taskRoleSelect') ? document.getElementById('taskRoleSelect').value :
-                 (document.getElementById('task-target') ? document.getElementById('task-target').value : "");
+    const schoolEl = document.getElementById('taskSchoolSelect') || document.getElementById('task-school');
+    const roleEl = document.getElementById('taskRoleSelect') || document.getElementById('task-target');
     const staffSelect = document.getElementById('assignedStaffSelect') || document.getElementById('task-assigned-staff');
+    const areaEl = (document.getElementById('areaNameInput') || document.getElementById('task-loc'));
+    const detailsEl = (document.getElementById('taskDetailsInput') || document.getElementById('task-desc'));
+
+    const school = schoolEl ? schoolEl.value.trim() : "";
+    const role = roleEl ? roleEl.value.trim() : "";
+    const area = areaEl ? areaEl.value.trim() : "";
+    const details = detailsEl ? detailsEl.value.trim() : "";
+
     const staffId = staffSelect ? staffSelect.value : "";
     const staffName = staffSelect ? (staffSelect.options[staffSelect.selectedIndex]?.getAttribute('data-name') || "") : "";
-    const area = document.getElementById('areaNameInput') ? document.getElementById('areaNameInput').value :
-                 (document.getElementById('task-loc') ? document.getElementById('task-loc').value : "");
-    const details = document.getElementById('taskDetailsInput') ? document.getElementById('taskDetailsInput').value :
-                    (document.getElementById('task-desc') ? document.getElementById('task-desc').value : "");
     const priority = document.getElementById('task-priority') ? document.getElementById('task-priority').value : "Medium";
     const btn = document.getElementById('submitTaskBtn') || document.getElementById('task-submit-btn');
 
-    if (!school || !role || !area || !details || !capturedTaskPhotoBase64) {
+    const photoInput = document.getElementById('cameraInput') || document.getElementById('task-photo-in');
+    const hasPhoto = (photoInput && photoInput.files && photoInput.files.length > 0) || (capturedTaskPhotoBase64 && capturedTaskPhotoBase64 !== "");
+
+    // Robust Validation: Check trimmed strings and explicit photo variable
+    if (!school || !role || !area || !details || !hasPhoto) {
         return alert("All fields including School, Role, Area, Details, and Photo are mandatory!");
     }
 
@@ -220,7 +227,8 @@ window.submitNewMaintenanceTask = async (e) => {
     try {
         const taskId = "TASK-" + Date.now();
 
-        // Upload photo to Drive
+        // 1. Upload photo to Drive with enhanced error handling
+        console.log("TASK_DEBUG", "Starting photo upload for:", taskId);
         const uploadRes = await window.uploadToDrive({
             type: 'task_photo',
             fileName: `${taskId}_BEFORE.jpg`,
@@ -228,7 +236,8 @@ window.submitNewMaintenanceTask = async (e) => {
         });
 
         if (uploadRes.status !== 'success' && !uploadRes.fileUrl) {
-            throw new Error("Photo upload failed. Please try again.");
+            console.error("TASK_ERROR", "Photo upload response failed:", uploadRes);
+            throw new Error(uploadRes.message || "Server rejected the photo upload.");
         }
 
         const taskData = {
@@ -439,6 +448,7 @@ window.initRaisedTasksTracker = (containerId) => {
             };
             const color = statusColors[t.status] || 'bg-gray-100 text-gray-600';
             const compImg = t.afterPhotoUrl ? window.getDirectDriveImageUrl(t.afterPhotoUrl) : null;
+            const beforeImg = (t.beforePhotoUrl || t.beforePhoto || t.taskPhoto) ? window.getDirectDriveImageUrl(t.beforePhotoUrl || t.beforePhoto || t.taskPhoto) : null;
 
             html += `
                 <tr class="hover:bg-slate-50 transition text-gray-800">
@@ -457,10 +467,21 @@ window.initRaisedTasksTracker = (containerId) => {
                         <span class="px-2 py-1 rounded-full text-[9px] font-black uppercase ${color}">${t.status}</span>
                     </td>
                     <td class="p-3 text-center">
-                        ${compImg ?
-                            `<img src="${compImg}" class="w-8 h-8 rounded border border-indigo-100 shadow-sm mx-auto cursor-pointer hover:scale-150 transition" onclick="window.openImageZoom('${compImg}')">` :
-                            (t.rejectionReason ? `<button class="text-red-500 underline text-[9px] font-bold" onclick="alert('Rejection Reason: ${t.rejectionReason}')">View Reason</button>` : '<span class="text-gray-300">-</span>')
-                        }
+                        <div class="flex flex-col gap-1 items-center justify-center">
+                            ${beforeImg ?
+                                `<div>
+                                    <p class="text-[7px] font-black text-gray-400 uppercase leading-none mb-1">Before</p>
+                                    <img src="${beforeImg}" class="w-8 h-8 rounded border border-slate-200 shadow-sm mx-auto cursor-pointer hover:scale-150 transition" onclick="window.openImageZoom('${beforeImg}')">
+                                 </div>` : ''
+                            }
+                            ${compImg ?
+                                `<div>
+                                    <p class="text-[7px] font-black text-green-500 uppercase leading-none mb-1">After</p>
+                                    <img src="${compImg}" class="w-8 h-8 rounded border border-indigo-100 shadow-sm mx-auto cursor-pointer hover:scale-150 transition" onclick="window.openImageZoom('${compImg}')">
+                                 </div>` :
+                                (t.rejectionReason ? `<button class="text-red-500 underline text-[9px] font-bold" onclick="alert('Rejection Reason: ${t.rejectionReason}')">View Reason</button>` : (!beforeImg ? '<span class="text-gray-300">-</span>' : ''))
+                            }
+                        </div>
                     </td>
                 </tr>
             `;

@@ -11,6 +11,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
+    <link rel="manifest" href="manifest.json">
     <script>
       window.OneSignalDeferred = window.OneSignalDeferred || [];
       OneSignalDeferred.push(async function(OneSignal) {
@@ -21,6 +22,7 @@
             enable: false,
           },
           allowLocalhostAsSecureOrigin: true,
+          serviceWorkerPath: "OneSignalSDKWorker.js",
         });
       });
     </script>
@@ -56,38 +58,91 @@
 
         <!-- ADMIN DASHBOARD VIEW -->
         <section id="view-admin-dash" class="view-section hidden p-4">
-            <nav class="w-full flex items-center justify-between mb-8 pt-4">
-                <h2 class="text-2xl font-extrabold tracking-tighter text-indigo-900">ADMIN</h2>
-                <div class="flex items-center space-x-2">
-                     <button onclick="downloadExcelReport()" title="Attendance Report" class="bg-indigo-600 p-2 rounded-lg shadow-lg active:bg-indigo-700 transition">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+            <nav class="w-full flex items-center justify-between mb-6 pt-4">
+                <div>
+                    <h2 class="text-2xl font-black tracking-tighter text-indigo-900 leading-none">ADMIN</h2>
+                    <p class="text-[10px] font-bold text-indigo-400 uppercase tracking-widest mt-1">Management Portal</p>
+                </div>
+                <div class="flex items-center gap-2 bg-white/50 p-1.5 rounded-xl border border-indigo-50/50 shadow-sm">
+                     <button onclick="downloadExcelReport()" title="Attendance Report" class="h-9 w-9 flex items-center justify-center bg-indigo-600 text-white rounded-lg shadow-md hover:bg-indigo-700 active:scale-95 transition-all">
+                        <i class="fa-solid fa-file-invoice text-sm"></i>
                      </button>
-                     <button onclick="exportTaskReportExcel()" title="Task Audit Report" class="bg-green-600 p-2 rounded-lg shadow-lg active:bg-green-700 transition">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" /></svg>
+                     <button onclick="exportTaskReportExcel()" title="Task Audit Report" class="h-9 w-9 flex items-center justify-center bg-emerald-600 text-white rounded-lg shadow-md hover:bg-emerald-700 active:scale-95 transition-all">
+                        <i class="fa-solid fa-tasks text-sm"></i>
                      </button>
-                     <button onclick="downloadMasterAssetReport()" title="Master Asset Report" class="bg-orange-600 p-2 rounded-lg shadow-lg active:bg-orange-700 transition">
-                        <i class="fa-solid fa-file-excel h-5 w-5 flex items-center justify-center" style="color: white !important;"></i>
+                     <button onclick="downloadMasterAssetReport()" title="Master Asset Report" class="h-9 w-9 flex items-center justify-center bg-orange-500 text-white rounded-lg shadow-md hover:bg-orange-600 active:scale-95 transition-all">
+                        <i class="fa-solid fa-boxes-stacked text-sm"></i>
                      </button>
-                     <button onclick="openTaskModal()" title="Raise Task" class="bg-purple-600 p-2 rounded-lg shadow-lg active:bg-purple-700 transition">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" /></svg>
+                     <div class="w-px h-6 bg-indigo-100 mx-1"></div>
+                     <button onclick="openTaskModal()" title="Raise Task" class="h-9 w-9 flex items-center justify-center bg-purple-600 text-white rounded-lg shadow-md hover:bg-purple-700 active:scale-95 transition-all">
+                        <i class="fa-solid fa-plus text-sm"></i>
                      </button>
-                     <button id="admin-logout-btn" onclick="window.handleUserLogout()" class="logout-btn bg-red-600 px-3 py-2 rounded-lg shadow-lg active:bg-red-700 transition flex items-center gap-2" title="Logout">
-                        <i class="fa-solid fa-right-from-bracket"></i>
-                        <span class="text-xs font-bold">Logout</span>
+                     <button onclick="window.testOneSignalDiagnostics()" title="Diagnostic" class="h-9 w-9 flex items-center justify-center bg-slate-700 text-white rounded-lg shadow-md hover:bg-slate-800 active:scale-95 transition-all">
+                        <i class="fa-solid fa-bug text-sm"></i>
+                     </button>
+                     <button id="admin-logout-btn" onclick="window.handleUserLogout()" class="h-9 px-4 bg-red-600 text-white rounded-lg shadow-md hover:bg-red-700 active:scale-95 transition-all flex items-center gap-2" title="Logout">
+                        <i class="fa-solid fa-power-off text-xs"></i>
+                        <span class="text-[10px] font-black uppercase tracking-widest hidden md:inline">Logout</span>
                      </button>
                 </div>
             </nav>
 
-            <div class="max-w-7xl mx-auto glass-morphism rounded-3xl overflow-hidden shadow-2xl bg-white text-gray-800">
+            <!-- KPI SUMMARY GRID -->
+            <div class="kpi-horizontal-container">
+                <div class="stat-card">
+                    <i class="fa-solid fa-users"></i>
+                    <div class="stat-card-info">
+                        <p>Visitors Today</p>
+                        <h3 id="kpi-visitors">0</h3>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <i class="fa-solid fa-clock-rotate-left"></i>
+                    <div class="stat-card-info">
+                        <p>Active Tasks</p>
+                        <h3 id="kpi-tasks">0</h3>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <i class="fa-solid fa-user-check"></i>
+                    <div class="stat-card-info">
+                        <p>Staff Present</p>
+                        <h3 id="kpi-staff">0</h3>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <i class="fa-solid fa-bell"></i>
+                    <div class="stat-card-info">
+                        <p>Alerts</p>
+                        <h3 id="kpi-alerts">0</h3>
+                    </div>
+                </div>
+            </div>
+
+            <div class="max-w-7xl mx-auto rounded-3xl overflow-hidden shadow-2xl bg-white text-gray-800 border border-slate-100">
                 <!-- REDESIGNED NAVIGATION TABS -->
-                <div class="flex bg-slate-50 border-b border-gray-200 overflow-x-auto no-scrollbar">
-                    <button onclick="showAdminTab('tab-visitor-logs')" id="tabVisitorLogs" class="admin-tab-btn flex-1 py-4 px-6 font-bold transition active-tab whitespace-nowrap min-w-max">Visitor Logs</button>
-                    <button onclick="showAdminTab('tab-staff-logs')" id="tabStaffLogs" class="admin-tab-btn flex-1 py-4 px-6 font-bold transition whitespace-nowrap min-w-max">Staff Attendance</button>
-                    <button onclick="showAdminTab('tab-tasks')" id="taskAuditBtn" class="admin-tab-btn flex-1 py-4 px-6 font-bold transition whitespace-nowrap min-w-max">Global Task Audit</button>
-                    <button onclick="showAdminTab('tab-my-tasks')" id="myTasksTrackerBtn" class="admin-tab-btn flex-1 py-4 px-6 font-bold transition whitespace-nowrap min-w-max text-orange-600">My Raised Tasks</button>
-                    <button onclick="showAdminTab('tab-staff-list')" id="staffMgmtBtn" class="admin-tab-btn flex-1 py-4 px-6 font-bold transition whitespace-nowrap min-w-max">Staff Directory</button>
-                    <button onclick="showAdminTab('tab-assets')" id="assetMgmtBtn" class="admin-tab-btn flex-1 py-4 px-6 font-bold transition whitespace-nowrap min-w-max">Asset Register</button>
-                    <button onclick="showAdminTab('tab-disposal')" id="assetDisposalBtn" class="admin-tab-btn flex-1 py-4 px-6 font-bold transition whitespace-nowrap min-w-max">Asset Disposal</button>
+                <div class="flex bg-slate-50 border-b border-slate-200 overflow-x-auto no-scrollbar p-1 gap-1">
+                    <button onclick="showAdminTab('tab-visitor-logs')" id="tabVisitorLogs" class="admin-tab-btn flex-1 py-3 px-4 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all active-tab whitespace-nowrap min-w-max">
+                        <i class="fa-solid fa-id-card-clip mr-2"></i>Visitor Logs
+                    </button>
+                    <button onclick="showAdminTab('tab-staff-logs')" id="tabStaffLogs" class="admin-tab-btn flex-1 py-3 px-4 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all whitespace-nowrap min-w-max">
+                        <i class="fa-solid fa-user-clock mr-2"></i>Staff Attendance
+                    </button>
+                    <button onclick="showAdminTab('tab-tasks')" id="taskAuditBtn" class="admin-tab-btn flex-1 py-3 px-4 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all whitespace-nowrap min-w-max">
+                        <i class="fa-solid fa-list-check mr-2"></i>Global Task Audit
+                    </button>
+                    <button onclick="showAdminTab('tab-my-tasks')" id="myTasksTrackerBtn" class="admin-tab-btn flex-1 py-3 px-4 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all whitespace-nowrap min-w-max text-orange-600">
+                        <i class="fa-solid fa-clipboard-user mr-2"></i>My Raised Tasks
+                    </button>
+                    <button onclick="showAdminTab('tab-staff-list')" id="staffMgmtBtn" class="admin-tab-btn flex-1 py-3 px-4 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all whitespace-nowrap min-w-max">
+                        <i class="fa-solid fa-address-book mr-2"></i>Staff Directory
+                    </button>
+                    <button onclick="showAdminTab('tab-assets')" id="assetMgmtBtn" class="admin-tab-btn flex-1 py-3 px-4 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all whitespace-nowrap min-w-max">
+                        <i class="fa-solid fa-barcode mr-2"></i>Asset Register
+                    </button>
+                    <button onclick="showAdminTab('tab-disposal')" id="assetDisposalBtn" class="admin-tab-btn flex-1 py-3 px-4 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all whitespace-nowrap min-w-max">
+                        <i class="fa-solid fa-trash-can mr-2"></i>Asset Disposal
+                    </button>
                 </div>
 
                 <div class="p-4 space-y-4">
@@ -351,8 +406,14 @@
     <div id="task-modal" class="fixed inset-0 bg-black/90 backdrop-blur-md z-50 hidden flex items-center justify-center p-4">
         <div class="bg-white w-full max-w-3xl rounded-3xl overflow-hidden shadow-2xl text-gray-800">
             <div class="p-6 border-b flex justify-between items-center bg-indigo-600 text-white">
-                <h3 class="text-lg font-bold">Raise New Issue / Task</h3>
-                <button onclick="closeTaskModal()"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg></button>
+                <div class="flex items-center gap-3">
+                    <button id="cancelTaskBtn" type="button" onclick="closeTaskModal()" class="flex items-center gap-1 px-4 py-2 bg-red-600 hover:bg-red-700 rounded-xl transition text-xs font-bold border border-red-500 shadow-md">
+                        <i class="fa-solid fa-xmark"></i>
+                        <span>Cancel / Back</span>
+                    </button>
+                    <h3 class="text-lg font-bold">Raise New Issue / Task</h3>
+                </div>
+                <button type="button" onclick="closeTaskModal()"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg></button>
             </div>
             <form id="task-form" class="p-6 space-y-4" onsubmit="window.submitNewMaintenanceTask(event)">
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -380,7 +441,7 @@
                 </select>
                 <div>
                     <label class="block text-xs font-bold text-gray-500 mb-2">Before Work Photo (Mandatory)</label>
-                    <input type="file" id="task-photo-in" accept="image/*" capture="environment" class="w-full p-2 border rounded-xl">
+                    <input type="file" id="task-photo-in" accept="image/*" capture="environment" class="w-full p-2 border rounded-xl" onchange="window.handleTaskImageCapture(event)">
                 </div>
                 <button type="submit" id="task-submit-btn" class="w-full bg-indigo-600 text-white py-4 rounded-2xl font-bold shadow-lg">Save & Route Task</button>
             </form>
@@ -435,6 +496,59 @@
                 <input type="password" id="add-staff-pass" placeholder="Assign Password" required class="p-3 border rounded-xl text-sm w-full">
 
                 <button type="submit" id="add-staff-submit-btn" class="w-full bg-purple-600 text-white py-4 rounded-2xl font-black shadow-lg active:scale-95 transition">REGISTER NEW STAFF</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- EDIT STAFF MODAL -->
+    <div id="edit-staff-modal" class="fixed inset-0 bg-black/90 backdrop-blur-md z-[110] hidden flex items-center justify-center p-4">
+        <div class="bg-white w-full max-w-md rounded-3xl overflow-hidden shadow-2xl text-gray-800">
+            <div class="p-6 border-b flex justify-between items-center bg-indigo-600 text-white">
+                <h3 class="text-lg font-bold">Edit Staff Details</h3>
+                <button onclick="closeEditStaffModal()"><i class="fa-solid fa-xmark text-xl"></i></button>
+            </div>
+            <form id="edit-staff-form" class="p-6 space-y-4 max-h-[80vh] overflow-y-auto">
+                <input type="hidden" id="edit-staff-id">
+                <div class="flex flex-col items-center mb-4">
+                    <div class="relative group cursor-pointer" onclick="document.getElementById('editStaffProfilePic').click()">
+                        <div id="editStaffPhotoPreview" class="w-24 h-24 bg-slate-100 rounded-full flex items-center justify-center border-4 border-slate-50 shadow-inner overflow-hidden">
+                            <i class="fa-solid fa-user text-3xl text-slate-300"></i>
+                        </div>
+                        <div class="absolute inset-0 bg-black/20 rounded-full opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                            <i class="fa-solid fa-camera text-white"></i>
+                        </div>
+                    </div>
+                    <input type="file" id="editStaffProfilePic" accept="image/*" class="hidden" onchange="handleEditStaffPhotoSelect(event)">
+                    <p class="text-[10px] text-slate-400 mt-2 font-bold uppercase tracking-widest">Update Photo (Optional)</p>
+                </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <input type="text" id="edit-staff-name" placeholder="Full Name" required class="p-3 border rounded-xl text-sm w-full">
+                    <input type="tel" id="edit-staff-mobile" placeholder="Mobile Number" readonly class="p-3 border rounded-xl text-sm w-full bg-gray-50 text-gray-500">
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <input type="text" id="edit-staff-adek" placeholder="ADEK Pass Number" required class="p-3 border rounded-xl text-sm w-full">
+                    <input type="text" id="edit-staff-company-name" placeholder="Company Name" required class="p-3 border rounded-xl text-sm w-full">
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <select id="edit-staff-branch" required class="p-3 border rounded-xl text-sm w-full bg-white">
+                        <option value="">Select School</option>
+                        <option value="Jern Yafoor School 1">Jern Yafoor School 1</option>
+                        <option value="Jern Yafoor School 2">Jern Yafoor School 2</option>
+                    </select>
+                    <select id="edit-staff-role" required class="p-3 border rounded-xl text-sm w-full bg-white">
+                        <option value="">Position</option>
+                        <option value="Cleaner">Cleaner</option>
+                        <option value="Cleaner Leader">Cleaner Leader</option>
+                        <option value="RT Technician">RT Technician</option>
+                        <option value="Security">Security</option>
+                        <option value="Technician">Technician</option>
+                    </select>
+                </div>
+                <input type="text" id="edit-staff-company-id" placeholder="Company ID Number" required class="p-3 border rounded-xl text-sm w-full">
+                <input type="password" id="edit-staff-pass" placeholder="Update Password" required class="p-3 border rounded-xl text-sm w-full">
+
+                <button type="submit" id="edit-staff-submit-btn" class="w-full bg-indigo-600 text-white py-4 rounded-2xl font-black shadow-lg active:scale-95 transition">SAVE UPDATED DETAILS</button>
             </form>
         </div>
     </div>

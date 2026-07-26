@@ -113,12 +113,13 @@ window.uploadToDrive = async (payload) => {
             if (result.status === 'success' || result.fileUrl || result.signatureUrl) {
                 return result;
             } else {
+                console.error("UPLOAD_ERROR", "Server reported failure:", result.message || "Unknown reason");
                 throw new Error(result.message || "Server reported failure");
             }
         } catch (e) {
-            console.warn(`Upload attempt ${attempt} failed:`, e.message);
+            console.error("UPLOAD_CRITICAL", `Critical error during upload attempt ${attempt}:`, e);
             if (attempt >= maxRetries) {
-                return { status: 'error', message: "Poor connection. Please try again when signal is stronger." };
+                return { status: 'error', message: "Poor connection or server error: " + e.message };
             }
             // Wait 2 seconds before retrying
             await new Promise(res => setTimeout(res, 2000));
@@ -237,6 +238,18 @@ window.showView = (viewId) => {
 };
 
 // --- ONESIGNAL NOTIFICATION LOGIC ---
+window.OneSignalDeferred = window.OneSignalDeferred || [];
+window.OneSignalDeferred.push(async function(OneSignal) {
+    console.log("ONESIGNAL_DEBUG: Syncing Listeners on Evaluation");
+    OneSignal.Notifications.addEventListener("permissionChange", (permission) => {
+        console.log("ONESIGNAL_DEBUG: Permission changed:", permission);
+    });
+
+    OneSignal.Notifications.addEventListener("click", (event) => {
+        console.log("ONESIGNAL_DEBUG: Notification clicked:", event);
+    });
+});
+
 window.checkNotificationStatus = async () => {
     window.OneSignalDeferred = window.OneSignalDeferred || [];
     window.OneSignalDeferred.push(async function(OneSignal) {
@@ -288,6 +301,72 @@ window.requestNotificationPermission = async () => {
         } catch (e) {
             console.error("Permission Request Error:", e);
             alert("Error: Could not enable notifications. Please check browser settings.");
+        }
+    });
+};
+
+// --- PWA INSTALLATION LOGIC ---
+let deferredInstallPrompt = null;
+window.addEventListener('beforeinstallprompt', (e) => {
+    // Prevent Chrome 67 and earlier from automatically showing the prompt
+    e.preventDefault();
+    // Stash the event so it can be triggered later.
+    deferredInstallPrompt = e;
+    console.log("PWA_DEBUG: Install prompt stashed.");
+
+    // Optional: Show an install button in the UI if needed
+    const installBtn = document.getElementById('pwa-install-btn');
+    if (installBtn) installBtn.classList.remove('hidden');
+});
+
+window.triggerPwaInstall = async () => {
+    if (!deferredInstallPrompt) {
+        console.log("PWA_DEBUG: No install prompt available.");
+        return;
+    }
+    // Show the prompt
+    deferredInstallPrompt.prompt();
+    // Wait for the user to respond to the prompt
+    const { outcome } = await deferredInstallPrompt.userChoice;
+    console.log(`PWA_DEBUG: User response to install prompt: ${outcome}`);
+    // We've used the prompt, and can't use it again, throw it away
+    deferredInstallPrompt = null;
+};
+
+window.addEventListener('appinstalled', (evt) => {
+    console.log('PWA_DEBUG: SchoolLog was installed.');
+});
+
+window.testOneSignalDiagnostics = async () => {
+    window.OneSignalDeferred = window.OneSignalDeferred || [];
+    window.OneSignalDeferred.push(async function(OneSignal) {
+        console.log("--- ONESIGNAL DIAGNOSTIC START ---");
+
+        // 1. Check Permission
+        const permission = await OneSignal.Notifications.permission;
+        console.log("1. Notification Permission:", permission ? "GRANTED" : "NOT GRANTED");
+
+        // 2. Check Service Worker
+        if ('serviceWorker' in navigator) {
+            const regs = await navigator.serviceWorker.getRegistrations();
+            console.log("2. Active Service Workers:", regs.length);
+            regs.forEach(r => console.log("   SW Script:", r.active ? r.active.scriptURL : "Inactive"));
+        } else {
+            console.warn("2. Service Workers not supported by this browser.");
+        }
+
+        // 3. Check Subscription & ID
+        const userId = await OneSignal.User.PushSubscription.id;
+        console.log("3. OneSignal Subscription ID:", userId || "NONE (User Not Subscribed)");
+
+        console.log("--- ONESIGNAL DIAGNOSTIC END ---");
+
+        if (!permission) {
+            alert("Diagnostics: Notifications are NOT enabled. Click 'Enable Alerts' to fix.");
+        } else if (!userId) {
+            alert("Diagnostics: SW registered but no Subscription ID found. Try refreshing.");
+        } else {
+            alert(`Success! OneSignal is active.\nID: ${userId}\nCheck console for full log.`);
         }
     });
 };

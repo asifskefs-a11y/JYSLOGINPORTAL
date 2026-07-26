@@ -1,75 +1,289 @@
-// --- EXCEL EXPORT MODULE ---
-window.downloadExcelReport = () => {
+// Helper to fetch image and convert to ArrayBuffer for ExcelJS
+const getImageBuffer = async (url) => {
+    if (!url || !url.includes('http') || url.includes('placeholder')) return null;
+    try {
+        const directUrl = window.getDirectDriveImageUrl(url);
+        // Using a proxy or direct fetch depending on CORS.
+        // Note: Google Drive lh3/uc links usually allow CORS for web origins.
+        const response = await fetch(directUrl, { mode: 'cors' });
+        if (!response.ok) throw new Error("Fetch failed");
+        const blob = await response.blob();
+        return await blob.arrayBuffer();
+    } catch (e) {
+        console.warn("Excel Image Buffer Error:", e, url);
+        return null;
+    }
+};
+
+const addImageToSheet = (workbook, sheet, buffer, col, row, width = 100, height = 50) => {
+    if (!buffer) return;
+    try {
+        const imageId = workbook.addImage({
+            buffer: buffer,
+            extension: 'jpeg',
+        });
+        sheet.addImage(imageId, {
+            tl: { col: col, row: row },
+            ext: { width: width, height: height },
+            editAs: 'oneCell'
+        });
+    } catch (e) { console.error("ExcelJS addImage fail:", e); }
+};
+
+window.downloadExcelReport = async () => {
     try {
         if (!window.adminData) return alert("No data to export");
-        const staffLogs = window.adminData.filter(r => r.type === 'staff').map(r => ({
-            "Type": "Staff",
-            "Mobile Number": r.mobileNumber || r.mobile || r.id || '-',
-            "Full Name": r.fullName || r.name,
-            "ADC Pass Number": r.adcPassNumber || '-',
-            "Company Name": r.companyName || '-',
-            "School Name": r.schoolName || '-',
-            "Position": r.position || r.role || '-',
-            "Company ID": r.companyIdNumber || '-',
-            "Date": r.date,
-            "In-Time": r.timeIn,
-            "Out-Time": (r.checkOutTime || r.timeOut) ? (r.checkOutTime || r.timeOut) : (r.status === 'completed' ? 'RECORDED' : 'ACTIVE'),
-            "Status": r.status,
-            "Signature (In)": window.getDirectDriveImageUrl(r.signatureUrl || r.signature)
-        }));
-        const visitorLogs = window.adminData.filter(r => r.type === 'visitor').map(r => ({
-            "Type": "Visitor",
-            "Visitor ID": r.id || '-',
-            "Visitor Name": r.name,
-            "Mobile": r.mobile || '-',
-            "Company": r.company || '-',
-            "Purpose of Visit": r.purpose || '-',
-            "Date": r.date,
-            "In-Time": r.timeIn,
-            "Out-Time": r.timeOut || '-',
-            "Status": r.status,
-            "Signature": window.getDirectDriveImageUrl(r.signatureUrl || r.signature)
-        }));
-        const wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(staffLogs), "Staff Attendance");
-        XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(visitorLogs), "Visitor Log");
-        XLSX.writeFile(wb, `Attendance_Report_${Date.now()}.xlsx`);
+
+        const workbook = new ExcelJS.Workbook();
+
+        // --- 1. VISITOR LOGS WORKSHEET ---
+        const vSheet = workbook.addWorksheet('Visitor Logs');
+        const vCols = [
+            { header: 'Visitor ID / Pass No', key: 'id' },
+            { header: 'Full Name', key: 'name' },
+            { header: 'Mobile', key: 'mobile' },
+            { header: 'Company', key: 'company' },
+            { header: 'Purpose of Visit', key: 'purpose' },
+            { header: 'Date', key: 'date' },
+            { header: 'In-Time', key: 'timeIn' },
+            { header: 'Out-Time', key: 'timeOut' },
+            { header: 'Status', key: 'status' },
+            { header: 'Signature', key: 'sig', width: 22 }
+        ];
+        vSheet.columns = vCols.map(c => ({ ...c, width: c.width || 22 }));
+
+        // --- 2. STAFF ATTENDANCE WORKSHEET ---
+        const sSheet = workbook.addWorksheet('Staff Attendance');
+        const sCols = [
+            { header: 'Staff ID / Pass No', key: 'id' },
+            { header: 'Full Name', key: 'name' },
+            { header: 'Mobile', key: 'mobile' },
+            { header: 'Department / Company', key: 'company' },
+            { header: 'School Branch', key: 'school' },
+            { header: 'Position', key: 'role' },
+            { header: 'Date', key: 'date' },
+            { header: 'In-Time', key: 'timeIn' },
+            { header: 'Out-Time', key: 'timeOut' },
+            { header: 'Status', key: 'status' },
+            { header: 'Signature', key: 'sig', width: 22 }
+        ];
+        sSheet.columns = sCols.map(c => ({ ...c, width: c.width || 22 }));
+
+        // Global Professional Styling Helper
+        const formatExecutiveSheet = (sheet) => {
+            const headerRow = sheet.getRow(1);
+            headerRow.height = 35;
+            headerRow.eachCell((cell) => {
+                cell.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 11 };
+                cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1E293B' } };
+                cell.alignment = { vertical: 'middle', horizontal: 'center' };
+                cell.border = {
+                    top: { style: 'thin', color: { argb: 'FFCBD5E1' } },
+                    left: { style: 'thin', color: { argb: 'FFCBD5E1' } },
+                    bottom: { style: 'thin', color: { argb: 'FFCBD5E1' } },
+                    right: { style: 'thin', color: { argb: 'FFCBD5E1' } }
+                };
+            });
+        };
+
+        formatExecutiveSheet(vSheet);
+        formatExecutiveSheet(sSheet);
+
+        const visitors = window.adminData.filter(r => r.type === 'visitor');
+        const staff = window.adminData.filter(r => r.type === 'staff');
+
+        // Process Visitors
+        for (let i = 0; i < visitors.length; i++) {
+            const r = visitors[i];
+            const sigUrl = r.checkInSignature || r.checkInSignatureUrl || r.signatureUrl || r.signature;
+            const outTimeDisplay = (r.timeOut || r.checkOutTime) ? (r.timeOut || r.checkOutTime) : "-";
+
+            const row = vSheet.addRow({
+                id: r.id || "-", name: r.name || "-", mobile: r.mobile || "-",
+                company: r.company || "-", purpose: r.purpose || "-",
+                date: r.date || "-", timeIn: r.timeIn || "-", timeOut: outTimeDisplay,
+                status: r.status || "-", sig: ""
+            });
+            row.height = 65;
+            row.eachCell((cell) => {
+                cell.alignment = { vertical: 'middle', horizontal: 'center' };
+                cell.border = {
+                    top: { style: 'thin', color: { argb: 'FFCBD5E1' } },
+                    left: { style: 'thin', color: { argb: 'FFCBD5E1' } },
+                    bottom: { style: 'thin', color: { argb: 'FFCBD5E1' } },
+                    right: { style: 'thin', color: { argb: 'FFCBD5E1' } }
+                };
+            });
+
+            if (sigUrl) {
+                const buffer = await getImageBuffer(sigUrl);
+                if (buffer) {
+                    const imageId = workbook.addImage({ buffer, extension: 'png' });
+                    vSheet.addImage(imageId, {
+                        tl: { col: 9, row: i + 1, colOff: 20, rowOff: 10 },
+                        ext: { width: 100, height: 50 },
+                        editAs: 'oneCell'
+                    });
+                }
+            }
+        }
+
+        // Process Staff
+        for (let i = 0; i < staff.length; i++) {
+            const r = staff[i];
+            const sigUrl = r.checkInSignature || r.checkInSignatureUrl || r.signatureUrl || r.signature;
+            const outTime = (r.checkOutTime || r.timeOut || r.outTime) ? (r.checkOutTime || r.timeOut || r.outTime) : (r.status === 'completed' || r.status === 'checked_out' || r.status === 'SIGNED OUT' ? 'RECORDED' : 'ACTIVE');
+
+            const row = sSheet.addRow({
+                id: r.adcPassNumber || r.adekPass || r.mobile || "-", name: r.name || "-", mobile: r.mobile || "-",
+                company: r.department || r.company || "-", school: r.schoolBranch || r.branch || "-",
+                role: r.position || r.role || "-", date: r.date || "-", timeIn: r.timeIn, timeOut: outTime,
+                status: r.status || "-", sig: ""
+            });
+            row.height = 65;
+            row.eachCell((cell) => {
+                cell.alignment = { vertical: 'middle', horizontal: 'center' };
+                cell.border = {
+                    top: { style: 'thin', color: { argb: 'FFCBD5E1' } },
+                    left: { style: 'thin', color: { argb: 'FFCBD5E1' } },
+                    bottom: { style: 'thin', color: { argb: 'FFCBD5E1' } },
+                    right: { style: 'thin', color: { argb: 'FFCBD5E1' } }
+                };
+            });
+
+            if (sigUrl) {
+                const buffer = await getImageBuffer(sigUrl);
+                if (buffer) {
+                    const imageId = workbook.addImage({ buffer, extension: 'png' });
+                    sSheet.addImage(imageId, {
+                        tl: { col: 10, row: i + 1, colOff: 20, rowOff: 10 },
+                        ext: { width: 100, height: 50 },
+                        editAs: 'oneCell'
+                    });
+                }
+            }
+        }
+
+        // Final Auto-Adjust Column Widths
+        [vSheet, sSheet].forEach(sheet => {
+            sheet.columns.forEach(column => {
+                let maxLen = column.header.length;
+                sheet.getColumn(column.key).eachCell({ includeEmpty: true }, cell => {
+                    const len = cell.value ? cell.value.toString().length : 0;
+                    if (len > maxLen) maxLen = len;
+                });
+                column.width = Math.max(22, maxLen + 10);
+            });
+        });
+
+        const buffer = await workbook.xlsx.writeBuffer();
+        saveAs(new Blob([buffer]), `Portal_Executive_Report_${Date.now()}.xlsx`);
     } catch (e) { console.error("Export Error:", e); }
 };
 
-window.exportTaskReportExcel = () => {
+window.exportTaskReportExcel = async () => {
     try {
         if (!window.adminTasks) return alert("No task data to export");
-        let html = `
-            <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
-            <head></head>
-            <body>
-            <table border="1">
-                <tr style="background-color: #10b981; color: white; font-weight: bold; height: 40px;">
-                    <th>Task ID</th><th>School / Building</th><th>Area / Location</th><th>Assigned Dept / Role</th><th>Raised By</th><th>Raised Date</th><th>Raised Time</th><th>RT Technician</th><th>Closed Date</th><th>Closed Time</th><th>Status</th><th>Rejection Reason</th><th>Before Photo</th><th>After Photo</th>
-                </tr>`;
 
-        window.adminTasks.forEach(t => {
-            const bImg = window.getDirectDriveImageUrl(t.beforePhotoUrl || t.beforePhoto);
-            const aImg = window.getDirectDriveImageUrl(t.afterPhotoUrl || t.afterPhoto);
+        const workbook = new ExcelJS.Workbook();
+        const sheet = workbook.addWorksheet('Task Audit Report');
+
+        sheet.columns = [
+            { header: 'TASK ID', key: 'id', width: 22 },
+            { header: 'SCHOOL', key: 'school', width: 25 },
+            { header: 'AREA', key: 'area', width: 20 },
+            { header: 'DETAILS', key: 'details', width: 35 },
+            { header: 'DEPT', key: 'dept', width: 18 },
+            { header: 'RAISED BY', key: 'raisedBy', width: 20 },
+            { header: 'RAISED DATE', key: 'rDate', width: 15 },
+            { header: 'RAISED TIME', key: 'rTime', width: 15 },
+            { header: 'FIXED BY', key: 'fixedBy', width: 20 },
+            { header: 'CLOSED DATE', key: 'cDate', width: 15 },
+            { header: 'CLOSED TIME', key: 'cTime', width: 15 },
+            { header: 'STATUS', key: 'status', width: 15 },
+            { header: 'REASON', key: 'reason', width: 20 },
+            { header: 'BEFORE', key: 'before', width: 22 },
+            { header: 'AFTER', key: 'after', width: 22 }
+        ];
+
+        // Format Executive Header
+        const headerRow = sheet.getRow(1);
+        headerRow.height = 35;
+        headerRow.eachCell((cell) => {
+            cell.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 11 };
+            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1E293B' } };
+            cell.alignment = { vertical: 'middle', horizontal: 'center' };
+            cell.border = {
+                top: { style: 'thin', color: { argb: 'FFCBD5E1' } },
+                left: { style: 'thin', color: { argb: 'FFCBD5E1' } },
+                bottom: { style: 'thin', color: { argb: 'FFCBD5E1' } },
+                right: { style: 'thin', color: { argb: 'FFCBD5E1' } }
+            };
+        });
+
+        for (let i = 0; i < window.adminTasks.length; i++) {
+            const t = window.adminTasks[i];
             const rDT = t.raisedTimestamp ? new Date(t.raisedTimestamp) : null;
             const cDT = t.solvedTimestamp ? new Date(t.solvedTimestamp) : null;
-            html += `
-                <tr style="height: 80px; vertical-align: middle;">
-                    <td>${t.id}</td><td>${t.schoolBuilding || '-'}</td><td>${t.location}</td><td>${t.targetRole}</td><td>${t.raisedByName || 'Admin'}</td>
-                    <td>${rDT ? rDT.toLocaleDateString() : '-'}</td><td>${rDT ? rDT.toLocaleTimeString() : '-'}</td><td>${t.solvedByName || '-'}</td>
-                    <td>${cDT ? cDT.toLocaleDateString() : '-'}</td><td>${cDT ? cDT.toLocaleTimeString() : '-'}</td>
-                    <td style="font-weight: bold;">${t.status}</td><td>${t.rejectionReason || 'N/A'}</td>
-                    <td width="100" align="center">${bImg.includes('http') ? `<img src="${bImg}" width="70" height="70">` : 'No Photo'}</td>
-                    <td width="100" align="center">${aImg.includes('http') && !aImg.includes('No+Photo') ? `<img src="${aImg}" width="70" height="70">` : 'No Photo'}</td>
-                </tr>`;
-        });
-        html += '</table></body></html>';
-        const url = 'data:application/vnd.ms-excel;charset=utf-8,' + encodeURIComponent(html);
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = `Task_Audit_Report_${Date.now()}.xls`;
-        link.click();
+
+            const row = sheet.addRow({
+                id: t.id,
+                school: t.assignedSchool || t.schoolName || "-",
+                area: t.location || "-",
+                details: t.details || t.description || "-",
+                dept: t.assignedRole || t.targetRole || "-",
+                raisedBy: t.raisedByName || "Admin",
+                rDate: rDT ? rDT.toLocaleDateString() : "-",
+                rTime: rDT ? rDT.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) : "-",
+                fixedBy: t.solvedByName || "-",
+                cDate: cDT ? cDT.toLocaleDateString() : "-",
+                cTime: cDT ? cDT.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) : "-",
+                status: t.status,
+                reason: t.rejectionReason || "N/A",
+                before: "", after: ""
+            });
+
+            row.height = 65;
+            row.eachCell((cell) => {
+                cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+                cell.border = {
+                    top: { style: 'thin', color: { argb: 'FFCBD5E1' } },
+                    left: { style: 'thin', color: { argb: 'FFCBD5E1' } },
+                    bottom: { style: 'thin', color: { argb: 'FFCBD5E1' } },
+                    right: { style: 'thin', color: { argb: 'FFCBD5E1' } }
+                };
+            });
+
+            // Embed Task Photos
+            const bUrl = t.beforePhotoUrl || t.beforePhoto || t.taskPhoto;
+            const aUrl = t.afterPhotoUrl || t.afterPhoto;
+
+            if (bUrl) {
+                const bBuffer = await getImageBuffer(bUrl);
+                if (bBuffer) {
+                    const imgId = workbook.addImage({ buffer: bBuffer, extension: 'jpeg' });
+                    sheet.addImage(imgId, {
+                        tl: { col: 13, row: i + 1, colOff: 20, rowOff: 10 },
+                        ext: { width: 100, height: 50 },
+                        editAs: 'oneCell'
+                    });
+                }
+            }
+            if (aUrl) {
+                const aBuffer = await getImageBuffer(aUrl);
+                if (aBuffer) {
+                    const imgId = workbook.addImage({ buffer: aBuffer, extension: 'jpeg' });
+                    sheet.addImage(imgId, {
+                        tl: { col: 14, row: i + 1, colOff: 20, rowOff: 10 },
+                        ext: { width: 100, height: 50 },
+                        editAs: 'oneCell'
+                    });
+                }
+            }
+        }
+
+        const buffer = await workbook.xlsx.writeBuffer();
+        saveAs(new Blob([buffer]), `Task_Audit_Full_Report_${Date.now()}.xlsx`);
     } catch (e) { console.error("Task Export Error:", e); }
 };
 
@@ -95,10 +309,10 @@ window.downloadMasterAssetReport = async () => {
             { header: '13. DOF Major', key: 'f13', width: 15 },
             { header: '14. DOF Minor', key: 'f14', width: 15 },
             { header: '15. Category', key: 'f15', width: 15 },
-            { header: '16. Classification [Asset Name]', key: 'f16', width: 20 },
+            { header: '16. Classification', key: 'f16', width: 20 },
             { header: '17. Location Name', key: 'f17', width: 20 },
             { header: '18. School ESIS ID', key: 'f18', width: 15 },
-            { header: '19. School Building Name', key: 'f19', width: 25 },
+            { header: '19. School Building', key: 'f19', width: 25 },
             { header: '20. Room Name', key: 'f20', width: 20 },
             { header: '21. Room No', key: 'f21', width: 15 },
             { header: '22. Room Barcode', key: 'f22', width: 20 },
@@ -115,15 +329,31 @@ window.downloadMasterAssetReport = async () => {
             { header: '33. Invoice No', key: 'f33', width: 20 },
             { header: '34. DN No', key: 'f34', width: 20 },
             { header: '35. Remarks', key: 'f35', width: 30 },
-            { header: '36. Physical Asset Register No', key: 'f36', width: 25 },
-            { header: '37. Fixed Asset Register No', key: 'f37', width: 25 },
+            { header: '36. Physical Reg No', key: 'f36', width: 25 },
+            { header: '37. Fixed Asset Reg No', key: 'f37', width: 25 },
             { header: '38. Mapping Criteria', key: 'f38', width: 20 },
-            { header: '39. Audit Photo (After)', key: 'f39', width: 40 },
-            { header: '40. Disposal Photo (Before)', key: 'f40', width: 40 }
+            { header: '39. Audit Photo', key: 'f39', width: 22 },
+            { header: '40. Disposal Photo', key: 'f40', width: 22 }
         ];
 
-        window.allAssets.forEach(a => {
-            sheet.addRow({
+        // Format Executive Header
+        const headerRow = sheet.getRow(1);
+        headerRow.height = 35;
+        headerRow.eachCell((cell) => {
+            cell.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 11 };
+            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1E293B' } };
+            cell.alignment = { vertical: 'middle', horizontal: 'center' };
+            cell.border = {
+                top: { style: 'thin', color: { argb: 'FFCBD5E1' } },
+                left: { style: 'thin', color: { argb: 'FFCBD5E1' } },
+                bottom: { style: 'thin', color: { argb: 'FFCBD5E1' } },
+                right: { style: 'thin', color: { argb: 'FFCBD5E1' } }
+            };
+        });
+
+        for (let i = 0; i < window.allAssets.length; i++) {
+            const a = window.allAssets[i];
+            const row = sheet.addRow({
                 f1: a.assetBarcode, f2: a.serialNo, f3: a.modelDescription, f4: a.assetCondition, f5: a.priceStatus,
                 f6: a.unitCost, f7: a.assetDescription, f8: a.serviceDate, f9: a.manufacturer, f10: a.majorCategory,
                 f11: a.subMajorCategory, f12: a.subMinorCategory, f13: a.dofMajor, f14: a.dofMinor, f15: a.category,
@@ -132,13 +362,50 @@ window.downloadMasterAssetReport = async () => {
                 f26: a.assetStatus, f27: a.oldSchoolName, f28: a.transactionNo, f29: a.usefulLife, f30: a.vendorName,
                 f31: a.oldBarcode, f32: a.farBarcode, f33: a.invoiceNo, f34: a.dnNo, f35: a.remarks,
                 f36: a.physRegNo, f37: a.fixedAssetRegNo, f38: a.mappingCriteria,
-                f39: a.initialAuditPhoto || "",
-                f40: a.disposalDamagedPhoto || ""
+                f39: "", f40: ""
             });
-        });
+
+            row.height = 65;
+            row.eachCell((cell) => {
+                cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+                cell.border = {
+                    top: { style: 'thin', color: { argb: 'FFCBD5E1' } },
+                    left: { style: 'thin', color: { argb: 'FFCBD5E1' } },
+                    bottom: { style: 'thin', color: { argb: 'FFCBD5E1' } },
+                    right: { style: 'thin', color: { argb: 'FFCBD5E1' } }
+                };
+            });
+
+            // Embed Asset Photos
+            const iUrl = a.initialAuditPhoto || a.auditPhotoUrl;
+            const dUrl = a.disposalDamagedPhoto || a.disposalPhotoUrl;
+
+            if (iUrl) {
+                const iBuffer = await getImageBuffer(iUrl);
+                if (iBuffer) {
+                    const imgId = workbook.addImage({ buffer: iBuffer, extension: 'jpeg' });
+                    sheet.addImage(imgId, {
+                        tl: { col: 38, row: i + 1, colOff: 20, rowOff: 10 },
+                        ext: { width: 100, height: 50 },
+                        editAs: 'oneCell'
+                    });
+                }
+            }
+            if (dUrl) {
+                const dBuffer = await getImageBuffer(dUrl);
+                if (dBuffer) {
+                    const imgId = workbook.addImage({ buffer: dBuffer, extension: 'jpeg' });
+                    sheet.addImage(imgId, {
+                        tl: { col: 39, row: i + 1, colOff: 20, rowOff: 10 },
+                        ext: { width: 100, height: 50 },
+                        editAs: 'oneCell'
+                    });
+                }
+            }
+        }
 
         const buffer = await workbook.xlsx.writeBuffer();
-        saveAs(new Blob([buffer]), `Master_Asset_Register_${Date.now()}.xlsx`);
+        saveAs(new Blob([buffer]), `Master_Asset_Executive_Report_${Date.now()}.xlsx`);
     } catch (e) { console.error("Asset Export Error:", e); }
 };
 
