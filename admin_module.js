@@ -1,5 +1,5 @@
 import { db } from './firebase_config.js';
-import { ref, get, set, update } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+import { ref, get, set, update, onValue } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
 // --- CORE ADMIN DASHBOARD LOGIC ---
 window.showAdminTab = (tabId) => {
@@ -25,425 +25,273 @@ window.showAdminTab = (tabId) => {
 window.loadAdminDashboard = async () => {
     try {
         if (!document.getElementById('visitor-logs-body')) return;
-        const [v, s, staffSnap, userSnap, tasks, assets] = await Promise.all([
-            get(ref(db, 'visitors')),
-            get(ref(db, 'staff_attendance')),
-            get(ref(db, 'staff')),
-            get(ref(db, 'users')),
-            get(ref(db, 'tasks')),
-            get(ref(db, 'assets'))
-        ]);
 
-        const staffProfiles = staffSnap.exists() ? staffSnap.val() : {};
-        const userProfiles = userSnap.exists() ? userSnap.val() : {};
+        // Attach Listeners for real-time logs
+        onValue(ref(db, 'visitors'), (v) => {
+            onValue(ref(db, 'staff_attendance'), (s) => {
+                onValue(ref(db, 'users'), (userSnap) => {
+                    onValue(ref(db, 'staff'), (staffSnap) => {
+                        const userProfiles = userSnap.exists() ? userSnap.val() : {};
+                        const staffProfiles = staffSnap.exists() ? staffSnap.val() : {};
+                        let allRecords = [];
+                        if(v.exists()) Object.values(v.val()).forEach(x => allRecords.push({...x, type: 'visitor'}));
+                        if(s.exists()) Object.values(s.val()).forEach(x => allRecords.push({...x, type: 'staff'}));
+                        allRecords.sort((a,b) => new Date(b.date + ' ' + (b.timeIn || '00:00 AM')) - new Date(a.date + ' ' + (a.timeIn || '00:00 AM')));
+                        window.adminData = allRecords;
+                        window.renderAdminTable(allRecords, userProfiles, staffProfiles);
 
-        let allRecords = [];
-        if(v.exists()) Object.values(v.val()).forEach(x => allRecords.push({...x, type: 'visitor'}));
-        if(s.exists()) Object.values(s.val()).forEach(x => allRecords.push({...x, type: 'staff'}));
-
-        allRecords.sort((a,b) => new Date(b.date + ' ' + (b.timeIn || '00:00 AM')) - new Date(a.date + ' ' + (a.timeIn || '00:00 AM')));
-
-        window.adminData = allRecords;
-        window.renderAdminTable(allRecords, userProfiles, staffProfiles);
-
-        const staffList = document.getElementById('admin-staff-list-body');
-        if (staffList) {
-            staffList.innerHTML = '';
-            if(staffSnap.exists()) Object.values(staffSnap.val()).forEach(x => {
-                const initials = (x.name || "JY").split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2);
-                const photoUrl = x.profilePicUrl ? window.formatDriveImageUrl(x.profilePicUrl) : "";
-                const photoHtml = photoUrl ?
-                    `<img src="${photoUrl}" referrerpolicy="no-referrer" class="w-10 h-10 rounded-full object-cover border-2 border-indigo-100 shadow-sm mx-auto" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex'">` : '';
-
-                staffList.innerHTML += `
-                    <tr class="border-b border-gray-50 text-gray-800 hover:bg-slate-50 transition">
-                        <td class="p-3 text-center flex justify-center">
-                            <div class="relative w-10 h-10">
-                                ${photoHtml}
-                                <div class="w-10 h-10 bg-indigo-600 text-white rounded-full flex items-center justify-center font-bold text-xs shadow-sm" style="${photoUrl ? 'display:none;' : 'display:flex;'}">
-                                    ${initials}
-                                </div>
-                            </div>
-                        </td>
-                        <td class="p-3 font-bold text-indigo-900">${x.name}</td>
-                        <td class="p-3 font-mono text-[9px]">${x.adcPassNumber || x.adekPass || "-"}</td>
-                        <td class="p-3">${x.branch || "-"}</td>
-                        <td class="p-3"><span class="px-2 py-0.5 bg-indigo-50 text-indigo-600 rounded-md text-[9px] font-black uppercase">${x.role}</span></td>
-                        <td class="p-3 text-[9px] opacity-70">${x.companyName || x.company || "-"}</td>
-                        <td class="p-3 font-mono text-[9px]">${x.mobile}</td>
-                        <td class="p-3 text-center">
-                            <div class="flex items-center justify-center gap-2">
-                                <button onclick="window.openEditStaffModal('${x.mobile}')" class="text-indigo-600 hover:text-indigo-800 font-bold text-[10px] uppercase underline tracking-tighter">Edit</button>
-                                <button onclick="window.deleteStaffAccount('${x.mobile}', '${x.name}')" class="text-red-500 hover:text-red-700 font-bold text-[10px] uppercase underline tracking-tighter">Delete</button>
-                            </div>
-                        </td>
-                    </tr>`;
+                        // Update KPIs
+                        const visitorsToday = allRecords.filter(r => r.type === 'visitor' && r.date === new Date().toLocaleDateString('en-US')).length;
+                        const staffPresent = allRecords.filter(r => r.type === 'staff' && (r.status === 'checked_in' || !r.timeOut)).length;
+                        if(document.getElementById('kpi-visitors')) document.getElementById('kpi-visitors').innerText = visitorsToday;
+                        if(document.getElementById('kpi-staff')) document.getElementById('kpi-staff').innerText = staffPresent;
+                    });
+                });
             });
-        }
+        });
 
-        const taskBody = document.getElementById('admin-task-list-body');
-        if (taskBody) {
-            taskBody.innerHTML = '';
-            if(tasks.exists()) {
-                window.adminTasks = Object.values(tasks.val()).reverse();
-                window.adminTasks.forEach(t => {
+        // Load Tasks
+        onValue(ref(db, 'tasks'), (tasks) => {
+            const taskBody = document.getElementById('admin-task-list-body');
+            if (taskBody && tasks.exists()) {
+                taskBody.innerHTML = '';
+                const taskList = Object.values(tasks.val()).reverse();
+                taskList.forEach(t => {
                     const b = window.getDirectDriveImageUrl(t.beforePhotoUrl || t.beforePhoto || t.taskPhoto);
                     const a = window.getDirectDriveImageUrl(t.afterPhotoUrl || t.afterPhoto);
-                    const school = t.assignedSchool || t.schoolName || t.schoolBuilding || "-";
                     const rDT = t.raisedTimestamp ? new Date(t.raisedTimestamp) : null;
-                    const cDT = t.solvedTimestamp ? new Date(t.solvedTimestamp) : null;
-
                     taskBody.innerHTML += `
-                        <tr class="hover:bg-gray-50 transition text-gray-800 border-b border-gray-100">
-                            <td class="p-2 font-mono text-[9px] opacity-50">${t.id}</td>
-                            <td class="p-2 font-bold text-indigo-600">${school}</td>
+                        <tr class="hover:bg-gray-50 transition text-gray-800 border-b border-gray-100 text-[9px]">
+                            <td class="p-2 font-mono opacity-50">${t.id}</td>
+                            <td class="p-2 font-bold text-indigo-600">${t.assignedSchool || "-"}</td>
                             <td class="p-2 font-bold">${t.location}</td>
-                            <td class="p-2 italic text-[9px] max-w-[200px] overflow-hidden truncate">${t.details || t.description || "-"}</td>
-                            <td class="p-2 opacity-70">${t.assignedRole || t.targetRole || "-"}</td>
+                            <td class="p-2 truncate max-w-[150px]">${t.details || "-"}</td>
+                            <td class="p-2">${t.assignedRole || "-"}</td>
                             <td class="p-2">${t.raisedByName || 'Admin'}</td>
-                            <td class="p-2 font-mono text-[9px]">${rDT ? rDT.toLocaleDateString() : '-'}</td>
-                            <td class="p-2 font-mono text-[9px]">${rDT ? rDT.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) : '-'}</td>
-                            <td class="p-2">${t.solvedByName || '-'}</td>
-                            <td class="p-2 font-mono text-[9px]">${cDT ? cDT.toLocaleDateString() : '-'}</td>
-                            <td class="p-2 font-mono text-[9px]">${cDT ? cDT.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) : '-'}</td>
-                            <td class="p-2 font-bold ${t.status === 'Open' ? 'text-blue-500' : (t.status === 'Closed' ? 'text-green-500' : 'text-red-500')}">${t.status}</td>
-                            <td class="p-2 italic text-[9px] opacity-60">${t.rejectionReason || 'N/A'}</td>
+                            <td class="p-2 font-mono">${rDT ? rDT.toLocaleDateString() : '-'}</td>
+                            <td class="p-2 font-mono">${rDT ? rDT.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) : '-'}</td>
+                            <td class="p-2 font-bold ${t.status === 'Open' ? 'text-blue-500' : 'text-green-500'}">${t.status}</td>
                             <td class="p-2">
-                                <div class="flex gap-2 justify-center items-center">
-                                    <div class="text-center">
-                                        <p class="text-[8px] font-bold text-gray-400 uppercase mb-1">Before</p>
-                                        ${b.includes('http') ? `<img src="${b}" referrerpolicy="no-referrer" class="h-12 w-12 rounded shadow-sm border border-gray-200 cursor-pointer hover:scale-150 transition" onclick="window.openImageZoom('${b}')">` : '<span class="text-[8px] text-gray-300">No Photo</span>'}
-                                    </div>
-                                    <div class="text-center">
-                                        <p class="text-[8px] font-bold text-gray-400 uppercase mb-1">After</p>
-                                        ${(t.afterPhotoUrl || t.afterPhoto) ? `<img src="${a}" referrerpolicy="no-referrer" class="h-12 w-12 rounded shadow-sm border border-gray-200 cursor-pointer hover:scale-150 transition" onclick="window.openImageZoom('${a}')">` : '<span class="text-[8px] text-gray-300">No Photo</span>'}
-                                    </div>
+                                <div class="flex gap-1 justify-center">
+                                    ${b.includes('http') ? `<img src="${b}" class="h-8 w-8 rounded cursor-pointer" onclick="window.openImageZoom('${b}')">` : ''}
+                                    ${a.includes('http') ? `<img src="${a}" class="h-8 w-8 rounded cursor-pointer" onclick="window.openImageZoom('${a}')">` : ''}
                                 </div>
                             </td>
                         </tr>`;
                 });
             }
-        }
+        });
 
-        if (assets.exists() && window.renderAdminAssetTable) {
-            window.allAssets = Object.values(assets.val());
-            window.renderAdminAssetTable(window.allAssets);
-        }
+        // Load Assets
+        onValue(ref(db, 'assets'), (assets) => {
+            if (assets.exists() && window.renderAdminAssetTable) {
+                window.allAssets = Object.values(assets.val());
+                window.renderAdminAssetTable(window.allAssets);
+            }
+        });
 
-        // Initialize My Tasks Tracker for Admin
-        if (window.initRaisedTasksTracker) {
-            window.initRaisedTasksTracker('admin-my-tasks-container');
-        }
+        if (window.initRaisedTasksTracker) window.initRaisedTasksTracker('admin-my-tasks-container');
 
-        // Update KPI Cards
-        const visitorsToday = allRecords.filter(r => r.type === 'visitor' && r.date === new Date().toLocaleDateString('en-US')).length;
-        const activeTasks = window.adminTasks ? window.adminTasks.filter(t => t.status === 'Open' || t.status === 'Accepted').length : 0;
-        const staffPresent = allRecords.filter(r => r.type === 'staff' && (r.status === 'checked_in' || !r.timeOut)).length;
-
-        const kpiV = document.getElementById('kpi-visitors');
-        const kpiT = document.getElementById('kpi-tasks');
-        const kpiS = document.getElementById('kpi-staff');
-        const kpiA = document.getElementById('kpi-alerts');
-
-        if (kpiV) kpiV.innerText = visitorsToday;
-        if (kpiT) kpiT.innerText = activeTasks;
-        if (kpiS) kpiS.innerText = staffPresent;
-        if (kpiA) kpiA.innerText = (activeTasks > 5) ? "High Load" : "Normal";
-
-        // OneSignal Notification Status Check
-        if (window.checkNotificationStatus) {
-            setTimeout(window.checkNotificationStatus, 2000);
-        }
     } catch (err) { console.error("Admin Load Error:", err); }
 };
 
 window.renderAdminTable = (data, userProfiles = {}, staffProfiles = {}) => {
     const staffBody = document.getElementById('staff-attendance-body');
     const visitorBody = document.getElementById('visitor-logs-body');
-
     if (staffBody) staffBody.innerHTML = '';
     if (visitorBody) visitorBody.innerHTML = '';
 
     data.forEach(r => {
-        const sig = window.getDirectDriveImageUrl(r.checkInSignature || r.checkInSignatureUrl || r.signatureUrl || r.signature);
-        const isStaff = r.type === 'staff';
-        const timeOutDisplay = (r.checkOutTime || r.timeOut || r.outTime) ? (r.checkOutTime || r.timeOut || r.outTime) : (r.status === 'completed' || r.status === 'checked_out' || r.status === 'SIGNED OUT' ? 'RECORDED' : 'ACTIVE');
+        let sig = r.checkInSignature || r.checkInSignatureUrl || r.signatureUrl || r.visitorSignature;
+        if (sig && sig.includes('http')) sig = window.getDirectDriveImageUrl(sig);
 
-        if (isStaff && staffBody) {
-            const mobileRaw = r.mobile || r.mobileNumber || r.userId || r.id || "";
-            const normalized = mobileRaw.startsWith('0') ? mobileRaw.substring(1) : mobileRaw;
-
-            let profile = userProfiles[mobileRaw] || userProfiles[normalized] ||
-                           staffProfiles[mobileRaw] || staffProfiles[normalized];
-
-            if (!profile && mobileRaw) {
-                profile = Object.values(userProfiles).find(u => u.adcPassNumber === mobileRaw || u.adekPass === mobileRaw) ||
-                          Object.values(staffProfiles).find(u => u.adcPassNumber === mobileRaw || u.adekPass === mobileRaw) || {};
-            } else {
-                profile = profile || {};
-            }
-
+        if (r.type === 'staff' && staffBody) {
+            const profile = userProfiles[r.mobile] || staffProfiles[r.mobile] || {};
             staffBody.innerHTML += `
-                <tr class="hover:bg-gray-50 transition border-b border-gray-100 text-gray-800">
-                    <td class="p-3 font-bold text-[8px] opacity-40 uppercase">Staff</td>
-                    <td class="p-3 font-bold text-indigo-900">${profile.fullName || profile.name || r.name || "-"}</td>
-                    <td class="p-3 font-mono text-[9px]">${mobileRaw}</td>
-                    <td class="p-3">${profile.schoolName || profile.branch || r.schoolName || "-"}</td>
-                    <td class="p-3">${profile.position || profile.role || r.position || "-"}</td>
-                    <td class="p-3">${profile.companyIdNumber || profile.companyId || r.companyId || "-"}</td>
-                    <td class="p-3 opacity-60 font-mono">${r.date}</td>
+                <tr class="hover:bg-gray-50 transition border-b border-gray-100 text-gray-800 text-[10px]">
+                    <td class="p-3 font-bold opacity-40 uppercase">Staff</td>
+                    <td class="p-3 font-bold text-indigo-900">${profile.name || r.name || "-"}</td>
+                    <td class="p-3 font-mono">${r.mobile}</td>
+                    <td class="p-3">${profile.branch || "-"}</td>
+                    <td class="p-3">${profile.role || "-"}</td>
+                    <td class="p-3">${profile.companyIdNumber || "-"}</td>
+                    <td class="p-3 font-mono">${r.date}</td>
                     <td class="p-3 text-green-600 font-bold">${r.timeIn}</td>
-                    <td class="p-3 text-red-600 font-bold">${timeOutDisplay}</td>
-                    <td class="p-3 text-center">
-                        ${sig ? `<img src="${sig}" referrerpolicy="no-referrer" class="h-8 mx-auto rounded border border-gray-200 cursor-pointer hover:scale-150 transition" onclick="window.openImageZoom('${sig}')">` : '-'}
-                    </td>
+                    <td class="p-3 text-red-600 font-bold">${r.timeOut || (r.status === 'checked_in' ? 'ACTIVE' : 'RECORDED')}</td>
+                    <td class="p-3 text-center">${sig ? `<img src="${sig}" class="h-8 mx-auto rounded border" onclick="window.openImageZoom('${sig}')">` : '-'}</td>
                 </tr>`;
-        } else if (!isStaff && visitorBody) {
+        } else if (r.type === 'visitor' && visitorBody) {
             visitorBody.innerHTML += `
-                <tr class="hover:bg-gray-50 transition border-b border-gray-100 text-gray-800">
-                    <td class="p-3 font-bold text-[8px] opacity-40 uppercase">Visitor</td>
-                    <td class="p-3 font-mono text-[9px]">${r.id}</td>
+                <tr class="hover:bg-gray-50 transition border-b border-gray-100 text-gray-800 text-[10px]">
+                    <td class="p-3 font-bold opacity-40 uppercase">Visitor</td>
+                    <td class="p-3 font-mono">${r.id}</td>
                     <td class="p-3 font-bold text-indigo-900">${r.name}</td>
                     <td class="p-3">${r.mobile}</td>
                     <td class="p-3">${r.company}</td>
-                    <td class="p-3 italic text-[9px] opacity-70">${r.purpose}</td>
-                    <td class="p-3 opacity-60 font-mono">${r.date}</td>
+                    <td class="p-3 truncate max-w-[100px]">${r.purpose}</td>
+                    <td class="p-3 font-mono">${r.date}</td>
                     <td class="p-3 text-green-600 font-bold">${r.timeIn}</td>
-                    <td class="p-3 text-red-600 font-bold">${timeOutDisplay}</td>
+                    <td class="p-3 text-red-600 font-bold">${r.timeOut || 'ACTIVE'}</td>
                     <td class="p-3"><span class="px-2 py-0.5 rounded text-[8px] font-bold ${r.status === 'active' ? 'bg-green-100 text-green-600' : 'bg-gray-100 text-gray-600'}">${(r.status || 'Unknown').toUpperCase()}</span></td>
-                    <td class="p-3 text-center">
-                        ${sig ? `<img src="${sig}" referrerpolicy="no-referrer" class="h-8 mx-auto rounded border border-gray-200 cursor-pointer hover:scale-150 transition" onclick="window.openImageZoom('${sig}')">` : '-'}
-                    </td>
+                    <td class="p-3 text-center">${sig ? `<img src="${sig}" class="h-8 mx-auto rounded border" onclick="window.openImageZoom('${sig}')">` : '-'}</td>
                 </tr>`;
         }
     });
 };
 
-window.filterStaffTable = () => {
-    const term = document.getElementById('staff-search').value.toLowerCase();
-    const date = document.getElementById('staff-date-filter').value;
-    const filtered = window.adminData.filter(r => {
-        if (r.type !== 'staff') return false;
-        const matchesTerm = JSON.stringify(r).toLowerCase().includes(term);
-        const matchesDate = !date || r.date === new Date(date).toLocaleDateString();
-        return matchesTerm && matchesDate;
-    });
-    // In real app, we'd need to re-fetch profiles or keep them in memory.
-    // For this simple fix, we call renderAdminTable with empty objects and it handles fallback.
-    window.renderAdminTable(filtered);
+// --- INTELLIGENT FIELD MAPPING ---
+window.normalizeFieldKey = (k) => k ? String(k).toLowerCase().replace(/^[0-9]+\.\s*/, "").replace(/[^a-z0-9]/g, "").trim() : "";
+window.findValueByFuzzyKey = (obj, target) => {
+    if (!obj || !target) return "-";
+    if (obj[target]) return obj[target];
+    const normTarget = window.normalizeFieldKey(target);
+    const keys = Object.keys(obj);
+    const match = keys.find(k => window.normalizeFieldKey(k) === normTarget);
+    return match ? obj[match] : "-";
 };
 
-window.filterVisitorTable = () => {
-    const term = document.getElementById('visitor-search').value.toLowerCase();
-    const date = document.getElementById('visitor-date-filter').value;
-    const filtered = window.adminData.filter(r => {
-        if (r.type === 'staff') return false;
-        const matchesTerm = JSON.stringify(r).toLowerCase().includes(term);
-        const matchesDate = !date || r.date === new Date(date).toLocaleDateString();
-        return matchesTerm && matchesDate;
-    });
-    window.renderAdminTable(filtered);
-};
-
-window.deleteStaffAccount = async (mobile, name) => { if(confirm(`Delete account for ${name}?`)) { try { await set(ref(db, 'staff/' + mobile), null); await set(ref(db, 'users/' + mobile), null); alert("Deleted."); window.loadAdminDashboard(); } catch (e) { alert(e.message); } } };
-
-// --- EDIT STAFF MODAL LOGIC ---
-let editStaffPhotoBase64 = "";
-
-window.openEditStaffModal = async (mobile) => {
-    try {
-        const snap = await get(ref(db, 'staff/' + mobile));
-        if (!snap.exists()) return alert("Staff not found.");
-        const x = snap.val();
-
-        document.getElementById('edit-staff-id').value = x.mobile;
-        document.getElementById('edit-staff-name').value = x.name || "";
-        document.getElementById('edit-staff-mobile').value = x.mobile || "";
-        document.getElementById('edit-staff-adek').value = x.adcPassNumber || x.adekPass || "";
-        document.getElementById('edit-staff-company-name').value = x.companyName || "";
-        document.getElementById('edit-staff-branch').value = x.branch || "";
-        document.getElementById('edit-staff-role').value = x.role || "";
-        document.getElementById('edit-staff-company-id').value = x.companyIdNumber || x.company || "";
-        document.getElementById('edit-staff-pass').value = x.password || "";
-
-        const preview = document.getElementById('editStaffPhotoPreview');
-        if (x.profilePicUrl) {
-            const directUrl = window.formatDriveImageUrl(x.profilePicUrl);
-            preview.innerHTML = `<img src="${directUrl}" class="w-full h-full object-cover">`;
-        } else {
-            preview.innerHTML = '<i class="fa-solid fa-user text-3xl text-slate-300"></i>';
-        }
-
-        editStaffPhotoBase64 = "";
-        document.getElementById('edit-staff-modal').classList.remove('hidden');
-    } catch (e) { alert("Error loading details: " + e.message); }
-};
-
-window.closeEditStaffModal = () => {
-    document.getElementById('edit-staff-modal').classList.add('hidden');
-    document.getElementById('edit-staff-form').reset();
-    editStaffPhotoBase64 = "";
-};
-
-window.handleEditStaffPhotoSelect = async (e) => {
-    const file = e.target.files[0];
+// --- REBUILT ASYNCHRONOUS EXCEL IMPORT (Strict Promise Enforcement) ---
+window.handleAssetImport = (event) => {
+    const file = event.target.files[0];
     if (!file) return;
-    const preview = document.getElementById('editStaffPhotoPreview');
-    preview.innerHTML = '<i class="fa-solid fa-spinner fa-spin text-indigo-600"></i>';
-    try {
-        editStaffPhotoBase64 = await window.compressImageFile(file, 500, 500, 0.7);
-        preview.innerHTML = `<img src="${editStaffPhotoBase64}" class="w-full h-full object-cover">`;
-    } catch (err) {
-        console.error(err);
-        preview.innerHTML = '<i class="fa-solid fa-circle-exclamation text-red-500"></i>';
-    }
-};
 
-const editStaffForm = document.getElementById('edit-staff-form');
-if (editStaffForm) {
-    editStaffForm.onsubmit = async (e) => {
-        e.preventDefault();
-        const submitBtn = document.getElementById('edit-staff-submit-btn');
-        const mobile = document.getElementById('edit-staff-id').value;
-        const name = document.getElementById('edit-staff-name').value;
-        const adek = document.getElementById('edit-staff-adek').value;
-        const companyName = document.getElementById('edit-staff-company-name').value;
-        const branch = document.getElementById('edit-staff-branch').value;
-        const role = document.getElementById('edit-staff-role').value;
-        const companyId = document.getElementById('edit-staff-company-id').value;
-        const pass = document.getElementById('edit-staff-pass').value;
+    const modal = document.getElementById('import-progress-modal');
+    const pText = document.getElementById('import-progress-text');
+    const pBar = document.getElementById('import-progress-bar');
+    const cText = document.getElementById('import-count-text');
 
-        submitBtn.disabled = true;
-        submitBtn.innerText = "UPDATING...";
+    modal.classList.remove('hidden');
+    pText.innerText = "Reading file...";
+    pBar.style.width = "0%";
 
+    const reader = new FileReader();
+    reader.onload = (e) => {
         try {
-            const updates = {
-                name: name, fullName: name,
-                adcPassNumber: adek, adekPass: adek,
-                companyName: companyName, company: companyId,
-                companyIdNumber: companyId,
-                branch: branch, schoolName: branch,
-                role: role, position: role,
-                password: pass,
-                updatedAt: new Date().toISOString()
-            };
+            const data = new Uint8Array(e.target.result);
+            const workbook = XLSX.read(data, { type: 'array' });
+            const sheet = workbook.Sheets[workbook.SheetNames[0]];
 
-            if (editStaffPhotoBase64) {
-                const cleanName = name.replace(/\s+/g, '_');
-                const uploadRes = await window.uploadToDrive({
-                    type: 'active_asset',
-                    folderType: 'Staff_Profile_Photos',
-                    fileName: `Profile_${adek}_${cleanName}.jpg`,
-                    image: editStaffPhotoBase64
-                });
-                if (uploadRes.status === 'success') {
-                    const rawUrl = uploadRes.fileUrl || uploadRes.signatureUrl;
-                    updates.profilePicUrl = window.formatDriveImageUrl ? window.formatDriveImageUrl(rawUrl) : rawUrl;
-                }
+            // Step D: Parse using SheetJS starting from Row 2 (range: 1)
+            // This skips any decorative headers in Row 1
+            const jsonData = XLSX.utils.sheet_to_json(sheet, { range: 1, defval: "-", raw: false });
+
+            if (!jsonData.length) {
+                alert("ERROR: The file contains no data rows in the expected range.");
+                modal.classList.add('hidden');
+                return;
             }
 
-            await update(ref(db, 'staff/' + mobile), updates);
-            await update(ref(db, 'users/' + mobile), updates);
+            const total = jsonData.length;
+            cText.innerText = `0 / ${total}`;
 
-            alert("Staff details updated successfully!");
-            window.closeEditStaffModal();
-            window.loadAdminDashboard();
-        } catch (err) {
-            alert("Error: " + err.message);
-        } finally {
-            submitBtn.disabled = false;
-            submitBtn.innerText = "SAVE UPDATED DETAILS";
-        }
-    };
-}
+            // Construct the final updates map for atomic write
+            const allUpdates = {};
+            let validCount = 0;
 
-// --- ADD STAFF MODAL LOGIC ---
-let addStaffPhotoBase64 = "";
+                jsonData.forEach((row, index) => {
+                    // 1. DYNAMIC KEY SANITIZATION FUNCTION
+                    const sanitizeFirebaseKey = (k) => String(k).replace(/[\.\#\$\/\[\]]/g, '').trim();
 
-window.openAddStaffModal = () => {
-    document.getElementById('add-staff-modal').classList.remove('hidden');
-};
+                    // 2. EXACT FIELD MAPPING WITH FALLBACKS
+                    const bc = row['Asset Barcode'] || row['1. Asset Barcode'] || row['1. ASSET BARCODE'] || Object.values(row)[0];
+                    const serial = row['Serial No.'] || row['Serial No'] || row['2. SERIAL NO.'] || row['2. Serial No.'];
+                    const model = row['Model Description'] || row['3. MODEL DESCRIPTION'] || row['3. Model Description'];
+                    const cond = row['Asset Condition'] || row['4. ASSET CONDITION'] || row['4. Asset Condition'];
+                    const priceStat = row['Price Status'] || row['5. PRICE STATUS'] || row['5. Price Status'];
+                    const cost = row['Asset Unit Cost'] || row['6. ASSET UNIT COST'] || row['6. Asset Unit Cost'];
+                    const desc = row['Asset Description'] || row['7. ASSET DESCRIPTION'] || row['7. Asset Description'];
 
-window.closeAddStaffModal = () => {
-    document.getElementById('add-staff-modal').classList.add('hidden');
-    document.getElementById('add-staff-form').reset();
-    document.getElementById('adminStaffPhotoPreview').innerHTML = '<i class="fa-solid fa-user text-3xl text-slate-300"></i>';
-    addStaffPhotoBase64 = "";
-};
+                    const rawKey = (bc && bc !== "-") ? String(bc) : `ASSET_${Date.now()}_${index}`;
+                    const sanitizedKey = sanitizeFirebaseKey(rawKey);
 
-window.handleAdminStaffPhotoSelect = async (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-    const preview = document.getElementById('adminStaffPhotoPreview');
-    preview.innerHTML = '<i class="fa-solid fa-spinner fa-spin text-indigo-600"></i>';
-    try {
-        addStaffPhotoBase64 = await window.compressImageFile(file, 500, 500, 0.7);
-        preview.innerHTML = `<img src="${addStaffPhotoBase64}" class="w-full h-full object-cover">`;
-    } catch (err) {
-        console.error(err);
-        preview.innerHTML = '<i class="fa-solid fa-circle-exclamation text-red-500"></i>';
-    }
-};
+                    const record = {
+                        assetBarcode: sanitizedKey,
+                        updatedAt: new Date().toISOString()
+                    };
 
-const addStaffForm = document.getElementById('add-staff-form');
-if (addStaffForm) {
-    addStaffForm.onsubmit = async (e) => {
-        e.preventDefault();
-        const submitBtn = document.getElementById('add-staff-submit-btn');
-        const name = document.getElementById('add-staff-name').value;
-        const mobile = document.getElementById('add-staff-mobile').value;
-        const adek = document.getElementById('add-staff-adek').value;
-        const companyName = document.getElementById('add-staff-company-name').value;
-        const branch = document.getElementById('add-staff-branch').value;
-        const role = document.getElementById('add-staff-role').value;
-        const companyId = document.getElementById('add-staff-company-id').value;
-        const pass = document.getElementById('add-staff-pass').value;
+                    // 3. DYNAMICALLY SANITIZE ALL EXCEL KEYS
+                    Object.keys(row).forEach(h => {
+                        const safeKey = sanitizeFirebaseKey(h);
+                        const val = row[h];
+                        // Ensure all missing/undefined default to "-"
+                        record[safeKey] = (val !== undefined && val !== null && String(val).trim() !== "") ? String(val).trim() : "-";
+                    });
 
-        submitBtn.disabled = true;
-        submitBtn.innerText = "UPLOADING & SAVING...";
+                    // Ensure primary fields use standard sanitized keys if they were found
+                    if (serial && serial !== "-") record[sanitizeFirebaseKey('Serial No.')] = String(serial).trim();
+                    if (model && model !== "-") record[sanitizeFirebaseKey('Model Description')] = String(model).trim();
+                    if (cond && cond !== "-") record[sanitizeFirebaseKey('Asset Condition')] = String(cond).trim();
+                    if (priceStat && priceStat !== "-") record[sanitizeFirebaseKey('Price Status')] = String(priceStat).trim();
+                    if (cost && cost !== "-") record[sanitizeFirebaseKey('Asset Unit Cost')] = String(cost).trim();
+                    if (desc && desc !== "-") record[sanitizeFirebaseKey('Asset Description')] = String(desc).trim();
 
-        try {
-            let profilePicUrl = "";
-            if (addStaffPhotoBase64) {
-                const cleanName = name.replace(/\s+/g, '_');
-                const uploadRes = await window.uploadToDrive({
-                    type: 'active_asset',
-                    folderType: 'Staff_Profile_Photos',
-                    fileName: `Profile_${adek}_${cleanName}.jpg`,
-                    image: addStaffPhotoBase64
+                    allUpdates[`assets/${sanitizedKey}`] = record;
+                    validCount++;
                 });
-                if (uploadRes.status === 'success') {
-                    const rawUrl = uploadRes.fileUrl || uploadRes.signatureUrl;
-                    profilePicUrl = window.formatDriveImageUrl ? window.formatDriveImageUrl(rawUrl) : rawUrl;
-                }
-            }
 
-            const data = {
-                id: mobile,
-                name: name, fullName: name,
-                mobile: mobile, mobileNumber: mobile,
-                adcPassNumber: adek, adekPass: adek,
-                companyName: companyName, company: companyId,
-                companyIdNumber: companyId,
-                branch: branch, schoolName: branch,
-                role: role, position: role,
-                password: pass,
-                profilePicUrl: profilePicUrl,
-                status: "active",
-                createdAt: new Date().toISOString()
-            };
+            // REMOVED STRICT ERROR: Proceed directly to write
+            pText.innerText = `Committing ${validCount} records to Firebase...`;
+            pBar.style.width = "50%";
 
-            await set(ref(db, 'staff/' + mobile), data);
-            await set(ref(db, 'users/' + mobile), data);
+            // --- STRICT PROMISE CHAIN ---
+            update(ref(db), allUpdates)
+                .then(() => {
+                    // This block executes ONLY after data is physically saved
+                    pBar.style.width = "100%";
+                    cText.innerText = `${validCount} / ${total}`;
+                    modal.classList.add('hidden');
 
-            alert("New staff member registered successfully!");
-            window.closeAddStaffModal();
-            window.loadAdminDashboard();
+                    if (typeof window.loadAdminDashboard === 'function') {
+                        window.loadAdminDashboard();
+                    }
+
+                    // Final confirmation only after DB success
+                    alert(`SUCCESS: Physically saved ${validCount} asset records to Firebase Realtime Database!`);
+                })
+                .catch((error) => {
+                    console.error("FIREBASE CRITICAL ERROR:", error);
+                    alert("CRITICAL FIREBASE WRITE ERROR: " + error.message);
+                    modal.classList.add('hidden');
+                });
+
         } catch (err) {
-            alert("Error: " + err.message);
+            alert("FILE PROCESSING ERROR: " + err.message);
+            modal.classList.add('hidden');
         } finally {
-            submitBtn.disabled = false;
-            submitBtn.innerText = "REGISTER NEW STAFF";
+            event.target.value = "";
         }
     };
-}
+    reader.readAsArrayBuffer(file);
+};
+
+// --- DYNAMIC UI TABLE GENERATION ---
+window.updateAssetTableHeaders = (headers) => {
+    try {
+        const tableHeaderRow = document.querySelector('#asset-master-table thead tr');
+        if (!tableHeaderRow) return;
+
+        // Reset and Add Select All
+        tableHeaderRow.innerHTML = '<th class="p-3 border-r text-center"><input type="checkbox" id="selectAllAssets" onclick="window.toggleAllAssetCheckboxes(this)"></th>';
+
+        // Add dynamic headers from Excel/Firebase keys
+        headers.forEach(h => {
+            // Ignore internal technical keys
+            if (['updatedAt', 'createdAt', 'assetBarcode', 'initialAuditPhotoData', 'disposalPhotoData'].includes(h)) return;
+
+            const th = document.createElement('th');
+            th.className = "p-3 border-r min-w-[150px] uppercase";
+            th.innerText = h.replace(/_/g, ' '); // Replace underscores back to spaces for UI
+            tableHeaderRow.appendChild(th);
+        });
+
+        // Add static operational columns
+        const operationalHeaders = ['Audit Photo', 'Disposal Photo', 'Action'];
+        operationalHeaders.forEach(h => {
+            const th = document.createElement('th');
+            th.className = "p-3 border-r min-w-[120px] text-center uppercase";
+            if (h === 'Action') th.className += " text-red-600";
+            th.innerText = h;
+            tableHeaderRow.appendChild(th);
+        });
+    } catch (e) { console.error("Error updating dynamic headers:", e); }
+};

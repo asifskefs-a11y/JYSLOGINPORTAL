@@ -534,75 +534,109 @@ window.openDirectDisposal = async () => {
     } catch (e) { console.error(e); }
 };
 
+// --- BULK DELETE LOGIC ---
+window.toggleAllAssetCheckboxes = (master) => {
+    const checkboxes = document.querySelectorAll('.asset-checkbox');
+    checkboxes.forEach(cb => cb.checked = master.checked);
+};
+
+window.bulkDeleteAssets = async () => {
+    const selected = document.querySelectorAll('.asset-checkbox:checked');
+    if (selected.length === 0) return alert("Please select assets to delete.");
+
+    if (!confirm(`Are you sure you want to PERMANENTLY delete ${selected.length} selected assets and their photos?`)) return;
+
+    const btn = document.querySelector('button[onclick="window.bulkDeleteAssets()"]');
+    const originalText = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Deleting...';
+
+    try {
+        const updates = {};
+        for (const cb of selected) {
+            const barcode = cb.value;
+            // Get data first for photo deletion
+            const snap = await get(ref(db, `assets/${barcode}`));
+            if (snap.exists()) {
+                const data = snap.val();
+                if (data.initialAuditPhotoData && data.initialAuditPhotoData.fileId) {
+                    await window.uploadToDrive({ action: "delete", fileId: data.initialAuditPhotoData.fileId }).catch(e => console.error("Photo delete error:", e));
+                }
+                if (data.disposalPhotoData && data.disposalPhotoData.fileId) {
+                    await window.uploadToDrive({ action: "delete", fileId: data.disposalPhotoData.fileId }).catch(e => console.error("Photo delete error:", e));
+                }
+            }
+            updates[`assets/${barcode}`] = null;
+        }
+
+        await update(ref(db), updates);
+        alert(`Successfully deleted ${selected.length} assets.`);
+        if (typeof window.loadAdminDashboard === 'function') window.loadAdminDashboard();
+    } catch (err) {
+        alert("Error during bulk delete: " + err.message);
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = originalText;
+        const masterCb = document.getElementById('selectAllAssets');
+        if (masterCb) masterCb.checked = false;
+    }
+};
+
 // Admin UI Components
-window.renderAdminAssetTable = (data) => {
+window.renderAdminAssetTable = (data, targetTable = 'both') => {
     try {
         const body = document.getElementById('admin-asset-list-body');
         const disposalBody = document.getElementById('admin-disposal-list-body');
         if (!body && !disposalBody) return;
 
-        if (body) body.innerHTML = '';
-        if (disposalBody) disposalBody.innerHTML = '';
+        if (targetTable === 'both' || targetTable === 'assets') if (body) body.innerHTML = '';
+        if (targetTable === 'both' || targetTable === 'disposal') if (disposalBody) disposalBody.innerHTML = '';
+
+        if (data.length === 0) return;
+
+        // DYNAMIC HEADER DETECTION: Use keys from the first object to define the table schema
+        // This ensures the Web App always matches the current Excel layout
+        const sampleRecord = data[0];
+        const dynamicHeaders = Object.keys(sampleRecord).filter(k =>
+            !['updatedAt', 'createdAt', 'assetBarcode', 'initialAuditPhotoData', 'disposalPhotoData', 'assetStatus', 'Audit Photo', 'Disposal Photo', 'Action', 'auditPhotoUrl', 'disposalPhotoUrl', 'initialAuditPhoto', 'disposalDamagedPhoto', 'audit_photo', 'beforePhotoUrl', 'afterPhotoUrl', 'photoUrl'].includes(k)
+        );
+
+        // Update the <thead> with these dynamic keys
+        if (window.updateAssetTableHeaders) {
+            window.updateAssetTableHeaders(dynamicHeaders);
+        }
 
         data.forEach(a => {
             const isDisposed = a.assetStatus === 'Disposed';
-
-            // Comprehensive URL fallback check
             const initialPhotoUrl = a.auditPhotoUrl || a.audit_photo || a.beforePhotoUrl || a.photoUrl ||
                                    (a.initialAuditPhoto ? (typeof a.initialAuditPhoto === 'object' ? a.initialAuditPhoto.fileUrl : a.initialAuditPhoto) : null);
-
             const damagePhotoUrl = a.disposalPhotoUrl || a.afterPhotoUrl ||
                                   (a.disposalDamagedPhoto ? (typeof a.disposalDamagedPhoto === 'object' ? a.disposalDamagedPhoto.fileUrl : a.disposalDamagedPhoto) : null);
-
             const initialPhoto = window.getDirectDriveImageUrl(initialPhotoUrl);
             const damagePhoto = window.getDirectDriveImageUrl(damagePhotoUrl);
+
+            // Aggressive ID extraction
+            const barcode = window.findValueByFuzzyKey(a, "Asset Barcode") ||
+                           window.findValueByFuzzyKey(a, "Barcode") ||
+                           window.findValueByFuzzyKey(a, "Tag Number") ||
+                           a.assetBarcode ||
+                           Object.values(a).find(v => String(v).startsWith('AT')) ||
+                           "UNKNOWN";
 
             const tr = document.createElement('tr');
             tr.className = "hover:bg-gray-50 transition border-b border-gray-100 text-[12px]";
 
-            tr.innerHTML = `
-                <td class="p-3 border-r font-bold">${a.assetBarcode || '-'}</td>
-                <td class="p-3 border-r">${a.serialNo || '-'}</td>
-                <td class="p-3 border-r">${a.modelDescription || '-'}</td>
-                <td class="p-3 border-r">${a.assetCondition || '-'}</td>
-                <td class="p-3 border-r">${a.priceStatus || '-'}</td>
-                <td class="p-3 border-r">${a.unitCost || '-'}</td>
-                <td class="p-3 border-r">${a.assetDescription || '-'}</td>
-                <td class="p-3 border-r">${a.serviceDate || '-'}</td>
-                <td class="p-3 border-r">${a.manufacturer || '-'}</td>
-                <td class="p-3 border-r">${a.majorCategory || '-'}</td>
-                <td class="p-3 border-r">${a.subMajorCategory || '-'}</td>
-                <td class="p-3 border-r">${a.subMinorCategory || '-'}</td>
-                <td class="p-3 border-r">${a.dofMajor || '-'}</td>
-                <td class="p-3 border-r">${a.dofMinor || '-'}</td>
-                <td class="p-3 border-r">${a.category || '-'}</td>
-                <td class="p-3 border-r">${a.classification || '-'}</td>
-                <td class="p-3 border-r">${a.locationName || '-'}</td>
-                <td class="p-3 border-r">${a.esisId || '-'}</td>
-                <td class="p-3 border-r">${a.buildingName || '-'}</td>
-                <td class="p-3 border-r">${a.roomName || '-'}</td>
-                <td class="p-3 border-r">${a.roomNo || '-'}</td>
-                <td class="p-3 border-r">${a.currentRoomBarcode || '-'}</td>
-                <td class="p-3 border-r">${a.floorNo || '-'}</td>
-                <td class="p-3 border-r">${a.floorDescription || '-'}</td>
-                <td class="p-3 border-r">${a.barcodeStatus || '-'}</td>
-                <td class="p-3 border-r">
-                    <span class="px-2 py-1 rounded text-[10px] font-bold ${isDisposed ? 'bg-red-100 text-red-600' : 'bg-green-100 text-green-600'}">
-                        ${a.assetStatus || 'Existing'}
-                    </span>
-                </td>
-                <td class="p-3 border-r">${a.oldSchoolName || '-'}</td>
-                <td class="p-3 border-r">${a.transactionNo || '-'}</td>
-                <td class="p-3 border-r">${a.usefulLife || '-'}</td>
-                <td class="p-3 border-r">${a.vendorName || '-'}</td>
-                <td class="p-3 border-r">${a.oldBarcode || '-'}</td>
-                <td class="p-3 border-r">${a.farBarcode || '-'}</td>
-                <td class="p-3 border-r">${a.invoiceNo || '-'}</td>
-                <td class="p-3 border-r">${a.dnNo || '-'}</td>
-                <td class="p-3 border-r italic text-gray-500">${a.remarks || '-'}</td>
-                <td class="p-3 border-r font-mono font-bold text-indigo-600">${a.physRegNo || '-'}</td>
-                <td class="p-3 border-r">${a.fixedAssetRegNo || '-'}</td>
-                <td class="p-3 border-r">${a.mappingCriteria || '-'}</td>
+            // 1. Checkbox Column
+            let rowHtml = `<td class="p-3 border-r text-center"><input type="checkbox" class="asset-checkbox" value="${barcode}"></td>`;
+
+            // 2. Dynamic Data Columns
+            dynamicHeaders.forEach(h => {
+                let val = a[h];
+                rowHtml += `<td class="p-3 border-r">${(val !== undefined && val !== null && val !== "" && val !== "-") ? val : "-"}</td>`;
+            });
+
+            // 3. Photo & Action Columns
+            rowHtml += `
                 <td class="p-3 border-r text-center">
                     ${initialPhotoUrl ? `<img src="${initialPhoto}" class="h-10 w-10 object-cover rounded border mx-auto cursor-pointer hover:scale-110 transition" onclick="window.openImageZoom('${initialPhoto}')">` : '<i class="fa-solid fa-image-slash opacity-20"></i>'}
                 </td>
@@ -610,23 +644,24 @@ window.renderAdminAssetTable = (data) => {
                     ${damagePhotoUrl ? `<img src="${damagePhoto}" class="h-10 w-10 object-cover rounded border border-red-200 mx-auto cursor-pointer hover:scale-110 transition" onclick="window.openImageZoom('${damagePhoto}')">` : '<i class="fa-solid fa-image-slash opacity-20"></i>'}
                 </td>
                 <td class="p-3 text-center">
-                    <button onclick="window.deleteAssetRecord('${a.assetBarcode}')" class="text-red-600 hover:text-red-800 transition" title="Delete Asset">
+                    <button onclick="window.deleteAssetRecord('${barcode}')" class="text-red-600 hover:text-red-800 transition" title="Delete Asset">
                         <i class="fa-solid fa-trash-can"></i>
                     </button>
                 </td>
             `;
+            tr.innerHTML = rowHtml;
 
-            if (isDisposed && disposalBody) {
+            if (isDisposed && disposalBody && (targetTable === 'both' || targetTable === 'disposal')) {
                 disposalBody.appendChild(tr);
-            } else if (!isDisposed && body) {
+            } else if (!isDisposed && body && (targetTable === 'both' || targetTable === 'assets')) {
                 body.appendChild(tr);
             }
         });
-    } catch (e) { console.error("Error rendering asset tables:", e); }
+    } catch (e) { console.error("Error rendering dynamic asset tables:", e); }
 };
 
 window.deleteAssetRecord = async (barcode) => {
-    if (!confirm("Are you sure you want to PERMANENTLY delete this asset and its photos?")) return;
+    if (!confirm(`Are you sure you want to PERMANENTLY delete asset ${barcode} and its photos?`)) return;
 
     try {
         const snap = await get(child(ref(db), `assets/${barcode}`));
@@ -634,17 +669,17 @@ window.deleteAssetRecord = async (barcode) => {
             const data = snap.val();
 
             // Delete photos from Drive
-            if (data.initialAuditPhoto && data.initialAuditPhoto.fileId) {
-                await window.uploadToDrive({ action: "delete", fileId: data.initialAuditPhoto.fileId });
+            if (data.initialAuditPhotoData && data.initialAuditPhotoData.fileId) {
+                await window.uploadToDrive({ action: "delete", fileId: data.initialAuditPhotoData.fileId });
             }
-            if (data.disposalDamagedPhoto && data.disposalDamagedPhoto.fileId) {
-                await window.uploadToDrive({ action: "delete", fileId: data.disposalDamagedPhoto.fileId });
+            if (data.disposalPhotoData && data.disposalPhotoData.fileId) {
+                await window.uploadToDrive({ action: "delete", fileId: data.disposalPhotoData.fileId });
             }
 
             // Remove from Firebase
             await set(ref(db, `assets/${barcode}`), null);
             alert("Asset and linked photos deleted successfully.");
-            if (typeof loadAdminDashboard === 'function') loadAdminDashboard();
+            if (typeof window.loadAdminDashboard === 'function') window.loadAdminDashboard();
         }
     } catch (e) { alert("Error deleting asset: " + e.message); }
 };
@@ -655,75 +690,9 @@ window.filterDisposalTable = () => {
         const q = document.getElementById('disposal-search').value.toLowerCase();
         const filtered = window.allAssets.filter(a => {
             if (a.assetStatus !== 'Disposed') return false;
-            return (a.assetBarcode || "").toLowerCase().includes(q) || (a.modelDescription || "").toLowerCase().includes(q) || (a.physRegNo || "").toLowerCase().includes(q);
+            return JSON.stringify(a).toLowerCase().includes(q);
         });
-        const disposalBody = document.getElementById('admin-disposal-list-body');
-        if (disposalBody) {
-            disposalBody.innerHTML = '';
-            filtered.forEach(a => {
-                const initialPhotoUrl = a.auditPhotoUrl || a.audit_photo || a.beforePhotoUrl || a.photoUrl ||
-                                       (a.initialAuditPhoto ? (typeof a.initialAuditPhoto === 'object' ? a.initialAuditPhoto.fileUrl : a.initialAuditPhoto) : null);
-
-                const damagePhotoUrl = a.disposalPhotoUrl || a.afterPhotoUrl ||
-                                      (a.disposalDamagedPhoto ? (typeof a.disposalDamagedPhoto === 'object' ? a.disposalDamagedPhoto.fileUrl : a.disposalDamagedPhoto) : null);
-
-                const initialPhoto = window.getDirectDriveImageUrl(initialPhotoUrl);
-                const damagePhoto = window.getDirectDriveImageUrl(damagePhotoUrl);
-                const tr = document.createElement('tr');
-                tr.className = "hover:bg-gray-50 transition border-b border-gray-100 text-[12px]";
-                tr.innerHTML = `
-                    <td class="p-3 border-r font-bold">${a.assetBarcode || '-'}</td>
-                    <td class="p-3 border-r">${a.serialNo || '-'}</td>
-                    <td class="p-3 border-r">${a.modelDescription || '-'}</td>
-                    <td class="p-3 border-r">${a.assetCondition || '-'}</td>
-                    <td class="p-3 border-r">${a.priceStatus || '-'}</td>
-                    <td class="p-3 border-r">${a.unitCost || '-'}</td>
-                    <td class="p-3 border-r">${a.assetDescription || '-'}</td>
-                    <td class="p-3 border-r">${a.serviceDate || '-'}</td>
-                    <td class="p-3 border-r">${a.manufacturer || '-'}</td>
-                    <td class="p-3 border-r">${a.majorCategory || '-'}</td>
-                    <td class="p-3 border-r">${a.subMajorCategory || '-'}</td>
-                    <td class="p-3 border-r">${a.subMinorCategory || '-'}</td>
-                    <td class="p-3 border-r">${a.dofMajor || '-'}</td>
-                    <td class="p-3 border-r">${a.dofMinor || '-'}</td>
-                    <td class="p-3 border-r">${a.category || '-'}</td>
-                    <td class="p-3 border-r">${a.classification || '-'}</td>
-                    <td class="p-3 border-r">${a.locationName || '-'}</td>
-                    <td class="p-3 border-r">${a.esisId || '-'}</td>
-                    <td class="p-3 border-r">${a.buildingName || '-'}</td>
-                    <td class="p-3 border-r">${a.roomName || '-'}</td>
-                    <td class="p-3 border-r">${a.roomNo || '-'}</td>
-                    <td class="p-3 border-r">${a.currentRoomBarcode || '-'}</td>
-                    <td class="p-3 border-r">${a.floorNo || '-'}</td>
-                    <td class="p-3 border-r">${a.floorDescription || '-'}</td>
-                    <td class="p-3 border-r">${a.barcodeStatus || '-'}</td>
-                    <td class="p-3 border-r"><span class="px-2 py-1 rounded text-[10px] font-bold bg-red-100 text-red-600">Disposed</span></td>
-                    <td class="p-3 border-r">${a.oldSchoolName || '-'}</td>
-                    <td class="p-3 border-r">${a.transactionNo || '-'}</td>
-                    <td class="p-3 border-r">${a.usefulLife || '-'}</td>
-                    <td class="p-3 border-r">${a.vendorName || '-'}</td>
-                    <td class="p-3 border-r">${a.oldBarcode || '-'}</td>
-                    <td class="p-3 border-r">${a.farBarcode || '-'}</td>
-                    <td class="p-3 border-r">${a.invoiceNo || '-'}</td>
-                    <td class="p-3 border-r">${a.dnNo || '-'}</td>
-                    <td class="p-3 border-r italic text-gray-500">${a.remarks || '-'}</td>
-                    <td class="p-3 border-r font-mono font-bold text-indigo-600">${a.physRegNo || '-'}</td>
-                    <td class="p-3 border-r">${a.fixedAssetRegNo || '-'}</td>
-                    <td class="p-3 border-r">${a.mappingCriteria || '-'}</td>
-                    <td class="p-3 border-r text-center">
-                        ${initialPhotoUrl ? `<img src="${initialPhoto}" class="h-10 w-10 object-cover rounded border mx-auto" onclick="window.openImageZoom('${initialPhoto}')">` : '-'}
-                    </td>
-                    <td class="p-3 border-r text-center">
-                        ${damagePhotoUrl ? `<img src="${damagePhoto}" class="h-10 w-10 object-cover rounded border border-red-200 mx-auto" onclick="window.openImageZoom('${damagePhoto}')">` : '-'}
-                    </td>
-                    <td class="p-3 text-center">
-                        <button onclick="window.deleteAssetRecord('${a.assetBarcode}')" class="text-red-600 hover:text-red-800 transition" title="Delete Asset">
-                            <i class="fa-solid fa-trash-can"></i>
-                        </button>
-                    </td>`;
-                disposalBody.appendChild(tr);
-            });
-        }
+        window.renderAdminAssetTable(filtered, 'disposal');
     } catch (e) { console.error(e); }
 };
 
@@ -734,71 +703,10 @@ window.filterAssetTable = () => {
         const cat = document.getElementById('asset-category-filter').value;
         const filtered = window.allAssets.filter(a => {
             if (a.assetStatus === 'Disposed') return false;
-            const matchQ = (a.assetBarcode || "").toLowerCase().includes(q) || (a.modelDescription || "").toLowerCase().includes(q) || (a.physRegNo || "").toLowerCase().includes(q);
+            const matchQ = JSON.stringify(a).toLowerCase().includes(q);
             const matchCat = cat === 'all' || a.majorCategory === cat;
             return matchQ && matchCat;
         });
-
-        const body = document.getElementById('admin-asset-list-body');
-        if (body) {
-            body.innerHTML = '';
-            filtered.forEach(a => {
-                const initialPhotoUrl = a.auditPhotoUrl || a.audit_photo || a.beforePhotoUrl || a.photoUrl ||
-                                       (a.initialAuditPhoto ? (typeof a.initialAuditPhoto === 'object' ? a.initialAuditPhoto.fileUrl : a.initialAuditPhoto) : null);
-
-                const initialPhoto = window.getDirectDriveImageUrl(initialPhotoUrl);
-                const tr = document.createElement('tr');
-                tr.className = "hover:bg-gray-50 transition border-b border-gray-100 text-[12px]";
-                tr.innerHTML = `
-                    <td class="p-3 border-r font-bold">${a.assetBarcode || '-'}</td>
-                    <td class="p-3 border-r">${a.serialNo || '-'}</td>
-                    <td class="p-3 border-r">${a.modelDescription || '-'}</td>
-                    <td class="p-3 border-r">${a.assetCondition || '-'}</td>
-                    <td class="p-3 border-r">${a.priceStatus || '-'}</td>
-                    <td class="p-3 border-r">${a.unitCost || '-'}</td>
-                    <td class="p-3 border-r">${a.assetDescription || '-'}</td>
-                    <td class="p-3 border-r">${a.serviceDate || '-'}</td>
-                    <td class="p-3 border-r">${a.manufacturer || '-'}</td>
-                    <td class="p-3 border-r">${a.majorCategory || '-'}</td>
-                    <td class="p-3 border-r">${a.subMajorCategory || '-'}</td>
-                    <td class="p-3 border-r">${a.subMinorCategory || '-'}</td>
-                    <td class="p-3 border-r">${a.dofMajor || '-'}</td>
-                    <td class="p-3 border-r">${a.dofMinor || '-'}</td>
-                    <td class="p-3 border-r">${a.category || '-'}</td>
-                    <td class="p-3 border-r">${a.classification || '-'}</td>
-                    <td class="p-3 border-r">${a.locationName || '-'}</td>
-                    <td class="p-3 border-r">${a.esisId || '-'}</td>
-                    <td class="p-3 border-r">${a.buildingName || '-'}</td>
-                    <td class="p-3 border-r">${a.roomName || '-'}</td>
-                    <td class="p-3 border-r">${a.roomNo || '-'}</td>
-                    <td class="p-3 border-r">${a.currentRoomBarcode || '-'}</td>
-                    <td class="p-3 border-r">${a.floorNo || '-'}</td>
-                    <td class="p-3 border-r">${a.floorDescription || '-'}</td>
-                    <td class="p-3 border-r">${a.barcodeStatus || '-'}</td>
-                    <td class="p-3 border-r"><span class="px-2 py-1 rounded text-[10px] font-bold bg-green-100 text-green-600">Existing</span></td>
-                    <td class="p-3 border-r">${a.oldSchoolName || '-'}</td>
-                    <td class="p-3 border-r">${a.transactionNo || '-'}</td>
-                    <td class="p-3 border-r">${a.usefulLife || '-'}</td>
-                    <td class="p-3 border-r">${a.vendorName || '-'}</td>
-                    <td class="p-3 border-r">${a.oldBarcode || '-'}</td>
-                    <td class="p-3 border-r">${a.farBarcode || '-'}</td>
-                    <td class="p-3 border-r">${a.invoiceNo || '-'}</td>
-                    <td class="p-3 border-r">${a.dnNo || '-'}</td>
-                    <td class="p-3 border-r italic text-gray-500">${a.remarks || '-'}</td>
-                    <td class="p-3 border-r font-mono font-bold text-indigo-600">${a.physRegNo || '-'}</td>
-                    <td class="p-3 border-r">${a.fixedAssetRegNo || '-'}</td>
-                    <td class="p-3 border-r">${a.mappingCriteria || '-'}</td>
-                    <td class="p-3 border-r text-center">
-                        ${initialPhotoUrl ? `<img src="${initialPhoto}" class="h-10 w-10 object-cover rounded border mx-auto" onclick="window.openImageZoom('${initialPhoto}')">` : '-'}
-                    </td>
-                    <td class="p-3 border-r text-center">-</td>
-                    <td class="p-3 text-center">
-                        <button onclick="window.deleteAssetRecord('${a.assetBarcode}')" class="text-red-600 hover:text-red-800 transition" title="Delete Asset">
-                            <i class="fa-solid fa-trash-can"></i>
-                        </button>
-                    </td>`;
-                body.appendChild(tr);
-            });
-        }
+        window.renderAdminAssetTable(filtered, 'assets');
     } catch (e) { console.error(e); }
 };

@@ -271,7 +271,7 @@
 
                     <!-- Asset Register Tab -->
                     <div id="tab-assets" class="admin-tab space-y-4 hidden">
-                        <div class="flex flex-col md:flex-row gap-2">
+                        <div class="flex flex-col md:flex-row gap-2 items-center">
                             <input type="text" id="asset-search" placeholder="Search Assets (Barcode, Description...)" class="flex-1 bg-white border border-gray-200 p-3 rounded-xl outline-none text-xs" oninput="filterAssetTable()">
                             <div class="flex gap-2">
                                 <select id="asset-category-filter" class="flex-1 bg-white border border-gray-200 p-2 rounded-xl text-xs" onchange="filterAssetTable()">
@@ -279,53 +279,20 @@
                                     <option value="IT">IT Assets</option>
                                     <option value="Non-IT">Non-IT Assets</option>
                                 </select>
+                                <button onclick="window.bulkDeleteAssets()" class="bg-red-600 text-white px-4 py-2 rounded-xl font-bold text-xs shadow-lg active:scale-95 transition flex items-center gap-2 whitespace-nowrap">
+                                    <i class="fa-solid fa-trash-can"></i> Bulk Delete
+                                </button>
+                                <button onclick="document.getElementById('asset-import-input').click()" class="bg-indigo-600 text-white px-4 py-2 rounded-xl font-bold text-xs shadow-lg active:scale-95 transition flex items-center gap-2 whitespace-nowrap">
+                                    <i class="fa-solid fa-file-import"></i> Import Assets
+                                </button>
+                                <input type="file" id="asset-import-input" accept=".xlsx, .csv" class="hidden" onchange="window.handleAssetImport(event)">
                             </div>
                         </div>
                         <div class="overflow-x-auto rounded-xl border border-gray-100 bg-white shadow-sm" style="max-height: 70vh; overflow-y: auto;">
                             <table class="w-full text-left border-collapse" id="asset-master-table">
                                 <thead class="sticky top-0 bg-[#f8f9fa] z-10 shadow-sm">
                                     <tr class="text-[11px] uppercase font-bold text-indigo-900 border-b-2 border-indigo-100">
-                                        <th class="p-3 border-r min-w-[150px]">1. Asset Barcode</th>
-                                        <th class="p-3 border-r min-w-[150px]">2. Serial No.</th>
-                                        <th class="p-3 border-r min-w-[200px]">3. Model Description</th>
-                                        <th class="p-3 border-r min-w-[150px]">4. Asset Condition</th>
-                                        <th class="p-3 border-r min-w-[120px]">5. Price Status</th>
-                                        <th class="p-3 border-r min-w-[120px]">6. Asset Unit Cost</th>
-                                        <th class="p-3 border-r min-w-[200px]">7. Asset Description</th>
-                                        <th class="p-3 border-r min-w-[150px]">8. Date Place in Service</th>
-                                        <th class="p-3 border-r min-w-[150px]">9. Manufacturer</th>
-                                        <th class="p-3 border-r min-w-[180px]">10. Major Category</th>
-                                        <th class="p-3 border-r min-w-[180px]">11. Sub Major Category</th>
-                                        <th class="p-3 border-r min-w-[150px]">12. Sub Minor Category</th>
-                                        <th class="p-3 border-r min-w-[120px]">13. DOF Major</th>
-                                        <th class="p-3 border-r min-w-[120px]">14. DOF Minor</th>
-                                        <th class="p-3 border-r min-w-[120px]">15. Category</th>
-                                        <th class="p-3 border-r min-w-[180px]">16. Classification</th>
-                                        <th class="p-3 border-r min-w-[150px]">17. Location Name</th>
-                                        <th class="p-3 border-r min-w-[120px]">18. School ESIS ID</th>
-                                        <th class="p-3 border-r min-w-[200px]">19. School Building</th>
-                                        <th class="p-3 border-r min-w-[150px]">20. Room Name</th>
-                                        <th class="p-3 border-r min-w-[120px]">21. Room No</th>
-                                        <th class="p-3 border-r min-w-[150px]">22. Room Barcode</th>
-                                        <th class="p-3 border-r min-w-[100px]">23. Floor No</th>
-                                        <th class="p-3 border-r min-w-[150px]">24. Floor Description</th>
-                                        <th class="p-3 border-r min-w-[150px]">25. Barcode Status</th>
-                                        <th class="p-3 border-r min-w-[150px]">26. Asset Status</th>
-                                        <th class="p-3 border-r min-w-[180px]">27. Old School Name</th>
-                                        <th class="p-3 border-r min-w-[150px]">28. Transaction No</th>
-                                        <th class="p-3 border-r min-w-[150px]">29. Asset Useful Life</th>
-                                        <th class="p-3 border-r min-w-[180px]">30. Asset Vendor Name</th>
-                                        <th class="p-3 border-r min-w-[150px]">31. Old Asset Barcode</th>
-                                        <th class="p-3 border-r min-w-[150px]">32. FAR Old Barcode</th>
-                                        <th class="p-3 border-r min-w-[150px]">33. Invoice No</th>
-                                        <th class="p-3 border-r min-w-[150px]">34. DN No</th>
-                                        <th class="p-3 border-r min-w-[200px]">35. Remarks</th>
-                                        <th class="p-3 border-r min-w-[180px]">36. Physical Reg No</th>
-                                        <th class="p-3 border-r min-w-[180px]">37. Fixed Asset Reg No</th>
-                                        <th class="p-3 border-r min-w-[150px]">38. Mapping Criteria</th>
-                                        <th class="p-3 border-r min-w-[120px] text-center">39. Audit Photo</th>
-                                        <th class="p-3 border-r min-w-[120px] text-center">40. Disposal Photo</th>
-                                        <th class="p-3 min-w-[100px] text-center text-red-600">Action</th>
+                                        <!-- HEADERS GENERATED DYNAMICALLY -->
                                     </tr>
                                 </thead>
                                 <tbody id="admin-asset-list-body" class="divide-y divide-gray-100 text-gray-800 bg-white"></tbody>
@@ -563,6 +530,19 @@
             <p class="text-sm text-gray-500 mb-8 font-medium">Get real-time updates when tasks are completed or issues are raised.</p>
             <button onclick="window.requestNotificationPermission()" class="w-full bg-indigo-600 text-white py-4 rounded-2xl font-black shadow-xl active:scale-95 transition uppercase tracking-widest">Enable Notifications Now</button>
             <button onclick="document.getElementById('notification-modal').classList.add('hidden')" class="mt-4 text-[10px] font-bold text-gray-400 uppercase underline">Maybe Later</button>
+        </div>
+    </div>
+
+    <!-- ASSET IMPORT PROGRESS MODAL -->
+    <div id="import-progress-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-[300] hidden flex items-center justify-center p-4">
+        <div class="bg-white w-full max-w-sm rounded-3xl p-8 text-center text-gray-800 shadow-2xl">
+            <div id="import-spinner" class="w-16 h-16 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+            <h3 class="text-xl font-black text-indigo-900 mb-2 uppercase tracking-tight">Importing Assets</h3>
+            <p id="import-progress-text" class="text-sm text-gray-500 mb-4 font-medium">Processing records...</p>
+            <div class="w-full bg-gray-100 h-3 rounded-full overflow-hidden">
+                <div id="import-progress-bar" class="bg-indigo-600 h-full transition-all duration-300" style="width: 0%"></div>
+            </div>
+            <p id="import-count-text" class="text-[10px] font-bold text-gray-400 uppercase mt-4">0 / 0</p>
         </div>
     </div>
 
