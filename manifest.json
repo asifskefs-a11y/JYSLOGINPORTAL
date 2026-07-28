@@ -1,7 +1,7 @@
 {
   "name": "Jern Yafoor School Portal",
   "short_name": "JYS Portal",
-  "start_url": "index.html",
+  "start_url": "/JYSLOGINPORTAL/index.html",
   "display": "standalone",
   "background_color": "#ffffff",
   "theme_color": "#4f46e5",
@@ -19,5 +19,6 @@
       "type": "image/png",
       "purpose": "maskable any"
     }
-  ]
+  ],
+  "scope": "/JYSLOGINPORTAL/"
 }

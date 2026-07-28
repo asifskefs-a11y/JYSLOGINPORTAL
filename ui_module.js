@@ -242,14 +242,14 @@ window.showView = (viewId) => {
         const diagId = document.getElementById('diag-push-id');
         const diagSW = document.getElementById('diag-sw-status');
 
-        // TASK 3: Explicit path for subdirectory deployment (JYSLOGINPORTAL)
+        // TASK 3: Absolute subpath for subdirectory deployment (JYSLOGINPORTAL)
         if ('serviceWorker' in navigator) {
             try {
-                console.log("Registering Service Worker for JYSLOGINPORTAL...");
-                // Force absolute subpath to resolve 404 and scope issues
+                console.log("Registering Service Worker with hard-coded subpath...");
+                // FORCE absolute subpath registration to override root domain defaults
                 const registration = await navigator.serviceWorker.register('/JYSLOGINPORTAL/OneSignalSDKWorker.js', { scope: '/JYSLOGINPORTAL/' });
-                console.log("Service Worker Registered with scope:", registration.scope);
-                if (diagSW) diagSW.innerText = "Active (JYSLOGINPORTAL Registered)";
+                console.log("Service Worker Registered with absolute scope:", registration.scope);
+                if (diagSW) diagSW.innerText = "Active (Subpath Scope: /JYSLOGINPORTAL/)";
             } catch (err) {
                 console.error("SW Registration Failed:", err);
                 if (diagSW) diagSW.innerText = "FAILED: " + err.message;
