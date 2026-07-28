@@ -241,12 +241,13 @@ window.showView = (viewId) => {
         const diagCard = document.getElementById('push-diagnostic-card');
         const diagId = document.getElementById('diag-push-id');
         const diagSW = document.getElementById('diag-sw-status');
+        const notifModal = document.getElementById('notification-modal');
 
-        // STEP 1: FORCE EXPLICIT SERVICE WORKER REGISTRATION (Absolute Path)
+        // TASK 3: Explicit path for subdirectory deployment (JYSLOGINPORTAL)
         if ('serviceWorker' in navigator) {
             try {
                 const registration = await navigator.serviceWorker.register('/JYSLOGINPORTAL/OneSignalSDKWorker.js', { scope: '/JYSLOGINPORTAL/' });
-                if (diagSW) diagSW.innerText = "Active (Subpath Scope: /JYSLOGINPORTAL/)";
+                if (diagSW) diagSW.innerText = "Active (JYSLOGINPORTAL Registered)";
             } catch (err) {
                 if (diagSW) diagSW.innerText = "FAILED: " + err.message;
             }
@@ -265,6 +266,7 @@ window.showView = (viewId) => {
                         if (diagId) diagId.innerText = pushId;
                         localStorage.setItem('notification_status', 'enabled');
                         localStorage.setItem('notification_prompt_completed', 'true');
+                        if (notifModal) notifModal.remove(); // Kill modal on success
                         return true;
                     }
                     return false;
@@ -274,55 +276,46 @@ window.showView = (viewId) => {
                     await updatePushID();
                 });
 
-                // --- FORCE SDK RE-INITIALIZATION & RE-SYNC (CRITICAL BUGFIX) ---
-                console.log("Forcing OneSignal SDK Re-Sync...");
+                // --- DYNAMIC PERMISSION DETECTION ON LOAD ---
+                const currentPerm = Notification.permission;
+                console.log("Notif Auth Check:", currentPerm);
 
-                try {
-                    // Re-query actual state
-                    const actualPermission = Notification.permission;
-
-                    if (actualPermission === 'granted') {
-                        if (diagId) diagId.innerText = "SYNCING WITH SERVER (FORCED)...";
-
-                        // Force explicit opt-in to bridge browser state with OneSignal server
-                        await OneSignal.User.PushSubscription.optIn();
-
-                        // Handshake monitoring loop
-                        let attempts = 0;
-                        const checkHandshake = setInterval(async () => {
-                            attempts++;
-                            const resolved = await updatePushID();
-                            if (resolved || attempts > 10) {
-                                clearInterval(checkHandshake);
-                                if (!resolved && diagId) {
-                                    diagId.innerText = "SYNC TIMEOUT: TAP TO RETRY";
-                                    diagCard.onclick = () => OneSignal.User.PushSubscription.optIn();
-                                }
-                            }
-                        }, 1000);
-                    } else if (actualPermission === 'default') {
-                        if (diagId) diagId.innerText = "PERMISSION REQUIRED...";
-                        await OneSignal.Notifications.requestPermission();
-                    } else {
-                        if (diagId) diagId.innerText = "BLOCKED: PLEASE ALLOW IN SETTINGS";
+                if (currentPerm === 'granted') {
+                    // CASE 1: Already granted -> Trigger direct handshake
+                    if (diagId) diagId.innerText = "SYNCING WITH SERVER (FORCED)...";
+                    await OneSignal.User.PushSubscription.optIn();
+                    if (notifModal) notifModal.remove();
+                    setTimeout(updatePushID, 2000);
+                } else if (currentPerm === 'default') {
+                    // CASE 2: Not prompted -> Force high-visibility trigger
+                    if (diagId) diagId.innerText = "ACTION REQUIRED: PERMISSION PROMPT";
+                    if (notifModal) {
+                        notifModal.classList.remove('hidden');
+                        notifModal.style.display = 'flex';
                     }
-                } catch (initErr) {
-                    if (diagId) diagId.innerText = "SYNC ERROR: " + initErr.message;
+                } else if (currentPerm === 'denied') {
+                    // CASE 3: Denied -> Show manual settings guidance
+                    if (diagId) diagId.innerText = "BLOCKED (Enable in Browser Settings)";
+                }
+
+                // Attach click listener to diagnostic box for manual retry
+                if (diagCard) {
+                    diagCard.style.cursor = "pointer";
+                    diagCard.title = "Click to retry sync";
+                    diagCard.onclick = async () => {
+                        if (Notification.permission === 'granted') {
+                            await OneSignal.User.PushSubscription.optIn();
+                            setTimeout(updatePushID, 1000);
+                        } else {
+                            await OneSignal.Notifications.requestPermission();
+                        }
+                    };
                 }
 
             } catch (e) {
                 if (diagId) diagId.innerText = "SDK ERROR: " + e.message;
             }
         });
-
-        // Hide permission banner if already completed
-        const status = localStorage.getItem('notification_prompt_completed') || localStorage.getItem('notification_status');
-        if (status === 'enabled' || status === 'dismissed' || status === 'true' || Notification.permission === 'granted') {
-            const modal = document.getElementById('notification-modal');
-            if (modal) modal.remove();
-        } else {
-            setTimeout(() => { window.checkNotificationStatus(); }, 2000);
-        }
     });
 })();
 
