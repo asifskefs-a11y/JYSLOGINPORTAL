@@ -248,7 +248,6 @@ window.addEventListener('unhandledrejection', (event) => {
 });
 
 // --- ONESIGNAL NOTIFICATION LOGIC ---
-// Initialization logic isolated to run once globally
 (function initNotificationGate() {
     window.addEventListener('DOMContentLoaded', async () => {
         const diagCard = document.getElementById('push-diagnostic-card');
@@ -256,31 +255,21 @@ window.addEventListener('unhandledrejection', (event) => {
         const diagSW = document.getElementById('diag-sw-status');
         const notifModal = document.getElementById('notification-modal');
 
-        // TASK: FORCE UNREGISTER STUCK SERVICE WORKERS (Absolute Purge)
-        if ('serviceWorker' in navigator) {
-            try {
-                const registrations = await navigator.serviceWorker.getRegistrations();
-                for (let reg of registrations) {
-                    if (reg.scope && !reg.scope.includes('/JYSLOGINPORTAL/')) {
-                        console.log("Unregistering stuck worker scope:", reg.scope);
-                        await reg.unregister();
-                    }
-                }
-            } catch (e) { console.warn("SW Purge Error:", e); }
-        }
+        // TASK: CLEAN START - REMOVE ALL LOOPS
+        if (diagId) diagId.innerText = "INITIALIZING PUSH...";
 
-        // TASK 3: Absolute subpath for subdirectory deployment (JYSLOGINPORTAL)
+        // TASK 3: Absolute subpath for JYSLOGINPORTAL
         if ('serviceWorker' in navigator) {
             try {
+                console.log("Registering Service Worker for JYSLOGINPORTAL...");
                 const registration = await navigator.serviceWorker.register('/JYSLOGINPORTAL/OneSignalSDKWorker.js', { scope: '/JYSLOGINPORTAL/' });
                 if (diagSW) diagSW.innerText = "Active (Subpath Scope: /JYSLOGINPORTAL/)";
             } catch (err) {
-                window.showNotificationDebug(`SW Reg Error: ${err.message}`);
                 if (diagSW) diagSW.innerText = "FAILED: " + err.message;
             }
         }
 
-        // STEP 2: ONESIGNAL INIT & PERMISSION PROMPT
+        // STEP 2: ONESIGNAL INIT WITH HARD TIMEOUT
         window.OneSignalDeferred = window.OneSignalDeferred || [];
         window.OneSignalDeferred.push(async function(OneSignal) {
             try {
@@ -292,42 +281,32 @@ window.addEventListener('unhandledrejection', (event) => {
                     if (pushId) {
                         if (diagId) diagId.innerText = pushId;
                         localStorage.setItem('notification_status', 'enabled');
-                        localStorage.setItem('notification_prompt_completed', 'true');
-                        if (notifModal) notifModal.remove();
                         return true;
                     }
                     return false;
                 };
 
-                OneSignal.User.PushSubscription.addEventListener("change", async () => {
-                    await updatePushID();
-                });
-
-                // --- ADD TIMEOUT DIAGNOSTIC FALLBACK (TASK 3) ---
-                const raceTimer = setTimeout(() => {
-                    const currentId = OneSignal.User.PushSubscription.id;
-                    if (!currentId && diagId && diagId.innerText.includes("SYNCING")) {
-                        diagId.innerText = "TIMEOUT - CHECK ONESIGNAL DASHBOARD ALLOWED ORIGINS";
+                // HARD 3-SECOND TIMEOUT FALLBACK
+                const timeoutHandler = setTimeout(() => {
+                    if (!OneSignal.User.PushSubscription.id && diagId) {
+                        diagId.innerHTML = `<span class="text-red-600 font-black uppercase">SW SCOPE BLOCKED</span><br><button id="resync-trigger" class="mt-1 bg-red-600 text-white px-2 py-1 rounded text-[8px] font-bold">RE-SYNC TOKEN</button>`;
+                        document.getElementById('resync-trigger').onclick = () => OneSignal.Notifications.requestPermission();
+                        console.warn("OneSignal: Handshake timed out. Infrastructure block suspected.");
                     }
-                }, 4000);
+                }, 3000);
 
-                // --- FORCE EXACT CONFIGURATION & RE-SYNC (MASTER FIX) ---
-                try {
-                    if (diagId) diagId.innerText = "SYNCING WITH SERVER (FORCED)...";
-
-                    if (Notification.permission === 'granted') {
-                        // Hard Opt-In to break the event loop block
-                        await OneSignal.User.PushSubscription.optIn();
-                        if (await updatePushID()) clearTimeout(raceTimer);
-                    } else if (Notification.permission === 'default') {
-                        if (notifModal) {
-                            notifModal.classList.remove('hidden');
-                            notifModal.style.display = 'flex';
-                        }
+                // ATTEMPT DIRECT OPT-IN (NO LOOPS)
+                if (Notification.permission === 'granted') {
+                    await OneSignal.User.PushSubscription.optIn();
+                    if (await updatePushID()) clearTimeout(timeoutHandler);
+                } else if (Notification.permission === 'default') {
+                    if (notifModal) {
+                        notifModal.classList.remove('hidden');
+                        notifModal.style.display = 'flex';
                     }
-                } catch (innerErr) {
-                    if (diagId) diagId.innerText = "RESET FAILED: " + innerErr.message;
                 }
+
+                OneSignal.User.PushSubscription.addEventListener("change", updatePushID);
 
             } catch (e) {
                 if (diagId) diagId.innerText = "SDK ERROR: " + e.message;
@@ -463,6 +442,7 @@ window.requestNotificationPermission = async () => {
             window.OneSignalDeferred = window.OneSignalDeferred || [];
             window.OneSignalDeferred.push(async function(OneSignal) {
                 try {
+                    await OneSignal.User.PushSubscription.optOut();
                     await OneSignal.User.PushSubscription.optIn();
                 } catch (oe) { window.showNotificationDebug(`OneSignal Post-Grant OptIn Error: ${oe.message}`); }
             });
