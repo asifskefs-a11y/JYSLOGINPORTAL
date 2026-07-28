@@ -255,34 +255,28 @@ window.addEventListener('unhandledrejection', (event) => {
         const diagSW = document.getElementById('diag-sw-status');
         const notifModal = document.getElementById('notification-modal');
 
-        if (diagId) diagId.innerText = "INITIALIZING PUSH...";
+        if (diagId) diagId.innerText = "MANUAL WORKER REGISTRATION...";
 
-        // TASK: AUTO-UNREGISTER OLD WORKER INSTANCES (Avoid Domain Root Conflicts)
+        // TASK: FORCE NATIVE SERVICE WORKER REGISTRATION BYPASS
+        let registrationReady = false;
         if ('serviceWorker' in navigator) {
             try {
+                console.log("Native SW Bypass: Manual Registration starting...");
+                // Step 1: Purge old root workers first
                 const regs = await navigator.serviceWorker.getRegistrations();
-                for (let r of regs) {
-                    // Kill any worker NOT strictly bounded to the repo subpath
-                    if (r.scope === 'https://asifskefs-a11y.github.io/' || !r.scope.includes('/JYSLOGINPORTAL/')) {
-                        console.log("Purging root/conflicting SW scope:", r.scope);
-                        await r.unregister();
-                    }
-                }
-            } catch (e) { console.warn("SW Purge Error:", e); }
-        }
+                for (let r of regs) { if (r.scope === 'https://asifskefs-a11y.github.io/') await r.unregister(); }
 
-        // TASK 3: Explicit path for JYSLOGINPORTAL Subdirectory
-        if ('serviceWorker' in navigator) {
-            try {
-                console.log("Registering Service Worker for JYSLOGINPORTAL...");
-                const registration = await navigator.serviceWorker.register('./OneSignalSDKWorker.js', { scope: '/JYSLOGINPORTAL/' });
-                if (diagSW) diagSW.innerText = "Active (Subpath Scope: /JYSLOGINPORTAL/)";
+                // Step 2: Register strictly bounded to subpath folder
+                const registration = await navigator.serviceWorker.register('./OneSignalSDKWorker.js', { scope: './' });
+                console.log("Native SW Bypass: Registered successfully at scope:", registration.scope);
+                if (diagSW) diagSW.innerText = "Active (Native Relative Scope: ./)";
+                registrationReady = true;
             } catch (err) {
-                if (diagSW) diagSW.innerText = "FAILED: " + err.message;
+                if (diagSW) diagSW.innerText = "NATIVE SW FAILED: " + err.message;
             }
         }
 
-        // STEP 2: ONESIGNAL INIT WITH HARD-BOUND SUBPATH PARAMETERS
+        // STEP 2: ONESIGNAL INIT (Waiting for Manual Registration)
         window.OneSignalDeferred = window.OneSignalDeferred || [];
         window.OneSignalDeferred.push(async function(OneSignal) {
             try {
@@ -298,23 +292,16 @@ window.addEventListener('unhandledrejection', (event) => {
                     return false;
                 };
 
-                // HARD 3-SECOND TIMEOUT FALLBACK
+                // HARD TIMEOUT FOR HANDSHAKE
                 const timeoutHandler = setTimeout(() => {
                     if (!OneSignal.User.PushSubscription.id && diagId) {
-                        diagId.innerHTML = `<span class="text-red-600 font-black uppercase">SW SCOPE BLOCKED</span><br><button id="resync-trigger" class="mt-1 bg-red-600 text-white px-2 py-1 rounded text-[8px] font-bold">RE-SYNC TOKEN</button>`;
-                        document.getElementById('resync-trigger').onclick = async () => {
-                            // FORCE RE-INIT ON BUTTON TAP: Purge and re-optin
-                            if ('serviceWorker' in navigator) {
-                                const regs = await navigator.serviceWorker.getRegistrations();
-                                for(let r of regs) await r.unregister();
-                            }
-                            await OneSignal.User.PushSubscription.optIn();
-                            setTimeout(updatePushID, 2000);
-                        };
+                        diagId.innerHTML = `<span class="text-red-600 font-black uppercase">HANDSHAKE DELAYED</span><br><button id="resync-trigger" class="mt-1 bg-red-600 text-white px-2 py-1 rounded text-[8px] font-bold">FORCE OPT-IN</button>`;
+                        document.getElementById('resync-trigger').onclick = () => OneSignal.User.PushSubscription.optIn();
                     }
-                }, 3000);
+                }, 4000);
 
-                if (Notification.permission === 'granted') {
+                if (registrationReady && Notification.permission === 'granted') {
+                    console.log("SW Ready, forcing OneSignal Opt-In...");
                     await OneSignal.User.PushSubscription.optIn();
                     if (await updatePushID()) clearTimeout(timeoutHandler);
                 } else if (Notification.permission === 'default') {
