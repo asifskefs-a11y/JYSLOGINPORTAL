@@ -297,14 +297,18 @@ window.requestNotificationPermission = async () => {
         console.log("Requesting Native Permission for Jern Yafoor School...");
         if (submitBtn) {
             submitBtn.disabled = true;
-            submitBtn.innerText = "WAITING FOR BROWSER...";
+            submitBtn.innerText = "AWAITING BROWSER...";
         }
 
+        // TASK 1: Direct native call
         const result = await Notification.requestPermission();
         console.log("Permission Result:", result);
 
-        if (result === 'granted') {
-            // Task 1: ONLY hide if granted
+        // TASK 1: RE-QUERY ACTUAL BROWSER STATE
+        const actualState = window.Notification.permission;
+
+        if (actualState === 'granted') {
+            // ONLY IF GRANTED: Hide modal and set localStorage
             const modal = document.getElementById('notification-modal');
             if (modal) modal.remove();
 
@@ -316,15 +320,18 @@ window.requestNotificationPermission = async () => {
             alert("Notifications Enabled Successfully!");
             setTimeout(() => { location.reload(); }, 500);
         } else {
-            // Task 1 & 2: Keep modal visible and show error
+            // TASK 1 & 2: DENIED OR DEFAULT -> HARD KEEP VISIBLE
             if (submitBtn) {
                 submitBtn.disabled = false;
                 submitBtn.innerText = "Try Again";
             }
             if (errorArea && errorText) {
                 errorArea.classList.remove('hidden');
-                errorText.innerText = `PERMISSION ${result.toUpperCase()}: Please check your browser settings to allow notifications.`;
+                errorText.innerText = actualState === 'denied'
+                    ? "BROWSER PERMISSION DENIED: PLEASE ENABLE NOTIFICATIONS MANUALLY IN SITE SETTINGS."
+                    : "CONSENT NOT DETECTED: PLEASE ALLOW NOTIFICATIONS TO PROCEED.";
             }
+            // DO NOT update localStorage, DO NOT hide modal
         }
 
     } catch (e) {
@@ -335,7 +342,7 @@ window.requestNotificationPermission = async () => {
         }
         if (errorArea && errorText) {
             errorArea.classList.remove('hidden');
-            errorText.innerText = `SYSTEM ERROR: ${e.message}`;
+            errorText.innerText = `DIAGNOSTIC ERROR: ${e.message}`;
         }
     }
 };
