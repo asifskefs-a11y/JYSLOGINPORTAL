@@ -238,6 +238,14 @@ window.showView = (viewId) => {
 // Initialization logic isolated to run once globally
 (function initNotificationGate() {
     window.addEventListener('DOMContentLoaded', () => {
+        // FORCE CHECK: If permission is default, always show regardless of previous dismissal flags
+        if ("Notification" in window && Notification.permission === "default") {
+            console.log("NOTIFICATION_GATE: Permission is default. Forcing visibility.");
+            localStorage.removeItem('notification_status'); // Clear potentially corrupt flags
+            window.checkNotificationStatus();
+            return;
+        }
+
         const status = localStorage.getItem('notification_status');
         if (status === 'enabled' || status === 'dismissed') {
             console.log("NOTIFICATION_GATE: User decision saved. Silencing prompts.");
