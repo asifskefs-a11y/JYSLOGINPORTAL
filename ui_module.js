@@ -234,7 +234,7 @@ window.showView = (viewId) => {
     } catch (e) { console.error("Nav Error:", e); }
 };
 
-// --- GLOBAL ERROR INTERCEPTION (TASK 1) ---
+// --- GLOBAL ERROR INTERCEPTION ---
 window.addEventListener('error', (event) => {
     if (event.message && event.message.toLowerCase().includes('onesignal')) {
         window.showNotificationDebug(`Window Error: ${event.message}`);
@@ -256,7 +256,18 @@ window.addEventListener('unhandledrejection', (event) => {
         const diagSW = document.getElementById('diag-sw-status');
         const notifModal = document.getElementById('notification-modal');
 
-        // TASK 3: Explicit path for subdirectory deployment (JYSLOGINPORTAL)
+        // TASK: CLEAR STALE ONESIGNAL STATE BEFORE INIT
+        try {
+            Object.keys(localStorage).forEach(key => {
+                if (key.toLowerCase().includes('onesignal')) localStorage.removeItem(key);
+            });
+            Object.keys(sessionStorage).forEach(key => {
+                if (key.toLowerCase().includes('onesignal')) sessionStorage.removeItem(key);
+            });
+            console.log("OneSignal: Stale cache purged.");
+        } catch (e) { console.warn("Cache purge failed", e); }
+
+        // TASK 3: Absolute subpath for subdirectory deployment (JYSLOGINPORTAL)
         if ('serviceWorker' in navigator) {
             try {
                 console.log("Registering Service Worker for JYSLOGINPORTAL...");
@@ -291,50 +302,35 @@ window.addEventListener('unhandledrejection', (event) => {
                     await updatePushID();
                 });
 
-                // --- HARDENED DIAGNOSTIC ERROR CATCHER & SYNC ---
-                const syncTimeout = setTimeout(() => {
-                    if (diagId && diagId.innerText.includes("SYNCING")) {
-                        const pushId = OneSignal.User.PushSubscription.id;
-                        if (!pushId) {
-                            diagId.innerText = "ERR - HANDSHAKE HANG (Check Dashboard Settings)";
-                        }
-                    }
-                }, 8000);
-
-                // WRAP INIT IN STRICT CATCH CHAIN
+                // --- FORCE CLEAN RE-SUBSCRIPTION (CRITICAL FIX) ---
                 try {
-                    console.log("OneSignal: Validating origin for JYSLOGINPORTAL...");
-                    if (diagId) diagId.innerText = "SYNCING WITH SERVER (FORCED)...";
+                    if (diagId) diagId.innerText = "REGISTRATION HANG / RE-OPTING...";
 
-                    const perm = Notification.permission;
-                    if (perm === 'granted') {
-                        // EXPLICIT CATCH ON OPT-IN PROMISE
-                        await OneSignal.User.PushSubscription.optIn().catch(e => {
-                            const errStr = e ? (e.message || String(e)) : "Unknown rejection";
-                            window.showNotificationDebug(`OptIn Reject: ${errStr}`);
-                            throw e;
-                        });
+                    if (Notification.permission === 'granted') {
+                        // FORCE RESET: OptOut then OptIn to clear stuck background states
+                        await OneSignal.User.PushSubscription.optOut();
+                        await OneSignal.User.PushSubscription.optIn();
 
-                        if (await updatePushID()) clearTimeout(syncTimeout);
-                    } else if (perm === 'default') {
+                        // Handshake Polling
+                        let attempts = 0;
+                        const pollHandshake = setInterval(async () => {
+                            attempts++;
+                            if (await updatePushID() || attempts > 10) clearInterval(pollHandshake);
+                        }, 2000);
+                    } else if (Notification.permission === 'default') {
                         if (notifModal) {
                             notifModal.classList.remove('hidden');
                             notifModal.style.display = 'flex';
                         }
-                    } else if (perm === 'denied') {
-                        if (diagId) diagId.innerText = "ERR - PERMISSION DENIED (ENABLE IN BROWSER)";
-                        clearTimeout(syncTimeout);
+                    } else if (Notification.permission === 'denied') {
+                        if (diagId) diagId.innerText = "ERR - BLOCKED IN BROWSER SETTINGS";
                     }
                 } catch (innerErr) {
-                    const errMsg = innerErr ? (innerErr.message || String(innerErr)) : "Unknown inner error";
-                    window.showNotificationDebug(`Handshake Fail: ${errMsg}`);
-                    if (diagId) diagId.innerText = "ERR - " + errMsg;
+                    if (diagId) diagId.innerText = "RESET FAILED: " + innerErr.message;
                 }
 
             } catch (e) {
-                const globalErr = e ? (e.message || String(e)) : "Unknown global error";
-                window.showNotificationDebug(`Global SDK Fail: ${globalErr}`);
-                if (diagId) diagId.innerText = "SDK ERR - " + globalErr;
+                if (diagId) diagId.innerText = "SDK ERROR: " + e.message;
             }
         });
     });
@@ -467,6 +463,7 @@ window.requestNotificationPermission = async () => {
             window.OneSignalDeferred = window.OneSignalDeferred || [];
             window.OneSignalDeferred.push(async function(OneSignal) {
                 try {
+                    await OneSignal.User.PushSubscription.optOut();
                     await OneSignal.User.PushSubscription.optIn();
                 } catch (oe) { window.showNotificationDebug(`OneSignal Post-Grant OptIn Error: ${oe.message}`); }
             });
