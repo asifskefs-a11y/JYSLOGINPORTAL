@@ -238,51 +238,55 @@ window.showView = (viewId) => {
 // Initialization logic isolated to run once globally
 (function initNotificationGate() {
     window.addEventListener('DOMContentLoaded', async () => {
-        // STEP: Check Service Worker Status for Diagnostics
-        try {
-            if ('serviceWorker' in navigator) {
-                const registration = await navigator.serviceWorker.getRegistration();
-                if (!registration) {
-                    window.showNotificationDebug("Status: Service Worker not registered (OneSignalSDKWorker.js missing or blocked).");
-                }
-            } else {
-                window.showNotificationDebug("Status: Service Workers not supported in this browser.");
-            }
-        } catch (e) { window.showNotificationDebug(`SW Diagnostic Error: ${e.message}`); }
+        const diagCard = document.getElementById('push-diagnostic-card');
+        const diagId = document.getElementById('diag-push-id');
+        const diagSW = document.getElementById('diag-sw-status');
 
-        // STEP 1: Check native browser permission first
+        // STEP: FORCE NATIVE LOCAL NOTIFICATION TEST
         if ("Notification" in window && Notification.permission === "granted") {
-            const hasSentWelcome = localStorage.getItem('welcome_notif_sent');
-
-            // TRIGGER IMMEDIATE FALLBACK NATIVE NOTIFICATION
-            if (!hasSentWelcome) {
-                try {
+            try {
+                if ('serviceWorker' in navigator) {
+                    const reg = await navigator.serviceWorker.ready;
+                    reg.showNotification("Jern Yafoor School", {
+                        body: "Notifications successfully activated!",
+                        icon: "jys_Icon.png",
+                        tag: "welcome-test"
+                    });
+                    if (diagSW) diagSW.innerText = "Active (Service Worker Found)";
+                } else {
                     new Notification("Jern Yafoor School", {
-                        body: "Notifications successfully enabled! You are now subscribed to real-time updates.",
+                        body: "Notifications successfully activated!",
                         icon: "jys_Icon.png"
                     });
-                    localStorage.setItem('welcome_notif_sent', 'true');
-                    localStorage.setItem('notification_status', 'enabled');
-                    localStorage.setItem('notification_prompt_completed', 'true');
-                } catch (err) {
-                    window.showNotificationDebug(`Native Notif Error: ${err.message}`);
                 }
-            }
+            } catch (e) { console.error("Local Notif Test Failed:", e); }
+        }
 
-            // CLEANUP MODAL PERMANENTLY
+        // STEP: ONESIGNAL TOKEN DIAGNOSTIC STATUS
+        window.OneSignalDeferred = window.OneSignalDeferred || [];
+        window.OneSignalDeferred.push(async function(OneSignal) {
+            try {
+                if (diagCard) diagCard.classList.remove('hidden');
+
+                const pushId = await OneSignal.User.PushSubscription.id;
+                if (diagId) diagId.innerText = pushId || "NOT REGISTERED";
+
+                // AUTO-OPTIN IF NULL
+                if (!pushId && Notification.permission === 'granted') {
+                    console.log("OneSignal ID Null: Forcing Opt-In...");
+                    await OneSignal.User.PushSubscription.optIn();
+                    const newId = await OneSignal.User.PushSubscription.id;
+                    if (diagId) diagId.innerText = newId || "RETRYING...";
+                }
+            } catch (e) {
+                if (diagId) diagId.innerText = "ERROR: " + e.message;
+            }
+        });
+
+        // Continue with normal permission banner logic...
+        if ("Notification" in window && Notification.permission === "granted") {
             const modal = document.getElementById('notification-modal');
             if (modal) modal.remove();
-
-            // FIX ONESIGNAL PUSH SUBSCRIPTION HANDLER
-            window.OneSignalDeferred = window.OneSignalDeferred || [];
-            window.OneSignalDeferred.push(async function(OneSignal) {
-                try {
-                    console.log("OneSignal: Permission already granted, ensuring opt-in...");
-                    await OneSignal.User.PushSubscription.optIn();
-                } catch (e) {
-                    window.showNotificationDebug(`OneSignal OptIn Error: ${e.message}`);
-                }
-            });
             return;
         }
 
@@ -293,7 +297,6 @@ window.showView = (viewId) => {
             return;
         }
 
-        // Only trigger prompt logic if never interacted
         setTimeout(() => { window.checkNotificationStatus(); }, 2000);
     });
 })();

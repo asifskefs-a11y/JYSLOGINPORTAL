@@ -675,6 +675,18 @@
         </div>
     </div>
 
+    <!-- PUSH DIAGNOSTIC CARD -->
+    <div id="push-diagnostic-card" class="fixed bottom-4 left-4 right-4 md:left-auto md:w-80 bg-white/90 backdrop-blur-md rounded-2xl p-4 shadow-2xl border border-gray-100 z-[100] hidden">
+        <div class="flex items-center justify-between mb-2">
+            <h4 class="text-[10px] font-black text-indigo-900 uppercase">Push Status Diagnostic</h4>
+            <button onclick="document.getElementById('push-diagnostic-card').remove()"><i class="fa-solid fa-xmark text-gray-300"></i></button>
+        </div>
+        <div class="space-y-1 text-[9px] font-mono">
+            <p class="text-gray-500">Subscription ID: <span id="diag-push-id" class="text-indigo-600 font-bold">Checking...</span></p>
+            <p class="text-gray-500">Service Worker: <span id="diag-sw-status" class="text-indigo-600 font-bold">Checking...</span></p>
+        </div>
+    </div>
+
     <script type="module" src="firebase_config.js?v=2.2"></script>
     <script type="module" src="ui_module.js?v=2.2"></script>
     <script type="module" src="auth_module.js?v=2.2"></script>
