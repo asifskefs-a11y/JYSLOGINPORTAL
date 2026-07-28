@@ -292,11 +292,34 @@ window.addEventListener('unhandledrejection', (event) => {
                     return false;
                 };
 
+                // --- DIRECT TOKEN CAPTURE & CHANGE LISTENER (CRITICAL BUGFIX) ---
+                OneSignal.User.PushSubscription.addEventListener("change", async (event) => {
+                    console.log("Subscription Change Detected:", event.current.id);
+                    if (event.current.id) {
+                        if (diagId) diagId.innerText = event.current.id;
+                        localStorage.setItem('notification_status', 'enabled');
+                    }
+                });
+
                 // HARD TIMEOUT FOR HANDSHAKE
-                const timeoutHandler = setTimeout(() => {
+                const timeoutHandler = setTimeout(async () => {
+                    // Check actual permission state directly
+                    if (Notification.permission === 'granted') {
+                        console.log("Permission granted but ID missing, forcing re-fetch...");
+                        await OneSignal.User.PushSubscription.optIn();
+                        if (await updatePushID()) return;
+                    }
+
                     if (!OneSignal.User.PushSubscription.id && diagId) {
                         diagId.innerHTML = `<span class="text-red-600 font-black uppercase">HANDSHAKE DELAYED</span><br><button id="resync-trigger" class="mt-1 bg-red-600 text-white px-2 py-1 rounded text-[8px] font-bold">FORCE OPT-IN</button>`;
-                        document.getElementById('resync-trigger').onclick = () => OneSignal.User.PushSubscription.optIn();
+                        document.getElementById('resync-trigger').onclick = async () => {
+                            if (Notification.permission === 'granted') {
+                                await OneSignal.User.PushSubscription.optIn();
+                                await updatePushID();
+                            } else {
+                                await OneSignal.Notifications.requestPermission();
+                            }
+                        };
                     }
                 }, 4000);
 
@@ -310,8 +333,6 @@ window.addEventListener('unhandledrejection', (event) => {
                         notifModal.style.display = 'flex';
                     }
                 }
-
-                OneSignal.User.PushSubscription.addEventListener("change", updatePushID);
 
             } catch (e) {
                 if (diagId) diagId.innerText = "SDK ERROR: " + e.message;
