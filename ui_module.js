@@ -294,9 +294,24 @@ window.requestNotificationPermission = async () => {
             }
 
             if (result) {
+                // --- TRIGGER WELCOME NOTIFICATION ---
+                if (typeof OneSignal.registerForPushNotifications === 'function') {
+                    await OneSignal.registerForPushNotifications();
+                }
+
+                // Show instant local alert as well
                 alert("Notifications Enabled Successfully!");
+
+                // Logic for immediate welcome message via OneSignal if supported or Browser Notification
+                if ("Notification" in window && Notification.permission === "granted") {
+                    new Notification("JYS Gen School", {
+                        body: "Welcome! You are now subscribed to real-time updates.",
+                        icon: "schoollogo.png"
+                    });
+                }
+
                 // Force reload to ensure registration is fully active on mobile
-                location.reload();
+                setTimeout(() => { location.reload(); }, 1500);
             }
         } catch (e) {
             console.error("Permission Request Error:", e);

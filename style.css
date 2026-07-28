@@ -1117,3 +1117,4 @@ canvas#sig-canvas, canvas#v-sig-pad {
 }
 n.animate-fade-in { animation: fadeIn 0.3s ease-out; }n@keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
 n/* DISPOSAL MODAL MOBILE OPTIMIZATION */n#asset-disposal-modal .bg-white { width: 90% !important; max-width: 500px !important; margin: auto !important; }n@media (max-width: 640px) { #asset-disposal-modal .bg-white { padding: 1.25rem !important; } #disposal-asset-preview { margin-bottom: 1rem !important; } }n.modal-center-container { display: flex; align-items: center; justify-content: center; min-height: 100%; width: 100%; }
+n/* MOBILE DISPOSAL MODAL EXPANSION */n@media (max-width: 640px) {n  #asset-disposal-modal .bg-white { width: 95% !important; max-width: none !important; padding: 1rem !important; }n  #disposal-asset-preview { margin: 0.5rem 0 !important; }n}
