@@ -230,33 +230,30 @@ window.showView = (viewId) => {
         window.scrollTo(0, 0);
         window.dispatchEvent(new CustomEvent('viewChanged', { detail: { viewId } }));
 
-        // Check Notification Permission after dashboard loads
-        if (viewId === 'view-admin-dash' || viewId === 'staff-dash-area' || document.getElementById('staff-dash-area')) {
-            window.checkNotificationStatus();
-        }
+        // REMOVED: Automatic notification check on view switch to prevent loops
     } catch (e) { console.error("Nav Error:", e); }
 };
 
 // --- ONESIGNAL NOTIFICATION LOGIC ---
-window.OneSignalDeferred = window.OneSignalDeferred || [];
-window.OneSignalDeferred.push(async function(OneSignal) {
-    console.log("ONESIGNAL_DEBUG: Syncing Listeners on Evaluation");
-    OneSignal.Notifications.addEventListener("permissionChange", (permission) => {
-        console.log("ONESIGNAL_DEBUG: Permission changed:", permission);
+// Initialization logic isolated to run once globally
+(function initNotificationGate() {
+    window.addEventListener('DOMContentLoaded', () => {
+        const status = localStorage.getItem('notification_status');
+        if (status === 'enabled' || status === 'dismissed') {
+            console.log("NOTIFICATION_GATE: User decision saved. Silencing prompts.");
+            const modal = document.getElementById('notification-modal');
+            if (modal) modal.remove(); // Hard removal from DOM
+            return;
+        }
+        // Run check once if never interacted
+        setTimeout(() => { window.checkNotificationStatus(); }, 2000);
     });
-
-    OneSignal.Notifications.addEventListener("click", (event) => {
-        console.log("ONESIGNAL_DEBUG: Notification clicked:", event);
-    });
-});
+})();
 
 window.checkNotificationStatus = async () => {
-    // PERSISTENCE LAYER: Prevent repeated popups
+    // Permanent Guard
     const status = localStorage.getItem('notification_status');
-    if (status === 'enabled' || status === 'dismissed') {
-        console.log("NOTIF_DEBUG: User already interacted with notification prompt. Silencing modal.");
-        return;
-    }
+    if (status === 'enabled' || status === 'dismissed') return;
 
     if ("Notification" in window && Notification.permission === "granted") {
         localStorage.setItem('notification_status', 'enabled');
@@ -277,55 +274,40 @@ window.checkNotificationStatus = async () => {
                 modal.classList.remove('hidden');
                 modal.style.display = 'flex';
             }
-        } catch (e) { console.error("OneSignal Status Error:", e); }
+        } catch (e) { console.warn("Notification Status Silent Error:", e); }
     });
 };
 
 window.requestNotificationPermission = async () => {
     try {
-        console.log("Requesting Native Notification Permission for Jern Yafoor School...");
+        console.log("Requesting Native Permission...");
         const result = await Notification.requestPermission();
 
         const modal = document.getElementById('notification-modal');
-        if (modal) {
-            modal.classList.add('hidden');
-            modal.style.display = 'none';
-        }
+        if (modal) modal.remove(); // Kill immediately
 
         if (result === 'granted') {
-            // Force Save State
             localStorage.setItem('notification_status', 'enabled');
-
-            // Trigger Jern Yafoor Welcome Notification
             new Notification("Jern Yafoor School", {
                 body: "Welcome! You are now subscribed to real-time updates.",
                 icon: "schoollogo.png"
             });
-
-            alert("Notifications Enabled Successfully for Jern Yafoor School!");
         } else {
             localStorage.setItem('notification_status', 'dismissed');
         }
 
-        setTimeout(() => { location.reload(); }, 1000);
+        setTimeout(() => { location.reload(); }, 500);
 
     } catch (e) {
-        console.error("Native Permission Request Error:", e);
-        const modal = document.getElementById('notification-modal');
-        if (modal) {
-            modal.classList.add('hidden');
-            modal.style.display = 'none';
-        }
+        console.error(e);
+        localStorage.setItem('notification_status', 'dismissed');
     }
 };
 
 window.dismissNotificationModal = () => {
     localStorage.setItem('notification_status', 'dismissed');
     const modal = document.getElementById('notification-modal');
-    if (modal) {
-        modal.classList.add('hidden');
-        modal.style.display = 'none';
-    }
+    if (modal) modal.remove();
 };
 
 // --- PWA INSTALLATION LOGIC ---
