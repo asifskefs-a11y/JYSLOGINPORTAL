@@ -234,6 +234,19 @@ window.showView = (viewId) => {
     } catch (e) { console.error("Nav Error:", e); }
 };
 
+// --- GLOBAL ERROR INTERCEPTION (TASK 1) ---
+window.addEventListener('error', (event) => {
+    if (event.message && event.message.toLowerCase().includes('onesignal')) {
+        window.showNotificationDebug(`Window Error: ${event.message}`);
+    }
+});
+window.addEventListener('unhandledrejection', (event) => {
+    const reason = event.reason ? String(event.reason) : "";
+    if (reason.toLowerCase().includes('onesignal')) {
+        window.showNotificationDebug(`Promise Rejection: ${reason}`);
+    }
+});
+
 // --- ONESIGNAL NOTIFICATION LOGIC ---
 // Initialization logic isolated to run once globally
 (function initNotificationGate() {
@@ -246,9 +259,11 @@ window.showView = (viewId) => {
         // TASK 3: Explicit path for subdirectory deployment (JYSLOGINPORTAL)
         if ('serviceWorker' in navigator) {
             try {
+                console.log("Registering Service Worker for JYSLOGINPORTAL...");
                 const registration = await navigator.serviceWorker.register('/JYSLOGINPORTAL/OneSignalSDKWorker.js', { scope: '/JYSLOGINPORTAL/' });
                 if (diagSW) diagSW.innerText = "Active (JYSLOGINPORTAL Registered)";
             } catch (err) {
+                window.showNotificationDebug(`SW Reg Error: ${err.message}`);
                 if (diagSW) diagSW.innerText = "FAILED: " + err.message;
             }
         }
@@ -278,33 +293,48 @@ window.showView = (viewId) => {
 
                 // --- HARDENED DIAGNOSTIC ERROR CATCHER & SYNC ---
                 const syncTimeout = setTimeout(() => {
-                    if (!OneSignal.User.PushSubscription.id && diagId) {
-                        const perm = Notification.permission;
-                        diagId.innerText = perm === 'granted' ? "REGISTRATION HANG / RE-OPTING..." : "HANDSHAKE TIMEOUT (CHECK SETTINGS)";
-                        if (perm === 'granted') OneSignal.User.PushSubscription.optIn();
+                    if (diagId && diagId.innerText.includes("SYNCING")) {
+                        const pushId = OneSignal.User.PushSubscription.id;
+                        if (!pushId) {
+                            diagId.innerText = "ERR - HANDSHAKE HANG (Check Dashboard Settings)";
+                        }
                     }
-                }, 4000);
+                }, 8000);
 
+                // WRAP INIT IN STRICT CATCH CHAIN
                 try {
-                    console.log("OneSignal: Checking credentials for 7ae3b343-98cb-4e23-b5ee-7820c58582c3");
+                    console.log("OneSignal: Validating origin for JYSLOGINPORTAL...");
                     if (diagId) diagId.innerText = "SYNCING WITH SERVER (FORCED)...";
 
                     const perm = Notification.permission;
                     if (perm === 'granted') {
-                        await OneSignal.User.PushSubscription.optIn();
+                        // EXPLICIT CATCH ON OPT-IN PROMISE
+                        await OneSignal.User.PushSubscription.optIn().catch(e => {
+                            const errStr = e ? (e.message || String(e)) : "Unknown rejection";
+                            window.showNotificationDebug(`OptIn Reject: ${errStr}`);
+                            throw e;
+                        });
+
                         if (await updatePushID()) clearTimeout(syncTimeout);
                     } else if (perm === 'default') {
                         if (notifModal) {
                             notifModal.classList.remove('hidden');
                             notifModal.style.display = 'flex';
                         }
+                    } else if (perm === 'denied') {
+                        if (diagId) diagId.innerText = "ERR - PERMISSION DENIED (ENABLE IN BROWSER)";
+                        clearTimeout(syncTimeout);
                     }
                 } catch (innerErr) {
-                    if (diagId) diagId.innerText = "REGISTRATION FAILED: " + innerErr.message;
+                    const errMsg = innerErr ? (innerErr.message || String(innerErr)) : "Unknown inner error";
+                    window.showNotificationDebug(`Handshake Fail: ${errMsg}`);
+                    if (diagId) diagId.innerText = "ERR - " + errMsg;
                 }
 
             } catch (e) {
-                if (diagId) diagId.innerText = "SDK ERROR: " + e.message;
+                const globalErr = e ? (e.message || String(e)) : "Unknown global error";
+                window.showNotificationDebug(`Global SDK Fail: ${globalErr}`);
+                if (diagId) diagId.innerText = "SDK ERR - " + globalErr;
             }
         });
     });
