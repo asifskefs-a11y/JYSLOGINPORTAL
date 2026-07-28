@@ -242,13 +242,13 @@ window.showView = (viewId) => {
         const diagId = document.getElementById('diag-push-id');
         const diagSW = document.getElementById('diag-sw-status');
 
-        // TASK 3: Explicitly register the service worker at root scope
+        // TASK 3: Relative path for subdirectory deployment (JYSLOGINPORTAL)
         if ('serviceWorker' in navigator) {
             try {
-                console.log("Forcing Explicit Service Worker Registration at Root Scope...");
-                const registration = await navigator.serviceWorker.register('/OneSignalSDKWorker.js', { scope: '/' });
-                console.log("Service Worker Registered with scope:", registration.scope);
-                if (diagSW) diagSW.innerText = "Active (Registered Successfully)";
+                console.log("Registering Service Worker relative to current path...");
+                const registration = await navigator.serviceWorker.register('./OneSignalSDKWorker.js', { scope: './' });
+                console.log("Service Worker Registered with relative scope:", registration.scope);
+                if (diagSW) diagSW.innerText = "Active (Relative Path Registered)";
             } catch (err) {
                 console.error("SW Registration Failed:", err);
                 if (diagSW) diagSW.innerText = "FAILED: " + err.message;
