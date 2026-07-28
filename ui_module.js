@@ -256,23 +256,24 @@ window.addEventListener('unhandledrejection', (event) => {
         const diagSW = document.getElementById('diag-sw-status');
         const notifModal = document.getElementById('notification-modal');
 
-        // TASK: CLEAR STALE ONESIGNAL STATE BEFORE INIT
-        try {
-            Object.keys(localStorage).forEach(key => {
-                if (key.toLowerCase().includes('onesignal')) localStorage.removeItem(key);
-            });
-            Object.keys(sessionStorage).forEach(key => {
-                if (key.toLowerCase().includes('onesignal')) sessionStorage.removeItem(key);
-            });
-            console.log("OneSignal: Stale cache purged.");
-        } catch (e) { console.warn("Cache purge failed", e); }
+        // TASK: FORCE UNREGISTER STUCK SERVICE WORKERS (Absolute Purge)
+        if ('serviceWorker' in navigator) {
+            try {
+                const registrations = await navigator.serviceWorker.getRegistrations();
+                for (let reg of registrations) {
+                    if (reg.scope && !reg.scope.includes('/JYSLOGINPORTAL/')) {
+                        console.log("Unregistering stuck worker scope:", reg.scope);
+                        await reg.unregister();
+                    }
+                }
+            } catch (e) { console.warn("SW Purge Error:", e); }
+        }
 
         // TASK 3: Absolute subpath for subdirectory deployment (JYSLOGINPORTAL)
         if ('serviceWorker' in navigator) {
             try {
-                console.log("Registering Service Worker for JYSLOGINPORTAL...");
                 const registration = await navigator.serviceWorker.register('/JYSLOGINPORTAL/OneSignalSDKWorker.js', { scope: '/JYSLOGINPORTAL/' });
-                if (diagSW) diagSW.innerText = "Active (JYSLOGINPORTAL Registered)";
+                if (diagSW) diagSW.innerText = "Active (Subpath Scope: /JYSLOGINPORTAL/)";
             } catch (err) {
                 window.showNotificationDebug(`SW Reg Error: ${err.message}`);
                 if (diagSW) diagSW.innerText = "FAILED: " + err.message;
@@ -302,41 +303,27 @@ window.addEventListener('unhandledrejection', (event) => {
                     await updatePushID();
                 });
 
-                // --- HARD-CODE PATH SCOPE & DEBUG CONFIG (CRITICAL FIX) ---
-                const sdkPath = OneSignal.config ? OneSignal.config.path : "N/A";
-                const sdkScope = (OneSignal.config && OneSignal.config.serviceWorkerParam) ? OneSignal.config.serviceWorkerParam.scope : "N/A";
+                // --- ADD TIMEOUT DIAGNOSTIC FALLBACK (TASK 3) ---
+                const raceTimer = setTimeout(() => {
+                    const currentId = OneSignal.User.PushSubscription.id;
+                    if (!currentId && diagId && diagId.innerText.includes("SYNCING")) {
+                        diagId.innerText = "TIMEOUT - CHECK ONESIGNAL DASHBOARD ALLOWED ORIGINS";
+                    }
+                }, 4000);
 
+                // --- FORCE EXACT CONFIGURATION & RE-SYNC (MASTER FIX) ---
                 try {
-                    if (diagId) diagId.innerText = `RE-OPTING... (PATH: ${sdkPath} | SCOPE: ${sdkScope})`;
+                    if (diagId) diagId.innerText = "SYNCING WITH SERVER (FORCED)...";
 
                     if (Notification.permission === 'granted') {
-                        // FORCE CLEAN HANDSHAKE after path verification
-                        setTimeout(async () => {
-                            await OneSignal.User.PushSubscription.optOut();
-                            await OneSignal.User.PushSubscription.optIn();
-
-                            // Watchdog: Force reload if still stuck after 8 seconds
-                            setTimeout(() => {
-                                if (!OneSignal.User.PushSubscription.id && diagId && diagId.innerText.includes("RE-OPTING")) {
-                                    console.warn("Handshake Stuck: Executing Watchdog Reload.");
-                                    location.reload();
-                                }
-                            }, 8000);
-                        }, 2000);
-
-                        // Handshake Polling
-                        let attempts = 0;
-                        const pollHandshake = setInterval(async () => {
-                            attempts++;
-                            if (await updatePushID() || attempts > 15) clearInterval(pollHandshake);
-                        }, 2000);
+                        // Hard Opt-In to break the event loop block
+                        await OneSignal.User.PushSubscription.optIn();
+                        if (await updatePushID()) clearTimeout(raceTimer);
                     } else if (Notification.permission === 'default') {
                         if (notifModal) {
                             notifModal.classList.remove('hidden');
                             notifModal.style.display = 'flex';
                         }
-                    } else if (Notification.permission === 'denied') {
-                        if (diagId) diagId.innerText = "ERR - BLOCKED IN BROWSER SETTINGS";
                     }
                 } catch (innerErr) {
                     if (diagId) diagId.innerText = "RESET FAILED: " + innerErr.message;
@@ -476,7 +463,6 @@ window.requestNotificationPermission = async () => {
             window.OneSignalDeferred = window.OneSignalDeferred || [];
             window.OneSignalDeferred.push(async function(OneSignal) {
                 try {
-                    await OneSignal.User.PushSubscription.optOut();
                     await OneSignal.User.PushSubscription.optIn();
                 } catch (oe) { window.showNotificationDebug(`OneSignal Post-Grant OptIn Error: ${oe.message}`); }
             });
