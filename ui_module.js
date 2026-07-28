@@ -274,20 +274,34 @@ window.showView = (viewId) => {
                     await updatePushID();
                 });
 
-                // INITIAL ATTEMPT
-                if (!(await updatePushID())) {
+                // INITIAL ATTEMPT & TIMEOUT FALLBACK
+                const idFound = await updatePushID();
+                if (!idFound) {
                     if (diagId) diagId.innerText = "SYNCING WITH SERVER...";
 
-                    // FORCE OPT-IN IF PERMISSION IS ALREADY GRANTED
-                    if (Notification.permission === 'granted') {
-                        await OneSignal.User.PushSubscription.optIn();
-                        setTimeout(updatePushID, 2000); // RE-CHECK
-                    }
-                }
+                    // 5-SECOND TIMEOUT FALLBACK
+                    setTimeout(async () => {
+                        const currentId = OneSignal.User.PushSubscription.id;
+                        if (!currentId) {
+                            if (diagId) diagId.innerText = "PERMISSION REQUIRED (Click to Allow)";
+                            // Attach click listener to diagnostic box for manual trigger
+                            diagCard.style.cursor = "pointer";
+                            diagCard.onclick = () => OneSignal.Notifications.requestPermission();
+                        }
+                    }, 5000);
 
-                // AUTO-PROMPT IF DEFAULT
-                if (Notification.permission === 'default') {
-                    await OneSignal.Notifications.requestPermission();
+                    // FORCE NATIVE PERMISSION POP-UP
+                    if (Notification.permission === 'default') {
+                        console.log("Forcing Native Permission Prompt...");
+                        const res = await Notification.requestPermission();
+                        if (res === 'granted') {
+                            await OneSignal.User.PushSubscription.optIn();
+                            setTimeout(updatePushID, 1500);
+                        }
+                    } else if (Notification.permission === 'granted') {
+                        await OneSignal.User.PushSubscription.optIn();
+                        setTimeout(updatePushID, 1500);
+                    }
                 }
 
             } catch (e) {
