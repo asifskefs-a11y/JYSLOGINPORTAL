@@ -266,7 +266,7 @@ window.showView = (viewId) => {
                         if (diagId) diagId.innerText = pushId;
                         localStorage.setItem('notification_status', 'enabled');
                         localStorage.setItem('notification_prompt_completed', 'true');
-                        if (notifModal) notifModal.remove(); // Kill modal on success
+                        if (notifModal) notifModal.remove();
                         return true;
                     }
                     return false;
@@ -276,40 +276,31 @@ window.showView = (viewId) => {
                     await updatePushID();
                 });
 
-                // --- DYNAMIC PERMISSION DETECTION ON LOAD ---
-                const currentPerm = Notification.permission;
-                console.log("Notif Auth Check:", currentPerm);
-
-                if (currentPerm === 'granted') {
-                    // CASE 1: Already granted -> Trigger direct handshake
-                    if (diagId) diagId.innerText = "SYNCING WITH SERVER (FORCED)...";
-                    await OneSignal.User.PushSubscription.optIn();
-                    if (notifModal) notifModal.remove();
-                    setTimeout(updatePushID, 2000);
-                } else if (currentPerm === 'default') {
-                    // CASE 2: Not prompted -> Force high-visibility trigger
-                    if (diagId) diagId.innerText = "ACTION REQUIRED: PERMISSION PROMPT";
-                    if (notifModal) {
-                        notifModal.classList.remove('hidden');
-                        notifModal.style.display = 'flex';
+                // --- HARDENED DIAGNOSTIC ERROR CATCHER & SYNC ---
+                const syncTimeout = setTimeout(() => {
+                    if (!OneSignal.User.PushSubscription.id && diagId) {
+                        const perm = Notification.permission;
+                        diagId.innerText = perm === 'granted' ? "REGISTRATION HANG / RE-OPTING..." : "HANDSHAKE TIMEOUT (CHECK SETTINGS)";
+                        if (perm === 'granted') OneSignal.User.PushSubscription.optIn();
                     }
-                } else if (currentPerm === 'denied') {
-                    // CASE 3: Denied -> Show manual settings guidance
-                    if (diagId) diagId.innerText = "BLOCKED (Enable in Browser Settings)";
-                }
+                }, 4000);
 
-                // Attach click listener to diagnostic box for manual retry
-                if (diagCard) {
-                    diagCard.style.cursor = "pointer";
-                    diagCard.title = "Click to retry sync";
-                    diagCard.onclick = async () => {
-                        if (Notification.permission === 'granted') {
-                            await OneSignal.User.PushSubscription.optIn();
-                            setTimeout(updatePushID, 1000);
-                        } else {
-                            await OneSignal.Notifications.requestPermission();
+                try {
+                    console.log("OneSignal: Checking credentials for 7ae3b343-98cb-4e23-b5ee-7820c58582c3");
+                    if (diagId) diagId.innerText = "SYNCING WITH SERVER (FORCED)...";
+
+                    const perm = Notification.permission;
+                    if (perm === 'granted') {
+                        await OneSignal.User.PushSubscription.optIn();
+                        if (await updatePushID()) clearTimeout(syncTimeout);
+                    } else if (perm === 'default') {
+                        if (notifModal) {
+                            notifModal.classList.remove('hidden');
+                            notifModal.style.display = 'flex';
                         }
-                    };
+                    }
+                } catch (innerErr) {
+                    if (diagId) diagId.innerText = "REGISTRATION FAILED: " + innerErr.message;
                 }
 
             } catch (e) {
