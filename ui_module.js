@@ -280,26 +280,41 @@ window.checkNotificationStatus = async () => {
 
 window.requestNotificationPermission = async () => {
     try {
-        console.log("Requesting Native Permission...");
+        console.log("Requesting Native Permission for Jern Yafoor School...");
+        // TASK 1: Keep modal open until promise resolves
         const result = await Notification.requestPermission();
+        console.log("Permission Result:", result);
 
         const modal = document.getElementById('notification-modal');
-        if (modal) modal.remove(); // Kill immediately
 
         if (result === 'granted') {
+            // Task 1: Hide modal ONLY after promise resolves
+            if (modal) modal.remove();
             localStorage.setItem('notification_status', 'enabled');
+
+            // Task 1: Immediate native welcome trigger
             new Notification("Jern Yafoor School", {
                 body: "Welcome! You are now subscribed to real-time updates.",
                 icon: "jys_Icon.png"
             });
+            alert("Notifications Enabled Successfully for Jern Yafoor School!");
         } else {
+            // Task 1: If denied, save state and close
+            if (modal) modal.remove();
             localStorage.setItem('notification_status', 'dismissed');
         }
 
-        setTimeout(() => { location.reload(); }, 500);
+        // Final sync for OneSignal if initialized
+        if (window.OneSignal) {
+            window.OneSignal.Notifications.requestPermission();
+        }
+
+        setTimeout(() => { location.reload(); }, 800);
 
     } catch (e) {
-        console.error(e);
+        console.error("Permission Flow Error:", e);
+        const modal = document.getElementById('notification-modal');
+        if (modal) modal.remove();
         localStorage.setItem('notification_status', 'dismissed');
     }
 };
