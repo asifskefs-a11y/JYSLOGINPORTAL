@@ -238,35 +238,33 @@ window.showView = (viewId) => {
 // Initialization logic isolated to run once globally
 (function initNotificationGate() {
     window.addEventListener('DOMContentLoaded', () => {
-        // FORCE CHECK: If permission is default, always show regardless of previous dismissal flags
-        if ("Notification" in window && Notification.permission === "default") {
-            console.log("NOTIFICATION_GATE: Permission is default. Forcing visibility.");
-            localStorage.removeItem('notification_status'); // Clear potentially corrupt flags
-            window.checkNotificationStatus();
+        const status = localStorage.getItem('notification_status');
+
+        // HARD GATE: If user already enabled or dismissed, kill the modal instantly
+        if (status === 'enabled' || status === 'dismissed') {
+            console.log("NOTIFICATION_GATE: State persisted. Removing modal.");
+            const modal = document.getElementById('notification-modal');
+            if (modal) modal.remove();
             return;
         }
 
-        const status = localStorage.getItem('notification_status');
-        if (status === 'enabled' || status === 'dismissed') {
-            console.log("NOTIFICATION_GATE: User decision saved. Silencing prompts.");
+        // If permission is already granted, update state and kill modal
+        if ("Notification" in window && Notification.permission === "granted") {
+            localStorage.setItem('notification_status', 'enabled');
             const modal = document.getElementById('notification-modal');
-            if (modal) modal.remove(); // Hard removal from DOM
+            if (modal) modal.remove();
             return;
         }
-        // Run check once if never interacted
+
+        // Only trigger prompt logic if never interacted
         setTimeout(() => { window.checkNotificationStatus(); }, 2000);
     });
 })();
 
 window.checkNotificationStatus = async () => {
-    // Permanent Guard
+    // Re-verify Guard
     const status = localStorage.getItem('notification_status');
     if (status === 'enabled' || status === 'dismissed') return;
-
-    if ("Notification" in window && Notification.permission === "granted") {
-        localStorage.setItem('notification_status', 'enabled');
-        return;
-    }
 
     window.OneSignalDeferred = window.OneSignalDeferred || [];
     window.OneSignalDeferred.push(async function(OneSignal) {
@@ -293,22 +291,54 @@ window.requestNotificationPermission = async () => {
 
     if (errorArea) errorArea.classList.add('hidden');
 
+    // TASK: ONE-CLICK DIRECT PERMISSION RESET FLOW
+    if ("Notification" in window && Notification.permission === 'denied') {
+        if (errorArea && errorText) {
+            errorArea.classList.remove('hidden');
+            errorArea.classList.add('animate-pulse');
+            errorText.innerHTML = `<div class='text-center py-2'>
+                <i class="fa-solid fa-arrow-up text-xl mb-2 block"></i>
+                <p class='font-black uppercase tracking-tighter'>Notifications Blocked by Browser</p>
+                <p class='text-[9px] mt-1 normal-case'>Tap the <b>Lock (🔒) or Tune (🎛️)</b> icon left of the address bar above to toggle Notifications to <b>Allow</b>.</p>
+            </div>`;
+        }
+        if (submitBtn) {
+            submitBtn.innerText = "UNBLOCK IN SITE SETTINGS ABOVE";
+            submitBtn.classList.remove('bg-indigo-600');
+            submitBtn.classList.add('bg-red-600');
+            submitBtn.onclick = () => alert("Please tap the Lock/Settings icon next to the URL address bar at the top of your screen to Allow Notifications.");
+        }
+
+        // AUTO-DETECT PERMISSION CHANGE
+        const detectChange = async () => {
+            if (Notification.permission === 'granted') {
+                window.removeEventListener('focus', detectChange);
+                const modal = document.getElementById('notification-modal');
+                if (modal) modal.remove();
+                localStorage.setItem('notification_status', 'enabled');
+                new Notification("Jern Yafoor School", {
+                    body: "Welcome! You are now subscribed to real-time updates.",
+                    icon: "jys_Icon.png"
+                });
+                alert("Success! Notifications are now enabled.");
+                location.reload();
+            }
+        };
+        window.addEventListener('focus', detectChange);
+        return;
+    }
+
     try {
         console.log("Requesting Native Permission for Jern Yafoor School...");
         if (submitBtn) {
             submitBtn.disabled = true;
-            submitBtn.innerText = "AWAITING BROWSER...";
+            submitBtn.innerText = "WAITING FOR BROWSER...";
         }
 
-        // TASK 1: Direct native call
         const result = await Notification.requestPermission();
-        console.log("Permission Result:", result);
-
-        // TASK 1: RE-QUERY ACTUAL BROWSER STATE
         const actualState = window.Notification.permission;
 
         if (actualState === 'granted') {
-            // ONLY IF GRANTED: Hide modal and set localStorage
             const modal = document.getElementById('notification-modal');
             if (modal) modal.remove();
 
@@ -320,7 +350,6 @@ window.requestNotificationPermission = async () => {
             alert("Notifications Enabled Successfully!");
             setTimeout(() => { location.reload(); }, 500);
         } else {
-            // TASK 1 & 2: DENIED OR DEFAULT -> HARD KEEP VISIBLE
             if (submitBtn) {
                 submitBtn.disabled = false;
                 submitBtn.innerText = "Try Again";
@@ -328,12 +357,10 @@ window.requestNotificationPermission = async () => {
             if (errorArea && errorText) {
                 errorArea.classList.remove('hidden');
                 errorText.innerText = actualState === 'denied'
-                    ? "BROWSER PERMISSION DENIED: PLEASE ENABLE NOTIFICATIONS MANUALLY IN SITE SETTINGS."
+                    ? "PERMISSION DENIED: PLEASE RESET PERMISSIONS IN BROWSER SETTINGS (ICON NEAR ADDRESS BAR)."
                     : "CONSENT NOT DETECTED: PLEASE ALLOW NOTIFICATIONS TO PROCEED.";
             }
-            // DO NOT update localStorage, DO NOT hide modal
         }
-
     } catch (e) {
         console.error("Permission Flow Error:", e);
         if (submitBtn) {
