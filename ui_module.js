@@ -257,19 +257,32 @@ window.addEventListener('unhandledrejection', (event) => {
 
         if (diagId) diagId.innerText = "INITIALIZING PUSH...";
 
-        // TASK: RELATIVE PATH FOR SERVICE WORKER (SUBDIRECTORY COMPATIBILITY)
+        // TASK: AUTO-UNREGISTER OLD WORKER INSTANCES (Avoid Domain Root Conflicts)
         if ('serviceWorker' in navigator) {
             try {
-                console.log("Registering Service Worker with relative scope...");
-                // Using ./ ensures the browser grants permission within the /JYSLOGINPORTAL/ scope
-                const registration = await navigator.serviceWorker.register('./OneSignalSDKWorker.js', { scope: './' });
-                if (diagSW) diagSW.innerText = "Active (Relative Scope: ./)";
+                const regs = await navigator.serviceWorker.getRegistrations();
+                for (let r of regs) {
+                    // Kill any worker NOT strictly bounded to the repo subpath
+                    if (r.scope === 'https://asifskefs-a11y.github.io/' || !r.scope.includes('/JYSLOGINPORTAL/')) {
+                        console.log("Purging root/conflicting SW scope:", r.scope);
+                        await r.unregister();
+                    }
+                }
+            } catch (e) { console.warn("SW Purge Error:", e); }
+        }
+
+        // TASK 3: Explicit path for JYSLOGINPORTAL Subdirectory
+        if ('serviceWorker' in navigator) {
+            try {
+                console.log("Registering Service Worker for JYSLOGINPORTAL...");
+                const registration = await navigator.serviceWorker.register('./OneSignalSDKWorker.js', { scope: '/JYSLOGINPORTAL/' });
+                if (diagSW) diagSW.innerText = "Active (Subpath Scope: /JYSLOGINPORTAL/)";
             } catch (err) {
                 if (diagSW) diagSW.innerText = "FAILED: " + err.message;
             }
         }
 
-        // STEP 2: ONESIGNAL INIT WITH RELATIVE PARAMETERS
+        // STEP 2: ONESIGNAL INIT WITH HARD-BOUND SUBPATH PARAMETERS
         window.OneSignalDeferred = window.OneSignalDeferred || [];
         window.OneSignalDeferred.push(async function(OneSignal) {
             try {
@@ -289,7 +302,15 @@ window.addEventListener('unhandledrejection', (event) => {
                 const timeoutHandler = setTimeout(() => {
                     if (!OneSignal.User.PushSubscription.id && diagId) {
                         diagId.innerHTML = `<span class="text-red-600 font-black uppercase">SW SCOPE BLOCKED</span><br><button id="resync-trigger" class="mt-1 bg-red-600 text-white px-2 py-1 rounded text-[8px] font-bold">RE-SYNC TOKEN</button>`;
-                        document.getElementById('resync-trigger').onclick = () => OneSignal.Notifications.requestPermission();
+                        document.getElementById('resync-trigger').onclick = async () => {
+                            // FORCE RE-INIT ON BUTTON TAP: Purge and re-optin
+                            if ('serviceWorker' in navigator) {
+                                const regs = await navigator.serviceWorker.getRegistrations();
+                                for(let r of regs) await r.unregister();
+                            }
+                            await OneSignal.User.PushSubscription.optIn();
+                            setTimeout(updatePushID, 2000);
+                        };
                     }
                 }, 3000);
 
