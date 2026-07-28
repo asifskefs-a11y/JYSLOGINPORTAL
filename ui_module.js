@@ -274,34 +274,40 @@ window.showView = (viewId) => {
                     await updatePushID();
                 });
 
-                // INITIAL ATTEMPT & TIMEOUT FALLBACK
-                const idFound = await updatePushID();
-                if (!idFound) {
-                    if (diagId) diagId.innerText = "SYNCING WITH SERVER...";
+                // --- FORCE SDK RE-INITIALIZATION & RE-SYNC (CRITICAL BUGFIX) ---
+                console.log("Forcing OneSignal SDK Re-Sync...");
 
-                    // 5-SECOND TIMEOUT FALLBACK
-                    setTimeout(async () => {
-                        const currentId = OneSignal.User.PushSubscription.id;
-                        if (!currentId) {
-                            if (diagId) diagId.innerText = "PERMISSION REQUIRED (Click to Allow)";
-                            // Attach click listener to diagnostic box for manual trigger
-                            diagCard.style.cursor = "pointer";
-                            diagCard.onclick = () => OneSignal.Notifications.requestPermission();
-                        }
-                    }, 5000);
+                try {
+                    // Re-query actual state
+                    const actualPermission = Notification.permission;
 
-                    // FORCE NATIVE PERMISSION POP-UP
-                    if (Notification.permission === 'default') {
-                        console.log("Forcing Native Permission Prompt...");
-                        const res = await Notification.requestPermission();
-                        if (res === 'granted') {
-                            await OneSignal.User.PushSubscription.optIn();
-                            setTimeout(updatePushID, 1500);
-                        }
-                    } else if (Notification.permission === 'granted') {
+                    if (actualPermission === 'granted') {
+                        if (diagId) diagId.innerText = "SYNCING WITH SERVER (FORCED)...";
+
+                        // Force explicit opt-in to bridge browser state with OneSignal server
                         await OneSignal.User.PushSubscription.optIn();
-                        setTimeout(updatePushID, 1500);
+
+                        // Handshake monitoring loop
+                        let attempts = 0;
+                        const checkHandshake = setInterval(async () => {
+                            attempts++;
+                            const resolved = await updatePushID();
+                            if (resolved || attempts > 10) {
+                                clearInterval(checkHandshake);
+                                if (!resolved && diagId) {
+                                    diagId.innerText = "SYNC TIMEOUT: TAP TO RETRY";
+                                    diagCard.onclick = () => OneSignal.User.PushSubscription.optIn();
+                                }
+                            }
+                        }, 1000);
+                    } else if (actualPermission === 'default') {
+                        if (diagId) diagId.innerText = "PERMISSION REQUIRED...";
+                        await OneSignal.Notifications.requestPermission();
+                    } else {
+                        if (diagId) diagId.innerText = "BLOCKED: PLEASE ALLOW IN SETTINGS";
                     }
+                } catch (initErr) {
+                    if (diagId) diagId.innerText = "SYNC ERROR: " + initErr.message;
                 }
 
             } catch (e) {
