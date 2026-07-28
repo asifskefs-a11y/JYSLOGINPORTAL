@@ -507,9 +507,9 @@
                         <!-- REAL-TIME SEARCH FIELD -->
                         <div class="space-y-1">
                             <label class="block text-[10px] font-black text-gray-400 uppercase ml-1">Scan or Type Asset Barcode</label>
-                            <div class="flex gap-2">
-                                <input type="text" id="f1_disposal_barcode_input" placeholder="Enter Barcode (e.g. AT...)" class="flex-1 p-3 border rounded-xl text-sm font-bold uppercase focus:ring-2 focus:ring-red-500 outline-none transition-all">
-                                <button type="button" onclick="startCameraScanner('f1_disposal_barcode_input')" class="bg-red-600 text-white p-3 rounded-xl shadow-lg active:scale-95 transition"><i class="fa-solid fa-camera"></i></button>
+                            <div class="disposal-barcode-wrapper">
+                                <input type="text" id="f1_disposal_barcode_input" placeholder="Enter Barcode (e.g. AT...)" class="p-3 border rounded-xl text-sm font-bold uppercase focus:ring-2 focus:ring-red-500 outline-none transition-all">
+                                <button type="button" onclick="startCameraScanner('f1_disposal_barcode_input')" class="bg-red-600 text-white shadow-lg active:scale-95 transition"><i class="fa-solid fa-camera"></i></button>
                             </div>
                         </div>
 

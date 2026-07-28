@@ -280,44 +280,40 @@ window.checkNotificationStatus = async () => {
 };
 
 window.requestNotificationPermission = async () => {
-    window.OneSignalDeferred = window.OneSignalDeferred || [];
-    window.OneSignalDeferred.push(async function(OneSignal) {
-        try {
-            console.log("Requesting OneSignal Permission...");
-            const result = await OneSignal.Notifications.requestPermission();
-            console.log("Permission Result:", result);
+    try {
+        console.log("Requesting Native Notification Permission...");
+        const result = await Notification.requestPermission();
+        console.log("Native Permission Result:", result);
 
-            const modal = document.getElementById('notification-modal');
-            if (modal) {
-                modal.classList.add('hidden');
-                modal.style.display = 'none';
-            }
-
-            if (result) {
-                // --- TRIGGER WELCOME NOTIFICATION ---
-                if (typeof OneSignal.registerForPushNotifications === 'function') {
-                    await OneSignal.registerForPushNotifications();
-                }
-
-                // Show instant local alert as well
-                alert("Notifications Enabled Successfully!");
-
-                // Logic for immediate welcome message via OneSignal if supported or Browser Notification
-                if ("Notification" in window && Notification.permission === "granted") {
-                    new Notification("JYS Gen School", {
-                        body: "Welcome! You are now subscribed to real-time updates.",
-                        icon: "schoollogo.png"
-                    });
-                }
-
-                // Force reload to ensure registration is fully active on mobile
-                setTimeout(() => { location.reload(); }, 1500);
-            }
-        } catch (e) {
-            console.error("Permission Request Error:", e);
-            alert("Error: Could not enable notifications. Please check browser settings.");
+        const modal = document.getElementById('notification-modal');
+        if (modal) {
+            modal.classList.add('hidden');
+            modal.style.display = 'none';
         }
-    });
+
+        if (result === 'granted') {
+            // Trigger Bulletproof Welcome Notification
+            new Notification("JYS Gen School", {
+                body: "Welcome! You are now subscribed to real-time updates.",
+                icon: "schoollogo.png"
+            });
+
+            // Save to localStorage
+            localStorage.setItem('notificationsEnabled', 'true');
+            alert("Notifications Enabled Successfully!");
+        }
+
+        // Force reload to ensure registration is fully active
+        setTimeout(() => { location.reload(); }, 1000);
+
+    } catch (e) {
+        console.error("Native Permission Request Error:", e);
+        const modal = document.getElementById('notification-modal');
+        if (modal) {
+            modal.classList.add('hidden');
+            modal.style.display = 'none';
+        }
+    }
 };
 
 // --- PWA INSTALLATION LOGIC ---
