@@ -255,27 +255,26 @@ window.addEventListener('unhandledrejection', (event) => {
         const diagSW = document.getElementById('diag-sw-status');
         const notifModal = document.getElementById('notification-modal');
 
-        // TASK: CLEAN START - REMOVE ALL LOOPS
         if (diagId) diagId.innerText = "INITIALIZING PUSH...";
 
-        // TASK 3: Absolute subpath for JYSLOGINPORTAL
+        // TASK: RELATIVE PATH FOR SERVICE WORKER (SUBDIRECTORY COMPATIBILITY)
         if ('serviceWorker' in navigator) {
             try {
-                console.log("Registering Service Worker for JYSLOGINPORTAL...");
-                const registration = await navigator.serviceWorker.register('/JYSLOGINPORTAL/OneSignalSDKWorker.js', { scope: '/JYSLOGINPORTAL/' });
-                if (diagSW) diagSW.innerText = "Active (Subpath Scope: /JYSLOGINPORTAL/)";
+                console.log("Registering Service Worker with relative scope...");
+                // Using ./ ensures the browser grants permission within the /JYSLOGINPORTAL/ scope
+                const registration = await navigator.serviceWorker.register('./OneSignalSDKWorker.js', { scope: './' });
+                if (diagSW) diagSW.innerText = "Active (Relative Scope: ./)";
             } catch (err) {
                 if (diagSW) diagSW.innerText = "FAILED: " + err.message;
             }
         }
 
-        // STEP 2: ONESIGNAL INIT WITH HARD TIMEOUT
+        // STEP 2: ONESIGNAL INIT WITH RELATIVE PARAMETERS
         window.OneSignalDeferred = window.OneSignalDeferred || [];
         window.OneSignalDeferred.push(async function(OneSignal) {
             try {
                 if (diagCard) diagCard.classList.remove('hidden');
 
-                // MONITOR TOKEN GENERATION (HANDSHAKE)
                 const updatePushID = async () => {
                     const pushId = OneSignal.User.PushSubscription.id;
                     if (pushId) {
@@ -291,11 +290,9 @@ window.addEventListener('unhandledrejection', (event) => {
                     if (!OneSignal.User.PushSubscription.id && diagId) {
                         diagId.innerHTML = `<span class="text-red-600 font-black uppercase">SW SCOPE BLOCKED</span><br><button id="resync-trigger" class="mt-1 bg-red-600 text-white px-2 py-1 rounded text-[8px] font-bold">RE-SYNC TOKEN</button>`;
                         document.getElementById('resync-trigger').onclick = () => OneSignal.Notifications.requestPermission();
-                        console.warn("OneSignal: Handshake timed out. Infrastructure block suspected.");
                     }
                 }, 3000);
 
-                // ATTEMPT DIRECT OPT-IN (NO LOOPS)
                 if (Notification.permission === 'granted') {
                     await OneSignal.User.PushSubscription.optIn();
                     if (await updatePushID()) clearTimeout(timeoutHandler);
@@ -331,7 +328,6 @@ window.showNotificationDebug = (msg) => {
         </div>`;
     }
 
-    // Force modal visibility if diagnostic triggered
     if (modal) {
         modal.classList.remove('hidden');
         modal.style.display = 'flex';
@@ -339,7 +335,6 @@ window.showNotificationDebug = (msg) => {
 };
 
 window.checkNotificationStatus = async () => {
-    // Permanent Guard
     const status = localStorage.getItem('notification_prompt_completed') || localStorage.getItem('notification_status');
     if (status === 'enabled' || status === 'dismissed' || status === 'true') return;
 
@@ -371,7 +366,6 @@ window.requestNotificationPermission = async () => {
 
     if (errorArea) errorArea.classList.add('hidden');
 
-    // TASK: ONE-CLICK DIRECT PERMISSION RESET FLOW (for 'denied' state)
     if ("Notification" in window && Notification.permission === 'denied') {
         if (errorArea && errorText) {
             errorArea.classList.remove('hidden');
@@ -403,12 +397,11 @@ window.requestNotificationPermission = async () => {
             submitBtn.onclick = () => location.reload();
         }
 
-        // AUTO-DETECT RESET
         const detectChange = () => {
             if (Notification.permission === 'granted') {
                 window.removeEventListener('focus', detectChange);
                 window.removeEventListener('visibilitychange', detectChange);
-                location.reload(); // Force full reload to trigger initNotificationGate
+                location.reload();
             }
         };
         window.addEventListener('focus', detectChange);
@@ -427,7 +420,6 @@ window.requestNotificationPermission = async () => {
             localStorage.setItem('notification_status', 'enabled');
             localStorage.setItem('notification_prompt_completed', 'true');
 
-            // Immediate Native Trigger
             try {
                 new Notification("Jern Yafoor School", {
                     body: "Notifications successfully enabled! You are now subscribed to real-time updates.",
@@ -438,7 +430,6 @@ window.requestNotificationPermission = async () => {
             const modal = document.getElementById('notification-modal');
             if (modal) modal.remove();
 
-            // OneSignal Sync
             window.OneSignalDeferred = window.OneSignalDeferred || [];
             window.OneSignalDeferred.push(async function(OneSignal) {
                 try {
@@ -449,7 +440,6 @@ window.requestNotificationPermission = async () => {
 
             setTimeout(() => { location.reload(); }, 500);
         } else {
-            // Re-query actual browser state
             const actualState = window.Notification.permission;
             if (submitBtn) {
                 submitBtn.disabled = false;
@@ -481,28 +471,16 @@ window.dismissNotificationModal = () => {
 // --- PWA INSTALLATION LOGIC ---
 let deferredInstallPrompt = null;
 window.addEventListener('beforeinstallprompt', (e) => {
-    // Prevent Chrome 67 and earlier from automatically showing the prompt
     e.preventDefault();
-    // Stash the event so it can be triggered later.
     deferredInstallPrompt = e;
-    console.log("PWA_DEBUG: Install prompt stashed.");
-
-    // Optional: Show an install button in the UI if needed
     const installBtn = document.getElementById('pwa-install-btn');
     if (installBtn) installBtn.classList.remove('hidden');
 });
 
 window.triggerPwaInstall = async () => {
-    if (!deferredInstallPrompt) {
-        console.log("PWA_DEBUG: No install prompt available.");
-        return;
-    }
-    // Show the prompt
+    if (!deferredInstallPrompt) return;
     deferredInstallPrompt.prompt();
-    // Wait for the user to respond to the prompt
     const { outcome } = await deferredInstallPrompt.userChoice;
-    console.log(`PWA_DEBUG: User response to install prompt: ${outcome}`);
-    // We've used the prompt, and can't use it again, throw it away
     deferredInstallPrompt = null;
 };
 
@@ -514,32 +492,16 @@ window.testOneSignalDiagnostics = async () => {
     window.OneSignalDeferred = window.OneSignalDeferred || [];
     window.OneSignalDeferred.push(async function(OneSignal) {
         console.log("--- ONESIGNAL DIAGNOSTIC START ---");
-
-        // 1. Check Permission
         const permission = await OneSignal.Notifications.permission;
         console.log("1. Notification Permission:", permission ? "GRANTED" : "NOT GRANTED");
-
-        // 2. Check Service Worker
         if ('serviceWorker' in navigator) {
             const regs = await navigator.serviceWorker.getRegistrations();
-            console.log("2. Active Service Workers:", regs.length);
             regs.forEach(r => console.log("   SW Script:", r.active ? r.active.scriptURL : "Inactive"));
-        } else {
-            console.warn("2. Service Workers not supported by this browser.");
         }
-
-        // 3. Check Subscription & ID
         const userId = await OneSignal.User.PushSubscription.id;
         console.log("3. OneSignal Subscription ID:", userId || "NONE (User Not Subscribed)");
-
-        console.log("--- ONESIGNAL DIAGNOSTIC END ---");
-
-        if (!permission) {
-            alert("Diagnostics: Notifications are NOT enabled. Click 'Enable Alerts' to fix.");
-        } else if (!userId) {
-            alert("Diagnostics: SW registered but no Subscription ID found. Try refreshing.");
-        } else {
-            alert(`Success! OneSignal is active.\nID: ${userId}\nCheck console for full log.`);
-        }
+        if (!permission) alert("Diagnostics: Notifications are NOT enabled.");
+        else if (!userId) alert("Diagnostics: SW registered but no Subscription ID found.");
+        else alert(`Success! ID: ${userId}`);
     });
 };
