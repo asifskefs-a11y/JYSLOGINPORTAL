@@ -256,20 +256,21 @@ window.renderDashboard = async (staff) => {
                                     timeOut: now.toLocaleTimeString()
                                 });
 
-                                // INJECT ONESIGNAL PUSH TRIGGER: Check-Out Success
-                                window.OneSignalDeferred = window.OneSignalDeferred || [];
-                                window.OneSignalDeferred.push(async function(OneSignal) {
+                                // DIRECT NATIVE NOTIFICATION BYPASS (TASK 2)
+                                if ("Notification" in window && Notification.permission === "granted") {
                                     try {
-                                        const pushId = OneSignal.User.PushSubscription.id;
-                                        if (!pushId && Notification.permission === 'granted') await OneSignal.User.PushSubscription.optIn();
-
-                                        // Fire high-fidelity confirmation
-                                        new Notification("Check-Out Successful", {
-                                            body: "Your check-out time has been logged.",
-                                            icon: "jys_Icon.png"
-                                        });
-                                    } catch (err) { console.warn("OneSignal CheckOut Trigger Error:", err); }
-                                });
+                                        if ('serviceWorker' in navigator) {
+                                            const reg = await navigator.serviceWorker.ready;
+                                            reg.showNotification("Jern Yafoor School", {
+                                                body: "Attendance Check-Out Confirmed!",
+                                                icon: "jys_Icon.png",
+                                                tag: "attendance-checkout"
+                                            });
+                                        } else {
+                                            new Notification("Jern Yafoor School", { body: "Attendance Check-Out Confirmed!", icon: "jys_Icon.png" });
+                                        }
+                                    } catch (err) { console.warn("Native CheckOut Notif Failed:", err); }
+                                }
 
                                 alert("Checked out successfully!");
                             } catch (e) { alert("Checkout error: " + e.message); }
@@ -312,20 +313,21 @@ window.renderDashboard = async (staff) => {
                                     await set(ref(db, 'active_staff_sessions/' + staff.mobile), session);
                                     localStorage.setItem('staff_active_session', JSON.stringify(session));
 
-                                    // INJECT ONESIGNAL PUSH TRIGGER: Check-In Success
-                                    window.OneSignalDeferred = window.OneSignalDeferred || [];
-                                    window.OneSignalDeferred.push(async function(OneSignal) {
+                                    // DIRECT NATIVE NOTIFICATION BYPASS (TASK 2)
+                                    if ("Notification" in window && Notification.permission === "granted") {
                                         try {
-                                            const pushId = OneSignal.User.PushSubscription.id;
-                                            if (!pushId && Notification.permission === 'granted') await OneSignal.User.PushSubscription.optIn();
-
-                                            // Fire high-fidelity confirmation
-                                            new Notification("Attendance Recorded", {
-                                                body: "Your check-in has been successfully confirmed.",
-                                                icon: "jys_Icon.png"
-                                            });
-                                        } catch (err) { console.warn("OneSignal CheckIn Trigger Error:", err); }
-                                    });
+                                            if ('serviceWorker' in navigator) {
+                                                const reg = await navigator.serviceWorker.ready;
+                                                reg.showNotification("Jern Yafoor School", {
+                                                    body: "Attendance Check-In Confirmed!",
+                                                    icon: "jys_Icon.png",
+                                                    tag: "attendance-checkin"
+                                                });
+                                            } else {
+                                                new Notification("Jern Yafoor School", { body: "Attendance Check-In Confirmed!", icon: "jys_Icon.png" });
+                                            }
+                                        } catch (err) { console.warn("Native CheckIn Notif Failed:", err); }
+                                    }
 
                                     alert("Check-In Successful!");
                                 } catch (e) { alert("Check-In Error: " + e.message); }

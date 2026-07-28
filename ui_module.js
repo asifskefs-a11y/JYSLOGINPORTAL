@@ -242,10 +242,10 @@ window.showView = (viewId) => {
         const diagId = document.getElementById('diag-push-id');
         const diagSW = document.getElementById('diag-sw-status');
 
-        // STEP: FORCE EXPLICIT SERVICE WORKER REGISTRATION
+        // TASK 3: Explicitly register the service worker at root scope
         if ('serviceWorker' in navigator) {
             try {
-                console.log("Forcing Explicit Service Worker Registration...");
+                console.log("Forcing Explicit Service Worker Registration at Root Scope...");
                 const registration = await navigator.serviceWorker.register('/OneSignalSDKWorker.js', { scope: '/' });
                 console.log("Service Worker Registered with scope:", registration.scope);
                 if (diagSW) diagSW.innerText = "Active (Registered Successfully)";
@@ -255,25 +255,7 @@ window.showView = (viewId) => {
             }
         }
 
-        // STEP: FORCE NATIVE LOCAL NOTIFICATION TEST (If permission granted)
-        if ("Notification" in window && Notification.permission === "granted") {
-            try {
-                const reg = await navigator.serviceWorker.ready;
-                reg.showNotification("Jern Yafoor School", {
-                    body: "Notifications successfully activated!",
-                    icon: "jys_Icon.png",
-                    tag: "welcome-test"
-                });
-            } catch (e) {
-                console.error("Local Notif Test Failed:", e);
-                new Notification("Jern Yafoor School", {
-                    body: "Notifications activated (Legacy Fallback)!",
-                    icon: "jys_Icon.png"
-                });
-            }
-        }
-
-        // STEP: ONESIGNAL TOKEN DIAGNOSTIC STATUS & AUTO-OPTIN
+        // TASK 1: Catch & Display OneSignal Initialization Errors
         window.OneSignalDeferred = window.OneSignalDeferred || [];
         window.OneSignalDeferred.push(async function(OneSignal) {
             try {
@@ -283,31 +265,41 @@ window.showView = (viewId) => {
                 OneSignal.User.PushSubscription.addEventListener("change", async (event) => {
                     if (event.current.id) {
                         if (diagId) diagId.innerText = event.current.id;
-                        // TRIGGER WELCOME NOTIFICATION ON TOKEN CREATION
-                        new Notification("Jern Yafoor School", {
-                            body: "Push Token generated! You are fully subscribed.",
-                            icon: "jys_Icon.png"
-                        });
                     }
                 });
 
                 const pushId = OneSignal.User.PushSubscription.id;
                 if (diagId) diagId.innerText = pushId || "NOT REGISTERED";
 
-                // AUTO-GENERATE ONESIGNAL PUSH TOKEN
+                // AUTO-OPTIN IF GRANTED
                 if (!pushId && Notification.permission === 'granted') {
                     console.log("Auto-Registering OneSignal Push Token...");
                     await OneSignal.User.PushSubscription.optIn();
-                    const newId = OneSignal.User.PushSubscription.id;
-                    if (diagId) diagId.innerText = newId || "GENERATING TOKEN...";
                 }
             } catch (e) {
+                console.error("OneSignal Runtime Error:", e);
+                window.showNotificationDebug(`OneSignal SDK Error: ${e.message}`);
                 if (diagId) diagId.innerText = "SDK ERROR: " + e.message;
             }
         });
 
-        // Continue with normal permission banner logic...
+        // STEP 1: Check native browser permission first (Task 2 Fallback Test)
         if ("Notification" in window && Notification.permission === "granted") {
+            const hasSentWelcome = localStorage.getItem('welcome_notif_sent');
+            if (!hasSentWelcome) {
+                try {
+                    if ('serviceWorker' in navigator) {
+                        const reg = await navigator.serviceWorker.ready;
+                        reg.showNotification("Jern Yafoor School", {
+                            body: "Notifications are successfully activated!",
+                            icon: "jys_Icon.png"
+                        });
+                        localStorage.setItem('welcome_notif_sent', 'true');
+                    }
+                } catch (err) { console.warn("Initial Fallback Notif Failed:", err); }
+            }
+
+            // CLEANUP MODAL PERMANENTLY
             const modal = document.getElementById('notification-modal');
             if (modal) modal.remove();
             return;
