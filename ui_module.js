@@ -287,43 +287,56 @@ window.checkNotificationStatus = async () => {
 };
 
 window.requestNotificationPermission = async () => {
+    const errorArea = document.getElementById('notification-error-area');
+    const errorText = document.getElementById('notification-error-text');
+    const submitBtn = document.getElementById('notification-submit-btn');
+
+    if (errorArea) errorArea.classList.add('hidden');
+
     try {
         console.log("Requesting Native Permission for Jern Yafoor School...");
-        // TASK 1: Keep modal open until promise resolves
+        if (submitBtn) {
+            submitBtn.disabled = true;
+            submitBtn.innerText = "WAITING FOR BROWSER...";
+        }
+
         const result = await Notification.requestPermission();
         console.log("Permission Result:", result);
 
-        const modal = document.getElementById('notification-modal');
-
         if (result === 'granted') {
-            // Task 1: Hide modal ONLY after promise resolves
+            // Task 1: ONLY hide if granted
+            const modal = document.getElementById('notification-modal');
             if (modal) modal.remove();
-            localStorage.setItem('notification_status', 'enabled');
 
-            // Task 1: Immediate native welcome trigger
+            localStorage.setItem('notification_status', 'enabled');
             new Notification("Jern Yafoor School", {
                 body: "Welcome! You are now subscribed to real-time updates.",
                 icon: "jys_Icon.png"
             });
-            alert("Notifications Enabled Successfully for Jern Yafoor School!");
+            alert("Notifications Enabled Successfully!");
+            setTimeout(() => { location.reload(); }, 500);
         } else {
-            // Task 1: If denied, save state and close
-            if (modal) modal.remove();
-            localStorage.setItem('notification_status', 'dismissed');
+            // Task 1 & 2: Keep modal visible and show error
+            if (submitBtn) {
+                submitBtn.disabled = false;
+                submitBtn.innerText = "Try Again";
+            }
+            if (errorArea && errorText) {
+                errorArea.classList.remove('hidden');
+                errorText.innerText = `PERMISSION ${result.toUpperCase()}: Please check your browser settings to allow notifications.`;
+            }
         }
-
-        // Final sync for OneSignal if initialized
-        if (window.OneSignal) {
-            window.OneSignal.Notifications.requestPermission();
-        }
-
-        setTimeout(() => { location.reload(); }, 800);
 
     } catch (e) {
         console.error("Permission Flow Error:", e);
-        const modal = document.getElementById('notification-modal');
-        if (modal) modal.remove();
-        localStorage.setItem('notification_status', 'dismissed');
+        if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.innerText = "Try Again";
+        }
+        if (errorArea && errorText) {
+            errorArea.classList.remove('hidden');
+            errorText.innerText = `SYSTEM ERROR: ${e.message}`;
+        }
     }
 };
 
