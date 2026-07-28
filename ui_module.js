@@ -242,77 +242,67 @@ window.showView = (viewId) => {
         const diagId = document.getElementById('diag-push-id');
         const diagSW = document.getElementById('diag-sw-status');
 
-        // TASK 3: Absolute subpath for subdirectory deployment (JYSLOGINPORTAL)
+        // STEP 1: FORCE EXPLICIT SERVICE WORKER REGISTRATION (Absolute Path)
         if ('serviceWorker' in navigator) {
             try {
-                console.log("Registering Service Worker with hard-coded subpath...");
-                // FORCE absolute subpath registration to override root domain defaults
                 const registration = await navigator.serviceWorker.register('/JYSLOGINPORTAL/OneSignalSDKWorker.js', { scope: '/JYSLOGINPORTAL/' });
-                console.log("Service Worker Registered with absolute scope:", registration.scope);
                 if (diagSW) diagSW.innerText = "Active (Subpath Scope: /JYSLOGINPORTAL/)";
             } catch (err) {
-                console.error("SW Registration Failed:", err);
                 if (diagSW) diagSW.innerText = "FAILED: " + err.message;
             }
         }
 
-        // TASK 1: Catch & Display OneSignal Initialization Errors
+        // STEP 2: ONESIGNAL INIT & PERMISSION PROMPT
         window.OneSignalDeferred = window.OneSignalDeferred || [];
         window.OneSignalDeferred.push(async function(OneSignal) {
             try {
                 if (diagCard) diagCard.classList.remove('hidden');
 
-                // --- HIGH-FREQUENCY PUSH REGISTRATION SYNC ---
-                const pollPushID = setInterval(async () => {
+                // MONITOR TOKEN GENERATION (HANDSHAKE)
+                const updatePushID = async () => {
                     const pushId = OneSignal.User.PushSubscription.id;
                     if (pushId) {
                         if (diagId) diagId.innerText = pushId;
                         localStorage.setItem('notification_status', 'enabled');
-                        clearInterval(pollPushID);
-                    } else if (Notification.permission === 'granted') {
-                        console.log("Push ID missing, forcing server sync...");
-                        await OneSignal.User.PushSubscription.optIn();
+                        localStorage.setItem('notification_prompt_completed', 'true');
+                        return true;
                     }
-                }, 2000);
+                    return false;
+                };
 
-                // Initial UI set
-                if (diagId) diagId.innerText = OneSignal.User.PushSubscription.id || "SYNCING WITH SERVER...";
+                OneSignal.User.PushSubscription.addEventListener("change", async () => {
+                    await updatePushID();
+                });
+
+                // INITIAL ATTEMPT
+                if (!(await updatePushID())) {
+                    if (diagId) diagId.innerText = "SYNCING WITH SERVER...";
+
+                    // FORCE OPT-IN IF PERMISSION IS ALREADY GRANTED
+                    if (Notification.permission === 'granted') {
+                        await OneSignal.User.PushSubscription.optIn();
+                        setTimeout(updatePushID, 2000); // RE-CHECK
+                    }
+                }
+
+                // AUTO-PROMPT IF DEFAULT
+                if (Notification.permission === 'default') {
+                    await OneSignal.Notifications.requestPermission();
+                }
 
             } catch (e) {
                 if (diagId) diagId.innerText = "SDK ERROR: " + e.message;
             }
         });
 
-        // STEP 1: Check native browser permission first (Task 2 Fallback Test)
-        if ("Notification" in window && Notification.permission === "granted") {
-            const hasSentWelcome = localStorage.getItem('welcome_notif_sent');
-            if (!hasSentWelcome) {
-                try {
-                    if ('serviceWorker' in navigator) {
-                        const reg = await navigator.serviceWorker.ready;
-                        reg.showNotification("Jern Yafoor School", {
-                            body: "Notifications are successfully activated!",
-                            icon: "jys_Icon.png"
-                        });
-                        localStorage.setItem('welcome_notif_sent', 'true');
-                    }
-                } catch (err) { console.warn("Initial Fallback Notif Failed:", err); }
-            }
-
-            // CLEANUP MODAL PERMANENTLY
-            const modal = document.getElementById('notification-modal');
-            if (modal) modal.remove();
-            return;
-        }
-
+        // Hide permission banner if already completed
         const status = localStorage.getItem('notification_prompt_completed') || localStorage.getItem('notification_status');
-        if (status === 'enabled' || status === 'dismissed' || status === 'true') {
+        if (status === 'enabled' || status === 'dismissed' || status === 'true' || Notification.permission === 'granted') {
             const modal = document.getElementById('notification-modal');
             if (modal) modal.remove();
-            return;
+        } else {
+            setTimeout(() => { window.checkNotificationStatus(); }, 2000);
         }
-
-        setTimeout(() => { window.checkNotificationStatus(); }, 2000);
     });
 })();
 
