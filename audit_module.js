@@ -257,26 +257,30 @@ window.startCameraScanner = async (inputId) => {
             html5QrCode = new Html5Qrcode("scanner-container");
         }
 
-        const config = { fps: 10, qrbox: { width: 250, height: 150 } };
+        // Optimization: Use rear camera by default for mobile
+        const config = { fps: 15, qrbox: { width: 250, height: 180 } };
 
         await html5QrCode.start(
             { facingMode: "environment" },
             config,
             async (decodedText) => {
                 try {
-                    // Update input value
+                    console.log("Scan Success:", decodedText);
                     const input = document.getElementById(currentScanTarget);
                     if (input) {
-                        input.value = decodedText;
+                        input.value = decodedText.trim().toUpperCase();
 
-                        // Run duplicate check if target is asset barcode
-                        if (currentScanTarget === 'f1_asset_barcode') {
-                            await window.checkDuplicateBarcode(decodedText);
-                        } else if (currentScanTarget === 'f22_room_barcode') {
-                            window.fetchRoomDetails(decodedText);
+                        // Instantly trigger search logic
+                        if (currentScanTarget === 'f1_disposal_barcode_input') {
+                            window.fetchDisposalAssetDetails(input.value);
+                        } else if (currentScanTarget === 'f1_asset_barcode') {
+                            await window.checkDuplicateBarcode(input.value);
                         }
                     }
+
+                    // AUTO-CLOSE: Return to form immediately after successful scan
                     window.stopCameraScanner();
+
                 } catch (e) { console.error("Scan processing error:", e); }
             },
             () => {}
@@ -426,13 +430,142 @@ window.resetRoomContext = () => {
 };
 
 // --- DISPOSAL MODULE ---
-window.openDisposalModal = (barcode) => {
-    activeDisposalBarcode = barcode;
-    const el = document.getElementById('disposal-barcode');
-    if (el) el.innerText = barcode;
+window.openDisposalModal = async (barcode) => {
+    activeDisposalBarcode = (barcode || "").trim().toUpperCase();
+    const input = document.getElementById('f1_disposal_barcode_input'); // The actual input
+
+    if (input) {
+        input.value = activeDisposalBarcode;
+    }
+
     const modal = document.getElementById('asset-disposal-modal');
-    if (modal) modal.classList.remove('hidden');
+    if (modal) {
+        modal.classList.remove('hidden');
+        modal.style.display = 'flex';
+    }
+
+    // Reset UI state for fresh manual entry
+    if (!barcode) {
+        const previewArea = document.getElementById('disposal-asset-preview');
+        if (previewArea) previewArea.innerHTML = '<p class="text-xs text-gray-400 italic text-center p-4">Enter a barcode to see details</p>';
+        const submitBtn = document.getElementById('submit-disposal-btn');
+        if (submitBtn) submitBtn.disabled = true;
+    }
+
+    // If barcode is provided (e.g. from scanner or direct action), fetch details immediately
+    if (activeDisposalBarcode) {
+        window.fetchDisposalAssetDetails(activeDisposalBarcode);
+    }
 };
+
+window.fetchDisposalAssetDetails = async (barcode) => {
+    const previewArea = document.getElementById('disposal-asset-preview');
+    const submitBtn = document.getElementById('submit-disposal-btn');
+    if (!previewArea) return;
+
+    if (!barcode || barcode.trim() === "") {
+        previewArea.innerHTML = '<p class="text-xs text-gray-400 italic text-center p-4">Enter a barcode to see details</p>';
+        if (submitBtn) submitBtn.disabled = true;
+        return;
+    }
+
+    const cleanBC = barcode.trim().toUpperCase();
+    previewArea.innerHTML = '<div class="p-4 text-center"><i class="fa-solid fa-spinner fa-spin text-indigo-600"></i><p class="text-[10px] mt-1">Searching...</p></div>';
+
+    try {
+        // Robust Multi-Field Search
+        let asset = null;
+
+        // 1. Direct Hit by Key
+        const snap = await get(child(ref(db), `assets/${cleanBC}`));
+        if (snap.exists()) {
+            asset = snap.val();
+        } else if (window.appCache && window.appCache.assets) {
+            // 2. Search by Aliases in Cache
+            asset = window.appCache.assets.find(a =>
+                String(a.assetBarcode || "").toUpperCase() === cleanBC ||
+                String(a['Asset Barcode'] || "").toUpperCase() === cleanBC ||
+                String(a['1. Asset Barcode'] || "").toUpperCase() === cleanBC ||
+                String(a.barcode || "").toUpperCase() === cleanBC ||
+                String(a.serialNo || "").toUpperCase() === cleanBC ||
+                String(a['Serial No'] || "").toUpperCase() === cleanBC
+            );
+        }
+
+        if (asset) {
+            // Extract Rich Metadata
+            const name = asset.classification || asset['Classification'] || asset['Classification (Aset Name)'] || asset.modelDescription || asset['Model Description'] || asset.assetDescription || asset.minorCategory || "Unnamed Asset";
+            const location = asset.locationName || asset['Location Name'] || asset.buildingName || asset.schoolName || asset.roomNo || asset.roomName || "N/A";
+            const cat = asset.majorCategory || asset.minorCategory || "Asset Record Found";
+            const photoUrl = window.getDirectDriveImageUrl(asset.auditPhotoUrl || asset.audit_photo || asset.beforePhotoUrl || asset.photoUrl || asset.initialAuditPhoto);
+
+            previewArea.innerHTML = `
+                <div class="flex items-center gap-4 p-3 bg-indigo-50/50 rounded-2xl border border-indigo-100 shadow-sm animate-fade-in">
+                    <div class="w-16 h-16 bg-white rounded-xl overflow-hidden border border-indigo-100 flex-shrink-0">
+                        ${photoUrl && photoUrl.includes('http') ? `<img src="${photoUrl}" class="w-full h-full object-cover" alt="Asset Preview">` : '<div class="w-full h-full flex items-center justify-center text-[8px] text-gray-300">No Image</div>'}
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <p class="text-[9px] font-black text-indigo-400 uppercase tracking-widest">${cat}</p>
+                        <h4 class="text-xs font-bold text-indigo-900 truncate">${name}</h4>
+                        <p class="text-[10px] text-gray-500 mt-0.5 truncate"><i class="fa-solid fa-location-dot mr-1"></i>${location}</p>
+                    </div>
+                    <div class="bg-green-100 text-green-600 px-2 py-1 rounded-lg">
+                        <i class="fa-solid fa-check-circle text-xs"></i>
+                    </div>
+                </div>
+            `;
+            activeDisposalBarcode = cleanBC;
+            if (submitBtn) submitBtn.disabled = false;
+
+            // Store original metadata for disposal payload
+            window.activeDisposalAssetData = {
+                assetName: name,
+                assetType: asset.majorCategory || "N/A",
+                originalLocation: location
+            };
+
+        } else {
+            previewArea.innerHTML = `
+                <div class="flex items-center gap-3 p-3 bg-red-50 rounded-2xl border border-red-100 shadow-sm">
+                    <div class="w-10 h-10 bg-red-100 text-red-600 rounded-full flex items-center justify-center flex-shrink-0">
+                        <i class="fa-solid fa-triangle-exclamation"></i>
+                    </div>
+                    <div>
+                        <h4 class="text-[11px] font-black text-red-900 uppercase">Asset Tag Not Registered</h4>
+                        <p class="text-[9px] text-red-500 font-medium">Verify barcode or contact Admin</p>
+                    </div>
+                </div>
+            `;
+            if (submitBtn) submitBtn.disabled = true;
+            window.activeDisposalAssetData = null;
+        }
+    } catch (e) {
+        console.error("Disposal Detail Fetch Error:", e);
+        previewArea.innerHTML = '<p class="text-xs text-red-500 text-center p-4">Search failed</p>';
+    }
+};
+
+window.removeDisposalPhoto = () => {
+    disposalPhotoBase64 = "";
+    const input = document.getElementById('disposal-photo-input');
+    if (input) input.value = "";
+    const preview = document.getElementById('disposal-photo-preview');
+    if (preview) preview.classList.add('hidden');
+    const btnText = document.getElementById('disposal-photo-btn-text');
+    if (btnText) btnText.innerText = "Take Damage Photo";
+};
+
+// --- BIND REAL-TIME LISTENER ON STARTUP ---
+document.addEventListener('DOMContentLoaded', () => {
+    const bcInput = document.getElementById('f1_disposal_barcode_input');
+    if (bcInput) {
+        bcInput.addEventListener('input', (e) => {
+            const val = e.target.value.trim().toUpperCase();
+            // Debounce or instant search
+            window.fetchDisposalAssetDetails(val);
+        });
+    }
+});
 
 window.closeDisposalModal = () => {
     const modal = document.getElementById('asset-disposal-modal');
@@ -468,12 +601,13 @@ window.submitAssetDisposal = async () => {
         if (!reason || !scrapLoc || !disposalPhotoBase64) return alert("Photo and details required!");
 
         const btn = document.getElementById('submit-disposal-btn');
-        if (btn) { btn.disabled = true; btn.innerText = "Uploading After Photo..."; }
+        if (btn) { btn.disabled = true; btn.innerText = "Uploading Proof Photo..."; }
 
+        // 1. ENSURE RELIABLE IMAGE UPLOAD
         const result = await window.uploadToDrive({
             action: "upload",
             type: "disposed_asset",
-            fileName: `${activeDisposalBarcode}_BEFORE.jpg`,
+            fileName: `DISPOSAL_${activeDisposalBarcode}_${Date.now()}.jpg`,
             image: disposalPhotoBase64
         });
 
@@ -481,42 +615,52 @@ window.submitAssetDisposal = async () => {
             throw new Error(result.message || "Upload failed or URL missing");
         }
 
-        console.log("UPLOAD_DEBUG", "Extracted URL: " + result.fileUrl);
+        // 2. CONSTRUCT COMPLETE METADATA PAYLOAD
+        const now = new Date();
+        const assetInfo = window.activeDisposalAssetData || {};
 
-        // Fetch original asset for Before Photo
-        const assetSnap = await get(child(ref(db), `assets/${activeDisposalBarcode}`));
-        let beforePhoto = null;
-        if (assetSnap.exists()) {
-            beforePhoto = assetSnap.val().initialAuditPhoto || null;
-        }
-
-        const updates = {
+        const disposalData = {
+            assetBarcode: activeDisposalBarcode,
+            assetName: assetInfo.assetName || "-",
+            assetType: assetInfo.assetType || "-",
+            originalLocation: assetInfo.originalLocation || "-",
             assetStatus: 'Disposed',
             disposalReason: reason,
             scrapLocation: scrapLoc,
-
-            // Standardized Keys for Disposal as direct strings
             disposalPhotoUrl: result.fileUrl,
-            afterPhotoUrl: result.fileUrl,
-            disposal_photo: result.fileUrl,
-            disposalDamagedPhoto: result.fileUrl,
-
-            // Optional: keep fileId for deletion logic
-            disposalPhotoData: {
-                fileId: result.fileId,
-                fileUrl: result.fileUrl
-            },
-
-            initialAuditPhotoAtDisposal: beforePhoto,
-            disposalDate: new Date().toLocaleDateString(),
-            disposedBy: window.currentStaff ? window.currentStaff.name : "Unknown"
+            reportedBy: window.currentStaff ? window.currentStaff.name : "System",
+            reportedRole: window.currentStaff ? window.currentStaff.role : "Admin",
+            date: now.toISOString().split('T')[0],
+            time: now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true }),
+            timestamp: Date.now()
         };
 
-        console.log("UPLOAD_DEBUG", "Database Update Path: assets/" + activeDisposalBarcode);
-        await update(ref(db, `assets/${activeDisposalBarcode}`), updates);
-        alert("Asset marked as Disposed. Before/After proof saved.");
+        // 3. FETCH EXISTING FULL RECORD TO PRESERVE 39 COLUMNS
+        const assetSnap = await get(child(ref(db), `assets/${activeDisposalBarcode}`));
+        const existingData = assetSnap.exists() ? assetSnap.val() : {};
+
+        // Final merged record
+        const finalPayload = { ...existingData, ...disposalData };
+
+        // 4. PUSH TO DISPOSED_ASSETS (As requested) and update /assets
+        const updates = {};
+        updates[`assets/${activeDisposalBarcode}`] = finalPayload;
+        updates[`disposed_assets/${activeDisposalBarcode}`] = finalPayload;
+
+        console.log("Saving Comprehensive Disposal Record...");
+        await update(ref(db), updates);
+
+        alert("Asset marked as Disposed. Record synchronized with metadata and photo proof.");
         closeDisposalModal();
-    } catch (err) { alert(err.message); }
+
+        // Force refresh
+        if (window.appCache) window.appCache.isInitialized = false;
+        if (typeof window.loadAdminDashboard === 'function') window.loadAdminDashboard();
+
+    } catch (err) {
+        console.error("Disposal Submit Error:", err);
+        alert("CRITICAL ERROR: " + err.message);
+    }
     finally {
         const btn = document.getElementById('submit-disposal-btn');
         if (btn) { btn.disabled = false; btn.innerText = "Confirm Scrap"; }
@@ -525,12 +669,8 @@ window.submitAssetDisposal = async () => {
 
 window.openDirectDisposal = async () => {
     try {
-        const val = prompt("Enter Asset Barcode for Disposal (Manual):");
-        if (!val) return;
-        const assetSnap = await get(child(ref(db), `assets/${val}`));
-        if (assetSnap.exists()) {
-            window.openDisposalModal(val);
-        } else { alert("Asset not found in register."); }
+        // REPLACED: prompt() removed. Now opens a custom modal with input and scanner icon.
+        window.openDisposalModal("");
     } catch (e) { console.error(e); }
 };
 
@@ -577,7 +717,7 @@ window.bulkDeleteAssets = async () => {
     } finally {
         btn.disabled = false;
         btn.innerHTML = originalText;
-        const masterCb = document.getElementById('selectAllAssets');
+        const masterCb = document.querySelector('.selectAllAssets');
         if (masterCb) masterCb.checked = false;
     }
 };
@@ -594,15 +734,14 @@ window.renderAdminAssetTable = (data, targetTable = 'both') => {
 
         if (data.length === 0) return;
 
-        // DYNAMIC HEADER DETECTION: Use keys from the first object to define the table schema
-        // This ensures the Web App always matches the current Excel layout
+        // DYNAMIC HEADER DETECTION: Share schema for Asset Register only
         const sampleRecord = data[0];
         const dynamicHeaders = Object.keys(sampleRecord).filter(k =>
-            !['updatedAt', 'createdAt', 'assetBarcode', 'initialAuditPhotoData', 'disposalPhotoData', 'assetStatus', 'Audit Photo', 'Disposal Photo', 'Action', 'auditPhotoUrl', 'disposalPhotoUrl', 'initialAuditPhoto', 'disposalDamagedPhoto', 'audit_photo', 'beforePhotoUrl', 'afterPhotoUrl', 'photoUrl'].includes(k)
+            !['updatedAt', 'createdAt', 'assetBarcode', 'initialAuditPhotoData', 'disposalPhotoData', 'assetStatus', 'Audit Photo', 'Disposal Photo', 'Action', 'auditPhotoUrl', 'disposalPhotoUrl', 'initialAuditPhoto', 'disposalDamagedPhoto', 'audit_photo', 'beforePhotoUrl', 'afterPhotoUrl', 'photoUrl', 'initialAuditPhotoAtDisposal', 'disposalReason', 'scrapLocation', 'disposedBy', 'disposedByRole', 'disposalDate', 'disposalTime', 'timestamp'].includes(k)
         );
 
-        // Update the <thead> with these dynamic keys
-        if (window.updateAssetTableHeaders) {
+        // Update the <thead> for Register only
+        if (window.updateAssetTableHeaders && (targetTable === 'both' || targetTable === 'assets')) {
             window.updateAssetTableHeaders(dynamicHeaders);
         }
 
@@ -626,34 +765,53 @@ window.renderAdminAssetTable = (data, targetTable = 'both') => {
             const tr = document.createElement('tr');
             tr.className = "hover:bg-gray-50 transition border-b border-gray-100 text-[12px]";
 
-            // 1. Checkbox Column
-            let rowHtml = `<td class="p-3 border-r text-center"><input type="checkbox" class="asset-checkbox" value="${barcode}"></td>`;
-
-            // 2. Dynamic Data Columns
-            dynamicHeaders.forEach(h => {
-                let val = a[h];
-                rowHtml += `<td class="p-3 border-r">${(val !== undefined && val !== null && val !== "" && val !== "-") ? val : "-"}</td>`;
-            });
-
-            // 3. Photo & Action Columns
-            rowHtml += `
-                <td class="p-3 border-r text-center">
-                    ${initialPhotoUrl ? `<img src="${initialPhoto}" class="h-10 w-10 object-cover rounded border mx-auto cursor-pointer hover:scale-110 transition" onclick="window.openImageZoom('${initialPhoto}')">` : '<i class="fa-solid fa-image-slash opacity-20"></i>'}
-                </td>
-                <td class="p-3 border-r text-center">
-                    ${damagePhotoUrl ? `<img src="${damagePhoto}" class="h-10 w-10 object-cover rounded border border-red-200 mx-auto cursor-pointer hover:scale-110 transition" onclick="window.openImageZoom('${damagePhoto}')">` : '<i class="fa-solid fa-image-slash opacity-20"></i>'}
-                </td>
-                <td class="p-3 text-center">
-                    <button onclick="window.deleteAssetRecord('${barcode}')" class="text-red-600 hover:text-red-800 transition" title="Delete Asset">
-                        <i class="fa-solid fa-trash-can"></i>
-                    </button>
-                </td>
-            `;
-            tr.innerHTML = rowHtml;
-
             if (isDisposed && disposalBody && (targetTable === 'both' || targetTable === 'disposal')) {
+                // SPECIAL RENDERING FOR DISPOSAL TABLE (EXTENDED METADATA)
+                const assetName = a['Classification'] || a['Asset Description'] || a['Model Description'] || "-";
+                tr.innerHTML = `
+                    <td class="p-3 border-r font-mono font-bold">${barcode}</td>
+                    <td class="p-3 border-r font-bold text-indigo-900">${assetName}</td>
+                    <td class="p-3 border-r">${a.scrapLocation || a.locationName || "-"}</td>
+                    <td class="p-3 border-r italic text-red-600 font-medium">${a.disposalReason || "-"}</td>
+                    <td class="p-3 border-r text-center">
+                        ${damagePhotoUrl ? `<img src="${damagePhoto}" class="h-10 w-10 object-cover rounded border border-red-200 mx-auto cursor-pointer hover:scale-150 transition" onclick="window.openImageZoom('${damagePhoto}')">` : '<span class="text-[8px] opacity-30">No Photo</span>'}
+                    </td>
+                    <td class="p-3 border-r">
+                        <div class="flex flex-col">
+                            <span class="font-bold text-gray-700">${a.reportedBy || "-"}</span>
+                            <span class="text-[9px] text-gray-400 uppercase">${a.reportedRole || "-"}</span>
+                        </div>
+                    </td>
+                    <td class="p-3 border-r font-mono text-gray-600">${a.date || "-"}</td>
+                    <td class="p-3 border-r font-mono text-gray-600">${a.time || "-"}</td>
+                    <td class="p-3 text-center">
+                        <button onclick="window.deleteAssetRecord('${barcode}')" class="text-red-600 hover:text-red-800 transition" title="Delete Permanent">
+                            <i class="fa-solid fa-trash-can"></i>
+                        </button>
+                    </td>
+                `;
                 disposalBody.appendChild(tr);
             } else if (!isDisposed && body && (targetTable === 'both' || targetTable === 'assets')) {
+                // STANDARD RENDERING FOR REGISTER
+                let rowHtml = `<td class="p-3 border-r text-center"><input type="checkbox" class="asset-checkbox" value="${barcode}"></td>`;
+                dynamicHeaders.forEach(h => {
+                    let val = a[h];
+                    rowHtml += `<td class="p-3 border-r">${(val !== undefined && val !== null && val !== "" && val !== "-") ? val : "-"}</td>`;
+                });
+                rowHtml += `
+                    <td class="p-3 border-r text-center">
+                        ${initialPhotoUrl ? `<img src="${initialPhoto}" class="h-10 w-10 object-cover rounded border mx-auto cursor-pointer hover:scale-110 transition" onclick="window.openImageZoom('${initialPhoto}')">` : '<i class="fa-solid fa-image-slash opacity-20"></i>'}
+                    </td>
+                    <td class="p-3 border-r text-center">
+                        ${damagePhotoUrl ? `<img src="${damagePhoto}" class="h-10 w-10 object-cover rounded border border-red-200 mx-auto cursor-pointer hover:scale-110 transition" onclick="window.openImageZoom('${damagePhoto}')">` : '<i class="fa-solid fa-image-slash opacity-20"></i>'}
+                    </td>
+                    <td class="p-3 text-center">
+                        <button onclick="window.deleteAssetRecord('${barcode}')" class="text-red-600 hover:text-red-800 transition" title="Delete Asset">
+                            <i class="fa-solid fa-trash-can"></i>
+                        </button>
+                    </td>
+                `;
+                tr.innerHTML = rowHtml;
                 body.appendChild(tr);
             }
         });
@@ -686,9 +844,9 @@ window.deleteAssetRecord = async (barcode) => {
 
 window.filterDisposalTable = () => {
     try {
-        if (!window.allAssets) return;
+        if (!window.appCache || !window.appCache.assets) return;
         const q = document.getElementById('disposal-search').value.toLowerCase();
-        const filtered = window.allAssets.filter(a => {
+        const filtered = window.appCache.assets.filter(a => {
             if (a.assetStatus !== 'Disposed') return false;
             return JSON.stringify(a).toLowerCase().includes(q);
         });
@@ -698,10 +856,10 @@ window.filterDisposalTable = () => {
 
 window.filterAssetTable = () => {
     try {
-        if (!window.allAssets) return;
+        if (!window.appCache || !window.appCache.assets) return;
         const q = document.getElementById('asset-search').value.toLowerCase();
         const cat = document.getElementById('asset-category-filter').value;
-        const filtered = window.allAssets.filter(a => {
+        const filtered = window.appCache.assets.filter(a => {
             if (a.assetStatus === 'Disposed') return false;
             const matchQ = JSON.stringify(a).toLowerCase().includes(q);
             const matchCat = cat === 'all' || a.majorCategory === cat;

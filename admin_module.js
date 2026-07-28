@@ -1,9 +1,21 @@
 import { db } from './firebase_config.js';
 import { ref, get, set, update, onValue } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
+// --- GLOBAL APP CACHE ---
+window.appCache = {
+    visitors: [],
+    staff_attendance: [],
+    staff: {},
+    users: {},
+    tasks: [],
+    assets: [],
+    isInitialized: false
+};
+
 // --- CORE ADMIN DASHBOARD LOGIC ---
 window.showAdminTab = (tabId) => {
     try {
+        console.log("Instant Tab Switch:", tabId);
         const tabs = document.querySelectorAll('.admin-tab');
         tabs.forEach(t => {
             t.classList.add('hidden');
@@ -19,80 +31,256 @@ window.showAdminTab = (tabId) => {
         document.querySelectorAll('.admin-tab-btn').forEach(b => b.classList.remove('active-tab'));
         const activeBtn = document.querySelector(`[onclick*="${tabId}"]`);
         if (activeBtn) activeBtn.classList.add('active-tab');
+
+        // INSTANT RENDER FROM APP CACHE
+        window.renderTabFromAppCache(tabId);
     } catch (e) { console.error("Tab switch error:", e); }
+};
+
+window.renderTabFromAppCache = (tabId) => {
+    switch(tabId) {
+        case 'tab-visitor-logs':
+        case 'tab-staff-logs':
+            window.renderAdminTable(window.appCache.allRecordsCombined || [], window.appCache.users, window.appCache.staff);
+            break;
+        case 'tab-tasks':
+            window.renderTaskTable(window.appCache.tasks);
+            break;
+        case 'tab-staff-list':
+            window.renderStaffDirectory(window.appCache.staff);
+            break;
+        case 'tab-assets':
+        case 'tab-disposal':
+            if (window.renderAdminAssetTable) window.renderAdminAssetTable(window.appCache.assets);
+            break;
+    }
 };
 
 window.loadAdminDashboard = async () => {
     try {
+        if (window.appCache.isInitialized) return;
         if (!document.getElementById('visitor-logs-body')) return;
 
-        // Attach Listeners for real-time logs
+        console.log("Initiating Parallel Background Pre-fetching...");
+
+        // SILENT BACKGROUND LISTENERS
         onValue(ref(db, 'visitors'), (v) => {
-            onValue(ref(db, 'staff_attendance'), (s) => {
-                onValue(ref(db, 'users'), (userSnap) => {
-                    onValue(ref(db, 'staff'), (staffSnap) => {
-                        const userProfiles = userSnap.exists() ? userSnap.val() : {};
-                        const staffProfiles = staffSnap.exists() ? staffSnap.val() : {};
-                        let allRecords = [];
-                        if(v.exists()) Object.values(v.val()).forEach(x => allRecords.push({...x, type: 'visitor'}));
-                        if(s.exists()) Object.values(s.val()).forEach(x => allRecords.push({...x, type: 'staff'}));
-                        allRecords.sort((a,b) => new Date(b.date + ' ' + (b.timeIn || '00:00 AM')) - new Date(a.date + ' ' + (a.timeIn || '00:00 AM')));
-                        window.adminData = allRecords;
-                        window.renderAdminTable(allRecords, userProfiles, staffProfiles);
-
-                        // Update KPIs
-                        const visitorsToday = allRecords.filter(r => r.type === 'visitor' && r.date === new Date().toLocaleDateString('en-US')).length;
-                        const staffPresent = allRecords.filter(r => r.type === 'staff' && (r.status === 'checked_in' || !r.timeOut)).length;
-                        if(document.getElementById('kpi-visitors')) document.getElementById('kpi-visitors').innerText = visitorsToday;
-                        if(document.getElementById('kpi-staff')) document.getElementById('kpi-staff').innerText = staffPresent;
-                    });
-                });
-            });
+            window.appCache.visitors = v.exists() ? Object.values(v.val()) : [];
+            window.syncAppCacheRecords();
         });
 
-        // Load Tasks
-        onValue(ref(db, 'tasks'), (tasks) => {
-            const taskBody = document.getElementById('admin-task-list-body');
-            if (taskBody && tasks.exists()) {
-                taskBody.innerHTML = '';
-                const taskList = Object.values(tasks.val()).reverse();
-                taskList.forEach(t => {
-                    const b = window.getDirectDriveImageUrl(t.beforePhotoUrl || t.beforePhoto || t.taskPhoto);
-                    const a = window.getDirectDriveImageUrl(t.afterPhotoUrl || t.afterPhoto);
-                    const rDT = t.raisedTimestamp ? new Date(t.raisedTimestamp) : null;
-                    taskBody.innerHTML += `
-                        <tr class="hover:bg-gray-50 transition text-gray-800 border-b border-gray-100 text-[9px]">
-                            <td class="p-2 font-mono opacity-50">${t.id}</td>
-                            <td class="p-2 font-bold text-indigo-600">${t.assignedSchool || "-"}</td>
-                            <td class="p-2 font-bold">${t.location}</td>
-                            <td class="p-2 truncate max-w-[150px]">${t.details || "-"}</td>
-                            <td class="p-2">${t.assignedRole || "-"}</td>
-                            <td class="p-2">${t.raisedByName || 'Admin'}</td>
-                            <td class="p-2 font-mono">${rDT ? rDT.toLocaleDateString() : '-'}</td>
-                            <td class="p-2 font-mono">${rDT ? rDT.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) : '-'}</td>
-                            <td class="p-2 font-bold ${t.status === 'Open' ? 'text-blue-500' : 'text-green-500'}">${t.status}</td>
-                            <td class="p-2">
-                                <div class="flex gap-1 justify-center">
-                                    ${b.includes('http') ? `<img src="${b}" class="h-8 w-8 rounded cursor-pointer" onclick="window.openImageZoom('${b}')">` : ''}
-                                    ${a.includes('http') ? `<img src="${a}" class="h-8 w-8 rounded cursor-pointer" onclick="window.openImageZoom('${a}')">` : ''}
-                                </div>
-                            </td>
-                        </tr>`;
-                });
-            }
+        onValue(ref(db, 'staff_attendance'), (s) => {
+            window.appCache.staff_attendance = s.exists() ? Object.values(s.val()) : [];
+            window.syncAppCacheRecords();
         });
 
-        // Load Assets
-        onValue(ref(db, 'assets'), (assets) => {
-            if (assets.exists() && window.renderAdminAssetTable) {
-                window.allAssets = Object.values(assets.val());
-                window.renderAdminAssetTable(window.allAssets);
-            }
+        onValue(ref(db, 'users'), (snap) => {
+            window.appCache.users = snap.exists() ? snap.val() : {};
+            window.syncAppCacheRecords();
+        });
+
+        onValue(ref(db, 'staff'), (snap) => {
+            window.appCache.staff = snap.exists() ? snap.val() : {};
+            window.syncAppCacheRecords();
+            window.renderStaffDirectory(window.appCache.staff);
+        });
+
+        onValue(ref(db, 'tasks'), (snap) => {
+            window.appCache.tasks = snap.exists() ? Object.values(snap.val()).reverse() : [];
+            window.renderTaskTable(window.appCache.tasks);
+        });
+
+        onValue(ref(db, 'assets'), (snap) => {
+            window.appCache.assets = snap.exists() ? Object.values(snap.val()) : [];
+            if (window.renderAdminAssetTable) window.renderAdminAssetTable(window.appCache.assets);
         });
 
         if (window.initRaisedTasksTracker) window.initRaisedTasksTracker('admin-my-tasks-container');
 
-    } catch (err) { console.error("Admin Load Error:", err); }
+        // --- RESTORE ADD NEW STAFF MODAL TOGGLE ---
+        const addNewStaffBtn = document.querySelector('button[onclick="openAddStaffModal()"]');
+        if (addNewStaffBtn) {
+            addNewStaffBtn.onclick = (e) => {
+                e.preventDefault();
+                console.log("Opening Add Staff Modal...");
+                const modal = document.getElementById('add-staff-modal');
+                if (modal) {
+                    modal.classList.remove('hidden');
+                    modal.style.display = 'flex'; // Ensure centered alignment
+                }
+            };
+        }
+
+        // --- RESTORE STAFF FORM SUBMISSION & IMAGE UPLOAD ---
+        const staffForm = document.getElementById('add-staff-form');
+        if (staffForm) {
+            staffForm.onsubmit = async (e) => {
+                e.preventDefault();
+                console.log("Staff Form Submitted...");
+
+                const submitBtn = document.getElementById('add-staff-submit-btn');
+                const originalBtnText = submitBtn.innerText;
+
+                try {
+                    submitBtn.disabled = true;
+                    submitBtn.innerText = "UPLOADING PHOTO...";
+
+                    const name = document.getElementById('add-staff-name').value;
+                    const mobile = document.getElementById('add-staff-mobile').value;
+                    const adek = document.getElementById('add-staff-adek').value;
+                    const companyName = document.getElementById('add-staff-company-name').value;
+                    const branch = document.getElementById('add-staff-branch').value;
+                    const role = document.getElementById('add-staff-role').value;
+                    const companyId = document.getElementById('add-staff-company-id').value;
+                    const pass = document.getElementById('add-staff-pass').value;
+
+                    let profilePicUrl = "";
+
+                    // Check for global base64 variable populated by handleAdminStaffPhotoSelect
+                    if (window.addStaffPhotoBase64) {
+                        const cleanName = name.replace(/\s+/g, '_');
+                        const uploadRes = await window.uploadToDrive({
+                            type: 'active_asset',
+                            folderType: 'Staff_Profile_Photos',
+                            fileName: `Profile_${adek}_${cleanName}.jpg`,
+                            image: window.addStaffPhotoBase64
+                        });
+
+                        if (uploadRes.status === 'success') {
+                            const rawUrl = uploadRes.fileUrl || uploadRes.signatureUrl;
+                            profilePicUrl = window.formatDriveImageUrl ? window.formatDriveImageUrl(rawUrl) : rawUrl;
+                        }
+                    }
+
+                    const data = {
+                        id: mobile,
+                        name: name, fullName: name,
+                        mobile: mobile, mobileNumber: mobile,
+                        adcPassNumber: adek, adekPass: adek,
+                        companyName: companyName, company: companyId,
+                        companyIdNumber: companyId,
+                        branch: branch, schoolName: branch,
+                        role: role, position: role,
+                        password: pass,
+                        profilePicUrl: profilePicUrl,
+                        status: "active",
+                        createdAt: new Date().toISOString(),
+                        updatedAt: new Date().toISOString()
+                    };
+
+                    submitBtn.innerText = "SAVING TO DATABASE...";
+
+                    // Atomic write to both nodes
+                    const staffUpdates = {};
+                    staffUpdates[`staff/${mobile}`] = data;
+                    staffUpdates[`users/${mobile}`] = data;
+
+                    await update(ref(db), staffUpdates);
+
+                    alert("New staff member registered successfully!");
+
+                    // Reset and Close
+                    staffForm.reset();
+                    if (window.closeAddStaffModal) window.closeAddStaffModal();
+
+                } catch (err) {
+                    console.error("Staff Registration Error:", err);
+                    alert("Registration Failed: " + err.message);
+                } finally {
+                    submitBtn.disabled = false;
+                    submitBtn.innerText = originalBtnText;
+                }
+            };
+        }
+
+        window.appCache.isInitialized = true;
+
+    } catch (err) { console.error("Admin Pre-fetch Error:", err); }
+};
+
+window.syncAppCacheRecords = () => {
+    let all = [];
+    window.appCache.visitors.forEach(x => all.push({...x, type: 'visitor'}));
+    window.appCache.staff_attendance.forEach(x => all.push({...x, type: 'staff'}));
+    all.sort((a,b) => new Date(b.date + ' ' + (b.timeIn || '00:00 AM')) - new Date(a.date + ' ' + (a.timeIn || '00:00 AM')));
+
+    window.appCache.allRecordsCombined = all;
+    window.renderAdminTable(all, window.appCache.users, window.appCache.staff);
+
+    const visitorsToday = all.filter(r => r.type === 'visitor' && r.date === new Date().toLocaleDateString('en-US')).length;
+    const staffPresent = all.filter(r => r.type === 'staff' && (r.status === 'checked_in' || !r.timeOut)).length;
+    if(document.getElementById('kpi-visitors')) document.getElementById('kpi-visitors').innerText = visitorsToday;
+    if(document.getElementById('kpi-staff')) document.getElementById('kpi-staff').innerText = staffPresent;
+};
+
+window.renderTaskTable = (taskList) => {
+    const taskBody = document.getElementById('admin-task-list-body');
+    if (!taskBody) return;
+    taskBody.innerHTML = '';
+    taskList.forEach(t => {
+        const b = window.getDirectDriveImageUrl(t.beforePhotoUrl || t.beforePhoto || t.taskPhoto);
+        const a = window.getDirectDriveImageUrl(t.afterPhotoUrl || t.afterPhoto);
+        const rDT = t.raisedTimestamp ? new Date(t.raisedTimestamp) : null;
+        const cDT = t.solvedTimestamp ? new Date(t.solvedTimestamp) : null;
+        taskBody.innerHTML += `
+            <tr class="hover:bg-gray-50 transition text-gray-800 border-b border-gray-100 text-[9px]">
+                <td class="p-2 font-mono opacity-50">${t.id}</td>
+                <td class="p-2 font-bold text-indigo-600">${t.assignedSchool || t.schoolName || "-"}</td>
+                <td class="p-2 font-bold">${t.location || "-"}</td>
+                <td class="p-2 truncate max-w-[150px] italic">${t.details || t.description || "-"}</td>
+                <td class="p-2">${t.assignedRole || t.targetRole || "-"}</td>
+                <td class="p-2">${t.raisedByName || 'Admin'}</td>
+                <td class="p-2 font-mono">${rDT ? rDT.toLocaleDateString() : '-'}</td>
+                <td class="p-2 font-mono">${rDT ? rDT.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) : '-'}</td>
+                <td class="p-2">${t.solvedByName || "-"}</td>
+                <td class="p-2 font-mono">${cDT ? cDT.toLocaleDateString() : '-'}</td>
+                <td class="p-2 font-mono">${cDT ? cDT.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) : '-'}</td>
+                <td class="p-2 font-bold ${t.status === 'Open' ? 'text-blue-500' : (t.status === 'Closed' ? 'text-green-500' : 'text-red-500')}">${t.status}</td>
+                <td class="p-2 italic opacity-60">${t.rejectionReason || 'N/A'}</td>
+                <td class="p-2">
+                    <div class="flex gap-1 justify-center items-center">
+                        ${b.includes('http') ? `<img src="${b}" class="h-10 w-10 rounded border shadow-sm cursor-pointer hover:scale-150 transition" onclick="window.openImageZoom('${b}')" title="Before">` : ''}
+                        ${a.includes('http') ? `<img src="${a}" class="h-10 w-10 rounded border shadow-sm border-green-200 cursor-pointer hover:scale-150 transition" onclick="window.openImageZoom('${a}')" title="After">` : ''}
+                    </div>
+                </td>
+            </tr>`;
+    });
+};
+
+window.renderStaffDirectory = (staffData) => {
+    const staffListBody = document.getElementById('admin-staff-list-body');
+    if (!staffListBody) return;
+    staffListBody.innerHTML = '';
+    Object.values(staffData).forEach(x => {
+        const initials = (x.name || "JY").split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2);
+        const photoUrl = x.profilePicUrl ? (window.formatDriveImageUrl ? window.formatDriveImageUrl(x.profilePicUrl) : x.profilePicUrl) : "";
+        const photoHtml = photoUrl ?
+            `<img src="${photoUrl}" referrerpolicy="no-referrer" class="w-10 h-10 rounded-full object-cover border-2 border-indigo-100 shadow-sm mx-auto" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex'">` : '';
+
+        staffListBody.innerHTML += `
+            <tr class="border-b border-gray-50 text-gray-800 hover:bg-slate-50 transition text-[10px]">
+                <td class="p-3 text-center flex justify-center">
+                    <div class="relative w-10 h-10">
+                        ${photoHtml}
+                        <div class="w-10 h-10 bg-indigo-600 text-white rounded-full flex items-center justify-center font-bold text-xs shadow-sm" style="${photoUrl ? 'display:none;' : 'display:flex;'}">
+                            ${initials}
+                        </div>
+                    </div>
+                </td>
+                <td class="p-3 font-bold text-indigo-900">${x.name || "-"}</td>
+                <td class="p-3 font-mono text-[9px]">${x.adcPassNumber || x.adekPass || "-"}</td>
+                <td class="p-3">${x.branch || x.schoolName || "-"}</td>
+                <td class="p-3"><span class="px-2 py-0.5 bg-indigo-50 text-indigo-600 rounded-md text-[9px] font-black uppercase">${x.role || x.position || "-"}</span></td>
+                <td class="p-3 text-[9px] opacity-70">${x.companyName || x.company || "-"}</td>
+                <td class="p-3 font-mono text-[9px]">${x.mobile}</td>
+                <td class="p-3 text-center">
+                    <div class="flex items-center justify-center gap-2">
+                        <button onclick="window.openEditStaffModal('${x.mobile}')" class="text-indigo-600 hover:text-indigo-800 font-bold text-[10px] uppercase underline tracking-tighter">Edit</button>
+                        <button onclick="window.deleteStaffAccount('${x.mobile}', '${x.name}')" class="text-red-500 hover:text-red-700 font-bold text-[10px] uppercase underline tracking-tighter">Delete</button>
+                    </div>
+                </td>
+            </tr>`;
+    });
 };
 
 window.renderAdminTable = (data, userProfiles = {}, staffProfiles = {}) => {
@@ -172,7 +360,6 @@ window.handleAssetImport = (event) => {
             const sheet = workbook.Sheets[workbook.SheetNames[0]];
 
             // Step D: Parse using SheetJS starting from Row 2 (range: 1)
-            // This skips any decorative headers in Row 1
             const jsonData = XLSX.utils.sheet_to_json(sheet, { range: 1, defval: "-", raw: false });
 
             if (!jsonData.length) {
@@ -184,72 +371,55 @@ window.handleAssetImport = (event) => {
             const total = jsonData.length;
             cText.innerText = `0 / ${total}`;
 
-            // Construct the final updates map for atomic write
             const allUpdates = {};
             let validCount = 0;
 
-                jsonData.forEach((row, index) => {
-                    // 1. DYNAMIC KEY SANITIZATION FUNCTION
-                    const sanitizeFirebaseKey = (k) => String(k).replace(/[\.\#\$\/\[\]]/g, '').trim();
+            jsonData.forEach((row, index) => {
+                const sanitizeFirebaseKey = (k) => String(k).replace(/[\.\#\$\/\[\]]/g, '').trim();
 
-                    // 2. EXACT FIELD MAPPING WITH FALLBACKS
-                    const bc = row['Asset Barcode'] || row['1. Asset Barcode'] || row['1. ASSET BARCODE'] || Object.values(row)[0];
-                    const serial = row['Serial No.'] || row['Serial No'] || row['2. SERIAL NO.'] || row['2. Serial No.'];
-                    const model = row['Model Description'] || row['3. MODEL DESCRIPTION'] || row['3. Model Description'];
-                    const cond = row['Asset Condition'] || row['4. ASSET CONDITION'] || row['4. Asset Condition'];
-                    const priceStat = row['Price Status'] || row['5. PRICE STATUS'] || row['5. Price Status'];
-                    const cost = row['Asset Unit Cost'] || row['6. ASSET UNIT COST'] || row['6. Asset Unit Cost'];
-                    const desc = row['Asset Description'] || row['7. ASSET DESCRIPTION'] || row['7. Asset Description'];
+                const bc = row['Asset Barcode'] || row['1. Asset Barcode'] || row['1. ASSET BARCODE'] || Object.values(row)[0];
+                const rawKey = (bc && bc !== "-") ? String(bc) : `ASSET_${Date.now()}_${index}`;
+                const sanitizedKey = sanitizeFirebaseKey(rawKey);
 
-                    const rawKey = (bc && bc !== "-") ? String(bc) : `ASSET_${Date.now()}_${index}`;
-                    const sanitizedKey = sanitizeFirebaseKey(rawKey);
+                const record = { assetBarcode: sanitizedKey, updatedAt: new Date().toISOString() };
 
-                    const record = {
-                        assetBarcode: sanitizedKey,
-                        updatedAt: new Date().toISOString()
-                    };
-
-                    // 3. DYNAMICALLY SANITIZE ALL EXCEL KEYS
-                    Object.keys(row).forEach(h => {
-                        const safeKey = sanitizeFirebaseKey(h);
-                        const val = row[h];
-                        // Ensure all missing/undefined default to "-"
-                        record[safeKey] = (val !== undefined && val !== null && String(val).trim() !== "") ? String(val).trim() : "-";
-                    });
-
-                    // Ensure primary fields use standard sanitized keys if they were found
-                    if (serial && serial !== "-") record[sanitizeFirebaseKey('Serial No.')] = String(serial).trim();
-                    if (model && model !== "-") record[sanitizeFirebaseKey('Model Description')] = String(model).trim();
-                    if (cond && cond !== "-") record[sanitizeFirebaseKey('Asset Condition')] = String(cond).trim();
-                    if (priceStat && priceStat !== "-") record[sanitizeFirebaseKey('Price Status')] = String(priceStat).trim();
-                    if (cost && cost !== "-") record[sanitizeFirebaseKey('Asset Unit Cost')] = String(cost).trim();
-                    if (desc && desc !== "-") record[sanitizeFirebaseKey('Asset Description')] = String(desc).trim();
-
-                    allUpdates[`assets/${sanitizedKey}`] = record;
-                    validCount++;
+                Object.keys(row).forEach(h => {
+                    const safeKey = sanitizeFirebaseKey(h);
+                    const val = row[h];
+                    record[safeKey] = (val !== undefined && val !== null && String(val).trim() !== "") ? String(val).trim() : "-";
                 });
 
-            // REMOVED STRICT ERROR: Proceed directly to write
+                allUpdates[`assets/${sanitizedKey}`] = record;
+                validCount++;
+            });
+
+            if (Object.keys(allUpdates).length === 0) {
+                alert("ERROR: No valid data found.");
+                modal.classList.add('hidden');
+                return;
+            }
+
             pText.innerText = `Committing ${validCount} records to Firebase...`;
             pBar.style.width = "50%";
 
             // --- STRICT PROMISE CHAIN ---
+            // Physical write happens here. Alert only inside .then()
             update(ref(db), allUpdates)
                 .then(() => {
-                    // This block executes ONLY after data is physically saved
                     pBar.style.width = "100%";
                     cText.innerText = `${validCount} / ${total}`;
                     modal.classList.add('hidden');
 
                     if (typeof window.loadAdminDashboard === 'function') {
+                        // Clear initialization flag to allow re-fetch
+                        window.appCache.isInitialized = false;
                         window.loadAdminDashboard();
                     }
 
-                    // Final confirmation only after DB success
                     alert(`SUCCESS: Physically saved ${validCount} asset records to Firebase Realtime Database!`);
                 })
                 .catch((error) => {
-                    console.error("FIREBASE CRITICAL ERROR:", error);
+                    console.error("FIREBASE WRITE ERROR:", error);
                     alert("CRITICAL FIREBASE WRITE ERROR: " + error.message);
                     modal.classList.add('hidden');
                 });
@@ -264,34 +434,69 @@ window.handleAssetImport = (event) => {
     reader.readAsArrayBuffer(file);
 };
 
+// --- ADD STAFF MODAL LOGIC ---
+window.addStaffPhotoBase64 = "";
+
+window.openAddStaffModal = () => {
+    document.getElementById('add-staff-modal').classList.remove('hidden');
+    document.getElementById('add-staff-modal').style.display = 'flex';
+};
+
+window.closeAddStaffModal = () => {
+    document.getElementById('add-staff-modal').classList.add('hidden');
+    document.getElementById('add-staff-modal').style.display = 'none';
+    document.getElementById('add-staff-form').reset();
+    if(document.getElementById('adminStaffPhotoPreview')) {
+        document.getElementById('adminStaffPhotoPreview').innerHTML = '<i class="fa-solid fa-user text-3xl text-slate-300"></i>';
+    }
+    window.addStaffPhotoBase64 = "";
+};
+
+window.handleAdminStaffPhotoSelect = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const preview = document.getElementById('adminStaffPhotoPreview');
+    if(preview) preview.innerHTML = '<i class="fa-solid fa-spinner fa-spin text-indigo-600"></i>';
+    try {
+        window.addStaffPhotoBase64 = await window.compressImageFile(file, 500, 500, 0.7);
+        if(preview) preview.innerHTML = `<img src="${window.addStaffPhotoBase64}" class="w-full h-full object-cover">`;
+    } catch (err) {
+        console.error(err);
+        if(preview) preview.innerHTML = '<i class="fa-solid fa-circle-exclamation text-red-500"></i>';
+    }
+};
+
 // --- DYNAMIC UI TABLE GENERATION ---
 window.updateAssetTableHeaders = (headers) => {
     try {
-        const tableHeaderRow = document.querySelector('#asset-master-table thead tr');
-        if (!tableHeaderRow) return;
+        const tableSelectors = ['#asset-master-table', '#asset-disposal-table'];
 
-        // Reset and Add Select All
-        tableHeaderRow.innerHTML = '<th class="p-3 border-r text-center"><input type="checkbox" id="selectAllAssets" onclick="window.toggleAllAssetCheckboxes(this)"></th>';
+        tableSelectors.forEach(selector => {
+            const tableHeaderRow = document.querySelector(`${selector} thead tr`);
+            if (!tableHeaderRow) return;
 
-        // Add dynamic headers from Excel/Firebase keys
-        headers.forEach(h => {
-            // Ignore internal technical keys
-            if (['updatedAt', 'createdAt', 'assetBarcode', 'initialAuditPhotoData', 'disposalPhotoData'].includes(h)) return;
+            // Reset and Add Select All
+            tableHeaderRow.innerHTML = '<th class="p-3 border-r text-center"><input type="checkbox" class="selectAllAssets" onclick="window.toggleAllAssetCheckboxes(this)"></th>';
 
-            const th = document.createElement('th');
-            th.className = "p-3 border-r min-w-[150px] uppercase";
-            th.innerText = h.replace(/_/g, ' '); // Replace underscores back to spaces for UI
-            tableHeaderRow.appendChild(th);
-        });
+            // Add dynamic headers from Excel/Firebase keys
+            headers.forEach(h => {
+                if (['updatedAt', 'createdAt', 'assetBarcode', 'initialAuditPhotoData', 'disposalPhotoData', 'initialAuditPhotoAtDisposal'].includes(h)) return;
 
-        // Add static operational columns
-        const operationalHeaders = ['Audit Photo', 'Disposal Photo', 'Action'];
-        operationalHeaders.forEach(h => {
-            const th = document.createElement('th');
-            th.className = "p-3 border-r min-w-[120px] text-center uppercase";
-            if (h === 'Action') th.className += " text-red-600";
-            th.innerText = h;
-            tableHeaderRow.appendChild(th);
+                const th = document.createElement('th');
+                th.className = "p-3 border-r min-w-[150px] uppercase";
+                th.innerText = h.replace(/_/g, ' ');
+                tableHeaderRow.appendChild(th);
+            });
+
+            // Add static operational columns
+            const operationalHeaders = ['Audit Photo', 'Disposal Photo', 'Action'];
+            operationalHeaders.forEach(h => {
+                const th = document.createElement('th');
+                th.className = "p-3 border-r min-w-[120px] text-center uppercase";
+                if (h === 'Action') th.className += " text-red-600";
+                th.innerText = h;
+                tableHeaderRow.appendChild(th);
+            });
         });
     } catch (e) { console.error("Error updating dynamic headers:", e); }
 };
