@@ -281,7 +281,7 @@ window.checkNotificationStatus = async () => {
 
 window.requestNotificationPermission = async () => {
     try {
-        console.log("Requesting Native Notification Permission...");
+        console.log("Requesting Native Notification Permission for Jern Yafoor School...");
         const result = await Notification.requestPermission();
         console.log("Native Permission Result:", result);
 
@@ -292,15 +292,15 @@ window.requestNotificationPermission = async () => {
         }
 
         if (result === 'granted') {
-            // Trigger Bulletproof Welcome Notification
-            new Notification("JYS Gen School", {
+            // Trigger Bulletproof Jern Yafoor Welcome Notification
+            new Notification("Jern Yafoor School", {
                 body: "Welcome! You are now subscribed to real-time updates.",
                 icon: "schoollogo.png"
             });
 
             // Save to localStorage
             localStorage.setItem('notificationsEnabled', 'true');
-            alert("Notifications Enabled Successfully!");
+            alert("Notifications Enabled Successfully for Jern Yafoor School!");
         }
 
         // Force reload to ensure registration is fully active
