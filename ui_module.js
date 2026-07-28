@@ -266,17 +266,22 @@ window.showView = (viewId) => {
                 OneSignal.User.PushSubscription.addEventListener("change", async (event) => {
                     if (event.current.id) {
                         if (diagId) diagId.innerText = event.current.id;
+                        localStorage.setItem('notification_status', 'enabled');
+                        localStorage.setItem('notification_prompt_completed', 'true');
                     }
                 });
 
+                // FORCE RE-OPTIN ON LOAD (Since SW is active but ID is missing)
                 const pushId = OneSignal.User.PushSubscription.id;
-                if (diagId) diagId.innerText = pushId || "NOT REGISTERED";
-
-                // AUTO-OPTIN IF GRANTED
-                if (!pushId && Notification.permission === 'granted') {
-                    console.log("Auto-Registering OneSignal Push Token...");
-                    await OneSignal.User.PushSubscription.optIn();
+                if (!pushId) {
+                    console.log("OneSignal ID Missing: Executing Forced Opt-In...");
+                    if (Notification.permission === 'granted') {
+                        await OneSignal.User.PushSubscription.optIn();
+                    }
                 }
+
+                if (diagId) diagId.innerText = OneSignal.User.PushSubscription.id || "NOT REGISTERED (RETRYING...)";
+
             } catch (e) {
                 console.error("OneSignal Runtime Error:", e);
                 window.showNotificationDebug(`OneSignal SDK Error: ${e.message}`);
