@@ -237,20 +237,57 @@ window.showView = (viewId) => {
 // --- ONESIGNAL NOTIFICATION LOGIC ---
 // Initialization logic isolated to run once globally
 (function initNotificationGate() {
-    window.addEventListener('DOMContentLoaded', () => {
-        const status = localStorage.getItem('notification_status');
+    window.addEventListener('DOMContentLoaded', async () => {
+        // STEP: Check Service Worker Status for Diagnostics
+        try {
+            if ('serviceWorker' in navigator) {
+                const registration = await navigator.serviceWorker.getRegistration();
+                if (!registration) {
+                    window.showNotificationDebug("Status: Service Worker not registered (OneSignalSDKWorker.js missing or blocked).");
+                }
+            } else {
+                window.showNotificationDebug("Status: Service Workers not supported in this browser.");
+            }
+        } catch (e) { window.showNotificationDebug(`SW Diagnostic Error: ${e.message}`); }
 
-        // HARD GATE: If user already enabled or dismissed, kill the modal instantly
-        if (status === 'enabled' || status === 'dismissed') {
-            console.log("NOTIFICATION_GATE: State persisted. Removing modal.");
+        // STEP 1: Check native browser permission first
+        if ("Notification" in window && Notification.permission === "granted") {
+            const hasSentWelcome = localStorage.getItem('welcome_notif_sent');
+
+            // TRIGGER IMMEDIATE FALLBACK NATIVE NOTIFICATION
+            if (!hasSentWelcome) {
+                try {
+                    new Notification("Jern Yafoor School", {
+                        body: "Notifications successfully enabled! You are now subscribed to real-time updates.",
+                        icon: "jys_Icon.png"
+                    });
+                    localStorage.setItem('welcome_notif_sent', 'true');
+                    localStorage.setItem('notification_status', 'enabled');
+                    localStorage.setItem('notification_prompt_completed', 'true');
+                } catch (err) {
+                    window.showNotificationDebug(`Native Notif Error: ${err.message}`);
+                }
+            }
+
+            // CLEANUP MODAL PERMANENTLY
             const modal = document.getElementById('notification-modal');
             if (modal) modal.remove();
+
+            // FIX ONESIGNAL PUSH SUBSCRIPTION HANDLER
+            window.OneSignalDeferred = window.OneSignalDeferred || [];
+            window.OneSignalDeferred.push(async function(OneSignal) {
+                try {
+                    console.log("OneSignal: Permission already granted, ensuring opt-in...");
+                    await OneSignal.User.PushSubscription.optIn();
+                } catch (e) {
+                    window.showNotificationDebug(`OneSignal OptIn Error: ${e.message}`);
+                }
+            });
             return;
         }
 
-        // If permission is already granted, update state and kill modal
-        if ("Notification" in window && Notification.permission === "granted") {
-            localStorage.setItem('notification_status', 'enabled');
+        const status = localStorage.getItem('notification_prompt_completed') || localStorage.getItem('notification_status');
+        if (status === 'enabled' || status === 'dismissed' || status === 'true') {
             const modal = document.getElementById('notification-modal');
             if (modal) modal.remove();
             return;
@@ -261,10 +298,33 @@ window.showView = (viewId) => {
     });
 })();
 
+window.showNotificationDebug = (msg) => {
+    const errorArea = document.getElementById('notification-error-area');
+    const errorText = document.getElementById('notification-error-text');
+    const modal = document.getElementById('notification-modal');
+
+    console.error("NOTIFICATION_DEBUG:", msg);
+
+    if (errorArea && errorText) {
+        errorArea.classList.remove('hidden');
+        errorArea.classList.add('bg-red-50', 'border-red-200');
+        errorText.innerHTML = `<div class="text-left font-mono text-[9px] uppercase font-bold text-red-600">
+            <p class="mb-1 border-b border-red-100 pb-1">Notification Debug Info</p>
+            <p>${msg}</p>
+        </div>`;
+    }
+
+    // Force modal visibility if diagnostic triggered
+    if (modal) {
+        modal.classList.remove('hidden');
+        modal.style.display = 'flex';
+    }
+};
+
 window.checkNotificationStatus = async () => {
-    // Re-verify Guard
-    const status = localStorage.getItem('notification_status');
-    if (status === 'enabled' || status === 'dismissed') return;
+    // Permanent Guard
+    const status = localStorage.getItem('notification_prompt_completed') || localStorage.getItem('notification_status');
+    if (status === 'enabled' || status === 'dismissed' || status === 'true') return;
 
     window.OneSignalDeferred = window.OneSignalDeferred || [];
     window.OneSignalDeferred.push(async function(OneSignal) {
@@ -272,6 +332,7 @@ window.checkNotificationStatus = async () => {
             const permission = await OneSignal.Notifications.permission;
             if (permission) {
                 localStorage.setItem('notification_status', 'enabled');
+                localStorage.setItem('notification_prompt_completed', 'true');
                 return;
             }
 
@@ -280,7 +341,9 @@ window.checkNotificationStatus = async () => {
                 modal.classList.remove('hidden');
                 modal.style.display = 'flex';
             }
-        } catch (e) { console.warn("Notification Status Silent Error:", e); }
+        } catch (e) {
+            window.showNotificationDebug(`OneSignal Status Check Error: ${e.message}`);
+        }
     });
 };
 
@@ -291,7 +354,7 @@ window.requestNotificationPermission = async () => {
 
     if (errorArea) errorArea.classList.add('hidden');
 
-    // CRITICAL FIX: REPLACE 'TRY AGAIN' LOOP WITH INLINE SETTINGS GUIDANCE
+    // TASK: ONE-CLICK DIRECT PERMISSION RESET FLOW (for 'denied' state)
     if ("Notification" in window && Notification.permission === 'denied') {
         if (errorArea && errorText) {
             errorArea.classList.remove('hidden');
@@ -328,14 +391,7 @@ window.requestNotificationPermission = async () => {
             if (Notification.permission === 'granted') {
                 window.removeEventListener('focus', detectChange);
                 window.removeEventListener('visibilitychange', detectChange);
-                const modal = document.getElementById('notification-modal');
-                if (modal) modal.remove();
-                localStorage.setItem('notification_status', 'enabled');
-                new Notification("Jern Yafoor School", {
-                    body: "Welcome! You are now subscribed to real-time updates.",
-                    icon: "jys_Icon.png"
-                });
-                alert("Success! Notifications are now enabled.");
+                location.reload(); // Force full reload to trigger initNotificationGate
             }
         };
         window.addEventListener('focus', detectChange);
@@ -344,46 +400,62 @@ window.requestNotificationPermission = async () => {
     }
 
     try {
-        console.log("Requesting Native Permission for Jern Yafoor School...");
         if (submitBtn) {
             submitBtn.disabled = true;
             submitBtn.innerText = "WAITING FOR BROWSER...";
         }
 
         const result = await Notification.requestPermission();
-        const actualState = window.Notification.permission;
+        if (result === 'granted') {
+            localStorage.setItem('notification_status', 'enabled');
+            localStorage.setItem('notification_prompt_completed', 'true');
 
-        if (actualState === 'granted') {
+            // Immediate Native Trigger
+            try {
+                new Notification("Jern Yafoor School", {
+                    body: "Notifications successfully enabled! You are now subscribed to real-time updates.",
+                    icon: "jys_Icon.png"
+                });
+            } catch (ne) { window.showNotificationDebug(`Native Notif Trigger Error: ${ne.message}`); }
+
             const modal = document.getElementById('notification-modal');
             if (modal) modal.remove();
 
-            localStorage.setItem('notification_status', 'enabled');
-            new Notification("Jern Yafoor School", {
-                body: "Welcome! You are now subscribed to real-time updates.",
-                icon: "jys_Icon.png"
+            // OneSignal Sync
+            window.OneSignalDeferred = window.OneSignalDeferred || [];
+            window.OneSignalDeferred.push(async function(OneSignal) {
+                try {
+                    await OneSignal.User.PushSubscription.optIn();
+                } catch (oe) { window.showNotificationDebug(`OneSignal Post-Grant OptIn Error: ${oe.message}`); }
             });
-            alert("Notifications Enabled Successfully!");
+
             setTimeout(() => { location.reload(); }, 500);
         } else {
-            // Re-trigger the guidance UI if they denied again
-            window.requestNotificationPermission();
+            // Re-query actual browser state
+            const actualState = window.Notification.permission;
+            if (submitBtn) {
+                submitBtn.disabled = false;
+                submitBtn.innerText = "Try Again";
+            }
+            if (errorArea && errorText) {
+                errorArea.classList.remove('hidden');
+                errorText.innerText = actualState === 'denied'
+                    ? "PERMISSION DENIED: PLEASE ENABLE NOTIFICATIONS MANUALLY IN SITE SETTINGS."
+                    : "CONSENT NOT DETECTED: PLEASE ALLOW NOTIFICATIONS TO PROCEED.";
+            }
         }
     } catch (e) {
-        console.error("Permission Flow Error:", e);
+        window.showNotificationDebug(`Permission Workflow Exception: ${e.message}`);
         if (submitBtn) {
             submitBtn.disabled = false;
             submitBtn.innerText = "Try Again";
-        }
-        if (errorArea && errorText) {
-            errorArea.classList.remove('hidden');
-            errorText.innerText = `DIAGNOSTIC ERROR: ${e.message}`;
         }
     }
 };
 
 window.dismissNotificationModal = () => {
-    // FIX "MAYBE LATER" BUTTON: Set hard flag
     localStorage.setItem('notification_status', 'dismissed');
+    localStorage.setItem('notification_prompt_completed', 'true');
     const modal = document.getElementById('notification-modal');
     if (modal) modal.remove();
 };
