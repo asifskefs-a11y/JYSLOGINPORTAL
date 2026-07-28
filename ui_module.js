@@ -302,20 +302,33 @@ window.addEventListener('unhandledrejection', (event) => {
                     await updatePushID();
                 });
 
-                // --- FORCE CLEAN RE-SUBSCRIPTION (CRITICAL FIX) ---
+                // --- HARD-CODE PATH SCOPE & DEBUG CONFIG (CRITICAL FIX) ---
+                const sdkPath = OneSignal.config ? OneSignal.config.path : "N/A";
+                const sdkScope = (OneSignal.config && OneSignal.config.serviceWorkerParam) ? OneSignal.config.serviceWorkerParam.scope : "N/A";
+
                 try {
-                    if (diagId) diagId.innerText = "REGISTRATION HANG / RE-OPTING...";
+                    if (diagId) diagId.innerText = `RE-OPTING... (PATH: ${sdkPath} | SCOPE: ${sdkScope})`;
 
                     if (Notification.permission === 'granted') {
-                        // FORCE RESET: OptOut then OptIn to clear stuck background states
-                        await OneSignal.User.PushSubscription.optOut();
-                        await OneSignal.User.PushSubscription.optIn();
+                        // FORCE CLEAN HANDSHAKE after path verification
+                        setTimeout(async () => {
+                            await OneSignal.User.PushSubscription.optOut();
+                            await OneSignal.User.PushSubscription.optIn();
+
+                            // Watchdog: Force reload if still stuck after 8 seconds
+                            setTimeout(() => {
+                                if (!OneSignal.User.PushSubscription.id && diagId && diagId.innerText.includes("RE-OPTING")) {
+                                    console.warn("Handshake Stuck: Executing Watchdog Reload.");
+                                    location.reload();
+                                }
+                            }, 8000);
+                        }, 2000);
 
                         // Handshake Polling
                         let attempts = 0;
                         const pollHandshake = setInterval(async () => {
                             attempts++;
-                            if (await updatePushID() || attempts > 10) clearInterval(pollHandshake);
+                            if (await updatePushID() || attempts > 15) clearInterval(pollHandshake);
                         }, 2000);
                     } else if (Notification.permission === 'default') {
                         if (notifModal) {
