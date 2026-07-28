@@ -262,29 +262,23 @@ window.showView = (viewId) => {
             try {
                 if (diagCard) diagCard.classList.remove('hidden');
 
-                // Monitor for Push ID changes
-                OneSignal.User.PushSubscription.addEventListener("change", async (event) => {
-                    if (event.current.id) {
-                        if (diagId) diagId.innerText = event.current.id;
+                // --- HIGH-FREQUENCY PUSH REGISTRATION SYNC ---
+                const pollPushID = setInterval(async () => {
+                    const pushId = OneSignal.User.PushSubscription.id;
+                    if (pushId) {
+                        if (diagId) diagId.innerText = pushId;
                         localStorage.setItem('notification_status', 'enabled');
-                        localStorage.setItem('notification_prompt_completed', 'true');
-                    }
-                });
-
-                // FORCE RE-OPTIN ON LOAD (Since SW is active but ID is missing)
-                const pushId = OneSignal.User.PushSubscription.id;
-                if (!pushId) {
-                    console.log("OneSignal ID Missing: Executing Forced Opt-In...");
-                    if (Notification.permission === 'granted') {
+                        clearInterval(pollPushID);
+                    } else if (Notification.permission === 'granted') {
+                        console.log("Push ID missing, forcing server sync...");
                         await OneSignal.User.PushSubscription.optIn();
                     }
-                }
+                }, 2000);
 
-                if (diagId) diagId.innerText = OneSignal.User.PushSubscription.id || "NOT REGISTERED (RETRYING...)";
+                // Initial UI set
+                if (diagId) diagId.innerText = OneSignal.User.PushSubscription.id || "SYNCING WITH SERVER...";
 
             } catch (e) {
-                console.error("OneSignal Runtime Error:", e);
-                window.showNotificationDebug(`OneSignal SDK Error: ${e.message}`);
                 if (diagId) diagId.innerText = "SDK ERROR: " + e.message;
             }
         });
