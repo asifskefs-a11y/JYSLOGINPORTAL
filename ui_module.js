@@ -290,7 +290,7 @@ window.requestNotificationPermission = async () => {
             localStorage.setItem('notification_status', 'enabled');
             new Notification("Jern Yafoor School", {
                 body: "Welcome! You are now subscribed to real-time updates.",
-                icon: "schoollogo.png"
+                icon: "jys_Icon.png"
             });
         } else {
             localStorage.setItem('notification_status', 'dismissed');
