@@ -291,28 +291,43 @@ window.requestNotificationPermission = async () => {
 
     if (errorArea) errorArea.classList.add('hidden');
 
-    // TASK: ONE-CLICK DIRECT PERMISSION RESET FLOW
+    // CRITICAL FIX: REPLACE 'TRY AGAIN' LOOP WITH INLINE SETTINGS GUIDANCE
     if ("Notification" in window && Notification.permission === 'denied') {
         if (errorArea && errorText) {
             errorArea.classList.remove('hidden');
-            errorArea.classList.add('animate-pulse');
-            errorText.innerHTML = `<div class='text-center py-2'>
-                <i class="fa-solid fa-arrow-up text-xl mb-2 block"></i>
-                <p class='font-black uppercase tracking-tighter'>Notifications Blocked by Browser</p>
-                <p class='text-[9px] mt-1 normal-case'>Tap the <b>Lock (🔒) or Tune (🎛️)</b> icon left of the address bar above to toggle Notifications to <b>Allow</b>.</p>
-            </div>`;
+            errorArea.classList.add('bg-indigo-50', 'border-indigo-100');
+            errorArea.classList.remove('bg-red-50', 'border-red-100');
+
+            errorText.innerHTML = `
+                <div class="text-left space-y-2 py-2">
+                    <p class="font-black text-indigo-900 text-xs uppercase text-center mb-2">How to Enable Notifications:</p>
+                    <div class="flex items-start gap-2 text-[10px] text-indigo-700 leading-tight">
+                        <span class="bg-indigo-600 text-white w-4 h-4 rounded-full flex items-center justify-center flex-shrink-0 font-bold">1</span>
+                        <p>Tap the <b>Tune/Lock icon (🔒)</b> next to the URL at the top.</p>
+                    </div>
+                    <div class="flex items-start gap-2 text-[10px] text-indigo-700 leading-tight">
+                        <span class="bg-indigo-600 text-white w-4 h-4 rounded-full flex items-center justify-center flex-shrink-0 font-bold">2</span>
+                        <p>Go to <b>Permissions</b> → <b>Notifications</b>.</p>
+                    </div>
+                    <div class="flex items-start gap-2 text-[10px] text-indigo-700 leading-tight">
+                        <span class="bg-indigo-600 text-white w-4 h-4 rounded-full flex items-center justify-center flex-shrink-0 font-bold">3</span>
+                        <p>Switch to <b>Allow</b> and return here.</p>
+                    </div>
+                </div>
+            `;
         }
         if (submitBtn) {
-            submitBtn.innerText = "UNBLOCK IN SITE SETTINGS ABOVE";
+            submitBtn.innerText = "I'VE ENABLED IT - REFRESH";
             submitBtn.classList.remove('bg-indigo-600');
-            submitBtn.classList.add('bg-red-600');
-            submitBtn.onclick = () => alert("Please tap the Lock/Settings icon next to the URL address bar at the top of your screen to Allow Notifications.");
+            submitBtn.classList.add('bg-green-600');
+            submitBtn.onclick = () => location.reload();
         }
 
-        // AUTO-DETECT PERMISSION CHANGE
-        const detectChange = async () => {
+        // AUTO-DETECT RESET
+        const detectChange = () => {
             if (Notification.permission === 'granted') {
                 window.removeEventListener('focus', detectChange);
+                window.removeEventListener('visibilitychange', detectChange);
                 const modal = document.getElementById('notification-modal');
                 if (modal) modal.remove();
                 localStorage.setItem('notification_status', 'enabled');
@@ -321,10 +336,10 @@ window.requestNotificationPermission = async () => {
                     icon: "jys_Icon.png"
                 });
                 alert("Success! Notifications are now enabled.");
-                location.reload();
             }
         };
         window.addEventListener('focus', detectChange);
+        window.addEventListener('visibilitychange', detectChange);
         return;
     }
 
@@ -350,16 +365,8 @@ window.requestNotificationPermission = async () => {
             alert("Notifications Enabled Successfully!");
             setTimeout(() => { location.reload(); }, 500);
         } else {
-            if (submitBtn) {
-                submitBtn.disabled = false;
-                submitBtn.innerText = "Try Again";
-            }
-            if (errorArea && errorText) {
-                errorArea.classList.remove('hidden');
-                errorText.innerText = actualState === 'denied'
-                    ? "PERMISSION DENIED: PLEASE RESET PERMISSIONS IN BROWSER SETTINGS (ICON NEAR ADDRESS BAR)."
-                    : "CONSENT NOT DETECTED: PLEASE ALLOW NOTIFICATIONS TO PROCEED.";
-            }
+            // Re-trigger the guidance UI if they denied again
+            window.requestNotificationPermission();
         }
     } catch (e) {
         console.error("Permission Flow Error:", e);
@@ -375,6 +382,7 @@ window.requestNotificationPermission = async () => {
 };
 
 window.dismissNotificationModal = () => {
+    // FIX "MAYBE LATER" BUTTON: Set hard flag
     localStorage.setItem('notification_status', 'dismissed');
     const modal = document.getElementById('notification-modal');
     if (modal) modal.remove();
