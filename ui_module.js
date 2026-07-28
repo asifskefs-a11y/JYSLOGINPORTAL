@@ -242,44 +242,67 @@ window.showView = (viewId) => {
         const diagId = document.getElementById('diag-push-id');
         const diagSW = document.getElementById('diag-sw-status');
 
-        // STEP: FORCE NATIVE LOCAL NOTIFICATION TEST
-        if ("Notification" in window && Notification.permission === "granted") {
+        // STEP: FORCE EXPLICIT SERVICE WORKER REGISTRATION
+        if ('serviceWorker' in navigator) {
             try {
-                if ('serviceWorker' in navigator) {
-                    const reg = await navigator.serviceWorker.ready;
-                    reg.showNotification("Jern Yafoor School", {
-                        body: "Notifications successfully activated!",
-                        icon: "jys_Icon.png",
-                        tag: "welcome-test"
-                    });
-                    if (diagSW) diagSW.innerText = "Active (Service Worker Found)";
-                } else {
-                    new Notification("Jern Yafoor School", {
-                        body: "Notifications successfully activated!",
-                        icon: "jys_Icon.png"
-                    });
-                }
-            } catch (e) { console.error("Local Notif Test Failed:", e); }
+                console.log("Forcing Explicit Service Worker Registration...");
+                const registration = await navigator.serviceWorker.register('/OneSignalSDKWorker.js', { scope: '/' });
+                console.log("Service Worker Registered with scope:", registration.scope);
+                if (diagSW) diagSW.innerText = "Active (Registered Successfully)";
+            } catch (err) {
+                console.error("SW Registration Failed:", err);
+                if (diagSW) diagSW.innerText = "FAILED: " + err.message;
+            }
         }
 
-        // STEP: ONESIGNAL TOKEN DIAGNOSTIC STATUS
+        // STEP: FORCE NATIVE LOCAL NOTIFICATION TEST (If permission granted)
+        if ("Notification" in window && Notification.permission === "granted") {
+            try {
+                const reg = await navigator.serviceWorker.ready;
+                reg.showNotification("Jern Yafoor School", {
+                    body: "Notifications successfully activated!",
+                    icon: "jys_Icon.png",
+                    tag: "welcome-test"
+                });
+            } catch (e) {
+                console.error("Local Notif Test Failed:", e);
+                new Notification("Jern Yafoor School", {
+                    body: "Notifications activated (Legacy Fallback)!",
+                    icon: "jys_Icon.png"
+                });
+            }
+        }
+
+        // STEP: ONESIGNAL TOKEN DIAGNOSTIC STATUS & AUTO-OPTIN
         window.OneSignalDeferred = window.OneSignalDeferred || [];
         window.OneSignalDeferred.push(async function(OneSignal) {
             try {
                 if (diagCard) diagCard.classList.remove('hidden');
 
-                const pushId = await OneSignal.User.PushSubscription.id;
+                // Monitor for Push ID changes
+                OneSignal.User.PushSubscription.addEventListener("change", async (event) => {
+                    if (event.current.id) {
+                        if (diagId) diagId.innerText = event.current.id;
+                        // TRIGGER WELCOME NOTIFICATION ON TOKEN CREATION
+                        new Notification("Jern Yafoor School", {
+                            body: "Push Token generated! You are fully subscribed.",
+                            icon: "jys_Icon.png"
+                        });
+                    }
+                });
+
+                const pushId = OneSignal.User.PushSubscription.id;
                 if (diagId) diagId.innerText = pushId || "NOT REGISTERED";
 
-                // AUTO-OPTIN IF NULL
+                // AUTO-GENERATE ONESIGNAL PUSH TOKEN
                 if (!pushId && Notification.permission === 'granted') {
-                    console.log("OneSignal ID Null: Forcing Opt-In...");
+                    console.log("Auto-Registering OneSignal Push Token...");
                     await OneSignal.User.PushSubscription.optIn();
-                    const newId = await OneSignal.User.PushSubscription.id;
-                    if (diagId) diagId.innerText = newId || "RETRYING...";
+                    const newId = OneSignal.User.PushSubscription.id;
+                    if (diagId) diagId.innerText = newId || "GENERATING TOKEN...";
                 }
             } catch (e) {
-                if (diagId) diagId.innerText = "ERROR: " + e.message;
+                if (diagId) diagId.innerText = "SDK ERROR: " + e.message;
             }
         });
 
