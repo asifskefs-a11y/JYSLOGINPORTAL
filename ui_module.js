@@ -246,6 +246,7 @@ window.showView = (viewId) => {
         if ('serviceWorker' in navigator) {
             try {
                 console.log("Registering Service Worker relative to current path...");
+                // Explicitly use relative path and scope for GitHub Pages subdirectory
                 const registration = await navigator.serviceWorker.register('./OneSignalSDKWorker.js', { scope: './' });
                 console.log("Service Worker Registered with relative scope:", registration.scope);
                 if (diagSW) diagSW.innerText = "Active (Relative Path Registered)";
