@@ -251,22 +251,24 @@ window.OneSignalDeferred.push(async function(OneSignal) {
 });
 
 window.checkNotificationStatus = async () => {
+    // PERSISTENCE LAYER: Prevent repeated popups
+    const status = localStorage.getItem('notification_status');
+    if (status === 'enabled' || status === 'dismissed') {
+        console.log("NOTIF_DEBUG: User already interacted with notification prompt. Silencing modal.");
+        return;
+    }
+
+    if ("Notification" in window && Notification.permission === "granted") {
+        localStorage.setItem('notification_status', 'enabled');
+        return;
+    }
+
     window.OneSignalDeferred = window.OneSignalDeferred || [];
     window.OneSignalDeferred.push(async function(OneSignal) {
         try {
-            // Verify Service Worker for Mobile Origin
-            if ('serviceWorker' in navigator) {
-                navigator.serviceWorker.getRegistrations().then(registrations => {
-                    console.log("ONESIGNAL_DEBUG: Active Service Workers:", registrations.length);
-                });
-            }
-
             const permission = await OneSignal.Notifications.permission;
-            console.log("ONESIGNAL_DEBUG: Current Permission:", permission);
-
-            // permission is true if granted, false if not
             if (permission) {
-                console.log("ONESIGNAL_DEBUG: Permission already granted.");
+                localStorage.setItem('notification_status', 'enabled');
                 return;
             }
 
@@ -283,7 +285,6 @@ window.requestNotificationPermission = async () => {
     try {
         console.log("Requesting Native Notification Permission for Jern Yafoor School...");
         const result = await Notification.requestPermission();
-        console.log("Native Permission Result:", result);
 
         const modal = document.getElementById('notification-modal');
         if (modal) {
@@ -292,18 +293,20 @@ window.requestNotificationPermission = async () => {
         }
 
         if (result === 'granted') {
-            // Trigger Bulletproof Jern Yafoor Welcome Notification
+            // Force Save State
+            localStorage.setItem('notification_status', 'enabled');
+
+            // Trigger Jern Yafoor Welcome Notification
             new Notification("Jern Yafoor School", {
                 body: "Welcome! You are now subscribed to real-time updates.",
                 icon: "schoollogo.png"
             });
 
-            // Save to localStorage
-            localStorage.setItem('notificationsEnabled', 'true');
             alert("Notifications Enabled Successfully for Jern Yafoor School!");
+        } else {
+            localStorage.setItem('notification_status', 'dismissed');
         }
 
-        // Force reload to ensure registration is fully active
         setTimeout(() => { location.reload(); }, 1000);
 
     } catch (e) {
@@ -313,6 +316,15 @@ window.requestNotificationPermission = async () => {
             modal.classList.add('hidden');
             modal.style.display = 'none';
         }
+    }
+};
+
+window.dismissNotificationModal = () => {
+    localStorage.setItem('notification_status', 'dismissed');
+    const modal = document.getElementById('notification-modal');
+    if (modal) {
+        modal.classList.add('hidden');
+        modal.style.display = 'none';
     }
 };
 
