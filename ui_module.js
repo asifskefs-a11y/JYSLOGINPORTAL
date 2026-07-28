@@ -255,21 +255,34 @@ window.addEventListener('unhandledrejection', (event) => {
         const diagSW = document.getElementById('diag-sw-status');
         const notifModal = document.getElementById('notification-modal');
 
-        if (diagId) diagId.innerText = "MANUAL WORKER REGISTRATION...";
+        if (diagId) diagId.innerText = "RESETTING PUSH SESSION...";
+
+        // TASK: CLEAR ONESIGNAL SESSION MEMORY ON INIT
+        try {
+            Object.keys(localStorage).forEach(key => {
+                if (key.toLowerCase().includes('onesignal')) localStorage.removeItem(key);
+            });
+            Object.keys(sessionStorage).forEach(key => {
+                if (key.toLowerCase().includes('onesignal')) sessionStorage.removeItem(key);
+            });
+            console.log("OneSignal: Local session memory purged.");
+        } catch (e) { console.warn("Cache purge error:", e); }
 
         // TASK: FORCE NATIVE SERVICE WORKER REGISTRATION BYPASS
         let registrationReady = false;
         if ('serviceWorker' in navigator) {
             try {
                 console.log("Native SW Bypass: Manual Registration starting...");
-                // Step 1: Purge old root workers first
                 const regs = await navigator.serviceWorker.getRegistrations();
-                for (let r of regs) { if (r.scope === 'https://asifskefs-a11y.github.io/') await r.unregister(); }
+                for (let r of regs) {
+                    if (r.scope === 'https://asifskefs-a11y.github.io/' || !r.scope.includes('/JYSLOGINPORTAL/')) {
+                        await r.unregister();
+                    }
+                }
 
-                // Step 2: Register strictly bounded to subpath folder
                 const registration = await navigator.serviceWorker.register('./OneSignalSDKWorker.js', { scope: './' });
                 console.log("Native SW Bypass: Registered successfully at scope:", registration.scope);
-                if (diagSW) diagSW.innerText = "Active (Native Relative Scope: ./)";
+                if (diagSW) diagSW.innerText = "Active (Subpath Scope: ./)";
                 registrationReady = true;
             } catch (err) {
                 if (diagSW) diagSW.innerText = "NATIVE SW FAILED: " + err.message;
@@ -294,37 +307,40 @@ window.addEventListener('unhandledrejection', (event) => {
 
                 // --- DIRECT TOKEN CAPTURE & CHANGE LISTENER (CRITICAL BUGFIX) ---
                 OneSignal.User.PushSubscription.addEventListener("change", async (event) => {
-                    console.log("Subscription Change Detected:", event.current.id);
                     if (event.current.id) {
                         if (diagId) diagId.innerText = event.current.id;
                         localStorage.setItem('notification_status', 'enabled');
                     }
                 });
 
+                // OVERRIDE 'FORCE OPT-IN' BUTTON CLICK HANDLER (TASK 3)
+                const triggerFullReset = async () => {
+                    if (diagId) diagId.innerText = "HARD RESETTING SESSION...";
+                    try {
+                        await OneSignal.User.PushSubscription.optOut();
+                        await OneSignal.User.PushSubscription.optIn();
+                        setTimeout(updatePushID, 2000);
+                    } catch (e) { console.error("Reset Trigger Error:", e); }
+                };
+
                 // HARD TIMEOUT FOR HANDSHAKE
                 const timeoutHandler = setTimeout(async () => {
-                    // Check actual permission state directly
                     if (Notification.permission === 'granted') {
-                        console.log("Permission granted but ID missing, forcing re-fetch...");
-                        await OneSignal.User.PushSubscription.optIn();
+                        console.log("Permission granted but ID missing, forcing hard reset...");
+                        await triggerFullReset();
                         if (await updatePushID()) return;
                     }
 
                     if (!OneSignal.User.PushSubscription.id && diagId) {
-                        diagId.innerHTML = `<span class="text-red-600 font-black uppercase">HANDSHAKE DELAYED</span><br><button id="resync-trigger" class="mt-1 bg-red-600 text-white px-2 py-1 rounded text-[8px] font-bold">FORCE OPT-IN</button>`;
-                        document.getElementById('resync-trigger').onclick = async () => {
-                            if (Notification.permission === 'granted') {
-                                await OneSignal.User.PushSubscription.optIn();
-                                await updatePushID();
-                            } else {
-                                await OneSignal.Notifications.requestPermission();
-                            }
-                        };
+                        diagId.innerHTML = `<span class="text-red-600 font-black uppercase">HANDSHAKE DELAYED</span><br><button id="resync-trigger" class="mt-1 bg-red-600 text-white px-2 py-1 rounded text-[8px] font-bold">FORCE RE-HANDSHAKE</button>`;
+                        document.getElementById('resync-trigger').onclick = triggerFullReset;
                     }
-                }, 4000);
+                }, 5000);
 
+                // FORCE TOKEN GENERATION IF PERMISSION IS ALREADY GRANTED (TASK 2)
                 if (registrationReady && Notification.permission === 'granted') {
-                    console.log("SW Ready, forcing OneSignal Opt-In...");
+                    console.log("Permission Granted: Terminating legacy session and opting in...");
+                    await OneSignal.User.PushSubscription.optOut();
                     await OneSignal.User.PushSubscription.optIn();
                     if (await updatePushID()) clearTimeout(timeoutHandler);
                 } else if (Notification.permission === 'default') {
