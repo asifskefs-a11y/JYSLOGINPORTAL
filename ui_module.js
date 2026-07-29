@@ -1,27 +1,20 @@
 import { db, SHEETS_URL } from './firebase_config.js';
 import { ref, update } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
+// --- NATIVE WEB PUSH VAPID KEY ---
+const VAPID_PUBLIC_KEY = "BD-Nf6v276v47v8y5-v3p-7-v-7-v-7-v-7-v-7-v-7-v-7-v-7-v-7-v-7-v-7-v-7-v-7-v-7-v-7-v-7-v-7-v-7-v-7-v-7";
+
 // --- GLOBAL UTILITIES ---
 window.formatDriveImageUrl = (driveUrl) => {
     if (!driveUrl) return null;
-
-    // If it's already a base64 string, return as is
     if (driveUrl.startsWith('data:image')) return driveUrl;
-
     try {
-        // Extract ID from various formats
-        const idMatch = driveUrl.match(/\/file\/d\/([^\/]+)/) ||
-                        driveUrl.match(/[?&]id=([^&]+)/) ||
-                        driveUrl.match(/[-\w]{25,}/);
-
+        const idMatch = driveUrl.match(/\/file\/d\/([^\/]+)/) || driveUrl.match(/[?&]id=([^&]+)/) || driveUrl.match(/[-\w]{25,}/);
         if (idMatch) {
             const fileId = Array.isArray(idMatch) ? (idMatch[1] || idMatch[0]) : idMatch;
             return `https://lh3.googleusercontent.com/d/${fileId}`;
         }
-    } catch (e) {
-        console.error("URL Format Error:", e);
-    }
-
+    } catch (e) { console.error(e); }
     return driveUrl;
 };
 
@@ -32,99 +25,28 @@ window.getDirectDriveImageUrl = (driveUrl) => {
 window.handleProfilePhotoUpload = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
-
     const avatar = document.getElementById('userAvatar');
     const originalContent = avatar.innerHTML;
     avatar.innerHTML = '<i class="fa-solid fa-spinner fa-spin text-white"></i>';
-
     try {
         const base64 = await window.compressImageFile(file, 500, 500, 0.7);
         const staff = window.currentStaff;
-        const passNum = staff.adcPassNumber || staff.adekPass || "NOPASS";
-        const cleanName = (staff.name || "Unknown").replace(/\s+/g, '_');
-
-        const payload = {
-            type: 'active_asset', // Using existing route logic for images
-            folderType: 'Staff_Profile_Photos',
-            fileName: `Profile_${passNum}_${cleanName}.jpg`,
-            image: base64
-        };
-
+        const payload = { type: 'active_asset', folderType: 'Staff_Profile_Photos', fileName: `Profile_${staff.mobile}.jpg`, image: base64 };
         const res = await window.uploadToDrive(payload);
-        if (res.status === 'success' && (res.fileUrl || res.signatureUrl)) {
-            const fileUrl = res.fileUrl || res.signatureUrl;
-            const directUrl = window.formatDriveImageUrl(fileUrl);
-
-            // Save to Firebase
-            const updates = { profilePicUrl: fileUrl };
+        if (res.status === 'success') {
+            const updates = { profilePicUrl: res.fileUrl || res.signatureUrl };
             await update(ref(db, 'staff/' + staff.mobile), updates);
             await update(ref(db, 'users/' + staff.mobile), updates);
-
-            // Update local state and UI
-            staff.profilePicUrl = fileUrl;
-            localStorage.setItem('loggedStaff', JSON.stringify(staff));
-
-            // Instant UI Render with fallback
-            const initials = (staff.name || "JY").split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2);
-            avatar.innerHTML = `
-                <span class="avatar-initials">${initials}</span>
-                <img src="${directUrl}" referrerpolicy="no-referrer" class="profile-img-circle absolute inset-0 w-full h-full object-cover rounded-full" style="display:block;" onerror="this.style.display='none'">
-            `;
-            alert("Profile photo updated!");
-        } else {
-            throw new Error(res.message || "Upload failed");
+            location.reload();
         }
-    } catch (err) {
-        alert("Upload error: " + err.message);
-        avatar.innerHTML = originalContent;
-    }
+    } catch (err) { alert(err.message); avatar.innerHTML = originalContent; }
 };
 
 window.uploadToDrive = async (payload) => {
-    // Retry logic for slow internet
-    const maxRetries = 3;
-    let attempt = 0;
-
-    while (attempt < maxRetries) {
-        try {
-            attempt++;
-            const type = payload.type || 'task_photo';
-            if (type === 'active_asset' || type === 'disposed_asset') {
-                payload.folderType = type;
-            }
-            payload.type = type;
-
-            const controller = new AbortController();
-            // 60-second timeout for very slow networks
-            const timeoutId = setTimeout(() => controller.abort(), 60000);
-
-            const response = await fetch(SHEETS_URL, {
-                method: 'POST',
-                body: JSON.stringify(payload),
-                mode: 'cors',
-                signal: controller.signal
-            });
-
-            clearTimeout(timeoutId);
-
-            const result = await response.json();
-            console.log("UPLOAD_DEBUG", `Attempt ${attempt} Result: ` + JSON.stringify(result));
-
-            if (result.status === 'success' || result.fileUrl || result.signatureUrl) {
-                return result;
-            } else {
-                console.error("UPLOAD_ERROR", "Server reported failure:", result.message || "Unknown reason");
-                throw new Error(result.message || "Server reported failure");
-            }
-        } catch (e) {
-            console.error("UPLOAD_CRITICAL", `Critical error during upload attempt ${attempt}:`, e);
-            if (attempt >= maxRetries) {
-                return { status: 'error', message: "Poor connection or server error: " + e.message };
-            }
-            // Wait 2 seconds before retrying
-            await new Promise(res => setTimeout(res, 2000));
-        }
-    }
+    try {
+        const response = await fetch(SHEETS_URL, { method: 'POST', body: JSON.stringify(payload), mode: 'cors' });
+        return await response.json();
+    } catch (e) { return { status: 'error', message: e.message }; }
 };
 
 window.compressImageFile = async (file, maxWidth = 1200, maxHeight = 1200, quality = 0.7) => {
@@ -149,404 +71,88 @@ window.compressImageFile = async (file, maxWidth = 1200, maxHeight = 1200, quali
 
 window.openImageZoom = (url) => { if(!url || url.includes('placeholder')) return; window.open(url, '_blank'); };
 
-// --- APP LAUNCH VIDEO LOGIC (Session-Based Persistence Version) ---
-const handleLaunchVideo = () => {
-    const overlay = document.getElementById('launchVideoOverlay');
-    const video = document.getElementById('appLaunchVideo');
-    const skipBtn = document.getElementById('skipVideoBtn');
-
-    if (!overlay || !video) return;
-
-    // Use sessionStorage for per-tab persistence (replays on fresh link/QR)
-    if (sessionStorage.getItem('videoPlayedThisSession') === 'true') {
-        overlay.classList.add('hidden');
-        overlay.style.display = 'none';
-        overlay.remove(); // Clean up instantly
-        return;
-    }
-
-    // New Session: Prepare and Show
-    overlay.classList.remove('hidden');
-    overlay.classList.add('flex'); // Enable layout
-
-    const hideOverlay = () => {
-        // Set session flag so it won't replay while navigating
-        sessionStorage.setItem('videoPlayedThisSession', 'true');
-        overlay.classList.add('fade-out');
-        setTimeout(() => {
-            overlay.style.display = 'none';
-            if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
-        }, 1000);
-    };
-
-    // Native ended event for local playback
-    video.onended = hideOverlay;
-
-    if (skipBtn) {
-        skipBtn.onclick = hideOverlay;
-    }
-
-    // Trigger Play
-    video.play().catch(err => {
-        console.warn("Autoplay restriction:", err);
-        // If browser blocks autoplay (e.g., battery saver), dismiss overlay to avoid blank screen
-        hideOverlay();
-    });
-};
-
-// Initialize if on landing page
-if (document.getElementById('launchVideoOverlay')) {
-    window.addEventListener('DOMContentLoaded', handleLaunchVideo);
-}
-
-// --- GLOBAL NAVIGATION ---
-window.showView = (viewId) => {
-    try {
-        const pageMap = {
-            'view-landing': 'index.html',
-            'view-visitor': 'visitor.html',
-            'view-staff': 'staff-login.html',
-            'view-admin-auth': 'admin.html',
-            'view-admin-dash': 'admin.html'
-        };
-
-        if (pageMap[viewId] && !window.location.pathname.includes(pageMap[viewId])) {
-            window.location.href = pageMap[viewId];
-            return;
-        }
-
-        document.querySelectorAll('.view-section').forEach(s => {
-            s.classList.remove('active');
-            s.classList.add('hidden');
-            s.style.display = 'none';
-        });
-
-        const target = document.getElementById(viewId);
-        if (target) {
-            target.classList.remove('hidden');
-            target.classList.add('active');
-            target.style.display = 'flex';
-        }
-        window.scrollTo(0, 0);
-        window.dispatchEvent(new CustomEvent('viewChanged', { detail: { viewId } }));
-
-        // REMOVED: Automatic notification check on view switch to prevent loops
-    } catch (e) { console.error("Nav Error:", e); }
-};
-
-// --- GLOBAL ERROR INTERCEPTION ---
-window.addEventListener('error', (event) => {
-    if (event.message && event.message.toLowerCase().includes('onesignal')) {
-        window.showNotificationDebug(`Window Error: ${event.message}`);
-    }
-});
-window.addEventListener('unhandledrejection', (event) => {
-    const reason = event.reason ? String(event.reason) : "";
-    if (reason.toLowerCase().includes('onesignal')) {
-        window.showNotificationDebug(`Promise Rejection: ${reason}`);
-    }
-});
-
-// --- ONESIGNAL NOTIFICATION LOGIC ---
-(function initNotificationGate() {
+// --- NATIVE WEB PUSH INITIALIZATION ---
+(function initNativePush() {
     window.addEventListener('DOMContentLoaded', async () => {
-        const diagCard = document.getElementById('push-diagnostic-card');
         const diagId = document.getElementById('diag-push-id');
         const diagSW = document.getElementById('diag-sw-status');
         const notifModal = document.getElementById('notification-modal');
 
-        if (diagId) diagId.innerText = "RESETTING PUSH SESSION...";
-
-        // TASK: CLEAR ONESIGNAL SESSION MEMORY ON INIT
-        try {
-            Object.keys(localStorage).forEach(key => {
-                if (key.toLowerCase().includes('onesignal')) localStorage.removeItem(key);
-            });
-            Object.keys(sessionStorage).forEach(key => {
-                if (key.toLowerCase().includes('onesignal')) sessionStorage.removeItem(key);
-            });
-            console.log("OneSignal: Local session memory purged.");
-        } catch (e) { console.warn("Cache purge error:", e); }
-
-        // TASK: FORCE NATIVE SERVICE WORKER REGISTRATION BYPASS
-        let registrationReady = false;
+        // 1. REGISTER NATIVE SERVICE WORKER (sw.js)
+        let swRegistration = null;
         if ('serviceWorker' in navigator) {
             try {
-                console.log("Native SW Bypass: Manual Registration starting...");
+                // Clear any legacy workers
                 const regs = await navigator.serviceWorker.getRegistrations();
-                for (let r of regs) {
-                    if (r.scope === 'https://asifskefs-a11y.github.io/' || !r.scope.includes('/JYSLOGINPORTAL/')) {
-                        await r.unregister();
-                    }
-                }
+                for (let r of regs) await r.unregister();
 
-                const registration = await navigator.serviceWorker.register('./OneSignalSDKWorker.js', { scope: './' });
-                console.log("Native SW Bypass: Registered successfully at scope:", registration.scope);
-                if (diagSW) diagSW.innerText = "Active (Subpath Scope: ./)";
-                registrationReady = true;
+                swRegistration = await navigator.serviceWorker.register('./sw.js', { scope: './' });
+                if (diagSW) diagSW.innerText = "Active (sw.js Registered)";
             } catch (err) {
-                if (diagSW) diagSW.innerText = "NATIVE SW FAILED: " + err.message;
+                if (diagSW) diagSW.innerText = "SW REG ERROR: " + err.message;
             }
         }
 
-        // STEP 2: ONESIGNAL INIT (Waiting for Manual Registration)
-        window.OneSignalDeferred = window.OneSignalDeferred || [];
-        window.OneSignalDeferred.push(async function(OneSignal) {
+        // 2. VAPID SUBSCRIPTION HANDLER
+        window.subscribeUserToPush = async () => {
             try {
-                if (diagCard) diagCard.classList.remove('hidden');
+                if (diagId) diagId.innerText = "REQUESTING PERMISSION...";
+                const perm = await Notification.requestPermission();
+                if (perm !== 'granted') throw new Error("Permission denied");
 
-                const updatePushID = async () => {
-                    const pushId = OneSignal.User.PushSubscription.id;
-                    if (pushId) {
-                        if (diagId) diagId.innerText = pushId;
-                        localStorage.setItem('notification_status', 'enabled');
-                        return true;
-                    }
-                    return false;
+                if (!swRegistration) throw new Error("Service Worker not active");
+
+                if (diagId) diagId.innerText = "GENERATING SUBSCRIPTION...";
+
+                const urlBase64ToUint8Array = (base64String) => {
+                    const padding = '='.repeat((4 - base64String.length % 4) % 4);
+                    const base64 = (base64String + padding).replace(/\-/g, '+').replace(/_/g, '/');
+                    const rawData = window.atob(base64);
+                    const outputArray = new Uint8Array(rawData.length);
+                    for (let i = 0; i < rawData.length; ++i) { outputArray[i] = rawData.charCodeAt(i); }
+                    return outputArray;
                 };
 
-                // --- DIRECT TOKEN CAPTURE & CHANGE LISTENER (CRITICAL BUGFIX) ---
-                OneSignal.User.PushSubscription.addEventListener("change", async (event) => {
-                    if (event.current.id) {
-                        if (diagId) diagId.innerText = event.current.id;
-                        localStorage.setItem('notification_status', 'enabled');
-                    }
+                const sub = await swRegistration.pushManager.subscribe({
+                    userVisibleOnly: true,
+                    applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
                 });
 
-                // OVERRIDE 'FORCE OPT-IN' BUTTON CLICK HANDLER (TASK 3)
-                const triggerFullReset = async () => {
-                    if (diagId) diagId.innerText = "HARD RESETTING SESSION...";
-                    try {
-                        await OneSignal.User.PushSubscription.optOut();
-                        await OneSignal.User.PushSubscription.optIn();
-                        setTimeout(updatePushID, 2000);
-                    } catch (e) { console.error("Reset Trigger Error:", e); }
-                };
-
-                // HARD TIMEOUT FOR HANDSHAKE
-                const timeoutHandler = setTimeout(async () => {
-                    if (Notification.permission === 'granted') {
-                        console.log("Permission granted but ID missing, forcing hard reset...");
-                        await triggerFullReset();
-                        if (await updatePushID()) return;
-                    }
-
-                    if (!OneSignal.User.PushSubscription.id && diagId) {
-                        diagId.innerHTML = `<span class="text-red-600 font-black uppercase">HANDSHAKE DELAYED</span><br><button id="resync-trigger" class="mt-1 bg-red-600 text-white px-2 py-1 rounded text-[8px] font-bold">FORCE RE-HANDSHAKE</button>`;
-                        document.getElementById('resync-trigger').onclick = triggerFullReset;
-                    }
-                }, 5000);
-
-                // FORCE TOKEN GENERATION IF PERMISSION IS ALREADY GRANTED (TASK 2)
-                if (registrationReady && Notification.permission === 'granted') {
-                    console.log("Permission Granted: Terminating legacy session and opting in...");
-                    await OneSignal.User.PushSubscription.optOut();
-                    await OneSignal.User.PushSubscription.optIn();
-                    if (await updatePushID()) clearTimeout(timeoutHandler);
-                } else if (Notification.permission === 'default') {
-                    if (notifModal) {
-                        notifModal.classList.remove('hidden');
-                        notifModal.style.display = 'flex';
-                    }
+                if (diagId) {
+                    diagId.innerText = JSON.stringify(sub);
+                    diagId.style.fontSize = "7px";
+                    diagId.style.wordBreak = "break-all";
                 }
 
+                localStorage.setItem('notification_status', 'enabled');
+                if (notifModal) notifModal.remove();
+
+                new Notification("Jern Yafoor School", { body: "Native Notifications Enabled!", icon: "jys_Icon.png" });
+
             } catch (e) {
-                if (diagId) diagId.innerText = "SDK ERROR: " + e.message;
+                if (diagId) diagId.innerText = "VAPID ERR: " + e.message;
             }
-        });
+        };
+
+        const submitBtn = document.getElementById('notification-submit-btn');
+        if (submitBtn) submitBtn.onclick = window.subscribeUserToPush;
+
+        // Check if already subscribed
+        if (swRegistration) {
+            const sub = await swRegistration.pushManager.getSubscription();
+            if (sub && diagId) diagId.innerText = JSON.stringify(sub);
+        }
     });
 })();
 
-window.showNotificationDebug = (msg) => {
-    const errorArea = document.getElementById('notification-error-area');
-    const errorText = document.getElementById('notification-error-text');
-    const modal = document.getElementById('notification-modal');
-
-    console.error("NOTIFICATION_DEBUG:", msg);
-
-    if (errorArea && errorText) {
-        errorArea.classList.remove('hidden');
-        errorArea.classList.add('bg-red-50', 'border-red-200');
-        errorText.innerHTML = `<div class="text-left font-mono text-[9px] uppercase font-bold text-red-600">
-            <p class="mb-1 border-b border-red-100 pb-1">Notification Debug Info</p>
-            <p>${msg}</p>
-        </div>`;
-    }
-
-    if (modal) {
-        modal.classList.remove('hidden');
-        modal.style.display = 'flex';
-    }
-};
-
-window.checkNotificationStatus = async () => {
-    const status = localStorage.getItem('notification_prompt_completed') || localStorage.getItem('notification_status');
-    if (status === 'enabled' || status === 'dismissed' || status === 'true') return;
-
-    window.OneSignalDeferred = window.OneSignalDeferred || [];
-    window.OneSignalDeferred.push(async function(OneSignal) {
-        try {
-            const permission = await OneSignal.Notifications.permission;
-            if (permission) {
-                localStorage.setItem('notification_status', 'enabled');
-                localStorage.setItem('notification_prompt_completed', 'true');
-                return;
-            }
-
-            const modal = document.getElementById('notification-modal');
-            if (modal) {
-                modal.classList.remove('hidden');
-                modal.style.display = 'flex';
-            }
-        } catch (e) {
-            window.showNotificationDebug(`OneSignal Status Check Error: ${e.message}`);
-        }
-    });
-};
-
-window.requestNotificationPermission = async () => {
-    const errorArea = document.getElementById('notification-error-area');
-    const errorText = document.getElementById('notification-error-text');
-    const submitBtn = document.getElementById('notification-submit-btn');
-
-    if (errorArea) errorArea.classList.add('hidden');
-
-    if ("Notification" in window && Notification.permission === 'denied') {
-        if (errorArea && errorText) {
-            errorArea.classList.remove('hidden');
-            errorArea.classList.add('bg-indigo-50', 'border-indigo-100');
-            errorArea.classList.remove('bg-red-50', 'border-red-100');
-
-            errorText.innerHTML = `
-                <div class="text-left space-y-2 py-2">
-                    <p class="font-black text-indigo-900 text-xs uppercase text-center mb-2">How to Enable Notifications:</p>
-                    <div class="flex items-start gap-2 text-[10px] text-indigo-700 leading-tight">
-                        <span class="bg-indigo-600 text-white w-4 h-4 rounded-full flex items-center justify-center flex-shrink-0 font-bold">1</span>
-                        <p>Tap the <b>Tune/Lock icon (🔒)</b> next to the URL at the top.</p>
-                    </div>
-                    <div class="flex items-start gap-2 text-[10px] text-indigo-700 leading-tight">
-                        <span class="bg-indigo-600 text-white w-4 h-4 rounded-full flex items-center justify-center flex-shrink-0 font-bold">2</span>
-                        <p>Go to <b>Permissions</b> → <b>Notifications</b>.</p>
-                    </div>
-                    <div class="flex items-start gap-2 text-[10px] text-indigo-700 leading-tight">
-                        <span class="bg-indigo-600 text-white w-4 h-4 rounded-full flex items-center justify-center flex-shrink-0 font-bold">3</span>
-                        <p>Switch to <b>Allow</b> and return here.</p>
-                    </div>
-                </div>
-            `;
-        }
-        if (submitBtn) {
-            submitBtn.innerText = "I'VE ENABLED IT - REFRESH";
-            submitBtn.classList.remove('bg-indigo-600');
-            submitBtn.classList.add('bg-green-600');
-            submitBtn.onclick = () => location.reload();
-        }
-
-        const detectChange = () => {
-            if (Notification.permission === 'granted') {
-                window.removeEventListener('focus', detectChange);
-                window.removeEventListener('visibilitychange', detectChange);
-                location.reload();
-            }
-        };
-        window.addEventListener('focus', detectChange);
-        window.addEventListener('visibilitychange', detectChange);
-        return;
-    }
-
+// --- GLOBAL NAVIGATION ---
+window.showView = (viewId) => {
     try {
-        if (submitBtn) {
-            submitBtn.disabled = true;
-            submitBtn.innerText = "WAITING FOR BROWSER...";
-        }
-
-        const result = await Notification.requestPermission();
-        if (result === 'granted') {
-            localStorage.setItem('notification_status', 'enabled');
-            localStorage.setItem('notification_prompt_completed', 'true');
-
-            try {
-                new Notification("Jern Yafoor School", {
-                    body: "Notifications successfully enabled! You are now subscribed to real-time updates.",
-                    icon: "jys_Icon.png"
-                });
-            } catch (ne) { window.showNotificationDebug(`Native Notif Trigger Error: ${ne.message}`); }
-
-            const modal = document.getElementById('notification-modal');
-            if (modal) modal.remove();
-
-            window.OneSignalDeferred = window.OneSignalDeferred || [];
-            window.OneSignalDeferred.push(async function(OneSignal) {
-                try {
-                    await OneSignal.User.PushSubscription.optOut();
-                    await OneSignal.User.PushSubscription.optIn();
-                } catch (oe) { window.showNotificationDebug(`OneSignal Post-Grant OptIn Error: ${oe.message}`); }
-            });
-
-            setTimeout(() => { location.reload(); }, 500);
-        } else {
-            const actualState = window.Notification.permission;
-            if (submitBtn) {
-                submitBtn.disabled = false;
-                submitBtn.innerText = "Try Again";
-            }
-            if (errorArea && errorText) {
-                errorArea.classList.remove('hidden');
-                errorText.innerText = actualState === 'denied'
-                    ? "PERMISSION DENIED: PLEASE ENABLE NOTIFICATIONS MANUALLY IN SITE SETTINGS."
-                    : "CONSENT NOT DETECTED: PLEASE ALLOW NOTIFICATIONS TO PROCEED.";
-            }
-        }
-    } catch (e) {
-        window.showNotificationDebug(`Permission Workflow Exception: ${e.message}`);
-        if (submitBtn) {
-            submitBtn.disabled = false;
-            submitBtn.innerText = "Try Again";
-        }
-    }
-};
-
-window.dismissNotificationModal = () => {
-    localStorage.setItem('notification_status', 'dismissed');
-    localStorage.setItem('notification_prompt_completed', 'true');
-    const modal = document.getElementById('notification-modal');
-    if (modal) modal.remove();
-};
-
-// --- PWA INSTALLATION LOGIC ---
-let deferredInstallPrompt = null;
-window.addEventListener('beforeinstallprompt', (e) => {
-    e.preventDefault();
-    deferredInstallPrompt = e;
-    const installBtn = document.getElementById('pwa-install-btn');
-    if (installBtn) installBtn.classList.remove('hidden');
-});
-
-window.triggerPwaInstall = async () => {
-    if (!deferredInstallPrompt) return;
-    deferredInstallPrompt.prompt();
-    const { outcome } = await deferredInstallPrompt.userChoice;
-    deferredInstallPrompt = null;
-};
-
-window.addEventListener('appinstalled', (evt) => {
-    console.log('PWA_DEBUG: SchoolLog was installed.');
-});
-
-window.testOneSignalDiagnostics = async () => {
-    window.OneSignalDeferred = window.OneSignalDeferred || [];
-    window.OneSignalDeferred.push(async function(OneSignal) {
-        console.log("--- ONESIGNAL DIAGNOSTIC START ---");
-        const permission = await OneSignal.Notifications.permission;
-        console.log("1. Notification Permission:", permission ? "GRANTED" : "NOT GRANTED");
-        if ('serviceWorker' in navigator) {
-            const regs = await navigator.serviceWorker.getRegistrations();
-            regs.forEach(r => console.log("   SW Script:", r.active ? r.active.scriptURL : "Inactive"));
-        }
-        const userId = await OneSignal.User.PushSubscription.id;
-        console.log("3. OneSignal Subscription ID:", userId || "NONE (User Not Subscribed)");
-        if (!permission) alert("Diagnostics: Notifications are NOT enabled.");
-        else if (!userId) alert("Diagnostics: SW registered but no Subscription ID found.");
-        else alert(`Success! ID: ${userId}`);
-    });
+        const pageMap = { 'view-landing': 'index.html', 'view-visitor': 'visitor.html', 'view-staff': 'staff-login.html', 'view-admin-auth': 'admin.html', 'view-admin-dash': 'admin.html' };
+        if (pageMap[viewId] && !window.location.pathname.includes(pageMap[viewId])) { window.location.href = pageMap[viewId]; return; }
+        document.querySelectorAll('.view-section').forEach(s => { s.classList.remove('active'); s.classList.add('hidden'); s.style.display = 'none'; });
+        const target = document.getElementById(viewId);
+        if (target) { target.classList.remove('hidden'); target.classList.add('active'); target.style.display = 'flex'; }
+        window.scrollTo(0, 0);
+    } catch (e) { console.error(e); }
 };
