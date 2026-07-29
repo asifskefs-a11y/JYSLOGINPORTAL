@@ -196,7 +196,16 @@ window.subscribeUserToPush = async () => {
         localStorage.setItem('notification_prompt_completed', 'true');
         if (notifModal) notifModal.remove();
 
-        new Notification("Jern Yafoor School", { body: "Native Notifications Enabled!", icon: "jys_Icon.png" });
+        // FIX: REPLACE ILLEGAL CONSTRUCTOR WITH SW SHOWNOTIFICATION
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.ready.then(reg => {
+                reg.showNotification("Jern Yafoor School", {
+                    body: "Native Notifications Enabled!",
+                    icon: "jys_Icon.png",
+                    badge: "jys_Icon.png"
+                });
+            }).catch(err => console.warn("Confirm Notif Fail:", err));
+        }
     } catch (e) {
         if (diagId) {
             diagId.innerText = "VAPID SUBSCRIPTION ERR: " + e.message;
