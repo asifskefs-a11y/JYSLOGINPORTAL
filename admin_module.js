@@ -10,13 +10,14 @@ window.appCache = {
     tasks: [],
     assets: [],
     transfers: [],
+    allRecordsCombined: [],
     isInitialized: false
 };
 
-// --- CORE ADMIN DASHBOARD LOGIC ---
+// --- CORE ADMIN DASHBOARD LOGIC (HARDENED) ---
 window.showAdminTab = (tabId) => {
     try {
-        console.log("Instant Tab Switch:", tabId);
+        console.log("Hardened Tab Switch:", tabId);
         const tabs = document.querySelectorAll('.admin-tab');
         tabs.forEach(t => {
             t.classList.add('hidden');
@@ -29,71 +30,73 @@ window.showAdminTab = (tabId) => {
             activeTab.style.display = 'block';
         }
 
+        // Update Button Active States
         document.querySelectorAll('.admin-tab-btn').forEach(b => b.classList.remove('active-tab'));
-        const activeBtn = document.querySelector(`[onclick*="${tabId}"]`);
-        if (activeBtn) activeBtn.classList.add('active-tab');
+        // Dynamic lookup by tabId substring to match [onclick*="tabId"]
+        const buttons = document.querySelectorAll('.admin-tab-btn');
+        buttons.forEach(btn => {
+            if (btn.getAttribute('onclick') && btn.getAttribute('onclick').includes(tabId)) {
+                btn.classList.add('active-tab');
+            }
+        });
 
-        // INSTANT RENDER FROM APP CACHE
+        // Trigger Render
         window.renderTabFromAppCache(tabId);
     } catch (e) { console.error("Tab switch error:", e); }
 };
 
 window.renderTabFromAppCache = (tabId) => {
-    switch(tabId) {
-        case 'tab-visitor-logs':
-        case 'tab-staff-logs':
-            window.renderAdminTable(window.appCache.allRecordsCombined || [], window.appCache.users, window.appCache.staff);
-            break;
-        case 'tab-tasks':
-            window.renderTaskTable(window.appCache.tasks);
-            break;
-        case 'tab-staff-list':
-            window.renderStaffDirectory(window.appCache.staff);
-            break;
-        case 'tab-assets':
-        case 'tab-disposal':
-            if (window.renderAdminAssetTable) window.renderAdminAssetTable(window.appCache.assets);
-            break;
-        case 'tab-transfers':
-            if (window.renderTransferTable) window.renderTransferTable(window.appCache.transfers);
-            break;
-    }
+    try {
+        switch(tabId) {
+            case 'tab-visitor-logs':
+                window.renderVisitorTable(window.appCache.visitors);
+                break;
+            case 'tab-staff-logs':
+                window.renderStaffAttendanceTable(window.appCache.staff_attendance);
+                break;
+            case 'tab-tasks':
+                if (window.renderTaskTable) window.renderTaskTable(window.appCache.tasks);
+                break;
+            case 'tab-staff-list':
+                if (window.renderStaffDirectory) window.renderStaffDirectory(window.appCache.staff);
+                break;
+            case 'tab-assets':
+            case 'tab-disposal':
+                if (window.renderAdminAssetTable) window.renderAdminAssetTable(window.appCache.assets);
+                break;
+            case 'tab-transfers':
+                if (window.renderTransferTable) window.renderTransferTable(window.appCache.transfers);
+                break;
+        }
+    } catch (e) { console.error("Render from cache error:", e); }
 };
 
 window.loadAdminDashboard = async () => {
     try {
-        if (window.appCache.isInitialized) return;
-        if (!document.getElementById('visitor-logs-body')) return;
+        console.log("Admin Dashboard: Initializing Hardened Data Listeners...");
 
-        console.log("Initiating Parallel Background Pre-fetching...");
-
-        // SILENT BACKGROUND LISTENERS
-        onValue(ref(db, 'visitors'), (v) => {
-            window.appCache.visitors = v.exists() ? Object.values(v.val()) : [];
-            window.syncAppCacheRecords();
+        // 1. Visitors Listener
+        onValue(ref(db, 'visitors'), (snap) => {
+            window.appCache.visitors = snap.exists() ? Object.values(snap.val()).reverse() : [];
+            window.renderVisitorTable(window.appCache.visitors);
+            window.updateKPIs();
         });
 
-        onValue(ref(db, 'staff_attendance'), (s) => {
-            window.appCache.staff_attendance = s.exists() ? Object.values(s.val()) : [];
-            window.syncAppCacheRecords();
+        // 2. Staff Attendance Listener
+        onValue(ref(db, 'staff_attendance'), (snap) => {
+            window.appCache.staff_attendance = snap.exists() ? Object.values(snap.val()).reverse() : [];
+            window.renderStaffAttendanceTable(window.appCache.staff_attendance);
+            window.updateKPIs();
         });
 
-        onValue(ref(db, 'users'), (snap) => {
-            window.appCache.users = snap.exists() ? snap.val() : {};
-            window.syncAppCacheRecords();
-        });
-
-        onValue(ref(db, 'staff'), (snap) => {
-            window.appCache.staff = snap.exists() ? snap.val() : {};
-            window.syncAppCacheRecords();
-            window.renderStaffDirectory(window.appCache.staff);
-        });
-
+        // 3. Tasks Listener
         onValue(ref(db, 'tasks'), (snap) => {
             window.appCache.tasks = snap.exists() ? Object.values(snap.val()).reverse() : [];
-            window.renderTaskTable(window.appCache.tasks);
+            if (window.renderTaskTable) window.renderTaskTable(window.appCache.tasks);
+            window.updateKPIs();
         });
 
+        // 4. Assets & Transfers
         onValue(ref(db, 'assets'), (snap) => {
             window.appCache.assets = snap.exists() ? Object.values(snap.val()) : [];
             if (window.renderAdminAssetTable) window.renderAdminAssetTable(window.appCache.assets);
@@ -104,411 +107,93 @@ window.loadAdminDashboard = async () => {
             if (window.renderTransferTable) window.renderTransferTable(window.appCache.transfers);
         });
 
-        if (window.initRaisedTasksTracker) window.initRaisedTasksTracker('admin-my-tasks-container');
-
-        // --- RESTORE ADD NEW STAFF MODAL TOGGLE ---
-        const addNewStaffBtn = document.querySelector('button[onclick="openAddStaffModal()"]');
-        if (addNewStaffBtn) {
-            addNewStaffBtn.onclick = (e) => {
-                e.preventDefault();
-                console.log("Opening Add Staff Modal...");
-                const modal = document.getElementById('add-staff-modal');
-                if (modal) {
-                    modal.classList.remove('hidden');
-                    modal.style.display = 'flex'; // Ensure centered alignment
-                }
-            };
-        }
-
-        // --- RESTORE STAFF FORM SUBMISSION & IMAGE UPLOAD ---
-        const staffForm = document.getElementById('add-staff-form');
-        if (staffForm) {
-            staffForm.onsubmit = async (e) => {
-                e.preventDefault();
-                console.log("Staff Form Submitted...");
-
-                const submitBtn = document.getElementById('add-staff-submit-btn');
-                const originalBtnText = submitBtn.innerText;
-
-                try {
-                    submitBtn.disabled = true;
-                    submitBtn.innerText = "UPLOADING PHOTO...";
-
-                    const name = document.getElementById('add-staff-name').value;
-                    const mobile = document.getElementById('add-staff-mobile').value;
-                    const adek = document.getElementById('add-staff-adek').value;
-                    const companyName = document.getElementById('add-staff-company-name').value;
-                    const branch = document.getElementById('add-staff-branch').value;
-                    const role = document.getElementById('add-staff-role').value;
-                    const companyId = document.getElementById('add-staff-company-id').value;
-                    const pass = document.getElementById('add-staff-pass').value;
-
-                    let profilePicUrl = "";
-
-                    // Check for global base64 variable populated by handleAdminStaffPhotoSelect
-                    if (window.addStaffPhotoBase64) {
-                        const cleanName = name.replace(/\s+/g, '_');
-                        const uploadRes = await window.uploadToDrive({
-                            type: 'active_asset',
-                            folderType: 'Staff_Profile_Photos',
-                            fileName: `Profile_${adek}_${cleanName}.jpg`,
-                            image: window.addStaffPhotoBase64
-                        });
-
-                        if (uploadRes.status === 'success') {
-                            const rawUrl = uploadRes.fileUrl || uploadRes.signatureUrl;
-                            profilePicUrl = window.formatDriveImageUrl ? window.formatDriveImageUrl(rawUrl) : rawUrl;
-                        }
-                    }
-
-                    const data = {
-                        id: mobile,
-                        name: name, fullName: name,
-                        mobile: mobile, mobileNumber: mobile,
-                        adcPassNumber: adek, adekPass: adek,
-                        companyName: companyName, company: companyId,
-                        companyIdNumber: companyId,
-                        branch: branch, schoolName: branch,
-                        role: role, position: role,
-                        password: pass,
-                        profilePicUrl: profilePicUrl,
-                        status: "active",
-                        createdAt: new Date().toISOString(),
-                        updatedAt: new Date().toISOString()
-                    };
-
-                    submitBtn.innerText = "SAVING TO DATABASE...";
-
-                    // Atomic write to both nodes
-                    const staffUpdates = {};
-                    staffUpdates[`staff/${mobile}`] = data;
-                    staffUpdates[`users/${mobile}`] = data;
-
-                    await update(ref(db), staffUpdates);
-
-                    alert("New staff member registered successfully!");
-
-                    // Reset and Close
-                    staffForm.reset();
-                    if (window.closeAddStaffModal) window.closeAddStaffModal();
-
-                } catch (err) {
-                    console.error("Staff Registration Error:", err);
-                    alert("Registration Failed: " + err.message);
-                } finally {
-                    submitBtn.disabled = false;
-                    submitBtn.innerText = originalBtnText;
-                }
-            };
-        }
+        // 5. Staff/Users Directory
+        onValue(ref(db, 'staff'), (snap) => {
+            window.appCache.staff = snap.exists() ? snap.val() : {};
+            if (window.renderStaffDirectory) window.renderStaffDirectory(window.appCache.staff);
+        });
 
         window.appCache.isInitialized = true;
         if (window.initNotificationBell) window.initNotificationBell();
         if (window.checkAndSubscribePush) window.checkAndSubscribePush();
 
-    } catch (err) { console.error("Admin Pre-fetch Error:", err); }
+    } catch (err) { console.error("Admin Dashboard Critical Fail:", err); }
 };
 
-window.syncAppCacheRecords = () => {
-    let all = [];
-    window.appCache.visitors.forEach(x => all.push({...x, type: 'visitor'}));
-    window.appCache.staff_attendance.forEach(x => all.push({...x, type: 'staff'}));
-    all.sort((a,b) => new Date(b.date + ' ' + (b.timeIn || '00:00 AM')) - new Date(a.date + ' ' + (a.timeIn || '00:00 AM')));
-
-    window.appCache.allRecordsCombined = all;
-    window.renderAdminTable(all, window.appCache.users, window.appCache.staff);
-
-    const visitorsToday = all.filter(r => r.type === 'visitor' && r.date === new Date().toLocaleDateString('en-US')).length;
-    const staffPresent = all.filter(r => r.type === 'staff' && (r.status === 'checked_in' || !r.timeOut)).length;
-    if(document.getElementById('kpi-visitors')) document.getElementById('kpi-visitors').innerText = visitorsToday;
-    if(document.getElementById('kpi-staff')) document.getElementById('kpi-staff').innerText = staffPresent;
-};
-
-window.renderTaskTable = (taskList) => {
-    const taskBody = document.getElementById('admin-task-list-body');
-    if (!taskBody) return;
-    taskBody.innerHTML = '';
-    taskList.forEach(t => {
-        const b = window.getDirectDriveImageUrl(t.beforePhotoUrl || t.beforePhoto || t.taskPhoto);
-        const a = window.getDirectDriveImageUrl(t.afterPhotoUrl || t.afterPhoto);
-        const rDT = t.raisedTimestamp ? new Date(t.raisedTimestamp) : null;
-        const cDT = t.solvedTimestamp ? new Date(t.solvedTimestamp) : null;
-        taskBody.innerHTML += `
-            <tr class="hover:bg-gray-50 transition text-gray-800 border-b border-gray-100 text-[9px]">
-                <td class="p-2 font-mono opacity-50">${t.id}</td>
-                <td class="p-2 font-bold text-indigo-600">${t.assignedSchool || t.schoolName || "-"}</td>
-                <td class="p-2 font-bold">${t.location || "-"}</td>
-                <td class="p-2 truncate max-w-[150px] italic">${t.details || t.description || "-"}</td>
-                <td class="p-2">${t.assignedRole || t.targetRole || "-"}</td>
-                <td class="p-2">${t.raisedByName || 'Admin'}</td>
-                <td class="p-2 font-mono">${rDT ? rDT.toLocaleDateString() : '-'}</td>
-                <td class="p-2 font-mono">${rDT ? rDT.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) : '-'}</td>
-                <td class="p-2">${t.solvedByName || "-"}</td>
-                <td class="p-2 font-mono">${cDT ? cDT.toLocaleDateString() : '-'}</td>
-                <td class="p-2 font-mono">${cDT ? cDT.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) : '-'}</td>
-                <td class="p-2 font-bold ${t.status === 'Open' ? 'text-blue-500' : (t.status === 'Closed' ? 'text-green-500' : 'text-red-500')}">${t.status}</td>
-                <td class="p-2 italic opacity-60">${t.rejectionReason || 'N/A'}</td>
-                <td class="p-2">
-                    <div class="flex gap-1 justify-center items-center">
-                        ${b.includes('http') ? `<img src="${b}" class="h-10 w-10 rounded border shadow-sm cursor-pointer hover:scale-150 transition" onclick="window.openImageZoom('${b}')" title="Before">` : ''}
-                        ${a.includes('http') ? `<img src="${a}" class="h-10 w-10 rounded border shadow-sm border-green-200 cursor-pointer hover:scale-150 transition" onclick="window.openImageZoom('${a}')" title="After">` : ''}
-                    </div>
-                </td>
-            </tr>`;
-    });
-};
-
-window.renderStaffDirectory = (staffData) => {
-    const staffListBody = document.getElementById('admin-staff-list-body');
-    if (!staffListBody) return;
-    staffListBody.innerHTML = '';
-    Object.values(staffData).forEach(x => {
-        const initials = (x.name || "JY").split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2);
-        const photoUrl = x.profilePicUrl ? (window.formatDriveImageUrl ? window.formatDriveImageUrl(x.profilePicUrl) : x.profilePicUrl) : "";
-        const photoHtml = photoUrl ?
-            `<img src="${photoUrl}" referrerpolicy="no-referrer" class="w-10 h-10 rounded-full object-cover border-2 border-indigo-100 shadow-sm mx-auto" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex'">` : '';
-
-        staffListBody.innerHTML += `
-            <tr class="border-b border-gray-50 text-gray-800 hover:bg-slate-50 transition text-[10px]">
-                <td class="p-3 text-center flex justify-center">
-                    <div class="relative w-10 h-10">
-                        ${photoHtml}
-                        <div class="w-10 h-10 bg-indigo-600 text-white rounded-full flex items-center justify-center font-bold text-xs shadow-sm" style="${photoUrl ? 'display:none;' : 'display:flex;'}">
-                            ${initials}
-                        </div>
-                    </div>
-                </td>
-                <td class="p-3 font-bold text-indigo-900">${x.name || "-"}</td>
-                <td class="p-3 font-mono text-[9px]">${x.adcPassNumber || x.adekPass || "-"}</td>
-                <td class="p-3">${x.branch || x.schoolName || "-"}</td>
-                <td class="p-3"><span class="px-2 py-0.5 bg-indigo-50 text-indigo-600 rounded-md text-[9px] font-black uppercase">${x.role || x.position || "-"}</span></td>
-                <td class="p-3 text-[9px] opacity-70">${x.companyName || x.company || "-"}</td>
-                <td class="p-3 font-mono text-[9px]">${x.mobile}</td>
-                <td class="p-3 text-center">
-                    <div class="flex items-center justify-center gap-2">
-                        <button onclick="window.openEditStaffModal('${x.mobile}')" class="text-indigo-600 hover:text-indigo-800 font-bold text-[10px] uppercase underline tracking-tighter">Edit</button>
-                        <button onclick="window.deleteStaffAccount('${x.mobile}', '${x.name}')" class="text-red-500 hover:text-red-700 font-bold text-[10px] uppercase underline tracking-tighter">Delete</button>
-                    </div>
-                </td>
-            </tr>`;
-    });
-};
-
-window.renderAdminTable = (data, userProfiles = {}, staffProfiles = {}) => {
-    const staffBody = document.getElementById('staff-attendance-body');
-    const visitorBody = document.getElementById('visitor-logs-body');
-    if (staffBody) staffBody.innerHTML = '';
-    if (visitorBody) visitorBody.innerHTML = '';
-
-    data.forEach(r => {
-        let sig = r.checkInSignature || r.checkInSignatureUrl || r.signatureUrl || r.visitorSignature;
-        if (sig && sig.includes('http')) sig = window.getDirectDriveImageUrl(sig);
-
-        if (r.type === 'staff' && staffBody) {
-            const profile = userProfiles[r.mobile] || staffProfiles[r.mobile] || {};
-            staffBody.innerHTML += `
-                <tr class="hover:bg-gray-50 transition border-b border-gray-100 text-gray-800 text-[10px]">
-                    <td class="p-3 font-bold opacity-40 uppercase">Staff</td>
-                    <td class="p-3 font-bold text-indigo-900">${profile.name || r.name || "-"}</td>
-                    <td class="p-3 font-mono">${r.mobile}</td>
-                    <td class="p-3">${profile.branch || "-"}</td>
-                    <td class="p-3">${profile.role || "-"}</td>
-                    <td class="p-3">${profile.companyIdNumber || "-"}</td>
-                    <td class="p-3 font-mono">${r.date}</td>
-                    <td class="p-3 text-green-600 font-bold">${r.timeIn}</td>
-                    <td class="p-3 text-red-600 font-bold">${r.timeOut || (r.status === 'checked_in' ? 'ACTIVE' : 'RECORDED')}</td>
-                    <td class="p-3 text-center">${sig ? `<img src="${sig}" class="h-8 mx-auto rounded border" onclick="window.openImageZoom('${sig}')">` : '-'}</td>
-                </tr>`;
-        } else if (r.type === 'visitor' && visitorBody) {
-            visitorBody.innerHTML += `
-                <tr class="hover:bg-gray-50 transition border-b border-gray-100 text-gray-800 text-[10px]">
-                    <td class="p-3 font-bold opacity-40 uppercase">Visitor</td>
-                    <td class="p-3 font-mono">${r.id}</td>
-                    <td class="p-3 font-bold text-indigo-900">${r.name}</td>
-                    <td class="p-3">${r.mobile}</td>
-                    <td class="p-3">${r.company}</td>
-                    <td class="p-3 truncate max-w-[100px]">${r.purpose}</td>
-                    <td class="p-3 font-mono">${r.date}</td>
-                    <td class="p-3 text-green-600 font-bold">${r.timeIn}</td>
-                    <td class="p-3 text-red-600 font-bold">${r.timeOut || 'ACTIVE'}</td>
-                    <td class="p-3"><span class="px-2 py-0.5 rounded text-[8px] font-bold ${r.status === 'active' ? 'bg-green-100 text-green-600' : 'bg-gray-100 text-gray-600'}">${(r.status || 'Unknown').toUpperCase()}</span></td>
-                    <td class="p-3 text-center">${sig ? `<img src="${sig}" class="h-8 mx-auto rounded border" onclick="window.openImageZoom('${sig}')">` : '-'}</td>
-                </tr>`;
-        }
-    });
-};
-
-// --- INTELLIGENT FIELD MAPPING ---
-window.normalizeFieldKey = (k) => k ? String(k).toLowerCase().replace(/^[0-9]+\.\s*/, "").replace(/[^a-z0-9]/g, "").trim() : "";
-window.findValueByFuzzyKey = (obj, target) => {
-    if (!obj || !target) return "-";
-    if (obj[target]) return obj[target];
-    const normTarget = window.normalizeFieldKey(target);
-    const keys = Object.keys(obj);
-    const match = keys.find(k => window.normalizeFieldKey(k) === normTarget);
-    return match ? obj[match] : "-";
-};
-
-// --- REBUILT ASYNCHRONOUS EXCEL IMPORT (Strict Promise Enforcement) ---
-window.handleAssetImport = (event) => {
-    const file = event.target.files[0];
-    if (!file) return;
-
-    const modal = document.getElementById('import-progress-modal');
-    const pText = document.getElementById('import-progress-text');
-    const pBar = document.getElementById('import-progress-bar');
-    const cText = document.getElementById('import-count-text');
-
-    modal.classList.remove('hidden');
-    pText.innerText = "Reading file...";
-    pBar.style.width = "0%";
-
-    const reader = new FileReader();
-    reader.onload = (e) => {
-        try {
-            const data = new Uint8Array(e.target.result);
-            const workbook = XLSX.read(data, { type: 'array' });
-            const sheet = workbook.Sheets[workbook.SheetNames[0]];
-
-            // Step D: Parse using SheetJS starting from Row 2 (range: 1)
-            const jsonData = XLSX.utils.sheet_to_json(sheet, { range: 1, defval: "-", raw: false });
-
-            if (!jsonData.length) {
-                alert("ERROR: The file contains no data rows in the expected range.");
-                modal.classList.add('hidden');
-                return;
-            }
-
-            const total = jsonData.length;
-            cText.innerText = `0 / ${total}`;
-
-            const allUpdates = {};
-            let validCount = 0;
-
-            jsonData.forEach((row, index) => {
-                const sanitizeFirebaseKey = (k) => String(k).replace(/[\.\#\$\/\[\]]/g, '').trim();
-
-                const bc = row['Asset Barcode'] || row['1. Asset Barcode'] || row['1. ASSET BARCODE'] || Object.values(row)[0];
-                const rawKey = (bc && bc !== "-") ? String(bc) : `ASSET_${Date.now()}_${index}`;
-                const sanitizedKey = sanitizeFirebaseKey(rawKey);
-
-                const record = { assetBarcode: sanitizedKey, updatedAt: new Date().toISOString() };
-
-                Object.keys(row).forEach(h => {
-                    const safeKey = sanitizeFirebaseKey(h);
-                    const val = row[h];
-                    record[safeKey] = (val !== undefined && val !== null && String(val).trim() !== "") ? String(val).trim() : "-";
-                });
-
-                allUpdates[`assets/${sanitizedKey}`] = record;
-                validCount++;
-            });
-
-            if (Object.keys(allUpdates).length === 0) {
-                alert("ERROR: No valid data found.");
-                modal.classList.add('hidden');
-                return;
-            }
-
-            pText.innerText = `Committing ${validCount} records to Firebase...`;
-            pBar.style.width = "50%";
-
-            // --- STRICT PROMISE CHAIN ---
-            // Physical write happens here. Alert only inside .then()
-            update(ref(db), allUpdates)
-                .then(() => {
-                    pBar.style.width = "100%";
-                    cText.innerText = `${validCount} / ${total}`;
-                    modal.classList.add('hidden');
-
-                    if (typeof window.loadAdminDashboard === 'function') {
-                        // Clear initialization flag to allow re-fetch
-                        window.appCache.isInitialized = false;
-                        window.loadAdminDashboard();
-                    }
-
-                    alert(`SUCCESS: Physically saved ${validCount} asset records to Firebase Realtime Database!`);
-                })
-                .catch((error) => {
-                    console.error("FIREBASE WRITE ERROR:", error);
-                    alert("CRITICAL FIREBASE WRITE ERROR: " + error.message);
-                    modal.classList.add('hidden');
-                });
-
-        } catch (err) {
-            alert("FILE PROCESSING ERROR: " + err.message);
-            modal.classList.add('hidden');
-        } finally {
-            event.target.value = "";
-        }
-    };
-    reader.readAsArrayBuffer(file);
-};
-
-// --- ADD STAFF MODAL LOGIC ---
-window.addStaffPhotoBase64 = "";
-
-window.openAddStaffModal = () => {
-    document.getElementById('add-staff-modal').classList.remove('hidden');
-    document.getElementById('add-staff-modal').style.display = 'flex';
-};
-
-window.closeAddStaffModal = () => {
-    document.getElementById('add-staff-modal').classList.add('hidden');
-    document.getElementById('add-staff-modal').style.display = 'none';
-    document.getElementById('add-staff-form').reset();
-    if(document.getElementById('adminStaffPhotoPreview')) {
-        document.getElementById('adminStaffPhotoPreview').innerHTML = '<i class="fa-solid fa-user text-3xl text-slate-300"></i>';
-    }
-    window.addStaffPhotoBase64 = "";
-};
-
-window.handleAdminStaffPhotoSelect = async (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-    const preview = document.getElementById('adminStaffPhotoPreview');
-    if(preview) preview.innerHTML = '<i class="fa-solid fa-spinner fa-spin text-indigo-600"></i>';
+window.updateKPIs = () => {
     try {
-        window.addStaffPhotoBase64 = await window.compressImageFile(file, 500, 500, 0.7);
-        if(preview) preview.innerHTML = `<img src="${window.addStaffPhotoBase64}" class="w-full h-full object-cover">`;
-    } catch (err) {
-        console.error(err);
-        if(preview) preview.innerHTML = '<i class="fa-solid fa-circle-exclamation text-red-500"></i>';
+        const vToday = window.appCache.visitors.filter(v => v.date === new Date().toLocaleDateString('en-US')).length;
+        const tActive = window.appCache.tasks.filter(t => t.status !== 'Closed' && t.status !== 'Rejected').length;
+        const sPresent = window.appCache.staff_attendance.filter(s => s.status === 'checked_in').length;
+
+        const elV = document.getElementById('kpi-visitors');
+        const elT = document.getElementById('kpi-tasks');
+        const elS = document.getElementById('kpi-staff');
+
+        if (elV) elV.innerText = vToday;
+        if (elT) elT.innerText = tActive;
+        if (elS) elS.innerText = sPresent;
+    } catch (e) { console.warn("KPI Update Fail:", e); }
+};
+
+window.renderVisitorTable = (data) => {
+    const body = document.getElementById('visitor-logs-body');
+    if (!body) return;
+    body.innerHTML = '';
+
+    data.forEach(v => {
+        const tr = document.createElement('tr');
+        tr.className = "hover:bg-gray-50 transition border-b border-gray-50";
+        tr.innerHTML = `
+            <td class="p-3"><span class="px-2 py-0.5 bg-indigo-100 text-indigo-600 rounded-md font-bold uppercase text-[8px]">Visitor</span></td>
+            <td class="p-3 font-mono">${v.id || '-'}</td>
+            <td class="p-3 font-bold">${v.name || '-'}</td>
+            <td class="p-3">${v.mobile || '-'}</td>
+            <td class="p-3 uppercase text-gray-400 font-bold">${v.company || '-'}</td>
+            <td class="p-3 italic text-gray-500">${v.purpose || '-'}</td>
+            <td class="p-3 font-mono text-gray-400">${v.date || '-'}</td>
+            <td class="p-3 font-bold text-green-600">${v.timeIn || '-'}</td>
+            <td class="p-3 font-bold text-red-600">${v.timeOut || '-'}</td>
+            <td class="p-3"><span class="px-2 py-0.5 rounded-full text-[8px] font-black uppercase ${v.status === 'active' ? 'bg-green-100 text-green-600' : 'bg-gray-100 text-gray-400'}">${v.status || 'inactive'}</span></td>
+            <td class="p-3 text-center">
+                ${v.signatureUrl ? `<img src="${window.getDirectDriveImageUrl(v.signatureUrl)}" class="h-8 w-12 object-contain border rounded bg-white shadow-sm cursor-pointer hover:scale-150 transition" onclick="window.openImageZoom('${v.signatureUrl}')">` : '<i class="fa-solid fa-pen-nib opacity-10"></i>'}
+            </td>
+        `;
+        body.appendChild(tr);
+    });
+};
+
+window.renderStaffAttendanceTable = (data) => {
+    const body = document.getElementById('staff-attendance-body');
+    if (!body) return;
+    body.innerHTML = '';
+
+    data.forEach(s => {
+        const tr = document.createElement('tr');
+        tr.className = "hover:bg-gray-50 transition border-b border-gray-50";
+        tr.innerHTML = `
+            <td class="p-3"><span class="px-2 py-0.5 bg-purple-100 text-purple-600 rounded-md font-bold uppercase text-[8px]">Staff</span></td>
+            <td class="p-3 font-bold text-indigo-900">${s.name || '-'}</td>
+            <td class="p-3 font-mono text-gray-500">${s.mobile || '-'}</td>
+            <td class="p-3 text-[9px] font-bold text-gray-400 uppercase">${s.branch || '-'}</td>
+            <td class="p-3 uppercase font-black text-indigo-400">${s.role || '-'}</td>
+            <td class="p-3 font-mono text-gray-400">${s.adekPassId || s.adcPassNumber || '-'}</td>
+            <td class="p-3 font-mono">${s.date || '-'}</td>
+            <td class="p-3 font-bold text-green-600">${s.timeIn || '-'}</td>
+            <td class="p-3 font-bold text-red-600">${s.checkOutTime || '-'}</td>
+            <td class="p-3 text-center">
+                ${s.signatureUrl || s.checkInSignature ? `<img src="${window.getDirectDriveImageUrl(s.signatureUrl || s.checkInSignature)}" class="h-8 w-12 object-contain border rounded bg-white shadow-sm cursor-pointer hover:scale-150 transition" onclick="window.openImageZoom('${s.signatureUrl || s.checkInSignature}')">` : '<i class="fa-solid fa-signature opacity-10"></i>'}
+            </td>
+        `;
+        body.appendChild(tr);
+    });
+};
+
+// --- INITIALIZATION GATE ---
+document.addEventListener('DOMContentLoaded', () => {
+    const path = window.location.pathname;
+    if (path.includes('admin.html')) {
+        const isAdmin = localStorage.getItem('isAdminLoggedIn') === 'true';
+        if (isAdmin) window.loadAdminDashboard();
     }
-};
-
-// --- DYNAMIC UI TABLE GENERATION ---
-window.updateAssetTableHeaders = (headers) => {
-    try {
-        const tableSelectors = ['#asset-master-table', '#asset-disposal-table'];
-
-        tableSelectors.forEach(selector => {
-            const tableHeaderRow = document.querySelector(`${selector} thead tr`);
-            if (!tableHeaderRow) return;
-
-            // Reset and Add Select All
-            tableHeaderRow.innerHTML = '<th class="p-3 border-r text-center"><input type="checkbox" class="selectAllAssets" onclick="window.toggleAllAssetCheckboxes(this)"></th>';
-
-            // Add dynamic headers from Excel/Firebase keys
-            headers.forEach(h => {
-                if (['updatedAt', 'createdAt', 'assetBarcode', 'initialAuditPhotoData', 'disposalPhotoData', 'initialAuditPhotoAtDisposal'].includes(h)) return;
-
-                const th = document.createElement('th');
-                th.className = "p-3 border-r min-w-[150px] uppercase";
-                th.innerText = h.replace(/_/g, ' ');
-                tableHeaderRow.appendChild(th);
-            });
-
-            // Add static operational columns
-            const operationalHeaders = ['Audit Photo', 'Disposal Photo', 'Action'];
-            operationalHeaders.forEach(h => {
-                const th = document.createElement('th');
-                th.className = "p-3 border-r min-w-[120px] text-center uppercase";
-                if (h === 'Action') th.className += " text-red-600";
-                th.innerText = h;
-                tableHeaderRow.appendChild(th);
-            });
-        });
-    } catch (e) { console.error("Error updating dynamic headers:", e); }
-};
-nwindow.filterTransferTable = () => {n    const q = document.getElementById('transfer-search').value.toLowerCase();n    const filtered = window.appCache.transfers.filter(t => n        t.transferId.toLowerCase().includes(q) || n        t.assetBarcode.toLowerCase().includes(q) || n        t.assetName.toLowerCase().includes(q) || n        t.initiatedBy.toLowerCase().includes(q)n    );n    window.renderTransferTable(filtered);n};nnwindow.exportTransferReport = async () => {n    if (window.appCache.transfers.length === 0) return alert('No data to export');n    const workbook = new ExcelJS.Workbook();n    const sheet = workbook.addWorksheet('Asset Transfers');n    sheet.columns = [n        { header: 'Transfer ID', key: 'transferId' },n        { header: 'Barcode', key: 'assetBarcode' },n        { header: 'Asset Name', key: 'assetName' },n        { header: 'Serial No', key: 'serialNo' },n        { header: 'From', key: 'fromLocation' },n        { header: 'To', key: 'toLocation' },n        { header: 'Status', key: 'status' },n        { header: 'Staff', key: 'initiatedBy' },n        { header: 'ADEK ID', key: 'initiatedByAdek' },n        { header: 'Date', key: 'date' },n        { header: 'Time', key: 'time' }n    ];n    window.appCache.transfers.forEach(t => sheet.addRow(t));n    const buffer = await workbook.xlsx.writeBuffer();n    saveAs(new Blob([buffer]), 'Asset_Transfer_Report.xlsx');n};
+});
