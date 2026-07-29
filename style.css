@@ -29,93 +29,38 @@ body {
     overflow-x: hidden;
 }
 
-/* Ensure hidden remains hidden on all views */
-.hidden {
+/* Ensure hidden remains hidden and physically removed from touch plane */
+.hidden, [style*='display: none'] {
     display: none !important;
-}
-
-/* ========================================================= */
-/* 🎬 APP LAUNCH VIDEO OVERLAY                               */
-/* ========================================================= */
-#launchVideoOverlay {
-    position: fixed !important;
-    top: 0 !important;
-    left: 0 !important;
-    right: 0 !important;
-    bottom: 0 !important;
-    width: 100vw !important;
-    height: 100vh !important;
-    height: 100dvh !important;
-    background: #000 !important;
-    z-index: 999999 !important;
-    overflow: hidden !important;
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-}
-
-#appLaunchVideo {
-    width: auto !important;
-    height: auto !important;
-    max-width: 100% !important;
-    max-height: 100% !important;
-    object-fit: contain !important;
-    object-position: center !important;
-    background: #000;
     pointer-events: none !important;
-    margin: auto !important;
+    visibility: hidden !important;
+    z-index: -9999 !important;
 }
 
-#appLaunchVideo::-webkit-media-controls { display: none !important; }
-#skipVideoBtn {
+/* ========================================================= */
+/* 🛡️ HYBRID INTERACTION HARDENING (CRITICAL)                  */
+/* ========================================================= */
+
+/* Force Top-Level Interaction for Dashboard Modules */
+#asset-audit-access, .tasks-grid, #trf-workflow-section, #view-staff > nav {
+    position: relative !important;
+    z-index: 100 !important;
+    pointer-events: auto !important;
+}
+
+/* Ensure buttons are always interactable */
+button, .portal-card, [onclick], .btn-task-accept, .btn-task-reject {
     pointer-events: auto !important;
     cursor: pointer !important;
-    top: max(20px, env(safe-area-inset-top)) !important;
-    right: max(20px, env(safe-area-inset-right)) !important;
-    z-index: 1000000 !important;
-}
-
-.fade-out { opacity: 0 !important; pointer-events: none !important; }
-
-/* ========================================================= */
-/* 🏠 PORTAL LANDING PAGE LAYOUT                             */
-/* ========================================================= */
-.portal-main-container {
-    display: flex !important;
-    flex-direction: row !important;
-    justify-content: center !important;
-    align-items: stretch !important;
-    gap: 24px !important;
-    width: 100% !important;
-    max-width: 900px !important;
-    margin: 48px auto !important;
-}
-
-.portal-card {
-    flex: 1 !important;
-    min-width: 300px !important;
-    margin: 0 !important;
-    display: flex !important;
-    flex-direction: column !important;
-    background: white !important;
-    border-radius: 24px !important;
-    padding: 24px !important;
-    box-shadow: var(--shadow) !important;
-    cursor: pointer !important;
-    transition: transform 0.2s ease !important;
+    touch-action: manipulation !important;
     position: relative;
-    z-index: 5;
+    z-index: 110 !important;
 }
 
-.portal-card:active { transform: scale(0.98); }
-
-@media screen and (max-width: 768px) {
-    .portal-main-container { flex-direction: column !important; padding: 0 20px !important; }
-    .portal-card { width: 100% !important; min-width: unset !important; }
-}
+.active-touch { background-color: rgba(0,0,0,0.05) !important; transform: scale(0.98); }
 
 /* ========================================================= */
-/* 📋 DATA TABLES & TABS                                     */
+/* 📋 DATA TABLES & KPI CARDS                                */
 /* ========================================================= */
 .excel-table { border-collapse: separate !important; border-spacing: 0 !important; width: 100% !important; }
 .excel-table thead th {
@@ -126,28 +71,9 @@ body {
     letter-spacing: 0.05em !important;
     padding: 14px 16px !important;
     border-bottom: 2px solid #e2e8f0 !important;
-    white-space: nowrap;
     font-size: 11px;
 }
 .excel-table tbody td { padding: 12px 16px !important; vertical-align: middle !important; border-bottom: 1px solid #f1f5f9 !important; font-size: 12px; }
-.excel-table tbody tr:nth-child(even) { background-color: #fbfcfe !important; }
-.excel-table tbody tr:hover { background-color: #f1f5f9 !important; }
-
-.admin-tab-btn { border: none !important; color: #64748b !important; background: transparent !important; position: relative; cursor: pointer !important; font-weight: 700 !important; white-space: nowrap; transition: all 0.2s ease; }
-.admin-tab-btn.active-tab { color: #4f46e5 !important; background: white !important; box-shadow: 0 4px 12px rgba(79, 70, 229, 0.08) !important; border-bottom: 3px solid #4f46e5 !important; }
-
-/* ========================================================= */
-/* 📊 KPI & STAT CARDS                                       */
-/* ========================================================= */
-.kpi-horizontal-container {
-    display: flex !important;
-    flex-direction: row !important;
-    justify-content: space-between !important;
-    align-items: stretch !important;
-    gap: 16px !important;
-    width: 100% !important;
-    margin: 20px 0 !important;
-}
 
 .stat-card {
     flex: 1 !important;
@@ -158,112 +84,34 @@ body {
     border: 1px solid #e2e8f0 !important;
     box-shadow: 0 2px 8px rgba(0,0,0,0.05) !important;
     display: flex !important;
-    align-items: center !important;
+    align-items: center;
     gap: 12px !important;
 }
 
-.stat-card i { font-size: 1.5rem; color: var(--primary-teal); width: 40px; height: 40px; background: #f1f5f9; border-radius: 8px; display: flex; align-items: center; justify-content: center; }
-.stat-card h3 { font-size: 1.25rem; font-weight: 700; color: #0f172a; margin: 0; line-height: 1; }
-.stat-card p { font-size: 0.75rem; font-weight: 600; color: #64748b; text-transform: uppercase; letter-spacing: 0.025em; margin: 0 0 4px 0; }
-
 /* ========================================================= */
-/* 🏢 STAFF DASHBOARD & ASSET GRID                            */
-/* ========================================================= */
-#staff-dash-area .container-fluid { width: 100%; padding: 0; }
-
-#asset-audit-access .grid {
-    display: grid !important;
-    grid-template-columns: repeat(2, 1fr) !important;
-    gap: 12px !important;
-}
-
-#asset-audit-access button {
-    border: none !important;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
-    position: relative !important;
-    overflow: hidden !important;
-    display: flex !important;
-    flex-direction: column !important;
-    align-items: center !important;
-    justify-content: center !important;
-    text-align: center !important;
-    padding: 12px !important;
-    min-height: 80px !important;
-    border-radius: 20px !important;
-    z-index: 100 !important;
-    pointer-events: auto !important;
-}
-
-#asset-audit-access button .bg-white\/20 {
-    width: 36px !important;
-    height: 36px !important;
-    margin-bottom: 6px !important;
-    background: rgba(255, 255, 255, 0.15) !important;
-    backdrop-filter: blur(4px);
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    border-radius: 50% !important;
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-}
-
-#asset-audit-access button i { font-size: 16px !important; color: white !important; }
-#asset-audit-access button span { color: white !important; }
-#asset-audit-access .block.text-lg { font-size: 13px !important; font-weight: 700 !important; }
-#asset-audit-access .text-\[10px\] { font-size: 8px !important; font-weight: 400 !important; opacity: 0.8; }
-
-/* ========================================================= */
-/* 🛠️ TASK MANAGEMENT                                        */
+/* 🛠️ TASK MANAGEMENT & DYNAMIC RENDERING                    */
 /* ========================================================= */
 .tasks-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 20px; }
 .task-card {
     background: var(--white) !important;
-    border-radius: 12px !important;
+    border-radius: 20px !important;
     padding: 16px !important;
     box-shadow: var(--shadow) !important;
     display: flex !important;
     flex-direction: column !important;
-    position: relative !important;
-    z-index: 50 !important;
-    pointer-events: auto !important;
     max-width: 100% !important;
     box-sizing: border-box !important;
     overflow: hidden !important;
+    border: 1px solid #f1f5f9 !important;
 }
 
-.task-card img, .task-image-preview img {
+.task-card img, .image-preview-container img {
     max-width: 100% !important;
+    width: 100% !important;
     height: auto !important;
-    box-sizing: border-box !important;
     object-fit: contain !important;
-    border-radius: 8px !important;
+    border-radius: 12px !important;
 }
-
-.task-actions-container {
-    display: flex !important;
-    gap: 8px !important;
-    margin-top: 15px !important;
-    pointer-events: auto !important;
-    flex-wrap: wrap !important;
-}
-
-.task-actions-container button {
-    flex: 1 !important;
-    min-width: 120px !important;
-    pointer-events: auto !important;
-    z-index: 60 !important;
-    cursor: pointer !important;
-}
-
-/* ========================================================= */
-/* 🖼️ MODALS & SIGNATURES                                    */
-/* ========================================================= */
-.modal, #signature-modal, #task-modal, #asset-disposal-modal, #scanner-modal, #password-modal, #notification-modal {
-    z-index: 100000 !important;
-}
-
-.canvas-wrapper { width: 100% !important; height: 200px !important; border: 2px dashed var(--border-color) !important; border-radius: 12px !important; overflow: hidden !important; background: #fff !important; }
-canvas#sig-canvas { width: 100% !important; height: 100% !important; pointer-events: auto !important; touch-action: none !important; }
 
 /* ========================================================= */
 /* 📱 MOBILE RESPONSIVE ISOLATION (max-width: 768px)          */
@@ -271,81 +119,39 @@ canvas#sig-canvas { width: 100% !important; height: 100% !important; pointer-eve
 @media screen and (max-width: 768px) {
     .app-container { padding: 12px !important; }
 
-    #view-staff > nav {
-        flex-direction: row !important;
-        justify-content: space-between !important;
+    #asset-audit-access .grid {
+        display: grid !important;
+        grid-template-columns: repeat(2, 1fr) !important;
+        gap: 12px !important;
+    }
+
+    #asset-audit-access button {
+        padding: 12px !important;
+        min-height: 80px !important;
+        border-radius: 20px !important;
+        display: flex !important;
+        flex-direction: column !important;
         align-items: center !important;
-        padding: 12px 16px !important;
-        background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%) !important;
-        border-radius: 0 0 24px 24px !important;
+        text-align: center !important;
     }
 
-    .kpi-horizontal-container { flex-direction: column !important; }
-    .stats-grid { grid-template-columns: repeat(3, 1fr) !important; gap: 8px !important; }
-    .stat-card { padding: 8px !important; }
-    .stat-card h3 { font-size: 14px !important; }
+    #asset-audit-access button i { font-size: 18px !important; margin-bottom: 6px !important; }
+    #asset-audit-access button span.text-lg { font-size: 13px !important; font-weight: 800 !important; }
+    #asset-audit-access button span.opacity-80 { font-size: 8px !important; }
 
-    #staff-dash-area .bg-white.rounded-2xl { padding: 16px !important; margin-bottom: 12px !important; }
-    #staff-dash-area .school-header { padding-bottom: 8px !important; margin-bottom: 8px !important; }
-
-    /* Ensure buttons are never blocked on mobile */
-    [onclick], button, a, .portal-card, #asset-audit-access button {
-        pointer-events: auto !important;
-        cursor: pointer !important;
-        touch-action: manipulation !important;
+    .btn-task-accept, .btn-task-reject {
+        padding: 14px 8px !important;
+        font-size: 10px !important;
     }
-
-    .view-section:not(.active) { display: none !important; pointer-events: none !important; }
 }
 
 /* ========================================================= */
-/* 🖥️ DESKTOP RESTORATION (min-width: 1025px)                 */
+/* 🖼️ MODALS & OVERLAYS                                      */
 /* ========================================================= */
-@media (min-width: 1025px) {
-    .app-container { max-width: 1200px !important; margin: 0 auto !important; }
-    #asset-audit-access .grid { grid-template-columns: repeat(4, 1fr) !important; }
+.modal, #signature-modal, #task-modal, #asset-disposal-modal, #scanner-modal, #password-modal, #notification-modal, #reject-modal {
+    z-index: 999999 !important;
+    background: rgba(0,0,0,0.85) !important;
+    backdrop-filter: blur(8px) !important;
 }
 
-/* ========================================================= */
-/* 🔔 NOTIFICATION BELL UI                                   */
-/* ========================================================= */
-.bell-container i { color: #4f46e5 !important; }
-#bell-badge { z-index: 10; color: white !important; }
-#bell-dropdown p, #bell-dropdown h4, #bell-dropdown span { color: #0f172a !important; }
-.custom-scrollbar::-webkit-scrollbar { width: 4px; }
-.custom-scrollbar::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 10px; }
-
-/* ========================================================= */
-/* 🛡️ EMERGENCY INTERACTION LAYER                             */
-/* ========================================================= */
-.active { pointer-events: auto !important; visibility: visible !important; }
-.hidden, .hidden * { pointer-events: none !important; visibility: hidden !important; }
-
-/* Diagnostic Border */
-.mobile-touch-test:active { border: 2px solid red !important; }
-n/* --- NOTIFICATION MODAL OVERLAY FIX --- */n#notification-modal.hidden { display: none !important; pointer-events: none !important; visibility: hidden !important; }n#notification-modal:not(.hidden) { display: flex !important; pointer-events: auto !important; visibility: visible !important; }nn/* --- ASSET GRID TOUCH PROTECTION --- */n#asset-audit-access { position: relative !important; z-index: 100 !important; pointer-events: auto !important; }n#asset-audit-access .grid { pointer-events: auto !important; }n#asset-audit-access button { pointer-events: auto !important; z-index: 110 !important; }
-n/* --- INLINE TASK CARD RECOVERY --- */n.task-card { max-width: 100% !important; box-sizing: border-box !important; overflow: hidden !important; }n.image-preview-container img { max-width: 100% !important; width: 100% !important; height: auto !important; object-fit: contain !important; }n.task-actions-container { flex-wrap: wrap !important; }n.task-actions-container button { min-width: 120px !important; }
-n/* ========================================================= */n/* 🛡️ ANDROID HYBRID TOUCH & RENDERING HARDENING              */n/* ========================================================= */nn/* 1. Clear the Touch Plane: Physical removal of hidden layers */n.hidden, [style*='display: none'], #notification-modal.hidden { n    display: none !important; n    pointer-events: none !important; n    visibility: hidden !important; n    z-index: -9999 !important; n}nn/* 2. Priority Interaction Layer: Force buttons to top */n#asset-audit-access, .tasks-grid, #trf-workflow-section {n    position: relative !important;n    z-index: 100 !important;n    pointer-events: auto !important;n    -webkit-tap-highlight-color: rgba(0,0,0,0);n}nn#asset-audit-access button, .task-card button {n    pointer-events: auto !important;n    z-index: 110 !important;n    touch-action: manipulation !important;n}nn/* 3. Task Card & Image Scaling Fixes */n.task-card {n    max-width: 100% !important;n    box-sizing: border-box !important;n    word-wrap: break-word !important;n    overflow: hidden !important;n}nn.task-card img, .image-preview-container img, .img-box img {n    max-width: 100% !important;n    width: 100% !important;n    height: auto !important;n    object-fit: contain !important;n    border-radius: 12px !important;n}nn/* 4. Mobile Button Text Overflow Fix */n@media screen and (max-width: 768px) {n    .btn-task-accept, .btn-task-reject {n        padding: 14px 8px !important;n        font-size: 10px !important;n    }n    n    #asset-audit-access .grid {n        grid-template-columns: repeat(2, 1fr) !important;n        gap: 10px !important;n    }n}n
-/* ========================================================= */
-/* 🔄 RESET BUTTON TO ORIGINAL WORKING STATE                 */
-/* ========================================================= */
-
-/* 1. Unblock touch on all interactive buttons */
-#asset-audit-access button,
-.task-actions-container button,
-button {
-    position: relative !important;
-    z-index: 99999 !important;
-    pointer-events: auto !important;
-    touch-action: manipulation !important;
-    cursor: pointer !important;
-}
-
-/* 2. Hide any invisible dynamic layers blocking the screen */
-.modal:not(.active),
-.backdrop:not(.active),
-#notification-modal:empty,
-.hidden {
-    display: none !important;
-    pointer-events: none !important;
-}
+#notification-modal.hidden { display: none !important; z-index: -1 !important; }
