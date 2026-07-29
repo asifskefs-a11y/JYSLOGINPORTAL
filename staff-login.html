@@ -14,7 +14,7 @@
     <link rel="manifest" href="manifest.json?v=3.1">
     <link rel="apple-touch-icon" href="jys_Icon.png?v=3.1">
     <meta name="theme-color" content="#4f46e5">
-    <link rel="stylesheet" href="style.css?v=2.0.1">
+    <link rel="stylesheet" href="style.css">
 </head>
 <body class="text-white">
     <div class="app-container">
@@ -84,10 +84,10 @@
 
                 <div class="container-fluid">
                     <!-- ASSET AUDIT ACCESS (For Authorized Roles) -->
-                    <div id="asset-audit-access" class="hidden mb-6" style="position: relative; z-index: 9999; pointer-events: auto;">
+                    <div id="asset-audit-access" class="hidden mb-6">
                         <h2 class="text-lg font-black text-indigo-900 mb-4 tracking-tight">Asset Management</h2>
-                        <div class="grid grid-cols-1 gap-4" style="pointer-events: auto;">
-                            <button onclick="openAssetAudit();" class="item-audit-btn w-full bg-orange-600 text-white p-5 rounded-2xl shadow-lg flex items-center justify-between transition-transform active:scale-95" style="min-height: 70px; pointer-events: auto; z-index: 10000;">
+                        <div class="grid grid-cols-1 gap-4">
+                            <button onclick="openAssetAudit()" class="w-full bg-orange-600 text-white p-5 rounded-2xl shadow-lg flex items-center justify-between transition-transform active:scale-95" style="min-height: 70px;">
                                 <div class="flex items-center gap-4">
                                     <div class="bg-white/20 p-2 rounded-full">
                                         <i class="fa-solid fa-barcode text-xl"></i>
@@ -100,7 +100,7 @@
                                 <i class="fa-solid fa-chevron-right opacity-50"></i>
                             </button>
 
-                            <button onclick="openDirectDisposal()" class="dispose-item-btn w-full bg-red-600 text-white p-5 rounded-2xl shadow-lg flex items-center justify-between transition-transform active:scale-95" style="min-height: 70px; pointer-events: auto; z-index: 10000;">
+                            <button onclick="openDirectDisposal()" class="w-full bg-red-600 text-white p-5 rounded-2xl shadow-lg flex items-center justify-between transition-transform active:scale-95" style="min-height: 70px;">
                                 <div class="flex items-center gap-4">
                                     <div class="bg-white/20 p-2 rounded-full">
                                         <i class="fa-solid fa-trash-can text-xl"></i>
@@ -108,6 +108,32 @@
                                     <div class="text-left">
                                         <span class="block text-lg font-bold">Dispose Item</span>
                                         <span class="text-[10px] opacity-80">Mark Broken / Scrap</span>
+                                    </div>
+                                </div>
+                                <i class="fa-solid fa-chevron-right opacity-50"></i>
+                            </button>
+
+                            <button onclick="openAssetTransfer()" class="w-full bg-indigo-600 text-white p-5 rounded-2xl shadow-lg flex items-center justify-between transition-transform active:scale-95" style="min-height: 70px;">
+                                <div class="flex items-center gap-4">
+                                    <div class="bg-white/20 p-2 rounded-full">
+                                        <i class="fa-solid fa-truck-ramp-box text-xl"></i>
+                                    </div>
+                                    <div class="text-left">
+                                        <span class="block text-lg font-bold">Asset Transfer</span>
+                                        <span class="text-[10px] opacity-80">Move to another Location</span>
+                                    </div>
+                                </div>
+                                <i class="fa-solid fa-chevron-right opacity-50"></i>
+                            </button>
+
+                            <button onclick="openTransferLogs()" class="w-full bg-slate-800 text-white p-5 rounded-2xl shadow-lg flex items-center justify-between transition-transform active:scale-95" style="min-height: 70px;">
+                                <div class="flex items-center gap-4">
+                                    <div class="bg-white/20 p-2 rounded-full">
+                                        <i class="fa-solid fa-clock-rotate-left text-xl"></i>
+                                    </div>
+                                    <div class="text-left">
+                                        <span class="block text-lg font-bold">Movement Logs</span>
+                                        <span class="text-[10px] opacity-80">Track current transfers</span>
                                     </div>
                                 </div>
                                 <i class="fa-solid fa-chevron-right opacity-50"></i>
@@ -532,7 +558,7 @@
             </div>
 
             <!-- ASSET TRANSFER WORKFLOW SECTION -->
-            <div id="trf-workflow-section" class="hidden w-full p-4">
+            <div id="asset-transfer-section" class="hidden w-full p-4">
                 <nav class="w-full flex items-center justify-between mb-6">
                     <button onclick="closeAssetTransfer()" class="bg-slate-100 p-3 rounded-xl text-gray-500 hover:bg-slate-200 transition">
                         <i class="fa-solid fa-arrow-left"></i>
@@ -545,34 +571,34 @@
                     <div class="space-y-2">
                         <label class="block text-[10px] font-black text-gray-400 uppercase ml-1">1. Scan Asset Barcode</label>
                         <div class="flex gap-2">
-                            <input type="text" id="trf-barcode-input" placeholder="Enter Barcode..." class="flex-1 p-4 border rounded-xl text-sm font-bold uppercase focus:ring-2 focus:ring-indigo-600 outline-none" oninput="window.fetchTransferAssetDetails(this.value)">
-                            <button onclick="startCameraScanner('trf-barcode-input')" class="bg-indigo-600 text-white p-4 rounded-xl shadow-lg active:scale-95 transition">
+                            <input type="text" id="t_asset_barcode" placeholder="Enter Barcode..." class="flex-1 p-4 border rounded-xl text-sm font-bold uppercase focus:ring-2 focus:ring-indigo-600 outline-none" oninput="window.fetchTransferAssetDetails(this.value)">
+                            <button onclick="startCameraScanner('t_asset_barcode')" class="bg-indigo-600 text-white p-4 rounded-xl shadow-lg active:scale-95 transition">
                                 <i class="fa-solid fa-camera"></i>
                             </button>
                         </div>
                     </div>
 
                     <!-- ASSET PREVIEW -->
-                    <div id="trf-asset-preview" class="min-h-[60px]">
+                    <div id="transfer-asset-preview" class="min-h-[60px]">
                         <p class="text-[10px] text-gray-400 italic text-center p-4">Scan barcode to verify asset details</p>
                     </div>
 
                     <div class="space-y-2">
                         <label class="block text-[10px] font-black text-gray-400 uppercase ml-1">2. Target Destination / Location</label>
-                        <input type="text" id="trf-dest-input" placeholder="New Location (e.g. Science Lab 2)" class="w-full p-4 border rounded-xl text-sm focus:ring-2 focus:ring-indigo-600 outline-none">
+                        <input type="text" id="t_to_location" placeholder="New Location (e.g. Science Lab 2)" class="w-full p-4 border rounded-xl text-sm focus:ring-2 focus:ring-indigo-600 outline-none">
                     </div>
 
                     <div class="space-y-2">
                         <label class="block text-[10px] font-black text-gray-400 uppercase ml-1">3. Reason for Transfer</label>
-                        <textarea id="trf-reason-input" placeholder="Why is this being moved? (e.g. For maintenance, room swap)..." class="w-full p-4 border rounded-xl h-24 text-sm focus:ring-2 focus:ring-indigo-600 outline-none"></textarea>
+                        <textarea id="t_reason" placeholder="Why is this being moved? (e.g. For maintenance, room swap)..." class="w-full p-4 border rounded-xl h-24 text-sm focus:ring-2 focus:ring-indigo-600 outline-none"></textarea>
                     </div>
 
-                    <button id="trf-submit-action" onclick="submitAssetTransfer()" class="w-full bg-indigo-600 text-white py-5 rounded-2xl font-black shadow-xl active:scale-95 transition uppercase tracking-widest">Initiate Transfer</button>
+                    <button id="submit-transfer-btn" onclick="submitAssetTransfer()" class="w-full bg-indigo-600 text-white py-5 rounded-2xl font-black shadow-xl active:scale-95 transition uppercase tracking-widest">Initiate Transfer</button>
                 </div>
             </div>
 
             <!-- TRANSFER LOGS VIEW (For Roles) -->
-            <div id="trf-logs-workflow" class="hidden w-full p-4">
+            <div id="transfer-logs-section" class="hidden w-full p-4">
                 <div class="flex items-center justify-between mb-4">
                     <h2 class="text-lg font-black text-indigo-900 uppercase">Movement Logs</h2>
                     <button onclick="closeTransferLogs()" class="text-[10px] font-black text-indigo-600 uppercase underline">Back</button>
@@ -705,7 +731,7 @@
     </div>
 
     <!-- NOTIFICATION PERMISSION MODAL -->
-    <div id="notification-modal" class="fixed inset-0 bg-black/90 backdrop-blur-md z-[200] hidden flex items-center justify-center p-4" style="display: none;">
+    <div id="notification-modal" class="fixed inset-0 bg-black/90 backdrop-blur-md z-[200] hidden flex items-center justify-center p-4">
         <div class="bg-white w-full max-w-sm rounded-3xl overflow-hidden shadow-2xl p-8 text-center text-gray-800">
             <div class="w-20 h-20 bg-indigo-100 text-indigo-600 rounded-full mx-auto flex items-center justify-center mb-6 animate-bounce">
                 <i class="fa-solid fa-bell text-3xl"></i>

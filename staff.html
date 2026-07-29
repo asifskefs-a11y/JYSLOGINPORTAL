@@ -203,9 +203,27 @@
                 document.getElementById('leader-view').classList.remove('hidden');
             } else if(staff.role === 'Technician') {
                 document.getElementById('technician-view').classList.remove('hidden');
+                renderTasks();
             } else if(staff.role === 'Security') {
                 document.getElementById('security-view').classList.remove('hidden');
             }
+        }
+
+        function renderTasks() {
+            const taskList = document.getElementById('task-list');
+            taskList.innerHTML = `
+                <div class="border p-4 rounded-lg flex justify-between items-center bg-gray-50">
+                    <div>
+                        <p class="font-bold">Fix AC in Room 102</p>
+                        <p class="text-sm text-gray-500">Assigned by Security</p>
+                    </div>
+                    <div class="flex items-center space-x-2">
+                         <input type="file" id="task-photo" class="hidden" onchange="alert('Photo Selected')">
+                         <button onclick="document.getElementById('task-photo').click()" class="text-xs bg-gray-200 p-1 rounded">Add Photo</button>
+                         <button onclick="this.parentElement.parentElement.remove()" class="bg-indigo-100 text-indigo-600 px-3 py-1 rounded text-sm font-bold">Complete</button>
+                    </div>
+                </div>
+            `;
         }
 
         function logout() {
