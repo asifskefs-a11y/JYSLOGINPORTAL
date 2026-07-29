@@ -25,11 +25,10 @@ body {
     padding: 0;
     -webkit-user-select: none;
     user-select: none;
-    -webkit-tap-highlight-color: transparent;
     overflow-x: hidden;
 }
 
-/* Ensure hidden remains hidden and physically removed from touch plane */
+/* --- HARDENED TOUCH PLANE (CRITICAL) --- */
 .hidden, [style*='display: none'] {
     display: none !important;
     pointer-events: none !important;
@@ -37,19 +36,14 @@ body {
     z-index: -9999 !important;
 }
 
-/* ========================================================= */
-/* 🛡️ HYBRID INTERACTION HARDENING (CRITICAL)                  */
-/* ========================================================= */
-
-/* Force Top-Level Interaction for Dashboard Modules */
-#asset-audit-access, .tasks-grid, #trf-workflow-section, #view-staff > nav {
+/* Force Top-Level Interaction */
+#asset-audit-access, .tasks-grid, #view-staff > nav {
     position: relative !important;
     z-index: 100 !important;
     pointer-events: auto !important;
 }
 
-/* Ensure buttons are always interactable */
-button, .portal-card, [onclick], .btn-task-accept, .btn-task-reject {
+button, .portal-card, [onclick] {
     pointer-events: auto !important;
     cursor: pointer !important;
     touch-action: manipulation !important;
@@ -59,66 +53,25 @@ button, .portal-card, [onclick], .btn-task-accept, .btn-task-reject {
 
 .active-touch { background-color: rgba(0,0,0,0.05) !important; transform: scale(0.98); }
 
-/* ========================================================= */
-/* 📋 DATA TABLES & KPI CARDS                                */
-/* ========================================================= */
-.excel-table { border-collapse: separate !important; border-spacing: 0 !important; width: 100% !important; }
-.excel-table thead th {
-    background-color: #f8fafc !important;
-    color: #475569 !important;
-    font-weight: 800 !important;
-    text-transform: uppercase !important;
-    letter-spacing: 0.05em !important;
-    padding: 14px 16px !important;
-    border-bottom: 2px solid #e2e8f0 !important;
-    font-size: 11px;
-}
-.excel-table tbody td { padding: 12px 16px !important; vertical-align: middle !important; border-bottom: 1px solid #f1f5f9 !important; font-size: 12px; }
-
-.stat-card {
-    flex: 1 !important;
-    min-width: 0 !important;
-    background: #ffffff !important;
-    padding: 16px !important;
-    border-radius: 12px !important;
-    border: 1px solid #e2e8f0 !important;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.05) !important;
-    display: flex !important;
-    align-items: center;
-    gap: 12px !important;
-}
-
-/* ========================================================= */
-/* 🛠️ TASK MANAGEMENT & DYNAMIC RENDERING                    */
-/* ========================================================= */
-.tasks-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 20px; }
+/* --- TASK CARDS --- */
 .task-card {
     background: var(--white) !important;
-    border-radius: 20px !important;
+    border-radius: 16px !important;
     padding: 16px !important;
     box-shadow: var(--shadow) !important;
-    display: flex !important;
-    flex-direction: column !important;
     max-width: 100% !important;
-    box-sizing: border-box !important;
     overflow: hidden !important;
-    border: 1px solid #f1f5f9 !important;
 }
 
-.task-card img, .image-preview-container img {
-    max-width: 100% !important;
+.task-card img {
     width: 100% !important;
     height: auto !important;
     object-fit: contain !important;
-    border-radius: 12px !important;
+    border-radius: 8px !important;
 }
 
-/* ========================================================= */
-/* 📱 MOBILE RESPONSIVE ISOLATION (max-width: 768px)          */
-/* ========================================================= */
+/* --- MOBILE RESPONSIVE --- */
 @media screen and (max-width: 768px) {
-    .app-container { padding: 12px !important; }
-
     #asset-audit-access .grid {
         display: grid !important;
         grid-template-columns: repeat(2, 1fr) !important;
@@ -137,21 +90,16 @@ button, .portal-card, [onclick], .btn-task-accept, .btn-task-reject {
 
     #asset-audit-access button i { font-size: 18px !important; margin-bottom: 6px !important; }
     #asset-audit-access button span.text-lg { font-size: 13px !important; font-weight: 800 !important; }
-    #asset-audit-access button span.opacity-80 { font-size: 8px !important; }
 
     .btn-task-accept, .btn-task-reject {
-        padding: 14px 8px !important;
-        font-size: 10px !important;
+        padding: 12px 6px !important;
+        font-size: 9px !important;
     }
 }
 
-/* ========================================================= */
-/* 🖼️ MODALS & OVERLAYS                                      */
-/* ========================================================= */
+/* --- MODALS --- */
 .modal, #signature-modal, #task-modal, #asset-disposal-modal, #scanner-modal, #password-modal, #notification-modal, #reject-modal {
     z-index: 999999 !important;
     background: rgba(0,0,0,0.85) !important;
     backdrop-filter: blur(8px) !important;
 }
-
-#notification-modal.hidden { display: none !important; z-index: -1 !important; }
