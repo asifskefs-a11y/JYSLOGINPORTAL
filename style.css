@@ -226,9 +226,34 @@ body {
     position: relative !important;
     z-index: 50 !important;
     pointer-events: auto !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+    overflow: hidden !important;
 }
-.task-actions-container { display: flex !important; gap: 8px !important; margin-top: 15px !important; pointer-events: auto !important; }
-.task-actions-container button { flex: 1 !important; pointer-events: auto !important; z-index: 60 !important; cursor: pointer !important; }
+
+.task-card img, .task-image-preview img {
+    max-width: 100% !important;
+    height: auto !important;
+    box-sizing: border-box !important;
+    object-fit: contain !important;
+    border-radius: 8px !important;
+}
+
+.task-actions-container {
+    display: flex !important;
+    gap: 8px !important;
+    margin-top: 15px !important;
+    pointer-events: auto !important;
+    flex-wrap: wrap !important;
+}
+
+.task-actions-container button {
+    flex: 1 !important;
+    min-width: 120px !important;
+    pointer-events: auto !important;
+    z-index: 60 !important;
+    cursor: pointer !important;
+}
 
 /* ========================================================= */
 /* 🖼️ MODALS & SIGNATURES                                    */
@@ -298,3 +323,4 @@ canvas#sig-canvas { width: 100% !important; height: 100% !important; pointer-eve
 
 /* Diagnostic Border */
 .mobile-touch-test:active { border: 2px solid red !important; }
+n/* --- NOTIFICATION MODAL OVERLAY FIX --- */n#notification-modal.hidden { display: none !important; pointer-events: none !important; visibility: hidden !important; }n#notification-modal:not(.hidden) { display: flex !important; pointer-events: auto !important; visibility: visible !important; }nn/* --- ASSET GRID TOUCH PROTECTION --- */n#asset-audit-access { position: relative !important; z-index: 100 !important; pointer-events: auto !important; }n#asset-audit-access .grid { pointer-events: auto !important; }n#asset-audit-access button { pointer-events: auto !important; z-index: 110 !important; }
