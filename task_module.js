@@ -70,7 +70,7 @@ window.loadRoleView = async (staff) => {
                     const isHistory = t.status === 'Closed' || t.status === 'Rejected';
 
                     taskHtml += `
-                        <div class="task-card text-gray-800 ${isHistory ? 'opacity-90' : ''}">
+                        <div class="task-card text-gray-800 ${isHistory ? 'opacity-90' : ''}" style="max-width: 100%; overflow: hidden; box-sizing: border-box;">
                             <div class="task-header">
                                 <div>
                                     <h4 style="font-weight:700; font-size:1rem; color:var(--primary-dark);">${t.location}</h4>
@@ -83,22 +83,22 @@ window.loadRoleView = async (staff) => {
                                 <span class="badge ${t.status === 'Open' ? 'badge-pending' : (t.status === 'Closed' ? 'badge-completed' : 'bg-red-100 text-red-600')}">${t.status}</span>
                             </div>
                             <p style="font-size:0.85rem; color:var(--primary-dark); margin:12px 0; font-weight:500;">${t.details || t.reason || "Maintenance Required"}</p>
-                            <div class="image-preview-container">
-                                <div class="img-box" onclick="window.openImageZoom('${bImg}')">
-                                    <img src="${bImg}">
+                            <div class="image-preview-container" style="max-width: 100%; overflow: hidden;">
+                                <div class="img-box" onclick="window.openImageZoom('${bImg}')" style="max-width: 100%;">
+                                    <img src="${bImg}" style="max-width: 100% !important; width: 100%; height: auto; object-fit: contain;">
                                     <span class="img-label">Before</span>
                                 </div>
                                 ${(t.afterPhotoUrl || t.afterPhoto) ? `
-                                <div class="img-box" onclick="window.openImageZoom('${aImg}')">
-                                    <img src="${aImg}">
+                                <div class="img-box" onclick="window.openImageZoom('${aImg}')" style="max-width: 100%;">
+                                    <img src="${aImg}" style="max-width: 100% !important; width: 100%; height: auto; object-fit: contain;">
                                     <span class="img-label">After</span>
                                 </div>` : ''}
                             </div>
 
                             ${!isHistory ? `
-                            <div class="task-actions-container" style="display:flex; gap:10px; margin-top:10px; width:100%;">
-                                <button class="btn btn-task-accept" style="flex:1; background:#10b981; color:white; font-weight:700; padding:12px; border-radius:10px; font-size:0.85rem;" onclick="window.closeTaskAction('${t.id}')">Accept & Resolve</button>
-                                <button class="btn btn-task-reject" style="flex:1; background:#ef4444; color:white; font-weight:700; padding:12px; border-radius:10px; font-size:0.85rem;" onclick="window.openRejectModal('${t.id}')">Reject</button>
+                            <div class="task-actions-container" style="display:flex; gap:10px; margin-top:10px; width:100%; flex-wrap: wrap;">
+                                <button class="btn btn-task-accept" style="flex:1; min-width: 120px; background:#10b981; color:white; font-weight:700; padding:12px; border-radius:10px; font-size:0.85rem;" onclick="window.closeTaskAction('${t.id}')">Accept & Resolve</button>
+                                <button class="btn btn-task-reject" style="flex:1; min-width: 120px; background:#ef4444; color:white; font-weight:700; padding:12px; border-radius:10px; font-size:0.85rem;" onclick="window.openRejectModal('${t.id}')">Reject</button>
                             </div>
                             ` : `
                             <div class="mt-3 p-3 bg-slate-50 rounded-xl border border-slate-100">
