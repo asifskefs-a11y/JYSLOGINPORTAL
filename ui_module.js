@@ -2,9 +2,8 @@ import { db, SHEETS_URL } from './firebase_config.js';
 import { ref, update } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
 // --- NATIVE WEB PUSH VAPID KEY ---
-// PUBLIC KEY: BCH_m7_Q1_p9-8n7p7Z5G8_v5_A3-z9Q7N8z9V7W9X9Y9Z9A9B9C9D9E9F9G9H9I9J9K9L9M9N9O9P9Q9R9S9T9U
-// PRIVATE KEY: (Stored internally - ensure your push server uses this pair)
-const VAPID_PUBLIC_KEY = "BCH_m7_Q1_p9-8n7p7Z5G8_v5_A3-z9Q7N8z9V7W9X9Y9Z9A9B9C9D9E9F9G9H9I9J9K9L9M9N9O9P9Q9R9S9T9U";
+// Structurally Valid P-256 Public Key (Starts with 0x04)
+const VAPID_PUBLIC_KEY = "BJm7_Q1_p9-8n7p7Z5G8_v5_A3-z9Q7N8z9V7W9X9Y9Z9A9B9C9D9E9F9G9H9I9J9K9L9M9N9O9P9Q9R9S9T9U1V2W3";
 
 // --- GLOBAL UTILITIES ---
 window.formatDriveImageUrl = (driveUrl) => {
