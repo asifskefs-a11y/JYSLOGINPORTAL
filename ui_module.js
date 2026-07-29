@@ -102,7 +102,7 @@ window.openImageZoom = (url) => { if(!url || url.includes('placeholder')) return
 
                 if (!swRegistration) throw new Error("Service Worker not active");
 
-                if (diagId) diagId.innerText = "GENERATING SUBSCRIPTION...";
+                if (diagId) diagId.innerText = "Generating Native Subscription...";
 
                 const urlBase64ToUint8Array = (base64String) => {
                     const padding = '='.repeat((4 - base64String.length % 4) % 4);
