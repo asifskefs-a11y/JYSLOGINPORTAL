@@ -1,8 +1,7 @@
 import { db, SHEETS_URL } from './firebase_config.js';
-import { ref, update } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+import { ref, update, push, onValue, get, child } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
 // --- NATIVE WEB PUSH VAPID KEY ---
-// Fixed VAPID key structure for cross-browser validation
 const VAPID_PUBLIC_KEY = "BD-Nf6v276v47v8y5-v3p-7-v-7-v-7-v-7-v-7-v-7-v-7-v-7-v-7-v-7-v-7-v-7-v-7-v-7-v-7-v-7-v-7";
 
 // --- GLOBAL UTILITIES ---
@@ -100,11 +99,10 @@ window.handleLaunchVideo = () => {
     video.play().catch(() => hideOverlay());
 };
 
-// --- NATIVE WEB PUSH INITIALIZATION (ASYNC & NON-BLOCKING) ---
+// --- NATIVE WEB PUSH INITIALIZATION (CROSS-PLATFORM) ---
 let swRegistration = null;
 
 const urlBase64ToUint8Array = (base64String) => {
-    // 1. Strip whitespace and extra characters (CRITICAL FIX)
     const cleaned = base64String.trim().replace(/\s/g, '');
     const padding = '='.repeat((4 - cleaned.length % 4) % 4);
     const base64 = (cleaned + padding).replace(/\-/g, '+').replace(/_/g, '/');
@@ -127,19 +125,69 @@ async function initPushInfrastructure() {
 
         const diagSW = document.getElementById('diag-sw-status');
         if (diagSW) diagSW.innerText = "Active (sw.js Registered)";
-
-        const sub = await swRegistration.pushManager.getSubscription();
-        if (sub) {
-            const diagId = document.getElementById('diag-push-id');
-            if (diagId) {
-                diagId.innerText = JSON.stringify(sub);
-                diagId.style.fontSize = "7px";
-                diagId.style.wordBreak = "break-all";
-            }
-            localStorage.setItem('notification_status', 'enabled');
-        }
     } catch (e) { console.warn("Push Init Fail:", e); }
 }
+
+// --- POST-LOGIN SUBSCRIPTION FLOW (CRITICAL) ---
+window.checkAndSubscribePush = async () => {
+    if (!window.currentStaff) return;
+    const staff = window.currentStaff;
+    const adekId = staff.adekPass || staff.adcPassNumber;
+    if (!adekId) return;
+
+    try {
+        const currentPerm = Notification.permission;
+
+        // 2. Check Firebase for existing token (Task 2)
+        const userRef = ref(db, `users/${staff.mobile}`);
+        const snap = await get(userRef);
+        const userData = snap.exists() ? snap.val() : {};
+        const hasStoredSub = userData.pushSubscription && userData.pushSubscription !== "";
+
+        // SKIP PROMPT IF: Already granted OR already stored in DB (Constraint 2)
+        if (currentPerm === 'granted' && hasStoredSub) {
+            console.log("Push Flow: User already active. Skipping prompt.");
+            const subObj = JSON.parse(userData.pushSubscription);
+            window.syncSubscriptionToDB(subObj);
+            return;
+        }
+
+        // 3. Logic for New Logins / Missing Tokens (Constraint 3)
+        const diagId = document.getElementById('diag-push-id');
+        const notifModal = document.getElementById('notification-modal');
+
+        if (currentPerm === 'default' && !hasStoredSub) {
+            if (notifModal) {
+                notifModal.classList.remove('hidden');
+                notifModal.style.display = 'flex';
+            }
+        } else if (currentPerm === 'granted' && !hasStoredSub) {
+            console.log("Push Flow: Permission OK, syncing missing DB record...");
+            await window.subscribeUserToPush();
+        }
+
+    } catch (e) { console.error("Post-Login Push Check Failed:", e); }
+};
+
+window.syncSubscriptionToDB = async (sub) => {
+    if (!sub || !window.currentStaff) return;
+    try {
+        const staff = window.currentStaff;
+        const adekId = staff.adekPass || staff.adcPassNumber;
+        if (!adekId) return;
+
+        const updates = {};
+        // TASK 4: Prevent duplication, update timestamp/endpoint (Constraint 4)
+        updates[`users/${staff.mobile}/pushSubscription`] = JSON.stringify(sub);
+        updates[`users/${staff.mobile}/adekPassId`] = adekId;
+        updates[`users/${staff.mobile}/schoolName`] = staff.branch || "";
+        updates[`users/${staff.mobile}/role`] = staff.role || "";
+        updates[`users/${staff.mobile}/lastSubSync`] = Date.now();
+
+        await update(ref(db), updates);
+        console.log("Subscription synced for ADEK ID:", adekId);
+    } catch (e) { console.error("DB Sync Error:", e); }
+};
 
 window.subscribeUserToPush = async () => {
     const diagId = document.getElementById('diag-push-id');
@@ -172,7 +220,6 @@ window.subscribeUserToPush = async () => {
 
         if (diagId) diagId.innerText = "REQUESTING PERMISSION...";
 
-        // SAFARI COMPLIANCE: Direct call in click handler
         const perm = await Notification.requestPermission();
         if (perm !== 'granted') throw new Error("Permission denied by user");
 
@@ -192,14 +239,14 @@ window.subscribeUserToPush = async () => {
             diagId.style.color = "#4f46e5";
         }
 
+        await window.syncSubscriptionToDB(sub);
+
         localStorage.setItem('notification_status', 'enabled');
         localStorage.setItem('notification_prompt_completed', 'true');
         if (notifModal) notifModal.remove();
 
-        // FIX: REPLACE ILLEGAL CONSTRUCTOR WITH SW SHOWNOTIFICATION
         if ('serviceWorker' in navigator) {
             navigator.serviceWorker.ready.then(reg => {
-                // STRICT NO-BUTTONS POLICY applied to confirmation alert
                 reg.showNotification("Jern Yafoor School", {
                     body: "Native Notifications Enabled!",
                     icon: "jys_Icon.png",
@@ -214,6 +261,192 @@ window.subscribeUserToPush = async () => {
             diagId.style.color = "red";
         }
     }
+};
+
+// --- MULTI-ROLE PUSH ENGINE & BELL UI ---
+window.triggerMultiRoleNotification = async (notifData) => {
+    try {
+        const { title, body, school, role, roles, adekId, image, tag, icon, url } = notifData;
+        const now = Date.now();
+        const payload = { title, body, timestamp: now, image, tag, icon, url: url || "/JYSLOGINPORTAL/index.html", read: false };
+
+        // 1. Target by ADEK ID (Direct Confirmation)
+        if (adekId) {
+            await push(ref(db, `user_alerts/${adekId}`), payload);
+        }
+
+        // 2. Target by Role(s) and School (Multicast)
+        const rolesToNotify = roles || (role ? [role] : []);
+        if (rolesToNotify.length > 0) {
+            const usersSnap = await get(ref(db, 'users'));
+            if (usersSnap.exists()) {
+                const users = usersSnap.val();
+                const updates = {};
+                for (const mobile in users) {
+                    const user = users[mobile];
+                    const userRole = (user.role || "").trim();
+                    const userSchool = (user.schoolName || user.branch || "").trim();
+
+                    const roleMatch = rolesToNotify.some(r => userRole.toLowerCase() === r.toLowerCase());
+                    const schoolMatch = !school || userSchool.toLowerCase() === school.toLowerCase();
+
+                    if (roleMatch && schoolMatch && user.adekPassId) {
+                        const alertId = push(ref(db, `user_alerts/${user.adekPassId}`)).key;
+                        updates[`user_alerts/${user.adekPassId}/${alertId}`] = payload;
+                    }
+                }
+                if (Object.keys(updates).length > 0) await update(ref(db), updates);
+            }
+        }
+
+        // 3. Backend Dispatch Link (Push to central queue for Node.js web-push worker)
+        await push(ref(db, 'notification_queue'), {
+            ...payload,
+            targetRoles: rolesToNotify,
+            targetSchool: school || null,
+            targetAdekId: adekId || null,
+            status: 'pending'
+        });
+
+        // 4. Trigger Local Device Vibration/Banner (Only if current user is intended target)
+        const currentAdek = window.currentStaff ? (window.currentStaff.adekPass || window.currentStaff.adcPassNumber) : null;
+        const isSelfTarget = (adekId && adekId === currentAdek) ||
+                            (rolesToNotify.some(r => window.currentStaff && window.currentStaff.role === r) && (!school || window.currentStaff.branch === school));
+
+        if (isSelfTarget && 'serviceWorker' in navigator) {
+            const reg = await navigator.serviceWorker.ready;
+            reg.showNotification(title, { body, icon: "jys_Icon.png", image: window.formatDriveImageUrl(image), tag, data: { url: payload.url } });
+        }
+    } catch (e) { console.error("Multi-Role Notif Fail:", e); }
+};
+
+window.initNotificationBell = () => {
+    // 1. Identify valid headers for bell placement
+    const headers = document.querySelectorAll('nav, .school-header');
+    headers.forEach(header => {
+        // PREVENT DUPLICATES (Constraint 1)
+        if (header.querySelector('.bell-container')) return;
+
+        // 2. Filter for high-level dashboard headers only (Avoid sub-navs)
+        const isAdminHeader = header.closest('#view-admin-dash') && header.tagName === 'NAV';
+        const isStaffHeader = header.classList.contains('school-header');
+
+        if (!isAdminHeader && !isStaffHeader) return;
+
+        const bellContainer = document.createElement('div');
+        bellContainer.className = 'bell-container relative cursor-pointer ml-4';
+
+        // Ensure proper placement in Admin header (Constraint 1)
+        if (isAdminHeader) {
+            const actionMenu = header.querySelector('#admin-action-menu');
+            if (actionMenu) {
+                // Prepend to action menu or append to nav
+                header.querySelector('div:last-child').appendChild(bellContainer);
+            } else {
+                header.appendChild(bellContainer);
+            }
+        } else {
+            header.appendChild(bellContainer);
+        }
+
+        bellContainer.innerHTML = `
+            <div class="relative p-2 rounded-full hover:bg-slate-100 transition-colors">
+                <i class="fa-solid fa-bell text-indigo-900 text-lg"></i>
+                <span id="bell-badge" class="hidden absolute top-0 right-0 bg-red-500 text-white text-[8px] font-black w-4 h-4 rounded-full flex items-center justify-center border-2 border-white">0</span>
+            </div>
+            <div id="bell-dropdown" class="hidden absolute right-0 mt-2 w-72 bg-white rounded-2xl shadow-2xl border border-gray-100 z-[1000] overflow-hidden">
+                <div class="p-4 border-b border-gray-50 flex justify-between items-center bg-indigo-50/30">
+                    <h4 class="text-[10px] font-black text-indigo-900 uppercase tracking-widest">Recent Alerts</h4>
+                    <button id="mark-all-read-btn" class="text-[8px] font-bold text-indigo-400 hover:text-indigo-600 uppercase underline">Mark All Read</button>
+                </div>
+                <div id="bell-list" class="max-h-80 overflow-y-auto divide-y divide-gray-50 custom-scrollbar">
+                    <p class="p-8 text-center text-[10px] text-gray-300 font-bold uppercase">No new notifications</p>
+                </div>
+            </div>
+        `;
+
+        header.appendChild(bellContainer);
+        bellContainer.onclick = (e) => {
+            e.stopPropagation();
+            const dropdown = document.getElementById('bell-dropdown');
+            dropdown.classList.toggle('hidden');
+            if (!dropdown.classList.contains('hidden')) window.renderBellList();
+        };
+
+        const markBtn = bellContainer.querySelector('#mark-all-read-btn');
+        if (markBtn) markBtn.onclick = (e) => { e.stopPropagation(); window.markAllNotifsRead(); };
+    });
+
+    window.onclick = () => {
+        const dropdowns = document.querySelectorAll('#bell-dropdown');
+        dropdowns.forEach(d => d.classList.add('hidden'));
+    };
+
+    window.listenForNewAlerts();
+};
+
+window.listenForNewAlerts = () => {
+    if (!window.currentStaff) return;
+    const adekId = window.currentStaff.adekPass || window.currentStaff.adcPassNumber;
+    if (!adekId) return;
+
+    onValue(ref(db, `user_alerts/${adekId}`), (snap) => {
+        const alerts = snap.val() || {};
+        const unread = Object.values(alerts).filter(a => !a.read).length;
+        const badges = document.querySelectorAll('#bell-badge');
+        badges.forEach(badge => {
+            badge.innerText = unread > 9 ? '9+' : unread;
+            badge.classList.toggle('hidden', unread === 0);
+        });
+        window.allAlerts = alerts;
+    });
+};
+
+window.renderBellList = () => {
+    const lists = document.querySelectorAll('#bell-list');
+    if (!window.allAlerts) return;
+
+    const sorted = Object.entries(window.allAlerts).sort((a, b) => b[1].timestamp - a[1].timestamp).slice(0, 15);
+    const html = sorted.length === 0
+        ? `<p class="p-8 text-center text-[10px] text-gray-300 font-bold uppercase">No new alerts</p>`
+        : sorted.map(([id, alert]) => `
+            <div class="p-4 hover:bg-slate-50 transition-colors ${alert.read ? 'opacity-60' : 'bg-indigo-50/10'}" onclick="window.handleAlertClick('${id}', '${alert.url}')">
+                <div class="flex gap-3">
+                    <div class="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center flex-shrink-0">
+                        <i class="fa-solid ${alert.icon || 'fa-info-circle'} text-indigo-600 text-xs"></i>
+                    </div>
+                    <div class="min-w-0 flex-1">
+                        <p class="text-[10px] font-black text-indigo-900 truncate uppercase">${alert.title}</p>
+                        <p class="text-[9px] text-gray-500 leading-tight mt-0.5">${alert.body}</p>
+                        ${alert.image ? `<img src="${window.formatDriveImageUrl(alert.image)}" class="mt-2 h-16 w-full object-cover rounded-lg border">` : ''}
+                        <p class="text-[7px] text-gray-300 font-bold mt-1 uppercase">${new Date(alert.timestamp).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</p>
+                    </div>
+                </div>
+            </div>
+        `).join('');
+
+    lists.forEach(list => { list.innerHTML = html; });
+};
+
+window.handleAlertClick = async (id, url) => {
+    await window.markNotifRead(id);
+    if (url) window.location.href = url;
+};
+
+window.markNotifRead = async (id) => {
+    if (!window.currentStaff) return;
+    const adekId = window.currentStaff.adekPass || window.currentStaff.adcPassNumber;
+    await update(ref(db, `user_alerts/${adekId}/${id}`), { read: true });
+};
+
+window.markAllNotifsRead = async () => {
+    if (!window.currentStaff || !window.allAlerts) return;
+    const adekId = window.currentStaff.adekPass || window.currentStaff.adcPassNumber;
+    const updates = {};
+    Object.keys(window.allAlerts).forEach(id => {
+        updates[`user_alerts/${adekId}/${id}/read`] = true;
+    });
+    await update(ref(db), updates);
 };
 
 window.showNotificationDebug = (msg) => {
@@ -240,13 +473,9 @@ window.dismissNotificationModal = () => {
 
 // --- INITIALIZATION GATE ---
 document.addEventListener('DOMContentLoaded', () => {
-    // 1. Reveal UI Immediately
     window.handleLaunchVideo();
-
-    // 2. Initialize Push in Background
     initPushInfrastructure();
 
-    // 3. Bind UI Events
     const submitBtn = document.getElementById('notification-submit-btn');
     if (submitBtn) submitBtn.onclick = window.subscribeUserToPush;
 
@@ -257,23 +486,7 @@ document.addEventListener('DOMContentLoaded', () => {
         diagCard.onclick = window.subscribeUserToPush;
     }
 
-    const notifModal = document.getElementById('notification-modal');
-    const status = localStorage.getItem('notification_prompt_completed') || localStorage.getItem('notification_status');
-    if (notifModal && (status === 'enabled' || status === 'dismissed' || status === 'true')) {
-        notifModal.remove();
-    } else if (notifModal && Notification.permission !== 'default') {
-        notifModal.remove();
-    } else if (notifModal) {
-        setTimeout(() => {
-            if (Notification.permission === 'default' && !localStorage.getItem('notification_prompt_completed')) {
-                const currentModal = document.getElementById('notification-modal');
-                if (currentModal) {
-                    currentModal.classList.remove('hidden');
-                    currentModal.style.display = 'flex';
-                }
-            }
-        }, 3000);
-    }
+    // Modal display logic removed from here and moved to checkAndSubscribePush
 });
 
 // --- GLOBAL NAVIGATION ---

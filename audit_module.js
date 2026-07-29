@@ -275,6 +275,8 @@ window.startCameraScanner = async (inputId) => {
                             window.fetchDisposalAssetDetails(input.value);
                         } else if (currentScanTarget === 'f1_asset_barcode') {
                             await window.checkDuplicateBarcode(input.value);
+                        } else if (currentScanTarget === 't_asset_barcode') {
+                            window.fetchTransferAssetDetails(input.value);
                         }
                     }
 
@@ -650,6 +652,20 @@ window.submitAssetDisposal = async () => {
         console.log("Saving Comprehensive Disposal Record...");
         await update(ref(db), updates);
 
+        // --- MULTI-CAST NOTIFICATION: ASSET DISPOSAL (CRITICAL) ---
+        if (typeof window.triggerMultiRoleNotification === 'function') {
+            const adekId = window.currentStaff ? (window.currentStaff.adekPass || window.currentStaff.adcPassNumber) : "System";
+            window.triggerMultiRoleNotification({
+                title: `Asset Disposed - ${disposalData.assetName || activeDisposalBarcode}`,
+                body: `User: ${disposalData.reportedBy} (${adekId}) | Location: ${disposalData.scrapLocation} | Time: ${disposalData.time}`,
+                image: disposalData.disposalPhotoUrl,
+                roles: ["Admin", "Security"], // Multi-cast to Admin and Security
+                tag: "asset-disposal",
+                icon: "fa-trash-can",
+                url: "/JYSLOGINPORTAL/admin.html"
+            });
+        }
+
         alert("Asset marked as Disposed. Record synchronized with metadata and photo proof.");
         closeDisposalModal();
 
@@ -723,11 +739,252 @@ window.bulkDeleteAssets = async () => {
 };
 
 // Admin UI Components
+// --- ASSET TRANSFER MODULE ---
+window.openAssetTransfer = (barcode) => {
+    try {
+        const dash = document.getElementById('staff-dash-area');
+        const transferSection = document.getElementById('asset-transfer-section');
+        if (dash) dash.classList.add('hidden');
+        if (transferSection) transferSection.classList.remove('hidden');
+
+        if (barcode) {
+            const bcInput = document.getElementById('t_asset_barcode');
+            if (bcInput) {
+                bcInput.value = barcode.toUpperCase();
+                window.fetchTransferAssetDetails(barcode);
+            }
+        }
+    } catch (e) { console.error(e); }
+};
+
+window.closeAssetTransfer = () => {
+    try {
+        const dash = document.getElementById('staff-dash-area');
+        const transferSection = document.getElementById('asset-transfer-section');
+        if (dash) dash.classList.remove('hidden');
+        if (transferSection) transferSection.classList.add('hidden');
+    } catch (e) { console.error(e); }
+};
+
+window.fetchTransferAssetDetails = async (barcode) => {
+    const previewArea = document.getElementById('transfer-asset-preview');
+    if (!previewArea || !barcode) return;
+
+    const cleanBC = barcode.trim().toUpperCase();
+    previewArea.innerHTML = '<div class="p-2 text-center"><i class="fa-solid fa-spinner fa-spin"></i></div>';
+
+    try {
+        const snap = await get(child(ref(db), `assets/${cleanBC}`));
+        if (snap.exists()) {
+            const a = snap.val();
+            const name = a.assetDescription || a.modelDescription || 'Unnamed Asset';
+            const location = a.locationName || a.buildingName || 'Unknown';
+            const photoUrl = window.getDirectDriveImageUrl(a.auditPhotoUrl || a.photoUrl);
+
+            previewArea.innerHTML = `
+                <div class="flex items-center gap-3 p-3 bg-indigo-50/50 rounded-xl border border-indigo-100">
+                    <img src="${photoUrl}" class="w-12 h-12 object-cover rounded-lg border">
+                    <div class="flex-1 min-w-0">
+                        <h4 class="text-xs font-bold text-indigo-900 truncate">${name}</h4>
+                        <p class="text-[9px] text-gray-500 truncate"><i class="fa-solid fa-location-dot mr-1"></i>${location}</p>
+                    </div>
+                </div>
+            `;
+            window.activeTransferAsset = a;
+        } else {
+            previewArea.innerHTML = '<p class="text-[10px] text-red-500 p-2">Asset Not Found</p>';
+            window.activeTransferAsset = null;
+        }
+    } catch (e) { console.error(e); }
+};
+
+window.submitAssetTransfer = async () => {
+    const barcode = document.getElementById('t_asset_barcode').value.trim();
+    const toLocation = document.getElementById('t_to_location').value.trim();
+    const reason = document.getElementById('t_reason').value.trim();
+
+    if (!barcode || !toLocation) return alert("Barcode and Destination are required!");
+    if (!window.activeTransferAsset) return alert("Please select a valid asset first.");
+
+    const btn = document.getElementById('submit-transfer-btn');
+    btn.disabled = true;
+    btn.innerText = "PROCESSING...";
+
+    try {
+        const staff = window.currentStaff;
+        const adekId = staff.adekPass || staff.adcPassNumber || "Unknown";
+        const now = new Date();
+        const transferId = "TRF-" + Date.now();
+
+        const transferData = {
+            transferId,
+            assetBarcode: barcode,
+            assetName: window.activeTransferAsset.assetDescription || "-",
+            serialNo: window.activeTransferAsset.serialNo || "-",
+            category: window.activeTransferAsset.majorCategory || "-",
+            condition: window.activeTransferAsset.assetCondition || "GOOD",
+            fromLocation: window.activeTransferAsset.locationName || window.activeTransferAsset.buildingName || "Unknown",
+            toLocation: toLocation,
+            reason: reason,
+            status: 'In-Transit',
+            initiatedBy: staff.name,
+            initiatedByAdek: adekId,
+            timestamp: now.getTime(),
+            date: now.toLocaleDateString(),
+            time: now.toLocaleTimeString()
+        };
+
+        await set(ref(db, `asset_transfers/${transferId}`), transferData);
+
+        // --- MULTI-ROLE NOTIFICATION DISPATCH (TASK 2) ---
+        if (typeof window.triggerMultiRoleNotification === 'function') {
+            // a) Initiator
+            window.triggerMultiRoleNotification({
+                title: "Transfer Initiated",
+                body: `Asset ${barcode} is now In-Transit to ${toLocation}`,
+                adekId: adekId,
+                tag: "transfer-init",
+                icon: "fa-truck-ramp-box"
+            });
+
+            // b) Security (Gate-Pass)
+            window.triggerMultiRoleNotification({
+                title: "Gate-Pass Alert",
+                body: `Asset ${barcode} moving from ${transferData.fromLocation} to ${toLocation}`,
+                roles: ["Security"],
+                tag: "gate-pass",
+                icon: "fa-shield-halved"
+            });
+
+            // c) IT / Cleaner Leaders (Asset Status)
+            const targetRoles = [];
+            if (transferData.category === 'IT' || transferData.category.includes('Computer')) targetRoles.push("RT Technician");
+            else targetRoles.push("Cleaner Leader");
+
+            window.triggerMultiRoleNotification({
+                title: "Asset Movement Alert",
+                body: `${transferData.assetName} (${barcode}) transfer started.`,
+                roles: targetRoles,
+                tag: "asset-move",
+                icon: "fa-shuffle"
+            });
+
+            // d) Admins
+            window.triggerMultiRoleNotification({
+                title: "Audit: Asset Transfer Started",
+                body: `${staff.name} initiated transfer for ${barcode} to ${toLocation}`,
+                roles: ["Admin"],
+                tag: "audit-transfer",
+                icon: "fa-file-signature",
+                url: "/JYSLOGINPORTAL/admin.html"
+            });
+        }
+
+        alert("Transfer Initiated Successfully!");
+        window.closeAssetTransfer();
+        if (typeof window.loadRoleView === 'function') window.loadRoleView(staff);
+
+    } catch (e) { alert("Error: " + e.message); }
+    finally {
+        btn.disabled = false;
+        btn.innerText = "INITIATE TRANSFER";
+    }
+};
+
+window.completeAssetTransfer = async (transferId) => {
+    if (!confirm("Are you sure you want to mark this transfer as COMPLETED/RECEIVED?")) return;
+
+    try {
+        const snap = await get(child(ref(db), `asset_transfers/${transferId}`));
+        if (!snap.exists()) return;
+        const tr = snap.val();
+
+        const now = new Date();
+        const updates = {};
+        updates[`asset_transfers/${transferId}/status`] = 'Completed';
+        updates[`asset_transfers/${transferId}/completedAt`] = now.getTime();
+        updates[`asset_transfers/${transferId}/completedBy`] = window.currentStaff ? window.currentStaff.name : "System";
+
+        // Update Asset Location in Master Register
+        updates[`assets/${tr.assetBarcode}/locationName`] = tr.toLocation;
+        updates[`assets/${tr.assetBarcode}/lastAuditTimestamp`] = now.toLocaleString();
+        updates[`assets/${tr.assetBarcode}/lastAuditBy`] = window.currentStaff ? window.currentStaff.name : "System";
+
+        await update(ref(db), updates);
+        alert("Transfer Completed and Asset Location Updated!");
+
+        // Notify Initiator
+        if (typeof window.triggerMultiRoleNotification === 'function' && tr.initiatedByAdek) {
+            window.triggerMultiRoleNotification({
+                title: "Transfer Completed",
+                body: `Asset ${tr.assetBarcode} received at ${tr.toLocation}`,
+                adekId: tr.initiatedByAdek,
+                tag: "transfer-complete",
+                icon: "fa-circle-check"
+            });
+        }
+
+        if (window.appCache) window.appCache.isInitialized = false;
+        if (typeof window.loadAdminDashboard === 'function') window.loadAdminDashboard();
+        else if (typeof window.loadRoleView === 'function') window.loadRoleView(window.currentStaff);
+
+    } catch (e) { alert("Error: " + e.message); }
+};
+
+window.renderTransferTable = (transfers) => {
+    const body = document.getElementById('transfer-logs-body');
+    if (!body) return;
+    body.innerHTML = '';
+
+    if (!transfers || transfers.length === 0) {
+        body.innerHTML = '<tr><td colspan="8" class="p-8 text-center text-gray-400">No transfer records found</td></tr>';
+        return;
+    }
+
+    transfers.sort((a, b) => b.timestamp - a.timestamp).forEach(t => {
+        const isSecurity = window.currentStaff && window.currentStaff.role === 'Security';
+        const isAdmin = window.isAdminLoggedIn;
+        const canComplete = t.status === 'In-Transit' && (isSecurity || isAdmin);
+
+        const tr = document.createElement('tr');
+        tr.className = "hover:bg-gray-50 border-b text-[11px]";
+        tr.innerHTML = `
+            <td class="p-3 font-bold text-indigo-900">${t.transferId}</td>
+            <td class="p-3 font-mono">${t.assetBarcode}</td>
+            <td class="p-3">${t.assetName}</td>
+            <td class="p-3">
+                <div class="flex items-center gap-1">
+                    <span class="text-gray-400">${t.fromLocation}</span>
+                    <i class="fa-solid fa-arrow-right text-[8px] text-indigo-300"></i>
+                    <span class="font-bold text-indigo-600">${t.toLocation}</span>
+                </div>
+            </td>
+            <td class="p-3">
+                <span class="px-2 py-0.5 rounded-full text-[9px] font-black uppercase ${t.status === 'Completed' ? 'bg-green-100 text-green-600' : 'bg-orange-100 text-orange-600 animate-pulse'}">
+                    ${t.status}
+                </span>
+            </td>
+            <td class="p-3">
+                <div class="flex flex-col">
+                    <span class="font-bold">${t.initiatedBy}</span>
+                    <span class="text-[8px] text-gray-400">${t.initiatedByAdek}</span>
+                </div>
+            </td>
+            <td class="p-3 text-gray-400">${t.date} ${t.time}</td>
+            <td class="p-3 text-center">
+                ${canComplete ? `<button onclick="window.completeAssetTransfer('${t.transferId}')" class="bg-indigo-600 text-white px-3 py-1.5 rounded-lg font-bold text-[9px] hover:bg-indigo-700 transition shadow-sm uppercase">Complete</button>` : '-'}
+            </td>
+        `;
+        body.appendChild(tr);
+    });
+};
+
 window.renderAdminAssetTable = (data, targetTable = 'both') => {
     try {
         const body = document.getElementById('admin-asset-list-body');
         const disposalBody = document.getElementById('admin-disposal-list-body');
-        if (!body && !disposalBody) return;
+        const transferBody = document.getElementById('transfer-logs-body');
+        if (!body && !disposalBody && !transferBody) return;
 
         if (targetTable === 'both' || targetTable === 'assets') if (body) body.innerHTML = '';
         if (targetTable === 'both' || targetTable === 'disposal') if (disposalBody) disposalBody.innerHTML = '';
@@ -868,3 +1125,4 @@ window.filterAssetTable = () => {
         window.renderAdminAssetTable(filtered, 'assets');
     } catch (e) { console.error(e); }
 };
+nwindow.openTransferLogs = async () => {n    try {n        const dash = document.getElementById('staff-dash-area');n        const logSection = document.getElementById('transfer-logs-section');n        if (dash) dash.classList.add('hidden');n        if (logSection) logSection.classList.remove('hidden');nn        const snap = await get(ref(db, 'asset_transfers'));n        const transfers = snap.exists() ? Object.values(snap.val()) : [];n        window.renderTransferTable(transfers);n    } catch (e) { console.error(e); }n};nnwindow.closeTransferLogs = () => {n    try {n        const dash = document.getElementById('staff-dash-area');n        const logSection = document.getElementById('transfer-logs-section');n        if (dash) dash.classList.remove('hidden');n        if (logSection) logSection.classList.add('hidden');n    } catch (e) { console.error(e); }n};

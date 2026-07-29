@@ -263,6 +263,20 @@ window.submitNewMaintenanceTask = async (e) => {
         };
 
         await set(ref(db, 'tasks/' + taskId), taskData);
+
+        // --- MULTI-ROLE PUSH TRIGGER (Task Creation) ---
+        if (typeof window.triggerMultiRoleNotification === 'function') {
+            window.triggerMultiRoleNotification({
+                title: "New Task Assigned",
+                body: `Area: ${area} | Priority: ${priority}`,
+                school: school,
+                role: targetRole,
+                tag: "new-task",
+                icon: "fa-tasks",
+                url: "/JYSLOGINPORTAL/staff-login.html"
+            });
+        }
+
         alert("Maintenance Task Created Successfully!");
 
         // Reset form
@@ -330,6 +344,19 @@ window.closeTaskAction = async (taskId) => {
         const url = res.fileUrl;
 
         await update(ref(db, 'tasks/' + taskId), { status: 'Closed', afterPhotoUrl: url, solvedByName: window.currentStaff.name, solvedByRole: window.currentStaff.role, solvedTimestamp: new Date().toISOString() });
+
+        // --- MULTI-ROLE PUSH TRIGGER (Task Resolution) ---
+        if (typeof window.triggerMultiRoleNotification === 'function') {
+            window.triggerMultiRoleNotification({
+                title: "Task Resolved",
+                body: `Task ID: ${taskId} completed by ${window.currentStaff.name}`,
+                roles: ["Admin"], // Notify Admins
+                tag: "task-resolved",
+                icon: "fa-check-circle",
+                url: "/JYSLOGINPORTAL/admin.html"
+            });
+        }
+
         alert("Task Closed!"); window.loadRoleView(window.currentStaff);
     };
     if (confirm("Take CAMERA PHOTO (OK) or Gallery (Cancel)?")) fileInput.setAttribute('capture', 'environment');

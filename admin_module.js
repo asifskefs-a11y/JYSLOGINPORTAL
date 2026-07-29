@@ -9,6 +9,7 @@ window.appCache = {
     users: {},
     tasks: [],
     assets: [],
+    transfers: [],
     isInitialized: false
 };
 
@@ -53,6 +54,9 @@ window.renderTabFromAppCache = (tabId) => {
         case 'tab-disposal':
             if (window.renderAdminAssetTable) window.renderAdminAssetTable(window.appCache.assets);
             break;
+        case 'tab-transfers':
+            if (window.renderTransferTable) window.renderTransferTable(window.appCache.transfers);
+            break;
     }
 };
 
@@ -93,6 +97,11 @@ window.loadAdminDashboard = async () => {
         onValue(ref(db, 'assets'), (snap) => {
             window.appCache.assets = snap.exists() ? Object.values(snap.val()) : [];
             if (window.renderAdminAssetTable) window.renderAdminAssetTable(window.appCache.assets);
+        });
+
+        onValue(ref(db, 'asset_transfers'), (snap) => {
+            window.appCache.transfers = snap.exists() ? Object.values(snap.val()) : [];
+            if (window.renderTransferTable) window.renderTransferTable(window.appCache.transfers);
         });
 
         if (window.initRaisedTasksTracker) window.initRaisedTasksTracker('admin-my-tasks-container');
@@ -194,6 +203,8 @@ window.loadAdminDashboard = async () => {
         }
 
         window.appCache.isInitialized = true;
+        if (window.initNotificationBell) window.initNotificationBell();
+        if (window.checkAndSubscribePush) window.checkAndSubscribePush();
 
     } catch (err) { console.error("Admin Pre-fetch Error:", err); }
 };
@@ -500,3 +511,4 @@ window.updateAssetTableHeaders = (headers) => {
         });
     } catch (e) { console.error("Error updating dynamic headers:", e); }
 };
+nwindow.filterTransferTable = () => {n    const q = document.getElementById('transfer-search').value.toLowerCase();n    const filtered = window.appCache.transfers.filter(t => n        t.transferId.toLowerCase().includes(q) || n        t.assetBarcode.toLowerCase().includes(q) || n        t.assetName.toLowerCase().includes(q) || n        t.initiatedBy.toLowerCase().includes(q)n    );n    window.renderTransferTable(filtered);n};nnwindow.exportTransferReport = async () => {n    if (window.appCache.transfers.length === 0) return alert('No data to export');n    const workbook = new ExcelJS.Workbook();n    const sheet = workbook.addWorksheet('Asset Transfers');n    sheet.columns = [n        { header: 'Transfer ID', key: 'transferId' },n        { header: 'Barcode', key: 'assetBarcode' },n        { header: 'Asset Name', key: 'assetName' },n        { header: 'Serial No', key: 'serialNo' },n        { header: 'From', key: 'fromLocation' },n        { header: 'To', key: 'toLocation' },n        { header: 'Status', key: 'status' },n        { header: 'Staff', key: 'initiatedBy' },n        { header: 'ADEK ID', key: 'initiatedByAdek' },n        { header: 'Date', key: 'date' },n        { header: 'Time', key: 'time' }n    ];n    window.appCache.transfers.forEach(t => sheet.addRow(t));n    const buffer = await workbook.xlsx.writeBuffer();n    saveAs(new Blob([buffer]), 'Asset_Transfer_Report.xlsx');n};

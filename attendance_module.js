@@ -256,17 +256,17 @@ window.renderDashboard = async (staff) => {
                                     timeOut: now.toLocaleTimeString()
                                 });
 
-                                // --- NATIVE NOTIFICATION TRIGGER ---
-                                try {
-                                    if ('serviceWorker' in navigator) {
-                                        const reg = await navigator.serviceWorker.ready;
-                                        reg.showNotification("Check-Out Successful", {
-                                            body: "Your check-out time has been logged.",
-                                            icon: "jys_Icon.png",
-                                            tag: "attendance-checkout"
-                                        });
-                                    }
-                                } catch (err) { console.warn("Notif Trigger Error:", err); }
+                                // --- MULTI-ROLE NOTIFICATION: CHECK-OUT (CRITICAL) ---
+                                if (typeof window.triggerMultiRoleNotification === 'function') {
+                                    window.triggerMultiRoleNotification({
+                                        title: "Attendance: Check-Out Confirmed",
+                                        body: `User: ${staff.name} | Time: ${now.toLocaleTimeString()}`,
+                                        adekId: staff.adekPass || staff.adcPassNumber,
+                                        tag: "attendance-checkout",
+                                        icon: "fa-person-walking-arrow-right",
+                                        url: "/JYSLOGINPORTAL/staff-login.html"
+                                    });
+                                }
 
                                 alert("Checked out successfully!");
                             } catch (e) { alert("Checkout error: " + e.message); }
@@ -309,17 +309,17 @@ window.renderDashboard = async (staff) => {
                                     await set(ref(db, 'active_staff_sessions/' + staff.mobile), session);
                                     localStorage.setItem('staff_active_session', JSON.stringify(session));
 
-                                    // --- NATIVE NOTIFICATION TRIGGER ---
-                                    try {
-                                        if ('serviceWorker' in navigator) {
-                                            const reg = await navigator.serviceWorker.ready;
-                                            reg.showNotification("Attendance Recorded", {
-                                                body: "Your check-in has been successfully confirmed.",
-                                                icon: "jys_Icon.png",
-                                                tag: "attendance-checkin"
-                                            });
-                                        }
-                                    } catch (err) { console.warn("Notif Trigger Error:", err); }
+                                    // --- MULTI-ROLE NOTIFICATION: CHECK-IN (CRITICAL) ---
+                                    if (typeof window.triggerMultiRoleNotification === 'function') {
+                                        window.triggerMultiRoleNotification({
+                                            title: "Attendance: Check-In Confirmed",
+                                            body: `User: ${staff.name} | Time: ${now.toLocaleTimeString()}`,
+                                            adekId: staff.adekPass || staff.adcPassNumber,
+                                            tag: "attendance-checkin",
+                                            icon: "fa-user-check",
+                                            url: "/JYSLOGINPORTAL/staff-login.html"
+                                        });
+                                    }
 
                                     alert("Check-In Successful!");
                                 } catch (e) { alert("Check-In Error: " + e.message); }
@@ -372,5 +372,7 @@ window.renderDashboard = async (staff) => {
         }
 
         window.loadRoleView(staff);
+        if (window.initNotificationBell) window.initNotificationBell();
+        if (window.checkAndSubscribePush) window.checkAndSubscribePush();
     } catch (e) { console.error("Dashboard Render Error:", e); }
 };
