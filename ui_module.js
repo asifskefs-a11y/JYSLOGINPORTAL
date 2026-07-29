@@ -143,7 +143,30 @@ window.subscribeUserToPush = async () => {
     const diagId = document.getElementById('diag-push-id');
     const notifModal = document.getElementById('notification-modal');
 
+    // --- CROSS-PLATFORM COMPATIBILITY CHECKS ---
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+    const isStandalone = window.navigator.standalone || window.matchMedia('(display-mode: standalone)').matches;
+
     try {
+        // 1. iOS SAFARI GUARD: Must be in PWA Mode
+        if (isIOS && !isStandalone) {
+            window.showNotificationDebug(`
+                <div class="text-left space-y-2 py-2">
+                    <p class="font-black text-indigo-900 text-xs uppercase text-center mb-1">iOS Requirement</p>
+                    <p class="text-[9px] text-indigo-700 leading-tight">Apple requires this app to be installed to your Home Screen before notifications can be enabled.</p>
+                    <div class="bg-white/50 p-2 rounded-lg border border-indigo-100">
+                        <p class="text-[9px] font-bold text-indigo-600 mb-1">How to Install:</p>
+                        <ol class="list-decimal ml-4 text-[9px] text-indigo-500 space-y-1">
+                            <li>Tap the <b>Share</b> button <i class="fa-solid fa-arrow-up-from-bracket"></i> (bottom center).</li>
+                            <li>Scroll down and tap <b>'Add to Home Screen'</b>.</li>
+                            <li>Open the app from your Home Screen to finish.</li>
+                        </ol>
+                    </div>
+                </div>
+            `);
+            return;
+        }
+
         if (diagId) diagId.innerText = "REQUESTING PERMISSION...";
 
         // SAFARI COMPLIANCE: Direct call in click handler
