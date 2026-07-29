@@ -199,10 +199,12 @@ window.subscribeUserToPush = async () => {
         // FIX: REPLACE ILLEGAL CONSTRUCTOR WITH SW SHOWNOTIFICATION
         if ('serviceWorker' in navigator) {
             navigator.serviceWorker.ready.then(reg => {
+                // STRICT NO-BUTTONS POLICY applied to confirmation alert
                 reg.showNotification("Jern Yafoor School", {
                     body: "Native Notifications Enabled!",
                     icon: "jys_Icon.png",
-                    badge: "jys_Icon.png"
+                    badge: "jys_Icon.png",
+                    tag: "confirmation"
                 });
             }).catch(err => console.warn("Confirm Notif Fail:", err));
         }
