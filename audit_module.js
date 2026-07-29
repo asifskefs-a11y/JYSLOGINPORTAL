@@ -1125,4 +1125,24 @@ window.filterAssetTable = () => {
         window.renderAdminAssetTable(filtered, 'assets');
     } catch (e) { console.error(e); }
 };
-nwindow.openTransferLogs = async () => {n    try {n        const dash = document.getElementById('staff-dash-area');n        const logSection = document.getElementById('transfer-logs-section');n        if (dash) dash.classList.add('hidden');n        if (logSection) logSection.classList.remove('hidden');nn        const snap = await get(ref(db, 'asset_transfers'));n        const transfers = snap.exists() ? Object.values(snap.val()) : [];n        window.renderTransferTable(transfers);n    } catch (e) { console.error(e); }n};nnwindow.closeTransferLogs = () => {n    try {n        const dash = document.getElementById('staff-dash-area');n        const logSection = document.getElementById('transfer-logs-section');n        if (dash) dash.classList.remove('hidden');n        if (logSection) logSection.classList.add('hidden');n    } catch (e) { console.error(e); }n};
+window.openTransferLogs = async () => {
+    try {
+        const dash = document.getElementById('staff-dash-area');
+        const logSection = document.getElementById('transfer-logs-section');
+        if (dash) dash.classList.add('hidden');
+        if (logSection) logSection.classList.remove('hidden');
+
+        const snap = await get(ref(db, 'asset_transfers'));
+        const transfers = snap.exists() ? Object.values(snap.val()) : [];
+        window.renderTransferTable(transfers);
+    } catch (e) { console.error(e); }
+};
+
+window.closeTransferLogs = () => {
+    try {
+        const dash = document.getElementById('staff-dash-area');
+        const logSection = document.getElementById('transfer-logs-section');
+        if (dash) dash.classList.remove('hidden');
+        if (logSection) logSection.classList.add('hidden');
+    } catch (e) { console.error(e); }
+};

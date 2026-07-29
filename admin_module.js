@@ -47,6 +47,9 @@ window.renderTabFromAppCache = (tabId) => {
         case 'tab-tasks':
             window.renderTaskTable(window.appCache.tasks);
             break;
+        case 'tab-my-tasks':
+            // Already initialized in loadAdminDashboard
+            break;
         case 'tab-staff-list':
             window.renderStaffDirectory(window.appCache.staff);
             break;
@@ -91,16 +94,19 @@ window.loadAdminDashboard = async () => {
 
         onValue(ref(db, 'tasks'), (snap) => {
             window.appCache.tasks = snap.exists() ? Object.values(snap.val()).reverse() : [];
+            window.syncAppCacheRecords(); // Ensure KPIs update when tasks change
             window.renderTaskTable(window.appCache.tasks);
         });
 
         onValue(ref(db, 'assets'), (snap) => {
             window.appCache.assets = snap.exists() ? Object.values(snap.val()) : [];
+            window.syncAppCacheRecords(); // For asset-related KPIs if any
             if (window.renderAdminAssetTable) window.renderAdminAssetTable(window.appCache.assets);
         });
 
         onValue(ref(db, 'asset_transfers'), (snap) => {
             window.appCache.transfers = snap.exists() ? Object.values(snap.val()) : [];
+            window.syncAppCacheRecords();
             if (window.renderTransferTable) window.renderTransferTable(window.appCache.transfers);
         });
 
@@ -210,18 +216,46 @@ window.loadAdminDashboard = async () => {
 };
 
 window.syncAppCacheRecords = () => {
-    let all = [];
-    window.appCache.visitors.forEach(x => all.push({...x, type: 'visitor'}));
-    window.appCache.staff_attendance.forEach(x => all.push({...x, type: 'staff'}));
-    all.sort((a,b) => new Date(b.date + ' ' + (b.timeIn || '00:00 AM')) - new Date(a.date + ' ' + (a.timeIn || '00:00 AM')));
+    try {
+        let all = [];
+        window.appCache.visitors.forEach(x => all.push({...x, type: 'visitor'}));
+        window.appCache.staff_attendance.forEach(x => all.push({...x, type: 'staff'}));
 
-    window.appCache.allRecordsCombined = all;
-    window.renderAdminTable(all, window.appCache.users, window.appCache.staff);
+        // Sorting combined logs
+        all.sort((a,b) => {
+            const dateA = new Date(a.date + ' ' + (a.timeIn || '00:00 AM'));
+            const dateB = new Date(b.date + ' ' + (b.timeIn || '00:00 AM'));
+            return dateB - dateA;
+        });
 
-    const visitorsToday = all.filter(r => r.type === 'visitor' && r.date === new Date().toLocaleDateString('en-US')).length;
-    const staffPresent = all.filter(r => r.type === 'staff' && (r.status === 'checked_in' || !r.timeOut)).length;
-    if(document.getElementById('kpi-visitors')) document.getElementById('kpi-visitors').innerText = visitorsToday;
-    if(document.getElementById('kpi-staff')) document.getElementById('kpi-staff').innerText = staffPresent;
+        window.appCache.allRecordsCombined = all;
+
+        // Render logs if currently visible
+        const activeTab = document.querySelector('.admin-tab:not(.hidden)');
+        if (activeTab && (activeTab.id === 'tab-visitor-logs' || activeTab.id === 'tab-staff-logs')) {
+            window.renderAdminTable(all, window.appCache.users, window.appCache.staff);
+        }
+
+        // --- UPDATE LIVE KPI METRICS ---
+        const today = new Date().toLocaleDateString('en-US');
+
+        // 1. Visitors Today
+        const visitorsToday = window.appCache.visitors.filter(r => r.date === today).length;
+        if(document.getElementById('kpi-visitors')) document.getElementById('kpi-visitors').innerText = visitorsToday;
+
+        // 2. Active Tasks (Open or Accepted)
+        const activeTasksCount = window.appCache.tasks.filter(t => t.status === 'Open' || t.status === 'Accepted' || t.status === 'In-Progress').length;
+        if(document.getElementById('kpi-tasks')) document.getElementById('kpi-tasks').innerText = activeTasksCount;
+
+        // 3. Staff Present (Checked In and not yet checked out today)
+        const staffPresentCount = window.appCache.staff_attendance.filter(r => r.date === today && (r.status === 'checked_in' || !r.timeOut)).length;
+        if(document.getElementById('kpi-staff')) document.getElementById('kpi-staff').innerText = staffPresentCount;
+
+        // 4. Alerts (High Priority Open Tasks)
+        const alertsCount = window.appCache.tasks.filter(t => (t.status === 'Open' || t.status === 'Accepted') && (t.priority === 'High' || t.taskPriority === 'High')).length;
+        if(document.getElementById('kpi-alerts')) document.getElementById('kpi-alerts').innerText = alertsCount;
+
+    } catch (e) { console.error("Sync Error:", e); }
 };
 
 window.renderTaskTable = (taskList) => {
@@ -229,8 +263,34 @@ window.renderTaskTable = (taskList) => {
     if (!taskBody) return;
     taskBody.innerHTML = '';
     taskList.forEach(t => {
-        const b = window.getDirectDriveImageUrl(t.beforePhotoUrl || t.beforePhoto || t.taskPhoto);
-        const a = window.getDirectDriveImageUrl(t.afterPhotoUrl || t.afterPhoto);
+        // --- GOOGLE DRIVE IMAGE URL FORMATTING FIX ---
+        const toDirectLink = (url) => {
+            if (!url || typeof url !== 'string' || url === "-") return "";
+            if (url.startsWith('data:image')) return url;
+            try {
+                // Task: Transform Google Drive link to direct viewable image link
+                // Using drive.google.com/uc?export=view&id= format for maximum cross-origin compatibility
+                const idMatch = url.match(/\/file\/d\/([^\/]+)/) ||
+                                url.match(/[?&]id=([^&]+)/) ||
+                                url.match(/\/open\?id=([^\/&]+)/) ||
+                                url.match(/\/uc\?id=([^\/&]+)/);
+
+                let fileId = (idMatch && idMatch[1]) ? idMatch[1] : null;
+
+                if (!fileId && url.length >= 25 && !url.includes('/') && !url.includes('.') && !url.includes(':')) {
+                    fileId = url;
+                }
+
+                if (fileId) {
+                    return `https://drive.google.com/uc?export=view&id=${fileId}`;
+                }
+            } catch (e) {}
+            return url;
+        };
+
+        const b = toDirectLink(t.before_image || t.beforePhotoUrl || t.beforePhoto || t.taskPhoto || t.task_images_before);
+        const a = toDirectLink(t.after_image || t.afterPhotoUrl || t.afterPhoto || t.task_images_after);
+
         const rDT = t.raisedTimestamp ? new Date(t.raisedTimestamp) : null;
         const cDT = t.solvedTimestamp ? new Date(t.solvedTimestamp) : null;
         taskBody.innerHTML += `
@@ -250,8 +310,8 @@ window.renderTaskTable = (taskList) => {
                 <td class="p-2 italic opacity-60">${t.rejectionReason || 'N/A'}</td>
                 <td class="p-2">
                     <div class="flex gap-1 justify-center items-center">
-                        ${b.includes('http') ? `<img src="${b}" class="h-10 w-10 rounded border shadow-sm cursor-pointer hover:scale-150 transition" onclick="window.openImageZoom('${b}')" title="Before">` : ''}
-                        ${a.includes('http') ? `<img src="${a}" class="h-10 w-10 rounded border shadow-sm border-green-200 cursor-pointer hover:scale-150 transition" onclick="window.openImageZoom('${a}')" title="After">` : ''}
+                        ${(b && b.includes('http')) ? `<img src="${b}" referrerpolicy="no-referrer" class="h-10 w-10 rounded border shadow-sm cursor-pointer hover:scale-150 transition" onclick="window.openImageZoom('${b}')" title="Before">` : '<span class="opacity-20">-</span>'}
+                        ${(a && a.includes('http')) ? `<img src="${a}" referrerpolicy="no-referrer" class="h-10 w-10 rounded border shadow-sm border-green-200 cursor-pointer hover:scale-150 transition" onclick="window.openImageZoom('${a}')" title="After">` : '<span class="opacity-20">-</span>'}
                     </div>
                 </td>
             </tr>`;
@@ -511,4 +571,37 @@ window.updateAssetTableHeaders = (headers) => {
         });
     } catch (e) { console.error("Error updating dynamic headers:", e); }
 };
-nwindow.filterTransferTable = () => {n    const q = document.getElementById('transfer-search').value.toLowerCase();n    const filtered = window.appCache.transfers.filter(t => n        t.transferId.toLowerCase().includes(q) || n        t.assetBarcode.toLowerCase().includes(q) || n        t.assetName.toLowerCase().includes(q) || n        t.initiatedBy.toLowerCase().includes(q)n    );n    window.renderTransferTable(filtered);n};nnwindow.exportTransferReport = async () => {n    if (window.appCache.transfers.length === 0) return alert('No data to export');n    const workbook = new ExcelJS.Workbook();n    const sheet = workbook.addWorksheet('Asset Transfers');n    sheet.columns = [n        { header: 'Transfer ID', key: 'transferId' },n        { header: 'Barcode', key: 'assetBarcode' },n        { header: 'Asset Name', key: 'assetName' },n        { header: 'Serial No', key: 'serialNo' },n        { header: 'From', key: 'fromLocation' },n        { header: 'To', key: 'toLocation' },n        { header: 'Status', key: 'status' },n        { header: 'Staff', key: 'initiatedBy' },n        { header: 'ADEK ID', key: 'initiatedByAdek' },n        { header: 'Date', key: 'date' },n        { header: 'Time', key: 'time' }n    ];n    window.appCache.transfers.forEach(t => sheet.addRow(t));n    const buffer = await workbook.xlsx.writeBuffer();n    saveAs(new Blob([buffer]), 'Asset_Transfer_Report.xlsx');n};
+window.filterTransferTable = () => {
+    try {
+        const q = document.getElementById('transfer-search').value.toLowerCase();
+        const filtered = window.appCache.transfers.filter(t =>
+            (t.transferId || "").toLowerCase().includes(q) ||
+            (t.assetBarcode || "").toLowerCase().includes(q) ||
+            (t.assetName || "").toLowerCase().includes(q) ||
+            (t.initiatedBy || "").toLowerCase().includes(q)
+        );
+        window.renderTransferTable(filtered);
+    } catch (e) { console.error(e); }
+};
+
+window.exportTransferReport = async () => {
+    if (window.appCache.transfers.length === 0) return alert('No data to export');
+    const workbook = new ExcelJS.Workbook();
+    const sheet = workbook.addWorksheet('Asset Transfers');
+    sheet.columns = [
+        { header: 'Transfer ID', key: 'transferId' },
+        { header: 'Barcode', key: 'assetBarcode' },
+        { header: 'Asset Name', key: 'assetName' },
+        { header: 'Serial No', key: 'serialNo' },
+        { header: 'From', key: 'fromLocation' },
+        { header: 'To', key: 'toLocation' },
+        { header: 'Status', key: 'status' },
+        { header: 'Staff', key: 'initiatedBy' },
+        { header: 'ADEK ID', key: 'initiatedByAdek' },
+        { header: 'Date', key: 'date' },
+        { header: 'Time', key: 'time' }
+    ];
+    window.appCache.transfers.forEach(t => sheet.addRow(t));
+    const buffer = await workbook.xlsx.writeBuffer();
+    saveAs(new Blob([buffer]), 'Asset_Transfer_Report.xlsx');
+};
