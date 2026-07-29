@@ -87,7 +87,7 @@
                     <div id="asset-audit-access" class="hidden mb-6">
                         <h2 class="text-lg font-black text-indigo-900 mb-4 tracking-tight">Asset Management</h2>
                         <div class="grid grid-cols-1 gap-4">
-                            <button onclick="console.log('Audit Click Success'); openAssetAudit();" class="mobile-touch-test item-audit-btn w-full bg-orange-600 text-white p-5 rounded-2xl shadow-lg flex items-center justify-between transition-transform active:scale-95" style="min-height: 70px; position: relative; z-index: 99999;">
+                            <button onclick="openAssetAudit();" class="item-audit-btn w-full bg-orange-600 text-white p-5 rounded-2xl shadow-lg flex items-center justify-between transition-transform active:scale-95" style="min-height: 70px;">
                                 <div class="flex items-center gap-4">
                                     <div class="bg-white/20 p-2 rounded-full">
                                         <i class="fa-solid fa-barcode text-xl"></i>
@@ -558,7 +558,7 @@
             </div>
 
             <!-- ASSET TRANSFER WORKFLOW SECTION -->
-            <div id="asset-transfer-section" class="hidden w-full p-4">
+            <div id="trf-workflow-section" class="hidden w-full p-4">
                 <nav class="w-full flex items-center justify-between mb-6">
                     <button onclick="closeAssetTransfer()" class="bg-slate-100 p-3 rounded-xl text-gray-500 hover:bg-slate-200 transition">
                         <i class="fa-solid fa-arrow-left"></i>
@@ -571,34 +571,34 @@
                     <div class="space-y-2">
                         <label class="block text-[10px] font-black text-gray-400 uppercase ml-1">1. Scan Asset Barcode</label>
                         <div class="flex gap-2">
-                            <input type="text" id="t_asset_barcode" placeholder="Enter Barcode..." class="flex-1 p-4 border rounded-xl text-sm font-bold uppercase focus:ring-2 focus:ring-indigo-600 outline-none" oninput="window.fetchTransferAssetDetails(this.value)">
-                            <button onclick="startCameraScanner('t_asset_barcode')" class="bg-indigo-600 text-white p-4 rounded-xl shadow-lg active:scale-95 transition">
+                            <input type="text" id="trf-barcode-input" placeholder="Enter Barcode..." class="flex-1 p-4 border rounded-xl text-sm font-bold uppercase focus:ring-2 focus:ring-indigo-600 outline-none" oninput="window.fetchTransferAssetDetails(this.value)">
+                            <button onclick="startCameraScanner('trf-barcode-input')" class="bg-indigo-600 text-white p-4 rounded-xl shadow-lg active:scale-95 transition">
                                 <i class="fa-solid fa-camera"></i>
                             </button>
                         </div>
                     </div>
 
                     <!-- ASSET PREVIEW -->
-                    <div id="transfer-asset-preview" class="min-h-[60px]">
+                    <div id="trf-asset-preview" class="min-h-[60px]">
                         <p class="text-[10px] text-gray-400 italic text-center p-4">Scan barcode to verify asset details</p>
                     </div>
 
                     <div class="space-y-2">
                         <label class="block text-[10px] font-black text-gray-400 uppercase ml-1">2. Target Destination / Location</label>
-                        <input type="text" id="t_to_location" placeholder="New Location (e.g. Science Lab 2)" class="w-full p-4 border rounded-xl text-sm focus:ring-2 focus:ring-indigo-600 outline-none">
+                        <input type="text" id="trf-dest-input" placeholder="New Location (e.g. Science Lab 2)" class="w-full p-4 border rounded-xl text-sm focus:ring-2 focus:ring-indigo-600 outline-none">
                     </div>
 
                     <div class="space-y-2">
                         <label class="block text-[10px] font-black text-gray-400 uppercase ml-1">3. Reason for Transfer</label>
-                        <textarea id="t_reason" placeholder="Why is this being moved? (e.g. For maintenance, room swap)..." class="w-full p-4 border rounded-xl h-24 text-sm focus:ring-2 focus:ring-indigo-600 outline-none"></textarea>
+                        <textarea id="trf-reason-input" placeholder="Why is this being moved? (e.g. For maintenance, room swap)..." class="w-full p-4 border rounded-xl h-24 text-sm focus:ring-2 focus:ring-indigo-600 outline-none"></textarea>
                     </div>
 
-                    <button id="submit-transfer-btn" onclick="submitAssetTransfer()" class="w-full bg-indigo-600 text-white py-5 rounded-2xl font-black shadow-xl active:scale-95 transition uppercase tracking-widest">Initiate Transfer</button>
+                    <button id="trf-submit-action" onclick="submitAssetTransfer()" class="w-full bg-indigo-600 text-white py-5 rounded-2xl font-black shadow-xl active:scale-95 transition uppercase tracking-widest">Initiate Transfer</button>
                 </div>
             </div>
 
             <!-- TRANSFER LOGS VIEW (For Roles) -->
-            <div id="transfer-logs-section" class="hidden w-full p-4">
+            <div id="trf-logs-workflow" class="hidden w-full p-4">
                 <div class="flex items-center justify-between mb-4">
                     <h2 class="text-lg font-black text-indigo-900 uppercase">Movement Logs</h2>
                     <button onclick="closeTransferLogs()" class="text-[10px] font-black text-indigo-600 uppercase underline">Back</button>

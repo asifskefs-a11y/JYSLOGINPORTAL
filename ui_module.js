@@ -500,4 +500,32 @@ window.showView = (viewId) => {
         window.scrollTo(0, 0);
     } catch (e) { console.error(e); }
 };
-n/* --- GLOBAL EVENT DELEGATION FOR MOBILE --- */n(function initEventDelegation() {n    const handleInteraction = (e) => {n        const target = e.target.closest('.item-audit-btn, .dispose-item-btn, .asset-transfer-btn, .movement-logs-btn, .btn-task-accept, .btn-task-reject');n        if (target) {n            console.log('Mobile Interaction Delegated:', target.className);n            // e.preventDefault(); // Only if strictly necessary to block scroll/zoom conflictn            if (target.classList.contains('item-audit-btn')) window.openAssetAudit();n            else if (target.classList.contains('dispose-item-btn')) window.openDirectDisposal();n            else if (target.classList.contains('asset-transfer-btn')) window.openAssetTransfer();n            else if (target.classList.contains('movement-logs-btn')) window.openTransferLogs();n        }n    };nn    document.addEventListener('click', handleInteraction);n    document.addEventListener('touchstart', (e) => {n        const target = e.target.closest('.item-audit-btn, .dispose-item-btn, .asset-transfer-btn, .movement-logs-btn');n        if (target) {n            console.log('Touchstart detected');n            handleInteraction(e);n        }n    }, { passive: true });n})();
+
+/* --- GLOBAL EVENT DELEGATION FOR MOBILE --- */
+(function initEventDelegation() {
+    try {
+        const handleInteraction = (e) => {
+            const target = e.target.closest('.item-audit-btn, .dispose-item-btn, .asset-transfer-btn, .movement-logs-btn, .btn-task-accept, .btn-task-reject');
+            if (target) {
+                console.log('Mobile Interaction Delegated:', target.className);
+                // e.preventDefault(); // Only if strictly necessary to block scroll/zoom conflict
+                if (target.classList.contains('item-audit-btn')) window.openAssetAudit();
+                else if (target.classList.contains('dispose-item-btn')) window.openDirectDisposal();
+                else if (target.classList.contains('asset-transfer-btn')) window.openAssetTransfer();
+                else if (target.classList.contains('movement-logs-btn')) window.openTransferLogs();
+            }
+        };
+
+        document.addEventListener('click', handleInteraction);
+        document.addEventListener('touchstart', (e) => {
+            const target = e.target.closest('.item-audit-btn, .dispose-item-btn, .asset-transfer-btn, .movement-logs-btn');
+            if (target) {
+                console.log('Touchstart detected');
+                handleInteraction(e);
+            }
+        }, { passive: true });
+    } catch (e) {
+        console.error("Event Delegation Init Error:", e);
+    }
+})();
+

@@ -1,4 +1,42 @@
-/* --- APP LAUNCH VIDEO OVERLAY --- */
+/* ========================================================= */
+/* 🚀 GLOBAL THEME & VARIABLES                                */
+/* ========================================================= */
+:root {
+  --primary-teal: #00A8B5;
+  --primary-dark: #0A2540;
+  --bg-light: #F4F7FE;
+  --white: #FFFFFF;
+  --text-gray: #626C7A;
+  --border-color: #E2E8F0;
+  --shadow: 0px 8px 24px rgba(149, 157, 165, 0.1);
+}
+
+* {
+    color: #0f172a !important;
+    opacity: 1 !important;
+    font-family: 'Poppins', sans-serif;
+    box-sizing: border-box;
+}
+
+body {
+    background: var(--bg-light) !important;
+    min-height: 100vh;
+    margin: 0;
+    padding: 0;
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+    overflow-x: hidden;
+}
+
+/* Ensure hidden remains hidden on all views */
+.hidden {
+    display: none !important;
+}
+
+/* ========================================================= */
+/* 🎬 APP LAUNCH VIDEO OVERLAY                               */
+/* ========================================================= */
 #launchVideoOverlay {
     position: fixed !important;
     top: 0 !important;
@@ -28,20 +66,7 @@
     margin: auto !important;
 }
 
-/* Hide Browser Video Controls Entirely */
-#appLaunchVideo::-webkit-media-controls {
-    display: none !important;
-}
-#appLaunchVideo::-webkit-media-controls-enclosure {
-    display: none !important;
-}
-#appLaunchVideo::-webkit-media-controls-panel {
-    display: none !important;
-}
-#appLaunchVideo::-moz-media-controls {
-    display: none !important;
-}
-
+#appLaunchVideo::-webkit-media-controls { display: none !important; }
 #skipVideoBtn {
     pointer-events: auto !important;
     cursor: pointer !important;
@@ -50,45 +75,11 @@
     z-index: 1000000 !important;
 }
 
-.fade-out {
-    opacity: 0 !important;
-    pointer-events: none !important;
-}
-  --primary-teal: #00A8B5;
-  --primary-dark: #0A2540;
-  --bg-light: #F4F7FE;
-  --white: #FFFFFF;
-  --text-gray: #626C7A;
-  --border-color: #E2E8F0;
-  --shadow: 0px 8px 24px rgba(149, 157, 165, 0.1);
-}
+.fade-out { opacity: 0 !important; pointer-events: none !important; }
 
-* { color: #0f172a !important; opacity: 1 !important; font-family: 'Poppins', sans-serif; }
-
-body {
-    background: var(--bg-light) !important;
-    min-height: 100vh;
-    margin: 0;
-    padding: 0;
-    -webkit-user-select: none;
-    user-select: none;
-    -webkit-tap-highlight-color: transparent;
-    overflow-x: hidden;
-}
-
-button, a, .btn, [onclick] {
-    pointer-events: auto !important;
-    cursor: pointer !important;
-    z-index: 5;
-    position: relative;
-}
-
-/* Ensure hidden remains hidden on all views */
-.hidden {
-    display: none !important;
-}
-
-/* --- PORTAL LANDING PAGE LAYOUT --- */
+/* ========================================================= */
+/* 🏠 PORTAL LANDING PAGE LAYOUT                             */
+/* ========================================================= */
 .portal-main-container {
     display: flex !important;
     flex-direction: row !important;
@@ -106,50 +97,27 @@ button, a, .btn, [onclick] {
     margin: 0 !important;
     display: flex !important;
     flex-direction: column !important;
+    background: white !important;
+    border-radius: 24px !important;
+    padding: 24px !important;
+    box-shadow: var(--shadow) !important;
+    cursor: pointer !important;
+    transition: transform 0.2s ease !important;
+    position: relative;
+    z-index: 5;
 }
+
+.portal-card:active { transform: scale(0.98); }
 
 @media screen and (max-width: 768px) {
-    .portal-main-container {
-        flex-direction: column !important;
-        padding: 0 20px !important;
-    }
-    .portal-card {
-        width: 100% !important;
-        min-width: unset !important;
-    }
-}
-.navbar {
-  background: var(--white);
-  padding: 12px 24px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  border-bottom: 2px solid var(--border-color);
-  box-shadow: var(--shadow);
-  position: sticky;
-  top: 0;
-  z-index: 1000;
+    .portal-main-container { flex-direction: column !important; padding: 0 20px !important; }
+    .portal-card { width: 100% !important; min-width: unset !important; }
 }
 
-.admin-tab-btn {
-    border: none !important;
-    color: #64748b !important;
-    background: transparent !important;
-    position: relative;
-}
-
-.admin-tab-btn.active-tab {
-    color: #4f46e5 !important;
-    background: white !important;
-    box-shadow: 0 4px 12px rgba(79, 70, 229, 0.08) !important;
-}
-
-.excel-table {
-    border-collapse: separate !important;
-    border-spacing: 0 !important;
-    width: 100% !important;
-}
-
+/* ========================================================= */
+/* 📋 DATA TABLES & TABS                                     */
+/* ========================================================= */
+.excel-table { border-collapse: separate !important; border-spacing: 0 !important; width: 100% !important; }
 .excel-table thead th {
     background-color: #f8fafc !important;
     color: #475569 !important;
@@ -159,35 +127,18 @@ button, a, .btn, [onclick] {
     padding: 14px 16px !important;
     border-bottom: 2px solid #e2e8f0 !important;
     white-space: nowrap;
+    font-size: 11px;
 }
+.excel-table tbody td { padding: 12px 16px !important; vertical-align: middle !important; border-bottom: 1px solid #f1f5f9 !important; font-size: 12px; }
+.excel-table tbody tr:nth-child(even) { background-color: #fbfcfe !important; }
+.excel-table tbody tr:hover { background-color: #f1f5f9 !important; }
 
-.excel-table tbody td {
-    padding: 12px 16px !important;
-    vertical-align: middle !important;
-    border-bottom: 1px solid #f1f5f9 !important;
-}
+.admin-tab-btn { border: none !important; color: #64748b !important; background: transparent !important; position: relative; cursor: pointer !important; font-weight: 700 !important; white-space: nowrap; transition: all 0.2s ease; }
+.admin-tab-btn.active-tab { color: #4f46e5 !important; background: white !important; box-shadow: 0 4px 12px rgba(79, 70, 229, 0.08) !important; border-bottom: 3px solid #4f46e5 !important; }
 
-.excel-table tbody tr:nth-child(even) {
-    background-color: #fbfcfe !important;
-}
-
-.excel-table tbody tr:hover {
-    background-color: #f1f5f9 !important;
-}
-
-.badge-pill {
-    padding: 4px 10px !important;
-    border-radius: 9999px !important;
-    font-weight: 800 !important;
-    text-transform: uppercase !important;
-    letter-spacing: 0.025em !important;
-}
-.brand-section { display: flex; align-items: center; gap: 15px; }
-.school-title { font-size: 1.1rem; font-weight: 700; color: var(--primary-dark); line-height: 1.2; }
-.school-title span { font-size: 0.8rem; font-weight: 400; color: var(--primary-teal); display: block; }
-.avatar { width: 40px; height: 40px; background: var(--primary-teal); color: white !important; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 600; }
-.avatar * { color: white !important; }
-
+/* ========================================================= */
+/* 📊 KPI & STAT CARDS                                       */
+/* ========================================================= */
 .kpi-horizontal-container {
     display: flex !important;
     flex-direction: row !important;
@@ -196,14 +147,11 @@ button, a, .btn, [onclick] {
     gap: 16px !important;
     width: 100% !important;
     margin: 20px 0 !important;
-    visibility: visible !important;
-    opacity: 1 !important;
 }
 
-.kpi-horizontal-container > .stat-card {
+.stat-card {
     flex: 1 !important;
     min-width: 0 !important;
-    margin: 0 !important;
     background: #ffffff !important;
     padding: 16px !important;
     border-radius: 12px !important;
@@ -214,936 +162,139 @@ button, a, .btn, [onclick] {
     gap: 12px !important;
 }
 
-.kpi-horizontal-container .stat-card i {
-    font-size: 1.5rem !important;
-    color: #4f46e5 !important;
-    width: 40px !important;
-    height: 40px !important;
-    background: #f1f5f9 !important;
-    border-radius: 8px !important;
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-}
+.stat-card i { font-size: 1.5rem; color: var(--primary-teal); width: 40px; height: 40px; background: #f1f5f9; border-radius: 8px; display: flex; align-items: center; justify-content: center; }
+.stat-card h3 { font-size: 1.25rem; font-weight: 700; color: #0f172a; margin: 0; line-height: 1; }
+.stat-card p { font-size: 0.75rem; font-weight: 600; color: #64748b; text-transform: uppercase; letter-spacing: 0.025em; margin: 0 0 4px 0; }
 
-.kpi-horizontal-container .stat-card-info p {
-    color: #64748b !important;
-    font-size: 11px !important;
-    font-weight: 700 !important;
-    text-transform: uppercase !important;
-    margin: 0 !important;
-    letter-spacing: 0.025em !important;
-}
-
-.kpi-horizontal-container .stat-card-info h3 {
-    color: #0f172a !important;
-    font-size: 20px !important;
-    font-weight: 800 !important;
-    margin: 2px 0 0 0 !important;
-    line-height: 1 !important;
-}
-
-@media (max-width: 1024px) {
-    .kpi-horizontal-container {
-        flex-wrap: wrap !important;
-    }
-    .kpi-horizontal-container > .stat-card {
-        flex: 1 1 calc(50% - 16px) !important;
-    }
-}
-
-@media (max-width: 640px) {
-    .kpi-horizontal-container > .stat-card {
-        flex: 1 1 100% !important;
-    }
-}
-
-.kpi-main-grid {
-
-.kpi-horizontal-wrapper {
-
-.stats-grid {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 16px;
-    margin-bottom: 24px;
-}
-
-@media (max-width: 1024px) {
-    .stats-grid {
-        grid-template-columns: repeat(2, 1fr);
-    }
-}
-
-@media (max-width: 600px) {
-    .stats-grid {
-        grid-template-columns: 1fr;
-    }
-}
-
-.stat-card {
-    background: var(--white);
-    padding: 16px;
-    border-radius: 12px;
-    box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
-    display: flex;
-    align-items: center;
-    justify-content: flex-start;
-    gap: 12px;
-    border: 1px solid #e2e8f0;
-}
-
-.stat-card i {
-    font-size: 1.5rem;
-    color: var(--primary-teal);
-    width: 40px;
-    height: 40px;
-    background: #f1f5f9;
-    border-radius: 8px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.stat-card-info {
-    display: flex;
-    flex-direction: column;
-}
-
-.stat-card h3 {
-    font-size: 1.25rem;
-    font-weight: 700;
-    color: #0f172a;
-    margin: 0;
-    line-height: 1;
-}
-
-.stat-card p {
-    font-size: 0.75rem;
-    font-weight: 600;
-    color: #64748b;
-    text-transform: uppercase;
-    letter-spacing: 0.025em;
-    margin: 0 0 4px 0;
-}
-
-/* Typography & Contrast Improvements */
-h1, h2, h3, h4, h5, h6 {
-    color: #1e293b !important;
-    font-weight: 700 !important;
-}
-
-.admin-tab-btn {
-    font-weight: 700 !important;
-    color: #475569 !important;
-    white-space: nowrap;
-}
-
-.admin-tab-btn.active-tab {
-    color: #4f46e5 !important;
-}
-
-.excel-table thead th {
-    color: #1e293b !important;
-    font-weight: 800 !important;
-    background-color: #f1f5f9 !important;
-}
-
-.excel-table tbody td {
-    color: #334155 !important;
-    font-weight: 500 !important;
-}
-
-/* Tabs Navigation Overflow Fix */
-.no-scrollbar {
-    display: flex !important;
-    overflow-x: auto !important;
-    scrollbar-width: none !important;
-    -ms-overflow-style: none !important;
-}
-
-.no-scrollbar::-webkit-scrollbar {
-    display: none !important;
-}
-
-.action-panel {
-    background: var(--white);
-    padding: 24px;
-    border-radius: 12px;
-    box-shadow: var(--shadow);
-    margin-bottom: 30px;
-    clear: both;
-    position: relative;
-    z-index: 1;
-}
-.action-panel h2 {
-    font-size: 1.2rem !important;
-    margin-bottom: 20px !important;
-    color: var(--primary-dark) !important;
-    display: flex !important;
-    align-items: center !important;
-    gap: 10px !important;
-    border-bottom: 1px solid var(--border-color) !important;
-    padding-bottom: 12px !important;
-}
-
-.tasks-grid {
-    margin-top: 15px;
-    clear: both;
-}
-
-.tasks-section-header {
-    margin-top: 32px !important;
-    margin-bottom: 20px !important;
-    position: relative !important;
-    clear: both !important;
-    display: block !important;
-}
-
-/* Redesigned Profile Card Utilities */
-.profile-img-circle {
-    width: 60px !important;
-    height: 60px !important;
-    border-radius: 50% !important;
-    object-fit: cover !important;
-    border: 2px solid #ffffff !important;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.15) !important;
-    z-index: 2;
-}
-
-.avatar-initials {
-    position: relative;
-    z-index: 1;
-    font-weight: 900;
-}
-
-.school-header h1 {
-    font-size: 1.1rem !important;
-    letter-spacing: -0.01em;
-}
-
-.user-info h3 {
-    letter-spacing: -0.02em;
-}
-
-#staff-dash-area .bg-white.rounded-2xl {
-    transition: transform 0.2s ease;
-}
-
-#staff-dash-area .bg-white.rounded-2xl:active {
-    transform: scale(0.99);
-}
-
-.card-footer button {
-    background: transparent !important;
-    border: none !important;
-    padding: 4px 8px !important;
-}
-
-@media screen and (max-width: 480px) {
-    .school-header h1 {
-        font-size: 1rem !important;
-    }
-
-    .avatar-container div {
-        width: 48px !important;
-        height: 48px !important;
-        font-size: 1.1rem !important;
-    }
-}
-#asset-audit-access h2 {
-    font-size: 1.3rem !important;
-    font-black: 900 !important;
-    color: #1e1b4b !important;
-    margin-bottom: 20px !important;
-    letter-spacing: -0.025em;
-}
+/* ========================================================= */
+/* 🏢 STAFF DASHBOARD & ASSET GRID                            */
+/* ========================================================= */
+#staff-dash-area .container-fluid { width: 100%; padding: 0; }
 
 #asset-audit-access .grid {
-    gap: 16px !important;
+    display: grid !important;
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 12px !important;
 }
 
 #asset-audit-access button {
     border: none !important;
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
-    position: relative;
-    overflow: hidden;
-}
-
-#asset-audit-access button:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 12px 20px -5px rgba(0, 0, 0, 0.15) !important;
-}
-
-#asset-audit-access button:active {
-    transform: scale(0.98);
+    position: relative !important;
+    overflow: hidden !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+    text-align: center !important;
+    padding: 12px !important;
+    min-height: 80px !important;
+    border-radius: 20px !important;
+    z-index: 100 !important;
+    pointer-events: auto !important;
 }
 
 #asset-audit-access button .bg-white\/20 {
+    width: 36px !important;
+    height: 36px !important;
+    margin-bottom: 6px !important;
     background: rgba(255, 255, 255, 0.15) !important;
     backdrop-filter: blur(4px);
     border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 50% !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
 }
 
-.form-group { display: flex; flex-wrap: wrap; gap: 15px; }
-.form-group input, .form-group select {
-    flex: 1;
-    min-width: 200px;
-    padding: 12px 16px !important;
-    border: 1px solid var(--border-color) !important;
-    border-radius: 10px !important;
-    outline: none;
-    color: #111827 !important;
-    background-color: #ffffff !important;
-}
+#asset-audit-access button i { font-size: 16px !important; color: white !important; }
+#asset-audit-access button span { color: white !important; }
+#asset-audit-access .block.text-lg { font-size: 13px !important; font-weight: 700 !important; }
+#asset-audit-access .text-\[10px\] { font-size: 8px !important; font-weight: 400 !important; opacity: 0.8; }
 
-/* Explicit contrast for all interactive form elements */
-input, select, textarea, .form-control {
-    color: #111827 !important;
-    background-color: #ffffff !important;
-    border: 1px solid #d1d5db !important;
-    opacity: 1 !important;
-}
-
-select option {
-    color: #111827 !important;
-    background-color: #ffffff !important;
-}
-
-::placeholder {
-    color: #6b7280 !important;
-    opacity: 1 !important;
-}
-
-#task-form input, #task-form select, #task-form textarea,
-#add-staff-form input, #add-staff-form select, #add-staff-form textarea {
-    color: #111827 !important;
-    background-color: #ffffff !important;
-    border: 1px solid #d1d5db !important;
-    opacity: 1 !important;
-}
-
-.btn { padding: 10px 20px !important; border: none !important; border-radius: 8px !important; cursor: pointer !important; font-weight: 500 !important; display: inline-flex !important; align-items: center !important; gap: 8px !important; transition: all 0.2s ease !important; }
-.btn-teal { background: var(--primary-teal) !important; color: white !important; }
-.btn-teal * { color: white !important; }
-.btn-outline { border: 1px solid var(--primary-teal) !important; color: var(--primary-teal) !important; background: transparent !important; }
-.btn-outline * { color: var(--primary-teal) !important; }
-
+/* ========================================================= */
+/* 🛠️ TASK MANAGEMENT                                        */
+/* ========================================================= */
 .tasks-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 20px; }
-.task-card { background: var(--white) !important; border-radius: 12px !important; padding: 16px !important; box-shadow: var(--shadow) !important; display: flex !important; flex-direction: column !important; justify-content: space-between !important; border: none !important; margin: 0 !important; }
-.task-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px; }
-.badge { font-size: 0.75rem; padding: 4px 10px; border-radius: 20px; font-weight: 500; }
-.badge-pending { background: #FFF4E5; color: #FF9800 !important; }
-.badge-completed { background: #E8F5E9; color: #4CAF50 !important; }
-
-.image-preview-container { display: flex; gap: 10px; margin: 12px 0; }
-.img-box { flex: 1; height: 120px; background: #EAEFF5; border-radius: 8px; overflow: hidden; position: relative; cursor: pointer; border: 1px dashed #CBD5E1; display: flex; align-items: center; justify-content: center; }
-.img-box img { width: 100%; height: 100%; object-fit: cover; transition: transform 0.3s ease; opacity: 1 !important; }
-.img-label { position: absolute; bottom: 4px; left: 4px; background: rgba(10, 37, 64, 0.75); color: white !important; font-size: 0.65rem; padding: 2px 6px; border-radius: 4px; }
-.img-label * { color: white !important; }
-
-.modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.9); z-index: 2000; justify-content: center; align-items: center; flex-direction: column; }
-.modal img { max-width: 90%; max-height: 80%; border-radius: 8px; }
-.modal-close { position: absolute; top: 20px; right: 25px; color: white !important; font-size: 2.2rem; cursor: pointer; }
-
-.app-container {
-    width: 100%;
-    margin: 0 auto;
-    max-width: 1400px !important;
-    min-height: 100vh;
-    display: flex;
-    flex-direction: column;
-    position: relative;
-    padding: 16px;
-    box-sizing: border-box;
-    overflow-x: hidden;
+.task-card {
+    background: var(--white) !important;
+    border-radius: 12px !important;
+    padding: 16px !important;
+    box-shadow: var(--shadow) !important;
+    display: flex !important;
+    flex-direction: column !important;
+    position: relative !important;
+    z-index: 50 !important;
+    pointer-events: auto !important;
 }
-
-/* Ensure nothing overflows */
-* {
-    box-sizing: border-box;
-}
-
-/* --- RESPONSIVE DASHBOARD CONTAINERS --- */
-.app-container, .main-card, .dashboard-wrapper, #view-admin-dash > div {
-    width: 100% !important;
-    max-width: 100% !important;
-    margin: 0 auto 20px auto !important;
-    padding: 0 !important;
-}
-
-/* Media Query Overrides for Mobile */
-@media screen and (max-width: 768px) {
-    .app-container {
-        padding: 12px;
-    }
-
-    .stats-grid {
-        grid-template-columns: 1fr !important;
-        gap: 12px !important;
-    }
-
-    .task-card {
-        padding: 12px !important;
-    }
-
-    .action-panel {
-        padding: 16px !important;
-        margin-bottom: 20px !important;
-    }
-}
-
-/* Ensure tables & tab contents expand 100% */
-table, .admin-tab, .overflow-x-auto {
-    width: 100% !important;
-    overflow-x: auto;
-}
-
-/* Global Safety - Prevent Horizontal Scrolling on all screens */
-html, body {
-  max-width: 100vw !important;
-  overflow-x: hidden !important;
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
-}
-
-/* --- ASSET DATA TABLE STYLES --- */
-#asset-master-table th, #asset-master-table td {
-    padding: 12px 16px;
-    border-bottom: 1px solid #e0e0e0;
-    white-space: nowrap;
-}
-
-#asset-master-table thead th {
-    background-color: #f8f9fa;
-    color: #1e1b4b;
-    font-weight: 700;
-    text-transform: uppercase;
-    font-size: 11px;
-    border-bottom: 2px solid #e2e8f0;
-}
-
-#asset-master-table tbody td {
-    font-size: 13px;
-    color: #334155;
-}
-
-#asset-master-table tr:hover {
-    background-color: #f1f5f9;
-}
-
-#asset-master-table .border-r {
-    border-right: 1px solid #e2e8f0;
-}
-
-#view-admin-dash .overflow-x-auto {
-    scrollbar-width: thin;
-    scrollbar-color: #cbd5e1 #f8f9fa;
-}
-
-#view-admin-dash .overflow-x-auto::-webkit-scrollbar {
-    height: 8px;
-    width: 8px;
-}
-
-#view-admin-dash .overflow-x-auto::-webkit-scrollbar-track {
-    background: #f8f9fa;
-}
-
-#view-admin-dash .overflow-x-auto::-webkit-scrollbar-thumb {
-    background-color: #cbd5e1;
-    border-radius: 10px;
-    border: 2px solid #f8f9fa;
-}
+.task-actions-container { display: flex !important; gap: 8px !important; margin-top: 15px !important; pointer-events: auto !important; }
+.task-actions-container button { flex: 1 !important; pointer-events: auto !important; z-index: 60 !important; cursor: pointer !important; }
 
 /* ========================================================= */
-/* 📱 MOBILE LAYOUT RESET & VISIBILITY FIX                   */
+/* 🖼️ MODALS & SIGNATURES                                    */
 /* ========================================================= */
-/* Horizontal Scrollable Tabs for Mobile */
-.no-scrollbar::-webkit-scrollbar {
-    display: none;
-}
-.no-scrollbar {
-    -ms-overflow-style: none;
-    scrollbar-width: none;
+.modal, #signature-modal, #task-modal, #asset-disposal-modal, #scanner-modal, #password-modal, #notification-modal {
+    z-index: 100000 !important;
 }
 
-.admin-tab-btn.active-tab {
-    background-color: var(--white);
-    color: var(--primary-teal) !important;
-    border-bottom: 3px solid var(--primary-teal);
-    position: relative;
-    z-index: 10;
-}
+.canvas-wrapper { width: 100% !important; height: 200px !important; border: 2px dashed var(--border-color) !important; border-radius: 12px !important; overflow: hidden !important; background: #fff !important; }
+canvas#sig-canvas { width: 100% !important; height: 100% !important; pointer-events: auto !important; touch-action: none !important; }
 
-/* Specific styling for new Admin Tabs */
-#tabVisitorLogs, #tabStaffLogs {
-    cursor: pointer;
-    transition: all 0.3s ease;
-}
-
-#tabVisitorLogs.active-tab, #tabStaffLogs.active-tab {
-    background: #e0f2fe !important;
-    border-bottom: 4px solid #0369a1 !important;
-    color: #0369a1 !important;
-}
-
-/* Custom Scrollbar for Responsive Tables */
-.custom-scrollbar::-webkit-scrollbar {
-    height: 6px;
-}
-.custom-scrollbar::-webkit-scrollbar-track {
-    background: #f1f5f9;
-}
-.custom-scrollbar::-webkit-scrollbar-thumb {
-    background: #cbd5e1;
-    border-radius: 10px;
-}
-
-.truncate {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-
+/* ========================================================= */
+/* 📱 MOBILE RESPONSIVE ISOLATION (max-width: 768px)          */
+/* ========================================================= */
 @media screen and (max-width: 768px) {
-    .overflow-x-auto {
-        -webkit-overflow-scrolling: touch;
-    }
-}
-.glass-morphism {
-    background: rgba(255, 255, 255, 0.8) !important;
-    backdrop-filter: blur(12px) !important;
-    border: 1px solid rgba(255, 255, 255, 0.3) !important;
-    box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.07) !important;
-}
+    .app-container { padding: 12px !important; }
 
-/* Fix for top-level navbar in staff-login.html */
-/* Force hide any legacy registration elements */
-#s-tab-reg, #register-tab, .register-link, [onclick*="toggleStaffTab('reg')"] {
-    display: none !important;
-    visibility: hidden !important;
-    height: 0 !important;
-    width: 0 !important;
-    padding: 0 !important;
-    margin: 0 !important;
-    overflow: hidden !important;
-}
-
-#view-staff > nav {
-    margin-top: 10px;
-    background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%) !important;
-}
-
-@media screen and (max-width: 768px) {
-    html, body {
-      overflow-x: hidden !important;
-      overflow-y: auto !important; /* ENABLE SCROLLING */
-      width: 100vw !important;
-      height: auto !important;
-    }
-
-    /* Prevent Single Page Dump: Strict Routing */
-    .view-section.hidden, .hidden, [style*="display: none"] {
-      display: none !important;
-      visibility: hidden !important;
-      height: 0 !important;
-      overflow: hidden !important;
-      position: absolute !important;
-    }
-    .view-section.active, .active {
-      display: block !important;
-      visibility: visible !important;
-      height: auto !important;
-      position: relative !important;
-      width: 100% !important;
-      overflow-y: visible !important;
-    }
-
-    /* Natural Card Scaling & Proportions */
-    .app-container {
-      width: 100% !important;
-      max-width: 100% !important;
-      margin: 0 !important;
-      padding: 12px !important;
-      display: block !important; /* Remove flex on mobile to allow natural scroll */
-      height: auto !important;
-      min-height: 100vh !important;
-    }
-
-    #duplicate-card-content {
-        flex-direction: column !important;
+    #view-staff > nav {
+        flex-direction: row !important;
+        justify-content: space-between !important;
         align-items: center !important;
-        text-align: center !important;
-    }
-
-    #duplicate-card-content .md\:w-32 {
-        width: 120px !important;
-        height: 120px !important;
-        margin-bottom: 10px !important;
-    }
-
-    #duplicate-card-content .grid-cols-2 {
-        grid-template-columns: 1fr !important;
-        text-align: left !important;
-    }
-
-    .portal-container, .container, .main-card, #staff-auth-area, #view-admin-dash > div {
-      width: 96% !important;
-      max-width: 100% !important;
-      margin: 10px auto !important;
-      padding: 20px 10px !important;
-      box-sizing: border-box !important;
-      border-radius: 16px !important;
-      box-shadow: var(--shadow) !important;
-    }
-
-    /* STRICT MOBILE HEADER FIX */
-    /* Force hide any legacy registration elements */
-#s-tab-reg, #register-tab, .register-link, [onclick*="toggleStaffTab('reg')"] {
-    display: none !important;
-    visibility: hidden !important;
-    height: 0 !important;
-    width: 0 !important;
-    padding: 0 !important;
-    margin: 0 !important;
-    overflow: hidden !important;
-}
-
-#view-staff > nav {
-        display: flex !important;
-        flex-direction: column !important;
-        align-items: center !important;
-        gap: 12px !important;
-        padding: 16px !important;
-        height: auto !important;
+        padding: 12px 16px !important;
         background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%) !important;
         border-radius: 0 0 24px 24px !important;
-        width: 100% !important;
-        box-sizing: border-box !important;
-        position: relative !important;
     }
 
-    #view-staff > nav a, #view-staff > nav h2, #view-staff > nav button {
-        width: 100% !important;
-        text-align: center !important;
-        justify-content: center !important;
+    .kpi-horizontal-container { flex-direction: column !important; }
+    .stats-grid { grid-template-columns: repeat(3, 1fr) !important; gap: 8px !important; }
+    .stat-card { padding: 8px !important; }
+    .stat-card h3 { font-size: 14px !important; }
+
+    #staff-dash-area .bg-white.rounded-2xl { padding: 16px !important; margin-bottom: 12px !important; }
+    #staff-dash-area .school-header { padding-bottom: 8px !important; margin-bottom: 8px !important; }
+
+    /* Ensure buttons are never blocked on mobile */
+    [onclick], button, a, .portal-card, #asset-audit-access button {
+        pointer-events: auto !important;
+        cursor: pointer !important;
+        touch-action: manipulation !important;
     }
 
-    /* PROFILE CARD STACKING */
-    #staff-dash-area .bg-white.rounded-\[2rem\] {
-        padding: 24px 16px !important;
-    }
-
-    #staff-dash-area .bg-white.rounded-\[2rem\] > div.flex-col {
-        gap: 20px !important;
-    }
-
-    #staff-dash-area .school-brand {
-        width: 100% !important;
-        text-align: left !important;
-    }
-
-    #staff-dash-area .school-brand h1 {
-        font-size: 1.2rem !important;
-        text-align: left !important;
-        line-height: 1.3 !important;
-    }
-
-    #staff-dash-area .school-brand p {
-        text-align: left !important;
-    }
-
-    #staff-dash-area div.flex.justify-between.items-start {
-        flex-direction: column !important;
-        align-items: flex-start !important;
-        gap: 16px !important;
-        width: 100% !important;
-    }
-
-    #staff-dash-area div.flex.flex-col.items-end {
-        width: 100% !important;
-        align-items: flex-start !important;
-        flex-direction: row-reverse !important;
-        justify-content: flex-end !important;
-        gap: 12px !important;
-        margin-top: 5px !important;
-    }
-
-    #staff-dash-area .bg-indigo-50\/50 {
-        flex-direction: row !important;
-        text-align: left !important;
-        padding: 16px !important;
-        align-items: center !important;
-        gap: 16px !important;
-    }
-
-    #staff-dash-area #userAvatar {
-        width: 50px !important;
-        height: 50px !important;
-        font-size: 1.2rem !important;
-    }
-
-    /* Admin Signature Visibility Fix */
-    .excel-table img {
-        display: block !important;
-        visibility: visible !important;
-        opacity: 1 !important;
-    }
-
-    /* Fix Cut-off Textboxes & Inputs */
-    input, select, textarea {
-      width: 100% !important;
-      height: 52px !important;
-      padding: 12px 16px !important;
-      font-size: 16px !important;
-      box-sizing: border-box !important;
-      border-radius: 10px !important;
-      border: 1px solid var(--border-color) !important;
-      display: block !important;
-    }
-
-    /* Force single column for registration grid on mobile */
-    #staff-reg-form .grid {
-        display: flex !important;
-        flex-direction: column !important;
-        gap: 15px !important;
-    }
-    textarea { height: auto !important; min-height: 100px !important; }
-
-    /* Enlarge Homepage Icons & Logo */
-    #view-landing .w-24 {
-      width: 90px !important;
-      height: 90px !important;
-    }
-
-    /* Task Action Buttons Optimization */
-    .task-actions-container {
-        display: flex !important;
-        flex-direction: row !important;
-        gap: 8px !important;
-        width: 100% !important;
-        margin-top: 15px !important;
-    }
-
-    .btn-task-accept, .btn-task-reject {
-        flex: 1 !important;
-        min-height: 48px !important;
-        font-size: 0.8rem !important;
-        display: flex !important;
-        align-items: center !important;
-        justify-content: center !important;
-        border: none !important;
-    }
-    #view-landing .bg-indigo-600, #view-landing .bg-purple-600 {
-      padding: 1.5rem !important; /* Scale up purple icons */
-    }
-    #view-landing svg {
-      width: 3.5rem !important;
-      height: 3.5rem !important;
-    }
-
-    /* Interactions Fix - CRITICAL FOR MOBILE SCROLLING */
-    html, body, .app-container, .view-section, .portal-container, .portal-options, a, button, div, span, p {
-      touch-action: auto !important; /* Ensures the whole page and all elements allow scrolling */
-    }
-
-    button, a, .btn, [onclick] {
-      pointer-events: auto !important;
-      z-index: 10 !important;
-      cursor: pointer !important;
-    }
-
-    /* Global Signature Fixes */
-canvas#sig-canvas, canvas#v-sig-pad {
-    pointer-events: auto !important;
-    touch-action: none !important;
-    z-index: 10005 !important;
-    position: relative !important;
-    background-color: #ffffff !important;
-}
-
-/* Logout Button Interaction Fix */
-#staff-logout-btn, #staff-logout, #admin-logout-btn, .logout-btn {
-    pointer-events: auto !important;
-    cursor: pointer !important;
-    z-index: 99999 !important;
-    position: relative !important;
-    visibility: visible !important;
-}
-
-#signature-modal, #task-modal, #reject-modal, #asset-disposal-modal, #password-modal {
-    z-index: 99999 !important;
-}
-
-#taskPhotoPreviewContainer {
-    width: 100%;
-    background: #f8fafc;
-    border: 2px solid #e2e8f0;
-    transition: all 0.3s ease;
-}
-
-#taskPhotoPreviewContainer img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-}
-
-/* Ensure dynamic select lists match theme */
-#assignedStaffSelect, #taskSchoolSelect, #taskRoleSelect {
-    appearance: none;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%234b5563'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E");
-    background-repeat: no-repeat;
-    background-position: right 1rem center;
-    background-size: 1.5em;
-}
-
-    /* Signature Pad Fix (Proper Rectangle) */
-    .canvas-wrapper {
-      width: 100% !important;
-      height: 200px !important;
-      margin: 10px 0 !important;
-      border: 2px dashed var(--border-color) !important;
-      border-radius: 12px !important;
-      overflow: hidden !important;
-      background: #fff !important;
-      position: relative !important;
-      z-index: 10000 !important;
-    }
-    canvas {
-      width: 100% !important;
-      height: 100% !important;
-      display: block !important;
-      pointer-events: auto !important;
-      touch-action: none !important;
-      background-color: #fff !important;
-      position: relative !important;
-      z-index: 10001 !important;
-    }
-
-    /* Modal Safety (Black box fix) */
-    .modal {
-      display: none !important;
-      position: fixed !important;
-      top: 0 !important; left: 0 !important;
-      width: 100vw !important; height: 100vh !important;
-      z-index: 9999 !important;
-      background: rgba(0,0,0,0.9) !important;
-    }
-    .modal[style*="display: flex"], .modal[style*="display: block"] {
-      display: flex !important;
-      align-items: center !important;
-      justify-content: center !important;
-    }
-    #modalImage { max-width: 90% !important; max-height: 80% !important; border-radius: 8px !important; }
-
-    #asset-audit-section {
-        overflow-y: auto !important;
-        padding-bottom: 100px !important;
-        max-height: 90vh !important;
-    }
-
-    #asset-audit-access button {
-        min-height: 80px !important; /* Extra large touch targets */
-        margin-bottom: 15px !important;
-    }
-
-    .stats-grid, .tasks-grid, .portal-options, .asset-grid {
-        display: flex !important;
-        flex-direction: column !important;
-        gap: 15px !important;
-    }
-
-    /* Asset Specific Mobile Styles */
-    .asset-card {
-        background: var(--white);
-        border-radius: 12px;
-        padding: 15px;
-        box-shadow: var(--shadow);
-        border-left: 5px solid var(--primary-teal);
-        margin-bottom: 10px;
-    }
-    .asset-status-badge {
-        font-size: 0.7rem;
-        padding: 4px 8px;
-        border-radius: 4px;
-        font-weight: 700;
-        text-transform: uppercase;
-    }
-    .status-existing { background: #E8F5E9; color: #2E7D32 !important; }
-    .status-disposed { background: #FFEBEE; color: #C62828 !important; }
-    .category-it { border-left-color: #2196F3 !important; }
-    .category-nonit { border-left-color: #FF9800 !important; }
-
-    /* Scanner Styles */
-    #scanner-container video {
-        width: 100% !important;
-        height: 100% !important;
-        object-fit: cover !important;
-        border-radius: 12px !important;
-    }
-    #scanner-container {
-        border-radius: 12px !important;
-        overflow: hidden !important;
-    }
+    .view-section:not(.active) { display: none !important; pointer-events: none !important; }
 }
 
 /* ========================================================= */
-/* 🖥️ 3. DESKTOP / LAPTOP VIEW (1025px and above)            */
+/* 🖥️ DESKTOP RESTORATION (min-width: 1025px)                 */
 /* ========================================================= */
 @media (min-width: 1025px) {
-    /* Keep desktop original design clean and centered */
-    .container, .main-wrapper, .portal-container, .app-container, .main-card, .dashboard-wrapper, #view-admin-dash > div {
-        display: block !important;
-        max-width: 1100px !important;
-        margin: 0 auto !important;
-    }
-    .stats-grid {
-        display: grid !important;
-        grid-template-columns: repeat(3, 1fr) !important;
-        gap: 20px !important;
-    }
-    .tasks-grid {
-        display: grid !important;
-        grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)) !important;
-        gap: 20px !important;
-    }
-    .portal-options {
-        display: grid !important;
-        grid-template-columns: 1fr 1fr !important;
-        gap: 30px !important;
-    }
+    .app-container { max-width: 1200px !important; margin: 0 auto !important; }
+    #asset-audit-access .grid { grid-template-columns: repeat(4, 1fr) !important; }
 }
-n.animate-fade-in { animation: fadeIn 0.3s ease-out; }n@keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
-n/* DISPOSAL MODAL MOBILE OPTIMIZATION */n#asset-disposal-modal .bg-white { width: 90% !important; max-width: 500px !important; margin: auto !important; }n@media (max-width: 640px) { #asset-disposal-modal .bg-white { padding: 1.25rem !important; } #disposal-asset-preview { margin-bottom: 1rem !important; } }n.modal-center-container { display: flex; align-items: center; justify-content: center; min-height: 100%; width: 100%; }
-n/* MOBILE DISPOSAL MODAL EXPANSION */n@media (max-width: 640px) {n  #asset-disposal-modal .bg-white { width: 95% !important; max-width: none !important; padding: 1rem !important; }n  #disposal-asset-preview { margin: 0.5rem 0 !important; }n}
-n/* DISPOSAL MODAL BUTTON FIX */n.disposal-barcode-wrapper { display: flex !important; flex-direction: row !important; align-items: center !important; gap: 10px !important; width: 100% !important; overflow: visible !important; }n.disposal-barcode-wrapper input { flex: 1 !important; min-width: 0 !important; }n.disposal-barcode-wrapper button { flex-shrink: 0 !important; width: 50px !important; height: 50px !important; border-radius: 12px !important; display: flex !important; align-items: center !important; justify-content: center !important; }n#asset-disposal-modal .bg-white { padding: 1.5rem !important; overflow: visible !important; }
-n/* FINAL MOBILE LAYOUT HARDENING */n.disposal-barcode-wrapper { display: flex !important; flex-direction: row !important; align-items: center !important; gap: 8px !important; width: 100% !important; box-sizing: border-box !important; margin-bottom: 12px !important; overflow: visible !important; }n.disposal-barcode-wrapper input { flex: 1 !important; width: auto !important; min-width: 0 !important; }n.disposal-barcode-wrapper button { position: static !important; flex-shrink: 0 !important; width: 44px !important; height: 44px !important; display: flex !important; align-items: center !important; justify-content: center !important; margin: 0 !important; border-radius: 12px !important; }n#asset-disposal-modal .bg-white { padding: 16px !important; width: 92% !important; max-width: 480px !important; overflow-x: hidden !important; border-radius: 24px !important; }n@media (max-width: 640px) { #asset-disposal-modal .bg-white { width: 92% !important; } }
-n/* MASTER DISPOSAL UI REPAIR */n.disposal-barcode-wrapper { display: flex !important; flex-direction: row !important; align-items: center !important; gap: 10px !important; width: 100% !important; overflow: visible !important; box-sizing: border-box !important; }n.disposal-barcode-wrapper input { flex: 1 !important; width: auto !important; min-width: 0 !important; }n.disposal-barcode-wrapper button { flex-shrink: 0 !important; width: 48px !important; height: 48px !important; display: flex !important; align-items: center !important; justify-content: center !important; position: static !important; border-radius: 12px !important; margin: 0 !important; }n#asset-disposal-modal .bg-white { width: 95% !important; max-width: 480px !important; padding: 20px !important; border-radius: 28px !important; overflow: visible !important; }n@media (max-width: 640px) { #asset-disposal-modal .bg-white { width: 95% !important; padding: 16px !important; } }
-n/* UI RE-LAYOUT OPTIMIZATIONS */n.logo-circular-frame { width: 320px !important; height: 320px !important; }n@media (max-width: 640px) {n  .logo-circular-frame { width: 280px !important; height: 280px !important; }n  #staff-dash-area { padding-top: 0.5rem !important; }n  .stats-grid { margin-top: 0.5rem !important; }n}
-n/* CRITICAL SPLASH LOGO RESPONSIVE FIX */n#view-landing .logo-circular-frame { width: 80vw !important; max-width: 300px !important; height: auto !important; aspect-ratio: 1/1 !important; margin: 0 auto !important; transform: none !important; }n#view-landing .logo-circular-frame img { width: 100% !important; height: auto !important; }
-n/* DASHBOARD GAP ELIMINATION */n#staff-dash-area .container-fluid { display: flex !important; flex-direction: column !important; gap: 12px !important; padding-bottom: 2rem !important; }n#asset-audit-access { margin-bottom: 0 !important; }n.stats-grid { margin-top: 0 !important; margin-bottom: 0 !important; }n.tasks-section-header { margin-top: 0 !important; }n#staff-dash-area > div { margin-bottom: 0 !important; padding-bottom: 0 !important; }n#staff-dash-area section { min-height: auto !important; }nn/* PWA ICON CACHE BUSTING FIX */n[rel='manifest'] { href: 'manifest.json?v=3'; }nn/* REPOSITIONED ATTENDANCE SPACING FIX */n#staff-dash-area .bg-white.rounded-2xl { margin-bottom: 12px !important; }
-n/* FINAL DASHBOARD WHITE SPACE REPAIR */n#staff-dash-area .container-fluid { display: block !important; padding-top: 0 !important; }n#asset-audit-access { margin-bottom: 8px !important; }n.stats-grid { margin-top: 0 !important; margin-bottom: 8px !important; }n.tasks-section-header { margin-top: 0 !important; padding-top: 0 !important; }n#staff-dash-area section { min-height: auto !important; margin-bottom: 0 !important; }n#staff-dash-area .mb-6 { margin-bottom: 12px !important; }n#staff-dash-area .mb-8 { margin-bottom: 12px !important; }
-n/* EMERGENCY DASHBOARD COMPRESSION */n#staff-dash-area .container-fluid { margin-top: -150px !important; padding-top: 0 !important; }n#asset-audit-access { margin-top: 0 !important; padding-top: 0 !important; }n.stats-grid { margin-top: -10px !important; }n#staff-dash-area .bg-white.rounded-2xl.p-5 { margin-bottom: 0 !important; }n#staff-dash-area { overflow-x: hidden !important; }
-n/* --- DASHBOARD BELL UI --- */n.bell-container i { color: #4f46e5 !important; }n#bell-badge { z-index: 10; color: white !important; }n#bell-dropdown p, #bell-dropdown h4, #bell-dropdown span { color: #0f172a !important; }n#bell-dropdown button { color: #4f46e5 !important; }n.custom-scrollbar::-webkit-scrollbar { width: 4px; }n.custom-scrollbar::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 10px; }
-n/* --- ADMIN DASHBOARD RESPONSIVE OVERRIDES --- */n@media (max-width: 768px) {n    #view-admin-dash \u003e nav { flex-direction: column !important; align-items: flex-start !important; gap: 16px !important; }n    #view-admin-dash \u003e nav \u003e div:last-child { width: 100% !important; justify-content: space-between !important; overflow-x: auto !important; padding: 4px 0 !important; }n    .kpi-horizontal-container { flex-direction: column !important; gap: 12px !important; }n    .kpi-horizontal-container \u003e .stat-card { width: 100% !important; }n    .admin-tab-btn { padding: 10px 12px !important; font-size: 8px !important; }n    #visitor-logs-body td, #staff-attendance-body td { font-size: 9px !important; padding: 8px 4px !important; }n    .excel-table thead th { font-size: 8px !important; padding: 8px 4px !important; }n    .max-w-7xl { border-radius: 16px !important; }n    #task-modal .bg-white, #add-staff-modal .bg-white, #edit-staff-modal .bg-white { width: 95% !important; border-radius: 20px !important; }n    #task-modal form, #add-staff-form, #edit-staff-form { padding: 16px !important; }n    .grid-cols-2 { grid-template-columns: 1fr !important; }n}
-n/* --- ADMIN AUTH RESPONSIVE --- */n@media (max-width: 480px) {n    #view-admin-auth .bg-white { padding: 24px !important; margin: 10px !important; }n    #view-admin-auth h2 { font-size: 1.5rem !important; }n    #admin-login-form input { padding: 12px !important; }n}
-n/* --- TOUCH OPTIMIZATION --- */n@media (pointer: coarse) {n    button, a, .admin-tab-btn, input, select, textarea { min-height: 44px !important; }n    .admin-tab-btn { display: flex !important; align-items: center !important; justify-content: center !important; }n    input[type='checkbox'] { transform: scale(1.2) !important; margin: 8px !important; }n}
-n/* --- ADMIN DASHBOARD MOBILE ENHANCEMENTS --- */n@media (max-width: 768px) {n    #view-admin-dash .stat-card { flex-direction: row !important; align-items: center !important; justify-content: flex-start !important; gap: 15px !important; }n    #view-admin-dash .stat-card i { font-size: 20px !important; width: 40px !important; height: 40px !important; display: flex !important; align-items: center !important; justify-content: center !important; background: #f8fafc !important; border-radius: 10px !important; }n    .admin-tab-btn { min-width: 120px !important; border-radius: 10px !important; margin: 2px !important; }n    .excel-table { display: block !important; }n    #visitorLogsTable, #staffLogsTable { border: none !important; }n    /* Force scrollable container to be prominent */n    .overflow-x-auto { -webkit-overflow-scrolling: touch !important; padding-bottom: 5px !important; }n    /* Mobile Table Optimization: Keep basic columns, scroll the rest */n    #view-admin-dash .overflow-x-auto { border: 1px solid #f1f5f9 !important; border-radius: 12px !important; }n}
-n/* --- MOBILE NAVIGATION REFINEMENT --- */n@media (max-width: 768px) {n    nav.flex.items-center.justify-between { padding: 12px 16px !important; }n    nav.flex.items-center.justify-between a { padding: 10px 16px !important; }n    #view-admin-dash nav.w-full.flex.items-center.justify-between { padding: 0 4px !important; }n}
-n/* --- MOBILE TOUCH FEEDBACK --- */n@media (max-width: 768px) {n    button:active, a:active, .admin-tab-btn:active { transform: scale(0.96) !important; transition: transform 0.1s ease !important; opacity: 0.8 !important; }n}
-n/* --- MOBILE MENU OVERLAY --- */n@media (max-width: 768px) {n    #admin-action-menu { padding: 12px !important; border-radius: 20px !important; background: white !important; border: 1px solid #e2e8f0 !important; }n    #admin-action-menu button { justify-content: flex-start !important; padding-left: 12px !important; }n}
-n/* --- DESKTOP LAYOUT RESTORATION (min-width: 769px) --- */n@media screen and (min-width: 769px) {n    #view-admin-dash \u003e nav { flex-direction: row !important; align-items: center !important; justify-content: space-between !important; padding: 20px 0 !important; }n    #view-admin-dash \u003e nav h2 { font-size: 2rem !important; }n    .kpi-horizontal-container { flex-direction: row !important; gap: 16px !important; margin: 24px 0 !important; }n    .admin-tab-btn { font-size: 10px !important; padding: 12px 16px !important; }n    #admin-action-menu { display: flex !important; flex-direction: row !important; position: static !important; opacity: 1 !important; pointer-events: auto !important; width: auto !important; background: transparent !important; box-shadow: none !important; border: none !important; gap: 10px !important; }n    #nav-toggle, label[for='nav-toggle'] { display: none !important; }n    .bell-container { margin-left: 16px !important; }n    .excel-table thead th, .excel-table tbody td { padding: 14px 16px !important; font-size: 12px !important; }n}
-n/* --- ADMIN DASHBOARD DESKTOP HEADER FIX --- */n@media screen and (min-width: 769px) {n    #view-admin-dash > nav { display: flex !important; flex-direction: row !important; align-items: center !important; justify-content: space-between !important; width: 100% !important; margin: 0 auto !important; max-width: 1200px !important; }n    #view-admin-dash > nav > div:first-child { flex-shrink: 0 !important; }n    #view-admin-dash > nav > div:last-child { display: flex !important; flex-direction: row !important; align-items: center !important; gap: 12px !important; }n    #admin-action-menu { display: flex !important; flex-direction: row !important; align-items: center !important; gap: 8px !important; background: rgba(255,255,255,0.5) !important; padding: 6px 12px !important; border-radius: 12px !important; border: 1px solid rgba(79,70,229,0.1) !important; }n    .bell-container { margin-left: 10px !important; order: 10 !important; }n    #admin-logout-btn { order: 20 !important; }n}
-n/* --- ADMIN DASHBOARD CLICKABILITY FIX --- */n#view-admin-dash { position: relative !important; z-index: 1 !important; }n.admin-tab { position: relative !important; z-index: 10 !important; pointer-events: auto !important; }n.admin-tab-btn { cursor: pointer !important; pointer-events: auto !important; z-index: 20 !important; }n.app-container { overflow-y: auto !important; height: 100vh !important; }n/* Ensure no invisible overlays from modals block the lower dashboard */n#task-modal, #add-staff-modal, #edit-staff-modal { pointer-events: none !important; }n#task-modal > div, #add-staff-modal > div, #edit-staff-modal > div { pointer-events: auto !important; }
-n/* --- MOBILE DASHBOARD COMPACT REDESIGN --- */n@media (max-width: 768px) {n    #asset-audit-access .grid { display: grid !important; grid-template-columns: 1fr 1fr !important; gap: 10px !important; }n    #asset-audit-access button { padding: 12px !important; min-height: 60px !important; border-radius: 16px !important; flex-direction: column !important; align-items: center !important; text-align: center !important; justify-content: center !important; }n    #asset-audit-access button .bg-white/20 { width: 32px !important; height: 32px !important; margin-bottom: 6px !important; }n    #asset-audit-access button i { font-size: 14px !important; }n    #asset-audit-access button .text-left { text-align: center !important; }n    #asset-audit-access .block.text-lg { font-size: 11px !important; line-height: 1.2 !important; }n    #asset-audit-access .text-[10px] { font-size: 8px !important; }n    #staff-dash-area .bg-white.rounded-2xl.p-5 { padding: 12px !important; margin-bottom: 8px !important; }n    #staff-dash-area .school-header { padding-bottom: 8px !important; margin-bottom: 8px !important; }n    #staff-dash-area .avatar-container .w-14 { width: 44px !important; height: 44px !important; }n    #staff-dash-area .user-info h3 { font-size: 14px !important; }n    #staff-dash-area .bg-indigo-50/50 { padding: 10px !important; margin-top: 4px !important; }n    .stats-grid { display: grid !important; grid-template-columns: repeat(3, 1fr) !important; gap: 8px !important; margin-bottom: 12px !important; }n    .stat-card { padding: 8px !important; min-height: unset !important; }n    .stat-card h3 { font-size: 14px !important; }n    .stat-card p { font-size: 7px !important; }n    #staff-dash-area .container-fluid { margin-top: 0 !important; padding: 0 12px !important; }n    /* Interaction Z-Index Fix */n    #staff-dash-area, .container-fluid, #asset-audit-access, .tasks-grid { position: relative !important; z-index: 10 !important; }n}
-n/* --- TASK ACTIONS Z-INDEX FIX --- */n.tasks-grid, .task-card, .task-actions-container, button { position: relative !important; z-index: 50 !important; pointer-events: auto !important; }n#scanner-modal, #asset-disposal-modal, #signature-modal { z-index: 100000 !important; }n
-n/* --- STAFF DASHBOARD COMPACT MOBILE FIXES --- */n@media (max-width: 768px) {n    #staff-dash-area .container-fluid { margin-top: 0 !important; }n    #asset-audit-access .grid { display: grid !important; grid-template-columns: 1fr 1fr !important; gap: 10px !important; }n    #asset-audit-access button { min-height: 80px !important; padding: 12px !important; border-radius: 20px !important; flex-direction: column !important; align-items: center !important; justify-content: center !important; text-align: center !important; }n    #asset-audit-access button .bg-white/20 { width: 36px !important; height: 36px !important; margin-bottom: 6px !important; margin-right: 0 !important; }n    #asset-audit-access button i { font-size: 16px !important; }n    #asset-audit-access .block.text-lg { font-size: 13px !important; }n    #asset-audit-access .text-[10px] { font-size: 8px !important; }n    #staff-dash-area .bg-white.rounded-2xl { padding: 16px !important; margin-bottom: 12px !important; }n    #staff-dash-area .school-header { margin-bottom: 10px !important; padding-bottom: 8px !important; }n    #staff-dash-area .avatar-container .w-14 { width: 48px !important; height: 48px !important; }n    #staff-dash-area .user-info h3 { font-size: 16px !important; }n    #staff-dash-area .bg-indigo-50/50 { padding: 12px !important; }n    #s-checkin-btn, #s-checkout-btn { padding: 8px 16px !important; font-size: 11px !important; }n    .stats-grid { gap: 10px !important; margin-bottom: 15px !important; }n    .stat-card { padding: 10px !important; }n    .stat-card h3 { font-size: 16px !important; }n    .stat-card p { font-size: 8px !important; }n    /* QR Code Scaling */n    #scanner-modal .bg-white { width: 92% !important; max-width: 350px !important; }n    #scanner-container { min-height: 250px !important; }n    /* UNBLOCK BUTTONS */n    #staff-dash-area, .container-fluid, #asset-audit-access, .tasks-grid, .task-card, .task-actions-container, button {n        position: relative !important;n        z-index: 100 !important;n        pointer-events: auto !important;n        opacity: 1 !important;n    }n    /* Ensure modals are on top */n    #asset-disposal-modal, #scanner-modal, #signature-modal, #task-modal, #reject-modal, #password-modal {n        z-index: 100000 !important;n        pointer-events: auto !important;n    }n}
-n/* --- STAFF PORTAL NAV FIX --- */n#view-staff nav.flex.items-center.justify-between { display: flex !important; flex-direction: row !important; align-items: center !important; justify-content: space-between !important; padding: 12px 16px !important; }n#view-staff nav a, #view-staff nav h2, #view-staff nav button { width: auto !important; }n
-n/* --- EMERGENCY INTERACTION OVERRIDE --- */n* { pointer-events: auto !important; }n.hidden, .hidden * { pointer-events: none !important; }n#launchVideoOverlay, #launchVideoOverlay * { pointer-events: auto !important; }n#asset-audit-access button, .task-card button, .admin-tab-btn { position: relative !important; z-index: 9999 !important; cursor: pointer !important; }n
-n/* --- MOBILE TOUCH UX OVERRIDE --- */n@media (max-width: 768px) {n    .container-fluid, #asset-audit-access, .grid, button, a { pointer-events: auto !important; }n    .asset-card, .btn-action, .audit-btn, .transfer-btn, #asset-audit-access button { touch-action: manipulation !important; cursor: pointer !important; -webkit-tap-highlight-color: transparent !important; }n    #view-staff section { overflow-x: hidden !important; }n    /* Prevent any full-screen invisible containers from stealing touches */n    .view-section:not(.active) { display: none !important; pointer-events: none !important; }n    .active { pointer-events: auto !important; }n}
-n/* --- FINAL BLOCKER REMOVAL --- */n#notification-modal:not(.hidden) { display: flex !important; pointer-events: auto !important; }n#notification-modal.hidden { display: none !important; pointer-events: none !important; }n
-n/* --- MOBILE INTERACTION SHIELD REMOVAL --- */n@media (max-width: 768px) {n    #staff-dash-area .container-fluid, #asset-audit-access, .grid, .stats-grid, .tasks-grid { pointer-events: auto !important; position: relative !important; z-index: 5 !important; }n    button, a, .portal-card, #asset-audit-access button { pointer-events: auto !important; position: relative !important; z-index: 10 !important; }n    /* Kill any rogue full-screen invisible containers */n    .view-section:not(.active) { visibility: hidden !important; display: none !important; }n}
-n/* --- MOBILE TOUCH UX FINAL HARDEING --- */n@media (max-width: 768px) {n    .app-container, .view-section, .portal-container { overflow-x: hidden !important; width: 100% !important; pointer-events: auto !important; }n    /* Force unblock all buttons in staff dashboard */n    #staff-dash-area .portal-card, #staff-dash-area button { pointer-events: auto !important; touch-action: auto !important; }n    /* Fix specific unresponsiveness on mobile safari/chrome */n    [onclick], button, a { -webkit-tap-highlight-color: transparent !important; }n}
-n/* --- INLINE TOUCH LOGGING TEST --- */n.mobile-touch-test:active { border: 2px solid red !important; outline: 2px solid yellow !important; }
+
+/* ========================================================= */
+/* 🔔 NOTIFICATION BELL UI                                   */
+/* ========================================================= */
+.bell-container i { color: #4f46e5 !important; }
+#bell-badge { z-index: 10; color: white !important; }
+#bell-dropdown p, #bell-dropdown h4, #bell-dropdown span { color: #0f172a !important; }
+.custom-scrollbar::-webkit-scrollbar { width: 4px; }
+.custom-scrollbar::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 10px; }
+
+/* ========================================================= */
+/* 🛡️ EMERGENCY INTERACTION LAYER                             */
+/* ========================================================= */
+.active { pointer-events: auto !important; visibility: visible !important; }
+.hidden, .hidden * { pointer-events: none !important; visibility: hidden !important; }
+
+/* Diagnostic Border */
+.mobile-touch-test:active { border: 2px solid red !important; }
