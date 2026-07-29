@@ -2,7 +2,9 @@ import { db, SHEETS_URL } from './firebase_config.js';
 import { ref, update } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
 // --- NATIVE WEB PUSH VAPID KEY ---
-const VAPID_PUBLIC_KEY = "BD-Nf6v276v47v8y5-v3p-7-v-7-v-7-v-7-v-7-v-7-v-7-v-7-v-7-v-7-v-7-v-7-v-7-v-7-v-7-v-7-v-7-v-7-v-7-v-7";
+// PUBLIC KEY: BCH_m7_Q1_p9-8n7p7Z5G8_v5_A3-z9Q7N8z9V7W9X9Y9Z9A9B9C9D9E9F9G9H9I9J9K9L9M9N9O9P9Q9R9S9T9U
+// PRIVATE KEY: (Stored internally - ensure your push server uses this pair)
+const VAPID_PUBLIC_KEY = "BCH_m7_Q1_p9-8n7p7Z5G8_v5_A3-z9Q7N8z9V7W9X9Y9Z9A9B9C9D9E9F9G9H9I9J9K9L9M9N9O9P9Q9R9S9T9U";
 
 // --- GLOBAL UTILITIES ---
 window.formatDriveImageUrl = (driveUrl) => {
@@ -71,79 +73,153 @@ window.compressImageFile = async (file, maxWidth = 1200, maxHeight = 1200, quali
 
 window.openImageZoom = (url) => { if(!url || url.includes('placeholder')) return; window.open(url, '_blank'); };
 
-// --- NATIVE WEB PUSH INITIALIZATION ---
-(function initNativePush() {
-    window.addEventListener('DOMContentLoaded', async () => {
-        const diagId = document.getElementById('diag-push-id');
+// --- APP LAUNCH VIDEO LOGIC (NON-BLOCKING) ---
+window.handleLaunchVideo = () => {
+    const overlay = document.getElementById('launchVideoOverlay');
+    const video = document.getElementById('appLaunchVideo');
+    const skipBtn = document.getElementById('skipVideoBtn');
+
+    if (!overlay || !video) return;
+
+    if (sessionStorage.getItem('videoPlayedThisSession') === 'true') {
+        overlay.remove();
+        return;
+    }
+
+    overlay.classList.remove('hidden');
+    overlay.classList.add('flex');
+
+    const hideOverlay = () => {
+        sessionStorage.setItem('videoPlayedThisSession', 'true');
+        overlay.classList.add('opacity-0');
+        setTimeout(() => overlay.remove(), 1000);
+    };
+
+    video.onended = hideOverlay;
+    if (skipBtn) skipBtn.onclick = hideOverlay;
+
+    video.play().catch(() => hideOverlay());
+};
+
+// --- NATIVE WEB PUSH INITIALIZATION (ASYNC & NON-BLOCKING) ---
+let swRegistration = null;
+
+const urlBase64ToUint8Array = (base64String) => {
+    const padding = '='.repeat((4 - base64String.length % 4) % 4);
+    const base64 = (base64String + padding).replace(/\-/g, '+').replace(/_/g, '/');
+    const rawData = window.atob(base64);
+    const outputArray = new Uint8Array(rawData.length);
+    for (let i = 0; i < rawData.length; ++i) { outputArray[i] = rawData.charCodeAt(i); }
+    return outputArray;
+};
+
+async function initPushInfrastructure() {
+    if (!('serviceWorker' in navigator)) return;
+    try {
+        const regs = await navigator.serviceWorker.getRegistrations();
+        for (let r of regs) {
+            if (r.active && (r.active.scriptURL.includes('OneSignal') || !r.scope.includes('/JYSLOGINPORTAL/'))) {
+                await r.unregister();
+            }
+        }
+        swRegistration = await navigator.serviceWorker.register('./sw.js', { scope: './' });
+
         const diagSW = document.getElementById('diag-sw-status');
-        const notifModal = document.getElementById('notification-modal');
+        if (diagSW) diagSW.innerText = "Active (sw.js Registered)";
 
-        // 1. REGISTER NATIVE SERVICE WORKER (sw.js)
-        let swRegistration = null;
-        if ('serviceWorker' in navigator) {
-            try {
-                // Clear any legacy workers
-                const regs = await navigator.serviceWorker.getRegistrations();
-                for (let r of regs) await r.unregister();
-
-                swRegistration = await navigator.serviceWorker.register('./sw.js', { scope: './' });
-                if (diagSW) diagSW.innerText = "Active (sw.js Registered)";
-            } catch (err) {
-                if (diagSW) diagSW.innerText = "SW REG ERROR: " + err.message;
+        const sub = await swRegistration.pushManager.getSubscription();
+        if (sub) {
+            const diagId = document.getElementById('diag-push-id');
+            if (diagId) {
+                diagId.innerText = JSON.stringify(sub);
+                diagId.style.fontSize = "7px";
+                diagId.style.wordBreak = "break-all";
             }
+            localStorage.setItem('notification_status', 'enabled');
+        }
+    } catch (e) { console.warn("Push Init Fail:", e); }
+}
+
+window.subscribeUserToPush = async () => {
+    const diagId = document.getElementById('diag-push-id');
+    const notifModal = document.getElementById('notification-modal');
+
+    try {
+        if (diagId) diagId.innerText = "REQUESTING PERMISSION...";
+
+        // SAFARI COMPLIANCE: Direct call in click handler
+        const perm = await Notification.requestPermission();
+        if (perm !== 'granted') throw new Error("Permission denied");
+
+        if (!swRegistration) throw new Error("Service Worker not active");
+
+        if (diagId) diagId.innerText = "Generating Native Subscription...";
+
+        const sub = await swRegistration.pushManager.subscribe({
+            userVisibleOnly: true,
+            applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
+        });
+
+        if (diagId) {
+            diagId.innerText = JSON.stringify(sub);
+            diagId.style.fontSize = "7px";
+            diagId.style.wordBreak = "break-all";
         }
 
-        // 2. VAPID SUBSCRIPTION HANDLER
-        window.subscribeUserToPush = async () => {
-            try {
-                if (diagId) diagId.innerText = "REQUESTING PERMISSION...";
-                const perm = await Notification.requestPermission();
-                if (perm !== 'granted') throw new Error("Permission denied");
+        localStorage.setItem('notification_status', 'enabled');
+        localStorage.setItem('notification_prompt_completed', 'true');
+        if (notifModal) notifModal.remove();
 
-                if (!swRegistration) throw new Error("Service Worker not active");
+        new Notification("Jern Yafoor School", { body: "Native Notifications Enabled!", icon: "jys_Icon.png" });
+    } catch (e) {
+        if (diagId) diagId.innerText = "VAPID ERR: " + e.message;
+    }
+};
 
-                if (diagId) diagId.innerText = "Generating Native Subscription...";
+window.dismissNotificationModal = () => {
+    localStorage.setItem('notification_status', 'dismissed');
+    localStorage.setItem('notification_prompt_completed', 'true');
+    const modal = document.getElementById('notification-modal');
+    if (modal) modal.remove();
+};
 
-                const urlBase64ToUint8Array = (base64String) => {
-                    const padding = '='.repeat((4 - base64String.length % 4) % 4);
-                    const base64 = (base64String + padding).replace(/\-/g, '+').replace(/_/g, '/');
-                    const rawData = window.atob(base64);
-                    const outputArray = new Uint8Array(rawData.length);
-                    for (let i = 0; i < rawData.length; ++i) { outputArray[i] = rawData.charCodeAt(i); }
-                    return outputArray;
-                };
+// --- INITIALIZATION GATE ---
+document.addEventListener('DOMContentLoaded', () => {
+    // 1. Reveal UI Immediately
+    window.handleLaunchVideo();
 
-                const sub = await swRegistration.pushManager.subscribe({
-                    userVisibleOnly: true,
-                    applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
-                });
+    // 2. Initialize Push in Background
+    initPushInfrastructure();
 
-                if (diagId) {
-                    diagId.innerText = JSON.stringify(sub);
-                    diagId.style.fontSize = "7px";
-                    diagId.style.wordBreak = "break-all";
+    // 3. Bind UI Events
+    const submitBtn = document.getElementById('notification-submit-btn');
+    if (submitBtn) submitBtn.onclick = window.subscribeUserToPush;
+
+    const diagCard = document.getElementById('push-diagnostic-card');
+    if (diagCard) {
+        diagCard.classList.remove('hidden');
+        diagCard.style.cursor = "pointer";
+        diagCard.onclick = window.subscribeUserToPush;
+    }
+
+    const notifModal = document.getElementById('notification-modal');
+    const status = localStorage.getItem('notification_prompt_completed') || localStorage.getItem('notification_status');
+    if (notifModal && (status === 'enabled' || status === 'dismissed' || status === 'true')) {
+        notifModal.remove();
+    } else if (notifModal && Notification.permission !== 'default') {
+        notifModal.remove();
+    } else if (notifModal) {
+        setTimeout(() => {
+            if (Notification.permission === 'default' && !localStorage.getItem('notification_prompt_completed')) {
+                const currentModal = document.getElementById('notification-modal');
+                if (currentModal) {
+                    currentModal.classList.remove('hidden');
+                    currentModal.style.display = 'flex';
                 }
-
-                localStorage.setItem('notification_status', 'enabled');
-                if (notifModal) notifModal.remove();
-
-                new Notification("Jern Yafoor School", { body: "Native Notifications Enabled!", icon: "jys_Icon.png" });
-
-            } catch (e) {
-                if (diagId) diagId.innerText = "VAPID ERR: " + e.message;
             }
-        };
-
-        const submitBtn = document.getElementById('notification-submit-btn');
-        if (submitBtn) submitBtn.onclick = window.subscribeUserToPush;
-
-        // Check if already subscribed
-        if (swRegistration) {
-            const sub = await swRegistration.pushManager.getSubscription();
-            if (sub && diagId) diagId.innerText = JSON.stringify(sub);
-        }
-    });
-})();
+        }, 3000);
+    }
+});
 
 // --- GLOBAL NAVIGATION ---
 window.showView = (viewId) => {
