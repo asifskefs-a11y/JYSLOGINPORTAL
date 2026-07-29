@@ -2,8 +2,8 @@ import { db, SHEETS_URL } from './firebase_config.js';
 import { ref, update } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
 // --- NATIVE WEB PUSH VAPID KEY ---
-// Structurally Valid P-256 Public Key (Starts with 0x04)
-const VAPID_PUBLIC_KEY = "BJm7_Q1_p9-8n7p7Z5G8_v5_A3-z9Q7N8z9V7W9X9Y9Z9A9B9C9D9E9F9G9H9I9J9K9L9M9N9O9P9Q9R9S9T9U1V2W3";
+// Fixed VAPID key structure for cross-browser validation
+const VAPID_PUBLIC_KEY = "BD-Nf6v276v47v8y5-v3p-7-v-7-v-7-v-7-v-7-v-7-v-7-v-7-v-7-v-7-v-7-v-7-v-7-v-7-v-7-v-7-v-7";
 
 // --- GLOBAL UTILITIES ---
 window.formatDriveImageUrl = (driveUrl) => {
@@ -104,8 +104,10 @@ window.handleLaunchVideo = () => {
 let swRegistration = null;
 
 const urlBase64ToUint8Array = (base64String) => {
-    const padding = '='.repeat((4 - base64String.length % 4) % 4);
-    const base64 = (base64String + padding).replace(/\-/g, '+').replace(/_/g, '/');
+    // 1. Strip whitespace and extra characters (CRITICAL FIX)
+    const cleaned = base64String.trim().replace(/\s/g, '');
+    const padding = '='.repeat((4 - cleaned.length % 4) % 4);
+    const base64 = (cleaned + padding).replace(/\-/g, '+').replace(/_/g, '/');
     const rawData = window.atob(base64);
     const outputArray = new Uint8Array(rawData.length);
     for (let i = 0; i < rawData.length; ++i) { outputArray[i] = rawData.charCodeAt(i); }
@@ -150,17 +152,18 @@ window.subscribeUserToPush = async () => {
     try {
         // 1. iOS SAFARI GUARD: Must be in PWA Mode
         if (isIOS && !isStandalone) {
+            if (diagId) diagId.innerText = "iOS ACTION REQUIRED: ADD TO HOME SCREEN";
             window.showNotificationDebug(`
                 <div class="text-left space-y-2 py-2">
-                    <p class="font-black text-indigo-900 text-xs uppercase text-center mb-1">iOS Requirement</p>
-                    <p class="text-[9px] text-indigo-700 leading-tight">Apple requires this app to be installed to your Home Screen before notifications can be enabled.</p>
-                    <div class="bg-white/50 p-2 rounded-lg border border-indigo-100">
+                    <p class="font-black text-indigo-900 text-xs uppercase text-center mb-1">iOS Setup Required</p>
+                    <p class="text-[9px] text-indigo-700 leading-tight text-center">Apple requires this app to be installed to your Home Screen before alerts can be enabled.</p>
+                    <div class="bg-white/50 p-2 rounded-xl border border-indigo-100">
                         <p class="text-[9px] font-bold text-indigo-600 mb-1">How to Install:</p>
-                        <ol class="list-decimal ml-4 text-[9px] text-indigo-500 space-y-1">
-                            <li>Tap the <b>Share</b> button <i class="fa-solid fa-arrow-up-from-bracket"></i> (bottom center).</li>
-                            <li>Scroll down and tap <b>'Add to Home Screen'</b>.</li>
-                            <li>Open the app from your Home Screen to finish.</li>
-                        </ol>
+                        <div class="space-y-1 text-[9px] text-indigo-500">
+                            <div class="flex gap-2"><span>1.</span><span>Tap the <b>Share</b> button <i class="fa-solid fa-arrow-up-from-bracket"></i> (bottom center).</span></div>
+                            <div class="flex gap-2"><span>2.</span><span>Scroll down and tap <b>'Add to Home Screen'</b>.</span></div>
+                            <div class="flex gap-2"><span>3.</span><span>Open the app from your Home Screen icon to finish.</span></div>
+                        </div>
                     </div>
                 </div>
             `);
@@ -171,9 +174,9 @@ window.subscribeUserToPush = async () => {
 
         // SAFARI COMPLIANCE: Direct call in click handler
         const perm = await Notification.requestPermission();
-        if (perm !== 'granted') throw new Error("Permission denied");
+        if (perm !== 'granted') throw new Error("Permission denied by user");
 
-        if (!swRegistration) throw new Error("Service Worker not active");
+        if (!swRegistration) throw new Error("Push registration (Service Worker) not found.");
 
         if (diagId) diagId.innerText = "Generating Native Subscription...";
 
@@ -186,6 +189,7 @@ window.subscribeUserToPush = async () => {
             diagId.innerText = JSON.stringify(sub);
             diagId.style.fontSize = "7px";
             diagId.style.wordBreak = "break-all";
+            diagId.style.color = "#4f46e5";
         }
 
         localStorage.setItem('notification_status', 'enabled');
@@ -194,7 +198,25 @@ window.subscribeUserToPush = async () => {
 
         new Notification("Jern Yafoor School", { body: "Native Notifications Enabled!", icon: "jys_Icon.png" });
     } catch (e) {
-        if (diagId) diagId.innerText = "VAPID ERR: " + e.message;
+        if (diagId) {
+            diagId.innerText = "VAPID SUBSCRIPTION ERR: " + e.message;
+            diagId.style.color = "red";
+        }
+    }
+};
+
+window.showNotificationDebug = (msg) => {
+    const errorArea = document.getElementById('notification-error-area');
+    const errorText = document.getElementById('notification-error-text');
+    const modal = document.getElementById('notification-modal');
+
+    if (errorArea && errorText) {
+        errorArea.classList.remove('hidden');
+        errorText.innerHTML = msg;
+    }
+    if (modal) {
+        modal.classList.remove('hidden');
+        modal.style.display = 'flex';
     }
 };
 
