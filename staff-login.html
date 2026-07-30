@@ -11,12 +11,12 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/html5-qrcode"></script>
-    <link rel="manifest" href="manifest.json?v=3.1">
-    <link rel="apple-touch-icon" href="jys_Icon.png?v=3.1">
+    <link rel="manifest" href="manifest.json?v=3.2">
+    <link rel="apple-touch-icon" href="jys_Icon.png?v=3.2">
     <meta name="theme-color" content="#4f46e5">
-    <link rel="stylesheet" href="style.css?v=2.0">
+    <link rel="stylesheet" href="style.css?v=3.2">
     <!-- STAFF UI MODULAR CSS -->
-    <link rel="stylesheet" href="staff-ui.css?v=2.0">
+    <link rel="stylesheet" href="staff-ui.css?v=3.2">
 </head>
 <body class="text-white">
     <div class="app-container">
@@ -48,36 +48,37 @@
             </div>
 
             <div id="staff-dash-area" class="hidden w-full space-y-4">
-                <!-- TOP HORIZONTAL STATS TABS -->
-                <div class="flex gap-2 w-full overflow-x-auto no-scrollbar pb-2 pt-2">
-                    <div class="flex-1 bg-white p-3 rounded-2xl shadow-md border border-indigo-50 flex items-center justify-between min-w-[100px]">
+                <!-- TOP HORIZONTAL STATS TABS (v3.2) -->
+                <div class="top-stats-container no-scrollbar">
+                    <div class="stat-tab-card">
                         <div>
-                            <p class="text-[9px] font-bold text-indigo-400 uppercase tracking-widest">Total</p>
-                            <h3 id="statTotal" class="text-xl font-black text-indigo-900 leading-none">0</h3>
+                            <p>Total</p>
+                            <h3 id="statTotal">0</h3>
                         </div>
                         <div class="w-8 h-8 bg-indigo-50 rounded-lg flex items-center justify-center">
                             <i class="fa-solid fa-list-check text-indigo-600 text-sm"></i>
                         </div>
                     </div>
-                    <div class="flex-1 bg-white p-3 rounded-2xl shadow-md border border-orange-50 flex items-center justify-between min-w-[100px]">
+                    <div class="stat-tab-card">
                         <div>
-                            <p class="text-[9px] font-bold text-orange-400 uppercase tracking-widest">Pending</p>
-                            <h3 id="statPending" class="text-xl font-black text-indigo-900 leading-none">0</h3>
+                            <p class="text-orange-500">Pending</p>
+                            <h3 id="statPending">0</h3>
                         </div>
                         <div class="w-8 h-8 bg-orange-50 rounded-lg flex items-center justify-center">
                             <i class="fa-solid fa-clock-rotate-left text-orange-600 text-sm"></i>
                         </div>
                     </div>
-                    <div class="flex-1 bg-white p-3 rounded-2xl shadow-md border border-emerald-50 flex items-center justify-between min-w-[100px]">
+                    <div class="stat-tab-card">
                         <div>
-                            <p class="text-[9px] font-bold text-emerald-400 uppercase tracking-widest">Done</p>
-                            <h3 id="statCompleted" class="text-xl font-black text-indigo-900 leading-none">0</h3>
+                            <p class="text-emerald-500">Done</p>
+                            <h3 id="statCompleted">0</h3>
                         </div>
                         <div class="w-8 h-8 bg-emerald-50 rounded-lg flex items-center justify-center">
                             <i class="fa-solid fa-circle-check text-emerald-600 text-sm"></i>
                         </div>
                     </div>
                 </div>
+
 
 
                 <!-- PROFESSIONAL PROFILE CARD -->
@@ -731,9 +732,10 @@
         </section>
 
         <!-- FOOTER -->
-        <footer class="mt-auto py-6 text-center text-[10px] opacity-40 w-full">
-            &copy; 2026 Jarn Yafoor School Staff Management System
+        <footer class="mt-auto py-6 text-center text-[10px] opacity-40 w-full text-indigo-900 font-bold">
+            &copy; 2026 Jarn Yafoor School Staff Portal (v3.2)
         </footer>
+
     </div>
 
     <!-- SIGNATURE MODAL -->
@@ -870,15 +872,16 @@
         </div>
     </div>
 
-    <script type="module" src="firebase_config.js?v=2.2"></script>
-    <script type="module" src="ui_module.js?v=2.2"></script>
-    <script type="module" src="auth_module.js?v=2.2"></script>
-    <script type="module" src="attendance_module.js?v=2.2"></script>
-    <script type="module" src="task_module.js?v=2.2"></script>
-    <script type="module" src="admin_module.js?v=2.2"></script>
-    <script type="module" src="export_module.js?v=2.2"></script>
-    <script type="module" src="visitor_module.js?v=2.2"></script>
-    <script type="module" src="init_module.js?v=2.2"></script>
-    <script type="module" src="audit_module.js?v=2.2"></script>
+    <script type="module" src="firebase_config.js?v=3.2"></script>
+    <script type="module" src="ui_module.js?v=3.2"></script>
+    <script type="module" src="auth_module.js?v=3.2"></script>
+    <script type="module" src="attendance_module.js?v=3.2"></script>
+    <script type="module" src="task_module.js?v=3.2"></script>
+    <script type="module" src="admin_module.js?v=3.2"></script>
+    <script type="module" src="export_module.js?v=3.2"></script>
+    <script type="module" src="visitor_module.js?v=3.2"></script>
+    <script type="module" src="init_module.js?v=3.2"></script>
+    <script type="module" src="audit_module.js?v=3.2"></script>
+
 </body>
 </html>
