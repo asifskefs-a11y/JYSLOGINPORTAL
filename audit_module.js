@@ -475,31 +475,30 @@ window.resetRoomContext = () => {
 // --- DISPOSAL MODULE ---
 window.openDisposalModal = async (barcode) => {
     activeDisposalBarcode = (barcode || "").trim().toUpperCase();
-    const input = document.getElementById('f1_disposal_barcode_input'); // The actual input
+    const input = document.getElementById('f1_disposal_barcode_input');
 
     if (input) {
         input.value = activeDisposalBarcode;
     }
 
-    const modal = document.getElementById('asset-disposal-modal');
-    if (modal) {
-        modal.classList.remove('hidden');
-        modal.style.display = 'flex';
-    }
+    const dash = document.getElementById('staff-dash-area');
+    const disposalSection = document.getElementById('asset-disposal-section');
+    if (dash) dash.classList.add('hidden');
+    if (disposalSection) disposalSection.classList.remove('hidden');
 
-    // Reset UI state for fresh manual entry
+    // Reset UI state for fresh entry
     if (!barcode) {
         const previewArea = document.getElementById('disposal-asset-preview');
-        if (previewArea) previewArea.innerHTML = '<p class="text-xs text-gray-400 italic text-center p-4">Enter a barcode to see details</p>';
+        if (previewArea) previewArea.innerHTML = '<p class="text-xs text-slate-400 italic text-center p-4">Enter a barcode to see details</p>';
         const submitBtn = document.getElementById('submit-disposal-btn');
         if (submitBtn) submitBtn.disabled = true;
     }
 
-    // If barcode is provided (e.g. from scanner or direct action), fetch details immediately
     if (activeDisposalBarcode) {
         window.fetchDisposalAssetDetails(activeDisposalBarcode);
     }
 };
+
 
 window.fetchDisposalAssetDetails = async (barcode) => {
     const previewArea = document.getElementById('disposal-asset-preview');
@@ -610,16 +609,22 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 });
 
-window.closeDisposalModal = () => {
-    const modal = document.getElementById('asset-disposal-modal');
-    if (modal) modal.classList.add('hidden');
-    activeDisposalBarcode = null;
-    disposalPhotoBase64 = "";
-    const preview = document.getElementById('disposal-photo-preview');
-    const btnText = document.getElementById('disposal-photo-btn-text');
-    if (preview) preview.classList.add('hidden');
-    if (btnText) btnText.innerText = "Take Damage Photo";
+window.closeAssetDisposal = () => {
+    try {
+        const dash = document.getElementById('staff-dash-area');
+        const disposalSection = document.getElementById('asset-disposal-section');
+        if (dash) dash.classList.remove('hidden');
+        if (disposalSection) disposalSection.classList.add('hidden');
+
+        activeDisposalBarcode = null;
+        disposalPhotoBase64 = "";
+        const preview = document.getElementById('disposal-photo-preview');
+        const btnText = document.getElementById('disposal-photo-btn-text');
+        if (preview) preview.classList.add('hidden');
+        if (btnText) btnText.innerText = "Take Damage Photo";
+    } catch (e) { console.error(e); }
 };
+
 
 window.handleDisposalPhoto = async (e) => {
     try {
@@ -708,7 +713,8 @@ window.submitAssetDisposal = async () => {
         }
 
         alert("Asset marked as Disposed. Record synchronized with metadata and photo proof.");
-        closeDisposalModal();
+        window.closeAssetDisposal();
+
 
         // Force refresh
         if (window.appCache) window.appCache.isInitialized = false;

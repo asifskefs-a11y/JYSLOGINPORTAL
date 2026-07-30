@@ -261,13 +261,14 @@
             </div>
 
             <!-- ASSET AUDIT WORKFLOW SECTION -->
-            <div id="asset-audit-section" class="hidden w-full p-4">
-                <nav class="w-full flex items-center justify-between mb-6">
-                    <button onclick="closeAssetAudit()" class="btn btn-outline">
-                        <i class="fa-solid fa-arrow-left"></i> <span>Dashboard</span>
+            <div id="asset-audit-section" class="hidden w-full p-4 transfer-workflow-container">
+                <nav class="w-full flex items-center gap-5 mb-8 px-2">
+                    <button onclick="closeAssetAudit()" class="section-back-btn-circle">
+                        <i class="fa-solid fa-arrow-left"></i>
                     </button>
-                    <h2 class="text-xl font-bold text-indigo-900">Master Asset Register</h2>
+                    <h2 class="text-2xl font-black text-[#1E1B4B] uppercase tracking-tighter">Master Asset Register</h2>
                 </nav>
+
 
                 <form id="master-asset-form" class="space-y-4 pb-24">
                     <!-- SECTION A: ASSET IDENTIFICATION -->
@@ -538,55 +539,66 @@
                 </div>
             </div>
 
-            <!-- ASSET DISPOSAL MODAL -->
-            <div id="asset-disposal-modal" class="fixed inset-0 bg-black/90 z-[70] hidden flex items-center justify-center p-4">
-                <div class="bg-white w-full max-w-md rounded-3xl overflow-hidden p-6 text-gray-800">
-                    <div class="flex justify-between items-center mb-2">
-                        <h3 class="text-xl font-bold text-red-600">Asset Disposal</h3>
-                        <button onclick="closeDisposalModal()"><i class="fa-solid fa-xmark text-gray-400"></i></button>
-                    </div>
-                    <p class="text-[10px] text-gray-400 uppercase font-black mb-4">Report Broken or Scrapped Equipment</p>
+            <!-- ASSET DISPOSAL WORKFLOW SECTION (Full Screen) -->
+            <div id="asset-disposal-section" class="hidden w-full p-4 transfer-workflow-container">
+                <!-- Header -->
+                <div class="flex items-center gap-5 mb-8 px-2">
+                    <button onclick="window.closeAssetDisposal()" class="section-back-btn-circle">
+                        <i class="fa-solid fa-arrow-left text-lg"></i>
+                    </button>
+                    <h2 class="text-2xl font-black text-[#EF4444] uppercase tracking-tighter">Asset Disposal</h2>
+                </div>
 
-                    <div class="space-y-4">
-                        <!-- REAL-TIME SEARCH FIELD -->
-                        <div class="space-y-1">
-                            <label class="block text-[10px] font-black text-gray-400 uppercase ml-1">Scan or Type Asset Barcode</label>
-                            <div class="disposal-barcode-wrapper">
-                                <input type="text" id="f1_disposal_barcode_input" placeholder="Enter Barcode (e.g. AT...)" class="p-3 border rounded-xl text-sm font-bold uppercase focus:ring-2 focus:ring-red-500 outline-none transition-all">
-                                <button type="button" onclick="startCameraScanner('f1_disposal_barcode_input')" class="bg-red-600 text-white shadow-lg active:scale-95 transition"><i class="fa-solid fa-camera"></i></button>
+                <div class="transfer-form-card">
+                    <div class="space-y-8">
+                        <p class="text-[11px] text-slate-500 font-bold uppercase tracking-widest border-b pb-2">Report Broken or Scrapped Equipment</p>
+
+                        <div class="space-y-6">
+                            <!-- SCAN ASSET -->
+                            <div class="relative">
+                                <label class="transfer-step-label">Scan or Type Asset Barcode</label>
+                                <input type="text" id="f1_disposal_barcode_input" placeholder="ENTER BARCODE (E.G. AT...)"
+                                       class="transfer-input-field uppercase font-bold" oninput="window.fetchDisposalAssetDetails(this.value)">
+
+                                <button type="button" onclick="startCameraScanner('f1_disposal_barcode_input')" class="camera-action-trigger">
+                                    <i class="fa-solid fa-camera text-xl"></i>
+                                </button>
+                            </div>
+
+                            <!-- LIVE ASSET PREVIEW AREA -->
+                            <div id="disposal-asset-preview" class="min-h-[40px] mb-4 bg-slate-50/50 rounded-xl">
+                            </div>
+
+                            <div>
+                                <label class="transfer-step-label">Reason for Disposal</label>
+                                <textarea id="disposal-reason" placeholder="Details (e.g. Broken screen, missing parts)..." class="transfer-input-field h-24"></textarea>
+                            </div>
+
+                            <div>
+                                <label class="transfer-step-label">New Scrap Location</label>
+                                <input type="text" id="disposal-scrap-loc" placeholder="E.G. WAREHOUSE B" class="transfer-input-field">
+                            </div>
+
+                            <div class="space-y-2">
+                                <label class="transfer-step-label text-red-500 font-black">Damage Photo Proof (Mandatory)</label>
+                                <input type="file" id="disposal-photo-input" accept="image/*" capture="environment" class="hidden" onchange="handleDisposalPhoto(event)">
+                                <button onclick="document.getElementById('disposal-photo-input').click()" class="w-full py-4 border-2 border-dashed border-red-200 rounded-2xl text-red-600 font-bold flex items-center justify-center gap-2">
+                                    <i class="fa-solid fa-camera"></i> <span id="disposal-photo-btn-text">Take Damage Photo</span>
+                                </button>
+                                <div id="disposal-photo-preview" class="hidden mt-2 h-40 rounded-2xl overflow-hidden border-2 border-red-100 shadow-inner">
+                                    <img src="" class="w-full h-full object-cover">
+                                    <button onclick="window.removeDisposalPhoto()" class="absolute top-2 right-2 bg-red-500 text-white p-1 rounded-full text-[10px] shadow-lg"><i class="fa-solid fa-xmark"></i></button>
+                                </div>
                             </div>
                         </div>
 
-                        <!-- LIVE ASSET PREVIEW AREA -->
-                        <div id="disposal-asset-preview" class="min-h-[60px]">
-                            <p class="text-xs text-gray-400 italic text-center p-4">Enter a barcode to see details</p>
-                        </div>
-
-                        <textarea id="disposal-reason" placeholder="Reason for disposal (e.g. Broken screen, missing parts)..." class="w-full p-3 border rounded-xl h-20 text-sm focus:ring-2 focus:ring-red-500 outline-none"></textarea>
-
-                        <div class="grid grid-cols-1 gap-4">
-                            <input type="text" id="disposal-scrap-loc" placeholder="New Scrap Location (e.g. Warehouse B)" class="w-full p-3 border rounded-xl text-sm focus:ring-2 focus:ring-red-500 outline-none">
-                        </div>
-
-                        <div>
-                            <label class="block text-xs font-bold text-gray-500 mb-2">Damage Photo Proof (Mandatory)</label>
-                            <input type="file" id="disposal-photo-input" accept="image/*" capture="environment" class="hidden" onchange="handleDisposalPhoto(event)">
-                            <button onclick="document.getElementById('disposal-photo-input').click()" class="w-full py-3 border-2 border-dashed border-red-200 rounded-xl text-red-600 font-bold flex items-center justify-center gap-2 hover:bg-red-50 transition">
-                                <i class="fa-solid fa-camera"></i> <span id="disposal-photo-btn-text">Take Damage Photo</span>
-                            </button>
-                            <div id="disposal-photo-preview" class="hidden mt-2 h-32 rounded-xl overflow-hidden relative border border-red-100 shadow-inner">
-                                <img src="" class="w-full h-full object-cover">
-                                <button onclick="window.removeDisposalPhoto()" class="absolute top-2 right-2 bg-red-600 text-white p-1 rounded-full text-[10px] shadow-lg"><i class="fa-solid fa-xmark"></i></button>
-                            </div>
-                        </div>
-
-                        <div class="flex gap-2 pt-2">
-                            <button onclick="closeDisposalModal()" class="flex-1 py-4 border rounded-xl font-bold text-xs uppercase tracking-widest text-gray-400">Cancel</button>
-                            <button id="submit-disposal-btn" onclick="submitAssetDisposal()" class="flex-1 py-4 bg-red-600 text-white rounded-xl font-black text-xs uppercase tracking-widest shadow-lg active:scale-95 transition disabled:opacity-50 disabled:grayscale" disabled>Confirm Scrap</button>
-                        </div>
+                        <button id="submit-disposal-btn" onclick="submitAssetDisposal()" class="btn-submit-transfer !bg-red-600 !shadow-red-200" disabled>
+                            CONFIRM SCRAP & DISPOSE
+                        </button>
                     </div>
                 </div>
             </div>
+
 
             <!-- ASSET TRANSFER WORKFLOW SECTION -->
             <div id="asset-transfer-section" class="hidden w-full p-4 transfer-workflow-container">

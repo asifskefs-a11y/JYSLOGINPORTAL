@@ -12,19 +12,16 @@ window.switchTaskView = (view) => {
 
     if (activeBtn && historyBtn) {
         if (view === 'active') {
-            activeBtn.classList.add('bg-white', 'text-indigo-600', 'shadow-sm');
-            activeBtn.classList.remove('text-slate-400');
-            historyBtn.classList.remove('bg-white', 'text-indigo-600', 'shadow-sm');
-            historyBtn.classList.add('text-slate-400');
+            activeBtn.classList.add('tab-active');
+            historyBtn.classList.remove('tab-active');
         } else {
-            historyBtn.classList.add('bg-white', 'text-indigo-600', 'shadow-sm');
-            historyBtn.classList.remove('text-slate-400');
-            activeBtn.classList.remove('bg-white', 'text-indigo-600', 'shadow-sm');
-            activeBtn.classList.add('text-slate-400');
+            historyBtn.classList.add('tab-active');
+            activeBtn.classList.remove('tab-active');
         }
     }
     window.loadRoleView(window.currentStaff);
 };
+
 
 // --- DASHBOARD DATA LOADING ---
 window.loadRoleView = async (staff) => {
@@ -392,15 +389,11 @@ window.switchRaisedTaskView = (view) => {
         const historyBtn = document.getElementById(prefix + 'history');
         if (activeBtn && historyBtn) {
             if (view === 'active') {
-                activeBtn.classList.add('bg-white', 'text-indigo-600', 'shadow-sm');
-                activeBtn.classList.remove('text-slate-400');
-                historyBtn.classList.remove('bg-white', 'text-indigo-600', 'shadow-sm');
-                historyBtn.classList.add('text-slate-400');
+                activeBtn.classList.add('tab-active');
+                historyBtn.classList.remove('tab-active');
             } else {
-                historyBtn.classList.add('bg-white', 'text-indigo-600', 'shadow-sm');
-                historyBtn.classList.remove('text-slate-400');
-                activeBtn.classList.remove('bg-white', 'text-indigo-600', 'shadow-sm');
-                activeBtn.classList.add('text-slate-400');
+                historyBtn.classList.add('tab-active');
+                activeBtn.classList.remove('tab-active');
             }
         }
     });
@@ -411,6 +404,7 @@ window.switchRaisedTaskView = (view) => {
         window.initRaisedTasksTracker('security-my-tasks-container');
     }
 };
+
 
 window.initRaisedTasksTracker = (containerId) => {
     const container = document.getElementById(containerId);

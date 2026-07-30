@@ -204,12 +204,33 @@ h3.uppercase.tracking-widest {
     color: #64748b;
 }
 
-.tabs-wrapper button#task-tab-active,
-.tabs-wrapper button#admin-raised-tab-active {
+.tabs-wrapper button.tab-active {
     background: white !important;
     color: var(--primary-indigo) !important;
     box-shadow: 0 2px 8px rgba(0,0,0,0.1) !important;
 }
+
+/* SECTION BACK BUTTON */
+.section-back-btn-circle {
+    width: 44px !important;
+    height: 44px !important;
+    background: var(--primary-indigo) !important;
+    border-radius: 50% !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    color: white !important;
+    border: none !important;
+    box-shadow: 0 4px 10px rgba(79, 70, 229, 0.3) !important;
+    cursor: pointer !important;
+    transition: transform 0.2s active !important;
+}
+
+.section-back-btn-circle i {
+    color: white !important;
+}
+
+
 
 /* CARD REFINEMENTS */
 .bg-white.rounded-2xl {
