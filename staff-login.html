@@ -22,14 +22,20 @@
     <div class="app-container">
         <!-- STAFF VIEW -->
         <section id="view-staff" class="view-section active p-4">
-            <nav class="flex items-center justify-between p-4 bg-white mb-6 w-full box-border border-b-2 border-slate-100 shadow-sm">
-                <a href="index.html" class="nav-pill-purple no-underline" style="display: inline-flex !important;">
+            <nav class="flex items-center justify-between p-4 bg-white mb-6 w-full box-border border-b-2 border-slate-100 shadow-sm rounded-2xl">
+                <a href="index.html" class="nav-pill-purple no-underline">
                     <i class="fa-solid fa-arrow-left"></i>
                     <span>Back</span>
                 </a>
-                <h2 class="text-xl font-black tracking-tight text-[#1E1B4B] uppercase">Staff Portal</h2>
-                <button id="staff-logout-btn" onclick="window.logoutStaff()" class="nav-pill-red" style="display: inline-flex !important;">Logout</button>
+                <div class="text-center flex-1">
+                    <h2 class="text-lg font-black tracking-tighter text-[#1E1B4B] uppercase leading-none">Staff</h2>
+                    <p class="text-[8px] font-bold text-indigo-400 uppercase tracking-widest mt-1">Portal</p>
+                </div>
+                <button id="staff-logout-btn" onclick="window.logoutStaff()" class="nav-pill-red">
+                    <span>Logout</span>
+                </button>
             </nav>
+
 
             <div id="staff-auth-area" class="w-full bg-white text-gray-800 rounded-2xl shadow-2xl overflow-hidden">
                 <div class="flex border-b bg-slate-50/50">
@@ -84,10 +90,14 @@
                 <!-- PROFESSIONAL PROFILE CARD -->
                 <div class="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
                     <div class="flex flex-col gap-4">
-                        <div class="school-header border-b border-gray-50 pb-3">
-                            <h1 class="text-lg font-black text-indigo-900 leading-tight uppercase">JERN YAFOOR SCHOOL</h1>
-                            <p class="text-[10px] font-bold text-indigo-400 mt-0.5 tracking-wider uppercase">مدرسة جيرن يافور</p>
+                        <div class="school-header border-b border-gray-50 pb-3 flex justify-between items-start">
+                            <div>
+                                <h1 class="text-lg font-black text-indigo-900 leading-tight uppercase">JERN YAFOOR SCHOOL</h1>
+                                <p class="text-[10px] font-bold text-indigo-400 mt-0.5 tracking-wider uppercase">مدرسة جيرن يافور</p>
+                            </div>
+                            <!-- Bell will be injected here automatically by ui_module.js -->
                         </div>
+
 
                         <div class="flex items-center gap-4">
                             <div class="avatar-container relative group" id="staffAvatarWrapper">
@@ -104,12 +114,13 @@
 
                         <!-- REPOSITIONED ATTENDANCE ACTIONS (Prominent & Top-Aligned) -->
                         <div class="bg-indigo-50/50 p-4 rounded-xl flex justify-between items-center text-gray-800 border border-indigo-100">
-                            <div class="text-[9px] font-black text-indigo-400 uppercase tracking-widest">Attendance Status</div>
+                            <div class="text-[9px] font-black text-indigo-900 uppercase tracking-widest opacity-70">Attendance Status</div>
                             <div id="staff-action-container" class="flex gap-2">
                                 <button id="s-checkin-btn" class="bg-green-500 px-4 py-2 rounded-lg font-bold text-xs text-white shadow-lg active:bg-green-600">Check In</button>
                                 <button id="s-checkout-btn" class="bg-red-500 px-4 py-2 rounded-lg font-bold text-xs text-white shadow-lg active:bg-red-600 hidden">Check Out</button>
                             </div>
                         </div>
+
 
                         <div class="card-footer pt-2 flex justify-center">
                             <button id="delete-my-account" class="text-[9px] font-bold text-gray-300 hover:text-red-500 uppercase underline transition-colors">Delete Account</button>
