@@ -47,9 +47,41 @@
                 </div>
             </div>
 
-            <div id="staff-dash-area" class="hidden w-full">
+            <div id="staff-dash-area" class="hidden w-full space-y-4">
+                <!-- TOP HORIZONTAL STATS TABS -->
+                <div class="flex gap-2 w-full overflow-x-auto no-scrollbar pb-2 pt-2">
+                    <div class="flex-1 bg-white p-3 rounded-2xl shadow-md border border-indigo-50 flex items-center justify-between min-w-[100px]">
+                        <div>
+                            <p class="text-[9px] font-bold text-indigo-400 uppercase tracking-widest">Total</p>
+                            <h3 id="statTotal" class="text-xl font-black text-indigo-900 leading-none">0</h3>
+                        </div>
+                        <div class="w-8 h-8 bg-indigo-50 rounded-lg flex items-center justify-center">
+                            <i class="fa-solid fa-list-check text-indigo-600 text-sm"></i>
+                        </div>
+                    </div>
+                    <div class="flex-1 bg-white p-3 rounded-2xl shadow-md border border-orange-50 flex items-center justify-between min-w-[100px]">
+                        <div>
+                            <p class="text-[9px] font-bold text-orange-400 uppercase tracking-widest">Pending</p>
+                            <h3 id="statPending" class="text-xl font-black text-indigo-900 leading-none">0</h3>
+                        </div>
+                        <div class="w-8 h-8 bg-orange-50 rounded-lg flex items-center justify-center">
+                            <i class="fa-solid fa-clock-rotate-left text-orange-600 text-sm"></i>
+                        </div>
+                    </div>
+                    <div class="flex-1 bg-white p-3 rounded-2xl shadow-md border border-emerald-50 flex items-center justify-between min-w-[100px]">
+                        <div>
+                            <p class="text-[9px] font-bold text-emerald-400 uppercase tracking-widest">Done</p>
+                            <h3 id="statCompleted" class="text-xl font-black text-indigo-900 leading-none">0</h3>
+                        </div>
+                        <div class="w-8 h-8 bg-emerald-50 rounded-lg flex items-center justify-center">
+                            <i class="fa-solid fa-circle-check text-emerald-600 text-sm"></i>
+                        </div>
+                    </div>
+                </div>
+
+
                 <!-- PROFESSIONAL PROFILE CARD -->
-                <div class="bg-white rounded-2xl p-5 shadow-sm mb-4 border border-gray-100">
+                <div class="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
                     <div class="flex flex-col gap-4">
                         <div class="school-header border-b border-gray-50 pb-3">
                             <h1 class="text-lg font-black text-indigo-900 leading-tight uppercase">JERN YAFOOR SCHOOL</h1>
@@ -143,21 +175,20 @@
                         </div>
                     </div>
 
-                    <!-- DASHBOARD STATS -->
-                    <div class="stats-grid">
-                        <div class="stat-card">
-                            <div><p>Total Tasks</p><h3 id="statTotal">0</h3></div>
-                            <i class="fa-solid fa-list-check"></i>
-                        </div>
-                        <div class="stat-card" style="border-color: #FF9800;">
-                            <div><p>Pending Tasks</p><h3 id="statPending">0</h3></div>
-                            <i class="fa-solid fa-clock-rotate-left"></i>
-                        </div>
-                        <div class="stat-card" style="border-color: #4CAF50;">
-                            <div><p>Completed</p><h3 id="statCompleted">0</h3></div>
-                            <i class="fa-solid fa-circle-check"></i>
+                    <!-- ACTIVE TASKS LIST (RE-POSITIONED UP) -->
+                    <div class="tasks-section-header mt-8">
+                        <div class="flex items-center justify-between mb-4">
+                            <h2 class="text-lg font-black text-indigo-900 tracking-tight uppercase">Tasks Management</h2>
+                            <div class="flex bg-slate-100 p-1 rounded-xl shadow-inner">
+                                <button onclick="window.switchTaskView('active')" id="task-tab-active" class="px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all bg-white text-indigo-600 shadow-sm">Active</button>
+                                <button onclick="window.switchTaskView('history')" id="task-tab-history" class="px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all text-slate-400">History</button>
+                            </div>
                         </div>
                     </div>
+                    <div class="tasks-grid mb-8" id="tasksContainer">
+                        <!-- Task Cards render here -->
+                    </div>
+
 
                     <!-- CREATE TASK PANEL (RESTRICTED TO SECURITY) -->
                     <div id="security-task-area" class="action-panel hidden text-gray-800">
@@ -213,20 +244,6 @@
                             </div>
                         </div>
                         <div id="security-my-tasks-container"></div>
-                    </div>
-
-                    <!-- ACTIVE TASKS LIST -->
-                    <div class="tasks-section-header">
-                        <div class="flex items-center justify-between mb-4">
-                            <h2 class="text-lg font-black text-indigo-900 tracking-tight">Tasks Management</h2>
-                            <div class="flex bg-slate-100 p-1 rounded-xl shadow-inner">
-                                <button onclick="window.switchTaskView('active')" id="task-tab-active" class="px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all bg-white text-indigo-600 shadow-sm">Active</button>
-                                <button onclick="window.switchTaskView('history')" id="task-tab-history" class="px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all text-slate-400">History</button>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="tasks-grid" id="tasksContainer">
-                        <!-- Task Cards render here -->
                     </div>
                 </div>
             </div>
