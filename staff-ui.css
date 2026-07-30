@@ -227,3 +227,73 @@ h3.uppercase.tracking-widest {
 
 /* HIDE OLD STATS GRID */
 .stats-grid { display: none !important; }
+
+/* TASK GRID & CARDS (Compact Images - Fix for Issue 1) */
+.image-preview-container {
+    display: flex !important;
+    gap: 10px !important;
+    margin: 12px 0 !important;
+    overflow-x: auto !important;
+    padding-bottom: 5px !important;
+    scrollbar-width: none;
+}
+.image-preview-container::-webkit-scrollbar { display: none; }
+
+.img-box {
+    flex: 0 0 160px !important;
+    height: 160px !important;
+    position: relative !important;
+    border-radius: 18px !important;
+    overflow: hidden !important;
+    background: #f8fafc !important;
+    border: 2px solid #f1f5f9 !important;
+}
+
+.img-box img {
+    width: 100% !important;
+    height: 100% !important;
+    object-fit: cover !important;
+}
+
+.img-label {
+    position: absolute !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    background: rgba(30, 41, 59, 0.75) !important;
+    color: white !important;
+    font-size: 9px !important;
+    font-weight: 800 !important;
+    text-transform: uppercase !important;
+    text-align: center !important;
+    padding: 5px 0 !important;
+    backdrop-filter: blur(4px) !important;
+}
+
+/* CAMERA TRIGGER & HELPER TEXT (Fix for Issue 2) */
+.camera-action-trigger {
+    position: absolute !important;
+    right: 12px !important;
+    top: 36px !important;
+    width: 46px !important;
+    height: 46px !important;
+    background: #4F46E5 !important;
+    border-radius: 12px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    color: white !important;
+    box-shadow: 0 6px 15px rgba(79, 70, 229, 0.3) !important;
+    border: none !important;
+    z-index: 20 !important;
+}
+
+.transfer-helper-text {
+    font-size: 11px !important;
+    font-weight: 700 !important;
+    color: #475569 !important;
+    margin-top: 8px !important;
+    display: block !important;
+    opacity: 1 !important;
+}
+
