@@ -68,7 +68,7 @@
 * { font-family: 'Poppins', sans-serif; box-sizing: border-box; }
 
 body {
-    background: var(--bg-light) !important;
+    background: #F8F9FD !important;
     min-height: 100vh;
     margin: 0;
     padding: 0;
@@ -76,6 +76,7 @@ body {
     user-select: none;
     -webkit-tap-highlight-color: transparent;
     overflow-x: hidden;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
 }
 
 button, a, .btn, [onclick] {

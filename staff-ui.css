@@ -54,13 +54,14 @@
 }
 
 .transfer-form-card {
-    background: #FFFFFF !important;
-    border-radius: 24px !important;
-    padding: 32px !important;
-    box-shadow: 0 20px 50px -10px rgba(30, 41, 59, 0.1) !important;
+    background: transparent !important;
+    border-radius: 0 !important;
+    padding: 24px 16px !important;
+    box-shadow: none !important;
     position: relative;
-    border: 1px solid #E2E8F0;
+    border: none !important;
 }
+
 
 .transfer-step-label {
     font-size: 13px !important;
@@ -366,3 +367,49 @@ canvas, .signature-pad {
     visibility: visible !important;
 }
 n
+
+/* PROFESSIONAL MOBILE APP OVERHAUL */
+body {
+    background-color: #F8F9FD !important;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif !important;
+}
+
+.tabs-wrapper {
+    background: #e2e8f0 !important;
+    border-radius: 12px !important;
+    padding: 4px !important;
+    display: flex !important;
+    gap: 4px !important;
+}
+
+.tabs-wrapper button {
+    flex: 1 !important;
+    border-radius: 10px !important;
+    padding: 8px 16px !important;
+    font-weight: 700 !important;
+    transition: all 0.2s ease !important;
+    border: none !important;
+    cursor: pointer !important;
+    background: transparent;
+}
+
+.tabs-wrapper button#task-tab-active,
+.tabs-wrapper button#admin-raised-tab-active {
+    background: #ffffff !important;
+    color: #4F46E5 !important;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.05) !important;
+}
+
+.btn-submit-transfer, #submitTaskBtn, #notification-submit-btn {
+    border-radius: 16px !important;
+    padding: 16px !important;
+    font-weight: 800 !important;
+    width: 100% !important;
+    box-shadow: 0 4px 12px rgba(79, 70, 229, 0.2) !important;
+}
+
+.transfer-form-card, .action-panel, .bg-white.rounded-2xl {
+    box-shadow: none !important;
+    border: 1px solid #f1f5f9 !important;
+}
+

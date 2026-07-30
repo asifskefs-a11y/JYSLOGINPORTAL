@@ -175,19 +175,19 @@
                         </div>
                     </div>
 
-                    <!-- ACTIVE TASKS LIST (RE-POSITIONED UP) -->
-                    <div class="tasks-section-header mt-8">
-                        <div class="flex items-center justify-between mb-4">
-                            <h2 class="text-lg font-black text-indigo-900 tracking-tight uppercase">Tasks Management</h2>
-                            <div class="flex bg-slate-100 p-1 rounded-xl shadow-inner">
-                                <button onclick="window.switchTaskView('active')" id="task-tab-active" class="px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all bg-white text-indigo-600 shadow-sm">Active</button>
-                                <button onclick="window.switchTaskView('history')" id="task-tab-history" class="px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all text-slate-400">History</button>
-                            </div>
+                <!-- ACTIVE TASKS LIST (RE-POSITIONED UP) -->
+                <div class="tasks-section-header mt-8 px-2">
+                    <div class="flex items-center justify-between mb-4">
+                        <h2 class="text-lg font-black text-indigo-900 tracking-tight uppercase">Tasks Management</h2>
+                        <div class="tabs-wrapper">
+                            <button onclick="window.switchTaskView('active')" id="task-tab-active" class="px-6 py-2 text-[10px] font-black uppercase tracking-widest bg-white shadow-sm">Active</button>
+                            <button onclick="window.switchTaskView('history')" id="task-tab-history" class="px-6 py-2 text-[10px] font-black uppercase tracking-widest text-slate-400">History</button>
                         </div>
                     </div>
-                    <div class="tasks-grid mb-8" id="tasksContainer">
-                        <!-- Task Cards render here -->
-                    </div>
+                </div>
+                <div class="tasks-grid mb-8 px-2" id="tasksContainer">
+                    <!-- Task Cards render here -->
+                </div>
 
 
                     <!-- CREATE TASK PANEL (RESTRICTED TO SECURITY) -->
@@ -234,17 +234,17 @@
                         </div>
                     </div>
 
-                    <!-- SECURITY TASK STATUS TRACKER -->
-                    <div id="security-raised-tasks-area" class="hidden space-y-4 mb-8">
-                        <div class="flex items-center justify-between">
-                            <h2 class="text-lg font-black text-indigo-900 tracking-tight">Status of Tasks I Raised</h2>
-                            <div class="flex bg-slate-100 p-1 rounded-xl shadow-inner">
-                                <button onclick="window.switchRaisedTaskView('active')" id="raised-tab-active" class="px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all bg-white text-indigo-600 shadow-sm">Active</button>
-                                <button onclick="window.switchRaisedTaskView('history')" id="raised-tab-history" class="px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all text-slate-400">History</button>
-                            </div>
+                <div id="security-raised-tasks-area" class="hidden space-y-4 mb-8 px-2">
+                    <div class="flex items-center justify-between">
+                        <h2 class="text-lg font-black text-indigo-900 tracking-tight">Status of Tasks I Raised</h2>
+                        <div class="tabs-wrapper">
+                            <button onclick="window.switchRaisedTaskView('active')" id="admin-raised-tab-active" class="px-6 py-2 text-[10px] font-black uppercase tracking-widest bg-white shadow-sm">Active</button>
+                            <button onclick="window.switchRaisedTaskView('history')" id="admin-raised-tab-history" class="px-6 py-2 text-[10px] font-black uppercase tracking-widest text-slate-400">History</button>
                         </div>
-                        <div id="security-my-tasks-container"></div>
                     </div>
+                    <div id="security-my-tasks-container"></div>
+                </div>
+
                 </div>
             </div>
 
