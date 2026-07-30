@@ -1,4 +1,4 @@
-﻿/* --- STAFF PORTAL & TRANSFER UI (PORTRAIT OPTIMIZED v3.4.2) --- */
+﻿/* --- STAFF PORTAL & TRANSFER UI (PORTRAIT OPTIMIZED v3.4.3) --- */
 
 :root {
     --ios-system-font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
@@ -49,28 +49,32 @@ nav.flex {
     cursor: pointer !important;
 }
 
-/* TOP STATS - PORTRAIT ALIGNMENT (v3.4.2) */
+/* TOP STATS - TRUE PORTRAIT GRID (v3.4.3) */
+/* This puts 3 tall cards in one row to fit the screen width */
 .top-stats-container {
     display: grid !important;
-    grid-template-columns: 1fr !important;
-    gap: 10px !important;
+    grid-template-columns: repeat(3, 1fr) !important; /* 3 Columns */
+    gap: 8px !important;
     width: 100% !important;
-    padding: 10px 4px !important;
+    padding: 12px 4px !important;
 }
 
 .stat-tab-card {
     background: white !important;
-    padding: 14px 20px !important;
+    padding: 16px 8px !important;
     border-radius: 20px !important;
     border: 1px solid #f1f5f9 !important;
     display: flex !important;
+    flex-direction: column-reverse !important; /* Icon on Top */
     align-items: center !important;
-    justify-content: space-between !important;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.02) !important;
+    text-align: center !important;
+    justify-content: center !important;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.03) !important;
+    gap: 10px !important;
 }
 
 .stat-tab-card h3 {
-    font-size: 24px !important;
+    font-size: 18px !important;
     font-weight: 900 !important;
     color: var(--dark-navy) !important;
     line-height: 1 !important;
@@ -78,12 +82,23 @@ nav.flex {
 }
 
 .stat-tab-card p {
-    font-size: 10px !important;
+    font-size: 8px !important;
     font-weight: 800 !important;
     text-transform: uppercase !important;
     color: var(--slate-text) !important;
-    margin: 0 0 4px 0 !important;
-    letter-spacing: 0.05em !important;
+    margin: 4px 0 0 0 !important;
+    letter-spacing: 0.02em !important;
+    white-space: nowrap !important;
+}
+
+.stat-tab-card .w-12 {
+    width: 36px !important; /* Smaller icons for 3-column fit */
+    height: 36px !important;
+    border-radius: 10px !important;
+}
+
+.stat-tab-card i {
+    font-size: 14px !important;
 }
 
 /* SIGNATURE PAD LOCK MECHANISM */
@@ -147,10 +162,10 @@ canvas {
     right: 6px !important;
     top: 50% !important;
     transform: translateY(-50%) !important;
-    width: 42px !important;
-    height: 42px !important;
+    width: 40px !important;
+    height: 40px !important;
     background: var(--primary-indigo) !important;
-    border-radius: 12px !important;
+    border-radius: 10px !important;
     display: flex !important;
     align-items: center !important;
     justify-content: center !important;
@@ -158,7 +173,7 @@ canvas {
     box-shadow: 0 4px 10px rgba(79, 70, 229, 0.2) !important;
     border: none !important;
     z-index: 30 !important;
-    cursor: pointer !important;
+    cursor: pointer;
 }
 
 .input-with-action-wrapper {
@@ -169,7 +184,7 @@ canvas {
 }
 
 .input-with-action-wrapper .transfer-input-field {
-    padding-right: 56px !important;
+    padding-right: 54px !important;
     width: 100% !important;
 }
 
@@ -205,5 +220,36 @@ canvas {
     color: #1e1b4b !important;
 }
 
+/* MISC */
 .no-scrollbar::-webkit-scrollbar { display: none; }
 .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+.transfer-workflow-container {
+    background-color: #F8F9FD !important;
+    min-height: 100vh !important;
+}
+
+/* PRIMARY ACTION BUTTONS (RE-RESTORED v3.4.4) */
+.btn-submit-transfer, #submitTaskBtn, #notification-submit-btn, #staff-login-form button, #submit-disposal-btn {
+    background: var(--primary-indigo) !important;
+    color: white !important;
+    border-radius: 20px !important;
+    padding: 18px !important;
+    font-weight: 900 !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.1em !important;
+    box-shadow: 0 8px 25px rgba(79, 70, 229, 0.3) !important;
+    border: none !important;
+    width: 100% !important;
+    transition: all 0.2s ease !important;
+    cursor: pointer !important;
+    display: block !important;
+}
+
+#submit-disposal-btn {
+    background: #EF4444 !important;
+    box-shadow: 0 8px 25px rgba(239, 68, 68, 0.3) !important;
+}
+
+.btn-submit-transfer:active { transform: scale(0.98); }
+

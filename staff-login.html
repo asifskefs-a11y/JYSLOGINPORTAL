@@ -16,11 +16,11 @@
     <meta name="theme-color" content="#4f46e5">
     <link rel="stylesheet" href="style.css?v=3.2">
     <!-- STAFF UI MODULAR CSS -->
-    <link rel="stylesheet" href="staff-ui.css?v=3.4.2">
+    <link rel="stylesheet" href="staff-ui.css?v=3.4.4">
 </head>
 <body class="text-white">
 
-    <!-- SIDE MENU OVERLAY (v3.4.2) -->
+    <!-- SIDE MENU OVERLAY (v3.4.4) -->
     <div id="side-menu" class="fixed inset-0 bg-black/60 z-[200000] hidden backdrop-blur-sm transition-opacity duration-300" onclick="if(event.target === this) window.toggleSideMenu()">
         <div id="side-menu-content" class="absolute left-0 top-0 h-full w-[85%] max-w-[320px] bg-[#F8F9FD] shadow-2xl p-6 transform -translate-x-full transition-transform duration-300 ease-in-out flex flex-col">
             <div class="flex justify-between items-center mb-10 text-gray-800">
@@ -114,7 +114,7 @@
                     <div class="w-16"></div> <!-- Spacer -->
                 </nav>
 
-                <!-- TOP VERTICAL STATS (Portrait Optimized v3.4.2) -->
+                <!-- TOP VERTICAL STATS -->
                 <div class="top-stats-container no-scrollbar">
                     <div class="stat-tab-card">
                         <div><p>Total Tasks</p><h3 id="statTotal">0</h3></div>
@@ -177,8 +177,8 @@
 
                 <div class="transfer-form-card">
                     <div class="tasks-section-header px-2">
-                        <div class="flex items-center justify-between mb-6">
-                            <h2 class="text-lg font-black text-indigo-900 tracking-tight uppercase text-gray-800">Assignments</h2>
+                        <div class="flex items-center justify-between mb-6 text-gray-800">
+                            <h2 class="text-lg font-black text-indigo-900 tracking-tight uppercase">Assignments</h2>
                             <div class="tabs-wrapper">
                                 <button onclick="window.switchTaskView('active')" id="task-tab-active" class="px-6 py-2 text-[10px] font-black uppercase tracking-widest tab-active">Active</button>
                                 <button onclick="window.switchTaskView('history')" id="task-tab-history" class="px-6 py-2 text-[10px] font-black uppercase tracking-widest text-slate-400">History</button>
@@ -204,9 +204,9 @@
                         </div>
                     </div>
 
-                    <div id="security-raised-tasks-area" class="hidden space-y-6 mt-12 px-2 border-t pt-8">
+                    <div id="security-raised-tasks-area" class="hidden space-y-6 mt-12 px-2 border-t pt-8 text-gray-800">
                         <div class="flex items-center justify-between">
-                            <h2 class="text-lg font-black text-indigo-900 tracking-tight text-gray-800">Tasks I Raised</h2>
+                            <h2 class="text-lg font-black text-indigo-900 tracking-tight">Tasks I Raised</h2>
                             <div class="tabs-wrapper">
                                 <button onclick="window.switchRaisedTaskView('active')" id="admin-raised-tab-active" class="px-6 py-2 text-[10px] font-black uppercase tracking-widest tab-active">Active</button>
                                 <button onclick="window.switchRaisedTaskView('history')" id="admin-raised-tab-history" class="px-6 py-2 text-[10px] font-black uppercase tracking-widest text-slate-400">History</button>
@@ -226,6 +226,7 @@
 
                 <div class="transfer-form-card">
                     <form id="master-asset-form" class="space-y-6 pb-24 text-gray-800">
+                        <!-- RESTORED SECTIONS -->
                         <div class="border rounded-2xl overflow-hidden shadow-sm bg-white">
                             <button type="button" onclick="toggleAccordion('sec-a')" class="w-full flex justify-between items-center p-4 bg-indigo-50 text-indigo-900 font-bold"><span>SECTION A: ASSET IDENTIFICATION</span><i id="sec-a-icon" class="fa-solid fa-chevron-down"></i></button>
                             <div id="sec-a-content" class="p-4 space-y-4">
@@ -234,9 +235,42 @@
                                 <input type="text" id="f3_model_desc" placeholder="3. Model Description" class="transfer-input-field">
                                 <input type="text" id="f4_asset_cond" placeholder="4. Asset Condition" class="transfer-input-field">
                                 <input type="text" id="f9_manufacturer" placeholder="9. Manufacturer" class="transfer-input-field">
-                                <div class="mt-2"><label class="block text-[10px] font-bold text-gray-400 mb-1 ml-2">40. ASSET PHOTO</label><input type="file" id="f40_audit_photo_input" accept="image/*" capture="environment" class="hidden" onchange="handleInitialAuditPhoto(event)"><button type="button" onclick="document.getElementById('f40_audit_photo_input').click()" class="w-full py-4 border-2 border-dashed border-indigo-200 rounded-2xl text-indigo-600 font-bold flex items-center justify-center gap-2"><i class="fa-solid fa-camera text-xl"></i> <span id="audit-photo-btn-text">Capture Asset Photo</span></button><div id="audit-photo-preview" class="hidden mt-2 h-32 rounded-xl overflow-hidden border"><img src="" class="w-full h-full object-cover"></div></div>
+                                <div class="mt-2"><label class="block text-[10px] font-bold text-gray-400 mb-1 ml-2">40. ASSET PHOTO</label><input type="file" id="f40_audit_photo_input" accept="image/*" capture="environment" class="hidden" onchange="handleInitialAuditPhoto(event)"><button type="button" onclick="document.getElementById('f40_audit_photo_input').click()" class="w-full py-4 border-2 border-dashed border-indigo-200 rounded-2xl text-indigo-600 font-bold flex items-center justify-center gap-2"><i class="fa-solid fa-camera text-xl"></i> <span id="audit-photo-btn-text">Capture Photo</span></button><div id="audit-photo-preview" class="hidden mt-2 h-32 rounded-xl overflow-hidden border"><img src="" class="w-full h-full object-cover"></div></div>
                             </div>
                         </div>
+
+                        <div class="border rounded-2xl overflow-hidden shadow-sm bg-white">
+                            <button type="button" onclick="toggleAccordion('sec-b')" class="w-full flex justify-between items-center p-4 bg-indigo-50 text-indigo-900 font-bold"><span>SECTION B: CATEGORIZATION</span><i id="sec-b-icon" class="fa-solid fa-chevron-right"></i></button>
+                            <div id="sec-b-content" class="p-4 space-y-4 hidden text-gray-800">
+                                <select id="f10_major_cat" class="transfer-input-field w-full"><option value="">10. Major Category</option><option value="Furniture & Fixtures">Furniture & Fixtures</option><option value="Office Equipment">Office Equipment</option></select>
+                                <select id="f11_sub_major" class="transfer-input-field w-full"><option value="">11. Sub Major Category</option></select>
+                                <input type="text" id="f12_sub_minor" placeholder="12. Sub Minor" class="transfer-input-field w-full">
+                                <select id="f15_category" class="transfer-input-field w-full"><option value="">15. Category</option><option value="NON IT">NON IT</option><option value="IT">IT</option></select>
+                                <select id="f16_class" class="transfer-input-field w-full"><option value="">16. Classification</option></select>
+                            </div>
+                        </div>
+
+                        <div class="border rounded-2xl overflow-hidden shadow-sm bg-white">
+                            <button type="button" onclick="toggleAccordion('sec-c')" class="w-full flex justify-between items-center p-4 bg-indigo-50 text-indigo-900 font-bold"><span>SECTION C: LOCATION & ROOM</span><i id="sec-c-icon" class="fa-solid fa-chevron-right"></i></button>
+                            <div id="sec-c-content" class="p-4 space-y-4 hidden text-gray-800">
+                                <select id="f17_location" class="transfer-input-field w-full"><option value="Abu Dhabi">17. Location Name: Abu Dhabi</option></select>
+                                <select id="f18_esis" class="transfer-input-field w-full"><option value="6024">18. School ESIS ID: 6024</option></select>
+                                <select id="f19_school_building" class="transfer-input-field w-full"><option value="">19. School Building</option></select>
+                                <input type="text" id="f20_room_name" placeholder="20. Room Name" class="transfer-input-field w-full">
+                                <div class="input-with-action-wrapper"><input type="text" id="f21_room_no" placeholder="21. Room No" class="transfer-input-field"><button type="button" onclick="startCameraScanner('f21_room_no')" class="camera-action-trigger"><i class="fa-solid fa-camera"></i></button></div>
+                            </div>
+                        </div>
+
+                        <div class="border rounded-2xl overflow-hidden shadow-sm bg-white">
+                            <button type="button" onclick="toggleAccordion('sec-d')" class="w-full flex justify-between items-center p-4 bg-indigo-50 text-indigo-900 font-bold"><span>SECTION D: AUDIT & STATUS</span><i id="sec-d-icon" class="fa-solid fa-chevron-right"></i></button>
+                            <div id="sec-d-content" class="p-4 space-y-4 hidden text-gray-800">
+                                <select id="f25_barcode_stat" class="transfer-input-field w-full"><option value="Read">25. Barcode Status: Read</option></select>
+                                <select id="f26_asset_stat" class="transfer-input-field w-full"><option value="Existing">26. Asset Status: Existing</option></select>
+                                <input type="text" id="f35_remarks" placeholder="35. Remarks" class="transfer-input-field w-full">
+                                <input type="text" id="f36_phys_reg_no" readonly class="transfer-input-field w-full bg-slate-50 font-bold text-indigo-600">
+                            </div>
+                        </div>
+
                         <button type="submit" class="btn-submit-transfer">SAVE ASSET REGISTER</button>
                     </form>
                 </div>
@@ -272,7 +306,7 @@
                     <form id="transfer-form-multi" class="space-y-8 text-gray-800" onsubmit="window.submitAssetTransfer(event)">
                         <div class="space-y-6"><h3 class="text-sm font-black text-indigo-600 uppercase border-b pb-2">Collector Details</h3><div class="grid grid-cols-1 md:grid-cols-2 gap-4"><div><label class="transfer-step-label">Collector Name</label><input type="text" id="t_collector_name" placeholder="Full Name" required class="transfer-input-field"></div><div><label class="transfer-step-label">Company Name</label><input type="text" id="t_company_name" placeholder="Company Name" required class="transfer-input-field"></div></div></div>
                         <div class="space-y-6"><h3 class="text-sm font-black text-indigo-600 uppercase border-b pb-2">Asset Details</h3><div class="mb-6 relative"><label class="transfer-step-label">Scan Barcode</label><div class="input-with-action-wrapper"><input type="text" id="t_asset_barcode" placeholder="SCAN BARCODE..." class="transfer-input-field" oninput="window.fetchTransferAssetDetails(this.value)"><button type="button" onclick="startCameraScanner('t_asset_barcode')" class="camera-action-trigger"><i class="fa-solid fa-camera text-xl"></i></button></div></div><div id="transfer-asset-preview" class="min-h-[40px] mb-4 bg-slate-50/50 rounded-xl"></div></div>
-                        <div class="space-y-6"><h3 class="text-sm font-black text-indigo-600 uppercase border-b pb-2">Authorization</h3><div class="grid grid-cols-1 md:grid-cols-2 gap-8"><div class="space-y-2"><label class="transfer-step-label">Security Name</label><input type="text" id="t_security_name" placeholder="Name" required class="transfer-input-field"><div class="canvas-wrapper"><div class="sig-lock-overlay" onclick="this.parentElement.classList.add('unlocked')"><i class="fa-solid fa-lock"></i><span>Tap to sign</span></div><canvas id="t_security_sig" class="w-full h-full"></canvas></div><button type="button" onclick="window.clearTransferSig('t_security_sig'); this.parentElement.querySelector('.canvas-wrapper').classList.remove('unlocked')" class="btn-clear-sig">Clear & Lock</button></div><div class="space-y-2"><label class="transfer-step-label">Receiver Name</label><input type="text" id="t_received_name" placeholder="Name" required class="transfer-input-field"><div class="canvas-wrapper"><div class="sig-lock-overlay" onclick="this.parentElement.classList.add('unlocked')"><i class="fa-solid fa-lock"></i><span>Tap to sign</span></div><canvas id="t_received_sig" class="w-full h-full"></canvas></div><button type="button" onclick="window.clearTransferSig('t_received_sig'); this.parentElement.querySelector('.canvas-wrapper').classList.remove('unlocked')" class="btn-clear-sig">Clear & Lock</button></div></div><div class="space-y-2"><label class="transfer-step-label">Photo Capture</label><input type="file" id="t_photo_capture" accept="image/*" capture="environment" class="hidden" onchange="window.handleTransferPhoto(event)"><button type="button" onclick="document.getElementById('t_photo_capture').click()" class="w-full py-4 border-2 border-dashed border-indigo-200 rounded-2xl text-indigo-600 font-bold flex items-center justify-center gap-2"><i class="fa-solid fa-camera text-xl"></i> <span id="t_photo_btn_text">Capture Photo</span></button></div></div>
+                        <div class="space-y-6"><h3 class="text-sm font-black text-indigo-600 uppercase border-b pb-2">Authorization</h3><div class="grid grid-cols-1 md:grid-cols-2 gap-8"><div class="space-y-2"><label class="transfer-step-label">Security Name</label><input type="text" id="t_security_name" placeholder="Name" required class="transfer-input-field"><div class="canvas-wrapper"><div class="sig-lock-overlay" onclick="window.unlockCanvas(this)"><i class="fa-solid fa-lock"></i><span>Tap to sign</span></div><canvas id="t_security_sig" class="w-full h-full"></canvas></div><button type="button" onclick="window.clearTransferSig('t_security_sig'); this.parentElement.querySelector('.canvas-wrapper').classList.remove('unlocked')" class="btn-clear-sig">Clear & Lock</button></div><div class="space-y-2"><label class="transfer-step-label">Receiver Name</label><input type="text" id="t_received_name" placeholder="Name" required class="transfer-input-field"><div class="canvas-wrapper"><div class="sig-lock-overlay" onclick="window.unlockCanvas(this)"><i class="fa-solid fa-lock"></i><span>Tap to sign</span></div><canvas id="t_received_sig" class="w-full h-full"></canvas></div><button type="button" onclick="window.clearTransferSig('t_received_sig'); this.parentElement.querySelector('.canvas-wrapper').classList.remove('unlocked')" class="btn-clear-sig">Clear & Lock</button></div></div><div class="space-y-2"><label class="transfer-step-label">Photo Capture</label><input type="file" id="t_photo_capture" accept="image/*" capture="environment" class="hidden" onchange="window.handleTransferPhoto(event)"><button type="button" onclick="document.getElementById('t_photo_capture').click()" class="w-full py-4 border-2 border-dashed border-indigo-200 rounded-2xl text-indigo-600 font-bold flex items-center justify-center gap-2"><i class="fa-solid fa-camera text-xl"></i> <span id="t_photo_btn_text">Capture Photo</span></button></div></div>
                         <button type="submit" id="submit-transfer-btn" class="btn-submit-transfer">INITIATE TRANSFER</button>
                     </form>
                 </div>
@@ -288,14 +322,14 @@
             </div>
         </section>
 
-        <footer class="mt-auto py-6 text-center text-[10px] opacity-40 w-full text-indigo-900 font-bold">&copy; 2026 Jarn Yafoor School Staff Portal (v3.4.2)</footer>
+        <footer class="mt-auto py-6 text-center text-[10px] opacity-40 w-full text-indigo-900 font-bold">&copy; 2026 Jarn Yafoor School Staff Portal (v3.4.4)</footer>
     </div>
 
     <!-- MODALS -->
     <div id="signature-modal" class="fixed inset-0 bg-black/90 backdrop-blur-sm z-[200001] hidden flex items-center justify-center p-4">
         <div class="bg-white w-full max-w-sm rounded-3xl overflow-hidden shadow-2xl">
-            <div class="p-6 border-b flex justify-between items-center"><h3 class="text-lg font-bold text-gray-800" id="sig-modal-title">Sign to Confirm</h3><button onclick="closeSignatureModal()" class="text-gray-400 p-2"><i class="fa-solid fa-xmark"></i></button></div>
-            <div class="p-6 text-gray-800"><div class="canvas-wrapper"><div class="sig-lock-overlay" onclick="this.parentElement.classList.add('unlocked')"><i class="fa-solid fa-lock"></i><span>Tap to sign</span></div><canvas id="sig-canvas" class="w-full h-64 bg-gray-50"></canvas></div><div class="flex gap-4 mt-6"><button onclick="clearSigCanvas(); document.querySelector('#signature-modal .canvas-wrapper').classList.remove('unlocked')" class="flex-1 py-3 border-2 border-gray-200 text-gray-500 font-bold rounded-xl text-sm">Clear & Lock</button><button id="sig-confirm-btn" class="flex-1 py-3 bg-indigo-600 text-white font-bold rounded-xl shadow-lg text-sm">Confirm</button></div></div>
+            <div class="p-6 border-b flex justify-between items-center text-gray-800"><h3 class="text-lg font-bold" id="sig-modal-title">Sign to Confirm</h3><button onclick="closeSignatureModal()" class="text-gray-400 p-2"><i class="fa-solid fa-xmark"></i></button></div>
+            <div class="p-6 text-gray-800"><div class="canvas-wrapper"><div class="sig-lock-overlay" onclick="window.unlockCanvas(this)"><i class="fa-solid fa-lock"></i><span>Tap to sign</span></div><canvas id="sig-canvas" class="w-full h-64 bg-gray-50"></canvas></div><div class="flex gap-4 mt-6"><button onclick="clearSigCanvas(); document.querySelector('#signature-modal .canvas-wrapper').classList.remove('unlocked')" class="flex-1 py-3 border-2 border-gray-200 text-gray-500 font-bold rounded-xl text-sm">Clear & Lock</button><button id="sig-confirm-btn" class="flex-1 py-3 bg-indigo-600 text-white font-bold rounded-xl shadow-lg text-sm">Confirm</button></div></div>
         </div>
     </div>
 
@@ -335,6 +369,19 @@
             const target = document.getElementById(viewId);
             if (target) target.classList.remove('hidden');
             window.scrollTo(0, 0);
+        };
+
+        window.unlockCanvas = function(overlay) {
+            const wrapper = overlay.parentElement;
+            wrapper.classList.add('unlocked');
+            // Check if it's the transfer canvas which needs re-init listeners for safety
+            const canvas = wrapper.querySelector('canvas');
+            if (canvas && typeof window.initTransferSigPads === 'function') {
+                window.initTransferSigPads();
+            }
+            if (canvas && canvas.id === 'sig-canvas' && typeof window.initSigPad === 'function') {
+                window.initSigPad();
+            }
         };
     </script>
 
