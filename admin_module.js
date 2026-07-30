@@ -1,7 +1,7 @@
 import { db } from './firebase_config.js';
-import { ref, get, set, update, onValue } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+import { ref, get, set, update, onValue, query, orderByKey, limitToFirst, limitToLast, startAt, endAt } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
-// --- GLOBAL APP CACHE ---
+// --- GLOBAL APP CACHE & PAGINATION STATE ---
 window.appCache = {
     visitors: [],
     staff_attendance: [],
@@ -9,8 +9,17 @@ window.appCache = {
     users: {},
     tasks: [],
     assets: [],
+    disposedAssets: [],
     transfers: [],
     isInitialized: false
+};
+
+window.assetPaginationState = {
+    firstKey: null,
+    lastKey: null,
+    pageSize: 20,
+    pageStack: [], // To keep track of previous pages
+    isLoading: false
 };
 
 // --- CORE ADMIN DASHBOARD LOGIC ---
@@ -54,8 +63,10 @@ window.renderTabFromAppCache = (tabId) => {
             window.renderStaffDirectory(window.appCache.staff);
             break;
         case 'tab-assets':
+            if (window.renderAdminAssetTable) window.renderAdminAssetTable(window.appCache.assets, 'assets');
+            break;
         case 'tab-disposal':
-            if (window.renderAdminAssetTable) window.renderAdminAssetTable(window.appCache.assets);
+            if (window.renderAdminAssetTable) window.renderAdminAssetTable(window.appCache.disposedAssets, 'disposal');
             break;
         case 'tab-transfers':
             if (window.renderTransferTable) window.renderTransferTable(window.appCache.transfers);
@@ -98,10 +109,17 @@ window.loadAdminDashboard = async () => {
             window.renderTaskTable(window.appCache.tasks);
         });
 
-        onValue(ref(db, 'assets'), (snap) => {
-            window.appCache.assets = snap.exists() ? Object.values(snap.val()) : [];
-            window.syncAppCacheRecords(); // For asset-related KPIs if any
-            if (window.renderAdminAssetTable) window.renderAdminAssetTable(window.appCache.assets);
+        // PAGINATED ASSET FETCH (Replaces onValue to prevent freeze)
+        window.fetchAssetsPaginated('initial');
+
+        onValue(ref(db, 'disposed_assets'), (snap) => {
+            window.appCache.disposedAssets = snap.exists() ? Object.values(snap.val()) : [];
+            if (window.renderAdminAssetTable) {
+                const activeTab = document.querySelector('.admin-tab:not(.hidden)');
+                if (activeTab && activeTab.id === 'tab-disposal') {
+                    window.renderAdminAssetTable(window.appCache.disposedAssets, 'disposal');
+                }
+            }
         });
 
         onValue(ref(db, 'asset_transfers'), (snap) => {
@@ -535,6 +553,101 @@ window.handleAdminStaffPhotoSelect = async (e) => {
         console.error(err);
         if(preview) preview.innerHTML = '<i class="fa-solid fa-circle-exclamation text-red-500"></i>';
     }
+};
+
+// --- FIREBASE ASSET PAGINATION ENGINE ---
+window.fetchAssetsPaginated = async (direction = 'initial') => {
+    if (window.assetPaginationState.isLoading) return;
+
+    const body = document.getElementById('admin-asset-list-body');
+    if (body) {
+        body.innerHTML = `<tr><td colspan="50" class="p-8 text-center"><i class="fa-solid fa-spinner fa-spin text-indigo-600 mr-2"></i>Loading Assets Chunk...</td></tr>`;
+    }
+
+    window.assetPaginationState.isLoading = true;
+    let assetQuery;
+
+    try {
+        if (direction === 'initial') {
+            window.assetPaginationState.pageStack = [];
+            assetQuery = query(ref(db, 'assets'), orderByKey(), limitToFirst(window.assetPaginationState.pageSize));
+        } else if (direction === 'next' && window.assetPaginationState.lastKey) {
+            window.assetPaginationState.pageStack.push(window.assetPaginationState.firstKey);
+            assetQuery = query(ref(db, 'assets'), orderByKey(), startAt(window.assetPaginationState.lastKey), limitToFirst(window.assetPaginationState.pageSize + 1));
+        } else if (direction === 'prev' && window.assetPaginationState.pageStack.length > 0) {
+            const prevKey = window.assetPaginationState.pageStack.pop();
+            assetQuery = query(ref(db, 'assets'), orderByKey(), startAt(prevKey), limitToFirst(window.assetPaginationState.pageSize));
+        } else {
+            window.assetPaginationState.isLoading = false;
+            return;
+        }
+
+        const snap = await get(assetQuery);
+        if (snap.exists()) {
+            let data = snap.val();
+            let keys = Object.keys(data).sort(); // RTDB keys are sorted lexicographically
+
+            // If "next", skip the first element because startAt is inclusive
+            if (direction === 'next') {
+                keys.shift();
+                if (keys.length === 0) {
+                    alert("No more records found.");
+                    window.assetPaginationState.pageStack.pop();
+                    window.assetPaginationState.isLoading = false;
+                    window.updatePaginationUI(); // Restore UI
+                    return;
+                }
+            }
+
+            window.assetPaginationState.firstKey = keys[0];
+            window.assetPaginationState.lastKey = keys[keys.length - 1];
+
+            const paginatedAssets = keys.map(k => data[k]);
+            window.appCache.assets = paginatedAssets;
+
+            if (window.renderAdminAssetTable) {
+                window.renderAdminAssetTable(paginatedAssets, 'assets');
+                window.updatePaginationUI();
+            }
+        } else {
+            if (body) body.innerHTML = `<tr><td colspan="50" class="p-8 text-center text-gray-400">No assets found in this range.</td></tr>`;
+        }
+    } catch (e) {
+        console.error("Pagination Error:", e);
+        if (body) body.innerHTML = `<tr><td colspan="50" class="p-8 text-center text-red-500">Error loading assets: ${e.message}</td></tr>`;
+    } finally {
+        window.assetPaginationState.isLoading = false;
+    }
+};
+
+window.updatePaginationUI = () => {
+    let container = document.getElementById('asset-pagination-controls');
+    if (!container) {
+        const tableWrapper = document.querySelector('#tab-assets .overflow-x-auto');
+        container = document.createElement('div');
+        container.id = 'asset-pagination-controls';
+        container.className = 'flex justify-between items-center mt-4 bg-slate-50 p-4 rounded-2xl border border-slate-100';
+        tableWrapper.after(container);
+    }
+
+    const hasPrev = window.assetPaginationState.pageStack.length > 0;
+
+    container.innerHTML = `
+        <div class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+            Showing ${window.appCache.assets.length} Records
+        </div>
+        <div class="flex gap-2">
+            <button onclick="window.fetchAssetsPaginated('prev')" ${!hasPrev ? 'disabled' : ''}
+                class="px-6 py-2 rounded-xl font-bold text-[10px] uppercase tracking-widest transition-all
+                ${hasPrev ? 'bg-white text-indigo-600 shadow-sm border border-indigo-100 active:scale-95' : 'bg-gray-100 text-gray-300 cursor-not-allowed'}">
+                <i class="fa-solid fa-chevron-left mr-2"></i>Previous
+            </button>
+            <button onclick="window.fetchAssetsPaginated('next')"
+                class="px-6 py-2 bg-indigo-600 text-white rounded-xl font-bold text-[10px] uppercase tracking-widest shadow-lg active:scale-95 transition-all">
+                Next<i class="fa-solid fa-chevron-right ml-2"></i>
+            </button>
+        </div>
+    `;
 };
 
 // --- DYNAMIC UI TABLE GENERATION ---

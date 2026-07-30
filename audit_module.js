@@ -10,7 +10,48 @@ let activeDisposalBarcode = null;
 let disposalPhotoBase64 = "";
 let initialAuditPhotoBase64 = "";
 let damageAuditPhotoBase64 = "";
+let transferPhotoBase64 = "";
 let assetTemplates = {};
+
+// --- ASSET TRANSFER HELPERS ---
+window.handleTransferReasonChange = (val) => {
+    const container = document.getElementById('t_other_reason_container');
+    if (val === 'Other Reason') container.classList.remove('hidden');
+    else container.classList.add('hidden');
+};
+
+window.handleTransferPhoto = async (e) => {
+    try {
+        const file = e.target.files[0];
+        if (!file) return;
+        const btnText = document.getElementById('t_photo_btn_text');
+        btnText.innerText = "Compressing...";
+        transferPhotoBase64 = await window.compressImageFile(file, 1000, 1000, 0.7);
+        const preview = document.getElementById('t_photo_preview');
+        preview.classList.remove('hidden');
+        preview.querySelector('img').src = transferPhotoBase64;
+        btnText.innerText = "Photo Captured ✓";
+    } catch (e) { console.error(e); }
+};
+
+window.clearTransferSig = (id) => {
+    const canvas = document.getElementById(id);
+    if (canvas) {
+        const ctx = canvas.getContext('2d');
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+    }
+};
+
+window.getCanvasBase64 = (id) => {
+    const canvas = document.getElementById(id);
+    if (!canvas) return "";
+    // Check if canvas is empty
+    const blank = document.createElement('canvas');
+    blank.width = canvas.width;
+    blank.height = canvas.height;
+    if (canvas.toDataURL() === blank.toDataURL()) return "";
+    return canvas.toDataURL("image/png");
+};
 
 // --- MASTER TEMPLATE LOGIC ---
 window.toggleTemplateMode = async () => {
@@ -747,6 +788,10 @@ window.openAssetTransfer = (barcode) => {
         if (dash) dash.classList.add('hidden');
         if (transferSection) transferSection.classList.remove('hidden');
 
+        // Set default date
+        const dateInput = document.getElementById('t_collection_date');
+        if (dateInput) dateInput.value = new Date().toISOString().split('T')[0];
+
         if (barcode) {
             const bcInput = document.getElementById('t_asset_barcode');
             if (bcInput) {
@@ -754,7 +799,50 @@ window.openAssetTransfer = (barcode) => {
                 window.fetchTransferAssetDetails(barcode);
             }
         }
+
+        // Initialize/Resize Signatures if needed
+        window.initTransferSigPads();
+
     } catch (e) { console.error(e); }
+};
+
+window.initTransferSigPads = () => {
+    const ids = ['t_security_sig', 't_received_sig'];
+    ids.forEach(id => {
+        const canvas = document.getElementById(id);
+        if (!canvas) return;
+
+        // Match display size
+        const ratio = Math.max(window.devicePixelRatio || 1, 1);
+        canvas.width = canvas.offsetWidth * ratio;
+        canvas.height = canvas.offsetHeight * ratio;
+        canvas.getContext("2d").scale(ratio, ratio);
+
+        let drawing = false;
+        const ctx = canvas.getContext('2d');
+        ctx.lineWidth = 2;
+        ctx.lineJoin = "round";
+        ctx.lineCap = "round";
+        ctx.strokeStyle = "#1E1B4B";
+
+        const getPos = (e) => {
+            const rect = canvas.getBoundingClientRect();
+            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+            return { x: clientX - rect.left, y: clientY - rect.top };
+        };
+
+        const start = (e) => { drawing = true; const pos = getPos(e); ctx.beginPath(); ctx.moveTo(pos.x, pos.y); e.preventDefault(); };
+        const move = (e) => { if (!drawing) return; const pos = getPos(e); ctx.lineTo(pos.x, pos.y); ctx.stroke(); e.preventDefault(); };
+        const end = () => { drawing = false; };
+
+        canvas.addEventListener('mousedown', start);
+        canvas.addEventListener('mousemove', move);
+        canvas.addEventListener('mouseup', end);
+        canvas.addEventListener('touchstart', start, {passive: false});
+        canvas.addEventListener('touchmove', move, {passive: false});
+        canvas.addEventListener('touchend', end);
+    });
 };
 
 window.closeAssetTransfer = () => {
@@ -798,37 +886,76 @@ window.fetchTransferAssetDetails = async (barcode) => {
     } catch (e) { console.error(e); }
 };
 
-window.submitAssetTransfer = async () => {
-    const barcode = document.getElementById('t_asset_barcode').value.trim();
-    const toLocation = document.getElementById('t_to_location').value.trim();
-    const reason = document.getElementById('t_reason').value.trim();
+window.submitAssetTransfer = async (event) => {
+    if (event) event.preventDefault();
 
-    if (!barcode || !toLocation) return alert("Barcode and Destination are required!");
-    if (!window.activeTransferAsset) return alert("Please select a valid asset first.");
+    const barcode = document.getElementById('t_asset_barcode').value.trim();
+    if (!barcode) return alert("Barcode is required!");
 
     const btn = document.getElementById('submit-transfer-btn');
     btn.disabled = true;
-    btn.innerText = "PROCESSING...";
+    btn.innerText = "UPLOADING DATA...";
 
     try {
-        const staff = window.currentStaff;
-        const adekId = staff.adekPass || staff.adcPassNumber || "Unknown";
-        const now = new Date();
+        const collectorName = document.getElementById('t_collector_name').value;
+        const companyName = document.getElementById('t_company_name').value;
+        const collectionReason = document.getElementById('t_collection_reason').value;
+        const collectionDate = document.getElementById('t_collection_date').value;
+        const landline = document.getElementById('t_company_landline').value;
+        const mobile = document.getElementById('t_mobile_number').value;
+
+        const manufacturer = document.getElementById('t_asset_manufacturer').value;
+        const description = document.getElementById('t_asset_description').value;
+        const transferReason = document.getElementById('t_transfer_reason_select').value;
+        const otherReasonText = document.getElementById('t_other_reason_text').value;
+
+        const securityName = document.getElementById('t_security_name').value;
+        const receivedName = document.getElementById('t_received_name').value;
+
+        // Upload Signatures & Photo
+        const sigSecurity = window.getCanvasBase64('t_security_sig');
+        const sigReceived = window.getCanvasBase64('t_received_sig');
+
+        if (!sigSecurity || !sigReceived) {
+            btn.disabled = false; btn.innerText = "INITIATE TRANSFER";
+            return alert("Both signatures are mandatory!");
+        }
+
+        const uploadTask = async (img, fileName, type) => {
+            if (!img) return "";
+            const res = await window.uploadToDrive({ action: "upload", type: type, fileName, image: img });
+            return res.fileUrl || res.signatureUrl || "";
+        };
+
+        const [urlSec, urlRec, urlPhoto] = await Promise.all([
+            uploadTask(sigSecurity, `Sig_Security_${barcode}_${Date.now()}.png`, 'signature'),
+            uploadTask(sigReceived, `Sig_Received_${barcode}_${Date.now()}.png`, 'signature'),
+            uploadTask(transferPhotoBase64, `Photo_Transfer_${barcode}_${Date.now()}.jpg`, 'active_asset')
+        ]);
+
+        const staff = window.currentStaff || {};
         const transferId = "TRF-" + Date.now();
+        const now = new Date();
 
         const transferData = {
             transferId,
             assetBarcode: barcode,
-            assetName: window.activeTransferAsset.assetDescription || "-",
-            serialNo: window.activeTransferAsset.serialNo || "-",
-            category: window.activeTransferAsset.majorCategory || "-",
-            condition: window.activeTransferAsset.assetCondition || "GOOD",
-            fromLocation: window.activeTransferAsset.locationName || window.activeTransferAsset.buildingName || "Unknown",
-            toLocation: toLocation,
-            reason: reason,
+            collectorName,
+            companyName,
+            collectionReason,
+            collectionDate,
+            companyLandline: landline,
+            mobileNumber: mobile,
+            assetManufacturer: manufacturer,
+            assetDescription: description,
+            reasonOfTransfer: transferReason === 'Other Reason' ? otherReasonText : transferReason,
+            securityName,
+            receivedByName: receivedName,
+            securitySignatureUrl: urlSec,
+            receivedSignatureUrl: urlRec,
+            transferPhotoUrl: urlPhoto,
             status: 'In-Transit',
-            initiatedBy: staff.name,
-            initiatedByAdek: adekId,
+            initiatedBy: staff.name || "System",
             timestamp: now.getTime(),
             date: now.toLocaleDateString(),
             time: now.toLocaleTimeString()
@@ -836,55 +963,21 @@ window.submitAssetTransfer = async () => {
 
         await set(ref(db, `asset_transfers/${transferId}`), transferData);
 
-        // --- MULTI-ROLE NOTIFICATION DISPATCH (TASK 2) ---
+        // Notify
         if (typeof window.triggerMultiRoleNotification === 'function') {
-            // a) Initiator
             window.triggerMultiRoleNotification({
-                title: "Transfer Initiated",
-                body: `Asset ${barcode} is now In-Transit to ${toLocation}`,
-                adekId: adekId,
-                tag: "transfer-init",
+                title: "Asset Transfer Out",
+                body: `${collectorName} collected ${barcode} for ${transferData.reasonOfTransfer}`,
+                roles: ["Admin", "Security"],
                 icon: "fa-truck-ramp-box"
-            });
-
-            // b) Security (Gate-Pass)
-            window.triggerMultiRoleNotification({
-                title: "Gate-Pass Alert",
-                body: `Asset ${barcode} moving from ${transferData.fromLocation} to ${toLocation}`,
-                roles: ["Security"],
-                tag: "gate-pass",
-                icon: "fa-shield-halved"
-            });
-
-            // c) IT / Cleaner Leaders (Asset Status)
-            const targetRoles = [];
-            if (transferData.category === 'IT' || transferData.category.includes('Computer')) targetRoles.push("RT Technician");
-            else targetRoles.push("Cleaner Leader");
-
-            window.triggerMultiRoleNotification({
-                title: "Asset Movement Alert",
-                body: `${transferData.assetName} (${barcode}) transfer started.`,
-                roles: targetRoles,
-                tag: "asset-move",
-                icon: "fa-shuffle"
-            });
-
-            // d) Admins
-            window.triggerMultiRoleNotification({
-                title: "Audit: Asset Transfer Started",
-                body: `${staff.name} initiated transfer for ${barcode} to ${toLocation}`,
-                roles: ["Admin"],
-                tag: "audit-transfer",
-                icon: "fa-file-signature",
-                url: "/JYSLOGINPORTAL/admin.html"
             });
         }
 
-        alert("Transfer Initiated Successfully!");
+        alert("Asset Transfer Recorded Successfully!");
         window.closeAssetTransfer();
         if (typeof window.loadRoleView === 'function') window.loadRoleView(staff);
 
-    } catch (e) { alert("Error: " + e.message); }
+    } catch (e) { console.error(e); alert("Error: " + e.message); }
     finally {
         btn.disabled = false;
         btn.innerText = "INITIATE TRANSFER";
@@ -937,42 +1030,36 @@ window.renderTransferTable = (transfers) => {
     body.innerHTML = '';
 
     if (!transfers || transfers.length === 0) {
-        body.innerHTML = '<tr><td colspan="8" class="p-8 text-center text-gray-400">No transfer records found</td></tr>';
+        body.innerHTML = '<tr><td colspan="11" class="p-8 text-center text-gray-400">No transfer records found</td></tr>';
         return;
     }
 
     transfers.sort((a, b) => b.timestamp - a.timestamp).forEach(t => {
-        const isSecurity = window.currentStaff && window.currentStaff.role === 'Security';
-        const isAdmin = window.isAdminLoggedIn;
-        const canComplete = t.status === 'In-Transit' && (isSecurity || isAdmin);
-
         const tr = document.createElement('tr');
         tr.className = "hover:bg-gray-50 border-b text-[11px]";
+
+        const secSig = t.securitySignatureUrl ? `<img src="${window.getDirectDriveImageUrl(t.securitySignatureUrl)}" class="h-8 mx-auto rounded border" onclick="window.openImageZoom('${t.securitySignatureUrl}')">` : '-';
+        const recSig = t.receivedSignatureUrl ? `<img src="${window.getDirectDriveImageUrl(t.receivedSignatureUrl)}" class="h-8 mx-auto rounded border" onclick="window.openImageZoom('${t.receivedSignatureUrl}')">` : '-';
+        const photo = t.transferPhotoUrl ? `<i class="fa-solid fa-camera text-indigo-600 cursor-pointer" onclick="window.openImageZoom('${t.transferPhotoUrl}')"></i>` : '';
+
         tr.innerHTML = `
             <td class="p-3 font-bold text-indigo-900">${t.transferId}</td>
-            <td class="p-3 font-mono">${t.assetBarcode}</td>
-            <td class="p-3">${t.assetName}</td>
-            <td class="p-3">
-                <div class="flex items-center gap-1">
-                    <span class="text-gray-400">${t.fromLocation}</span>
-                    <i class="fa-solid fa-arrow-right text-[8px] text-indigo-300"></i>
-                    <span class="font-bold text-indigo-600">${t.toLocation}</span>
-                </div>
-            </td>
-            <td class="p-3">
-                <span class="px-2 py-0.5 rounded-full text-[9px] font-black uppercase ${t.status === 'Completed' ? 'bg-green-100 text-green-600' : 'bg-orange-100 text-orange-600 animate-pulse'}">
-                    ${t.status}
-                </span>
-            </td>
-            <td class="p-3">
-                <div class="flex flex-col">
-                    <span class="font-bold">${t.initiatedBy}</span>
-                    <span class="text-[8px] text-gray-400">${t.initiatedByAdek}</span>
-                </div>
-            </td>
-            <td class="p-3 text-gray-400">${t.date} ${t.time}</td>
+            <td class="p-3 font-bold">${t.collectorName || "-"}</td>
+            <td class="p-3">${t.companyName || "-"}</td>
+            <td class="p-3 font-mono">${t.mobileNumber || "-"}</td>
+            <td class="p-3 font-mono">${t.assetBarcode || "-"}</td>
+            <td class="p-3">${t.assetManufacturer || "-"}</td>
+            <td class="p-3 italic">${t.reasonOfTransfer || "-"}</td>
+            <td class="p-3 font-mono">${t.collectionDate || t.date || "-"}</td>
+            <td class="p-3 text-center">${secSig}</td>
+            <td class="p-3 text-center">${recSig}</td>
             <td class="p-3 text-center">
-                ${canComplete ? `<button onclick="window.completeAssetTransfer('${t.transferId}')" class="bg-indigo-600 text-white px-3 py-1.5 rounded-lg font-bold text-[9px] hover:bg-indigo-700 transition shadow-sm uppercase">Complete</button>` : '-'}
+                <div class="flex items-center justify-center gap-2">
+                    ${photo}
+                    <button onclick="window.completeAssetTransfer('${t.transferId}')" class="bg-indigo-600 text-white px-3 py-1.5 rounded-lg font-bold text-[9px] hover:bg-indigo-700 transition shadow-sm uppercase ${t.status === 'Completed' ? 'opacity-30 cursor-not-allowed' : ''}" ${t.status === 'Completed' ? 'disabled' : ''}>
+                        ${t.status === 'Completed' ? 'Done' : 'Complete'}
+                    </button>
+                </div>
             </td>
         `;
         body.appendChild(tr);
