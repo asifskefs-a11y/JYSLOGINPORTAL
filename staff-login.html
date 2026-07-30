@@ -14,9 +14,9 @@
     <link rel="manifest" href="manifest.json?v=3.1">
     <link rel="apple-touch-icon" href="jys_Icon.png?v=3.1">
     <meta name="theme-color" content="#4f46e5">
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="style.css?v=2.0">
     <!-- STAFF UI MODULAR CSS -->
-    <link rel="stylesheet" href="staff-ui.css">
+    <link rel="stylesheet" href="staff-ui.css?v=2.0">
 </head>
 <body class="text-white">
     <div class="app-container">
@@ -40,8 +40,8 @@
                         <p class="text-[10px] text-gray-400 font-bold uppercase tracking-tighter">Enter your Admin-assigned credentials</p>
                     </div>
                     <form id="staff-login-form" class="space-y-5">
-                        <input type="text" id="s-log-adek" placeholder="ADEK Pass Number" required class="w-full p-4 border rounded-xl text-sm focus:ring-2 focus:ring-indigo-600 outline-none transition-all">
-                        <input type="password" id="s-log-pass" placeholder="Assigned Password" required class="w-full p-4 border rounded-xl text-sm focus:ring-2 focus:ring-indigo-600 outline-none transition-all">
+                        <input type="text" id="s-log-adek" placeholder="ADEK Pass Number" required class="transfer-input-field w-full p-4 border rounded-xl text-sm focus:ring-2 focus:ring-indigo-600 outline-none transition-all">
+                        <input type="password" id="s-log-pass" placeholder="Assigned Password" required class="transfer-input-field w-full p-4 border rounded-xl text-sm focus:ring-2 focus:ring-indigo-600 outline-none transition-all">
                         <button type="submit" class="w-full bg-indigo-600 text-white py-4 rounded-xl font-black text-lg shadow-lg active:scale-[0.98] transition-all uppercase tracking-widest">Sign In</button>
                     </form>
                 </div>
@@ -195,12 +195,12 @@
                         <h2><i class="fa-solid fa-plus-circle" style="color: var(--primary-teal);"></i> Create New Maintenance Task</h2>
                         <div class="space-y-4">
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <select id="taskSchoolSelect" class="p-3 border rounded-xl bg-white text-sm" onchange="window.filterStaffBySchoolAndRole()">
+                                <select id="taskSchoolSelect" class="transfer-input-field p-3 border rounded-xl bg-white text-sm" onchange="window.filterStaffBySchoolAndRole()">
                                     <option value="">Select School</option>
                                     <option value="Jern Yafoor School 1">Jern Yafoor School 1</option>
                                     <option value="Jern Yafoor School 2">Jern Yafoor School 2</option>
                                 </select>
-                                <select id="taskRoleSelect" class="p-3 border rounded-xl bg-white text-sm" onchange="window.filterStaffBySchoolAndRole()">
+                                <select id="taskRoleSelect" class="transfer-input-field p-3 border rounded-xl bg-white text-sm" onchange="window.filterStaffBySchoolAndRole()">
                                     <option value="">Select Target Role</option>
                                     <option value="Cleaner Leader">Cleaner Leader</option>
                                     <option value="RT Technician">RT Technician</option>
@@ -208,13 +208,13 @@
                                 </select>
                             </div>
 
-                            <select id="assignedStaffSelect" class="w-full p-3 border rounded-xl bg-white text-sm">
+                            <select id="assignedStaffSelect" class="transfer-input-field w-full p-3 border rounded-xl bg-white text-sm">
                                 <option value="">Assign Specific Staff (Optional)</option>
                             </select>
 
-                            <input type="text" id="areaNameInput" placeholder="Area Name (e.g., Classroom 12B)" class="w-full p-3 border rounded-xl text-sm">
+                            <input type="text" id="areaNameInput" placeholder="Area Name (e.g., Classroom 12B)" class="transfer-input-field w-full p-3 border rounded-xl text-sm">
 
-                            <textarea id="taskDetailsInput" placeholder="Task Details / Problem Description..." class="w-full p-3 border rounded-xl text-sm h-24"></textarea>
+                            <textarea id="taskDetailsInput" placeholder="Task Details / Problem Description..." class="transfer-input-field w-full p-3 border rounded-xl text-sm h-24"></textarea>
 
                             <div class="flex flex-col gap-3">
                                 <input type="file" id="cameraInput" accept="image/*" capture="environment" class="hidden" onchange="window.handleTaskImageCapture(event)">
@@ -326,7 +326,7 @@
                             </div>
 
                             <div class="flex gap-2">
-                                <input type="text" id="f1_asset_barcode" placeholder="1. Asset Barcode" class="flex-1 p-3 border rounded-xl text-sm text-gray-800" oninput="window.checkDuplicateBarcode(this.value)">
+                                <input type="text" id="f1_asset_barcode" placeholder="1. Asset Barcode" class="transfer-input-field flex-1 p-3 border rounded-xl text-sm text-gray-800" oninput="window.checkDuplicateBarcode(this.value)">
                                 <button type="button" onclick="startCameraScanner('f1_asset_barcode')" class="bg-indigo-600 text-white p-3 rounded-xl"><i class="fa-solid fa-camera"></i></button>
                             </div>
 
@@ -348,14 +348,14 @@
                                 </div>
                             </div>
                             <div class="flex gap-2">
-                                <input type="text" id="f2_serial_no" placeholder="2. Serial No." class="flex-1 p-3 border rounded-xl text-sm text-gray-800">
+                                <input type="text" id="f2_serial_no" placeholder="2. Serial No." class="transfer-input-field flex-1 p-3 border rounded-xl text-sm text-gray-800">
                                 <button type="button" onclick="startCameraScanner('f2_serial_no')" class="bg-indigo-600 text-white p-3 rounded-xl"><i class="fa-solid fa-camera"></i></button>
                             </div>
-                            <input type="text" id="f3_model_desc" placeholder="3. Model Description" class="w-full p-3 border rounded-xl text-sm text-gray-800">
-                            <input type="text" id="f4_asset_cond" placeholder="4. Asset Condition" class="w-full p-3 border rounded-xl text-sm text-gray-800">
-                            <input type="text" id="f5_price_stat" placeholder="5. Price Status" class="w-full p-3 border rounded-xl text-sm text-gray-800">
-                            <input type="number" id="f6_unit_cost" placeholder="6. Asset Unit Cost" class="w-full p-3 border rounded-xl text-sm text-gray-800">
-                            <input type="text" id="f7_asset_desc" placeholder="7. Asset Description" class="w-full p-3 border rounded-xl text-sm text-gray-800">
+                            <input type="text" id="f3_model_desc" placeholder="3. Model Description" class="transfer-input-field w-full p-3 border rounded-xl text-sm text-gray-800">
+                            <input type="text" id="f4_asset_cond" placeholder="4. Asset Condition" class="transfer-input-field w-full p-3 border rounded-xl text-sm text-gray-800">
+                            <input type="text" id="f5_price_stat" placeholder="5. Price Status" class="transfer-input-field w-full p-3 border rounded-xl text-sm text-gray-800">
+                            <input type="number" id="f6_unit_cost" placeholder="6. Asset Unit Cost" class="transfer-input-field w-full p-3 border rounded-xl text-sm text-gray-800">
+                            <input type="text" id="f7_asset_desc" placeholder="7. Asset Description" class="transfer-input-field w-full p-3 border rounded-xl text-sm text-gray-800">
                             <div>
                                 <label class="block text-[10px] font-bold text-gray-400 mb-1 ml-2">8. DATE PLACE IN SERVICE</label>
                                 <input type="date" id="f8_service_date" class="w-full p-3 border rounded-xl text-sm text-gray-800">
@@ -384,7 +384,7 @@
                             <i id="sec-b-icon" class="fa-solid fa-chevron-right"></i>
                         </button>
                         <div id="sec-b-content" class="p-4 space-y-4 hidden text-gray-800">
-                            <select id="f10_major_cat" class="w-full p-3 border rounded-xl text-sm">
+                            <select id="f10_major_cat" class="transfer-input-field w-full p-3 border rounded-xl text-sm">
                                 <option value="">10. Major Category</option>
                                 <option value="Furniture & Fixtures">Furniture & Fixtures</option>
                                 <option value="Office Equipment">Office Equipment</option>
@@ -392,7 +392,7 @@
                                 <option value="Computer Hardware & Peripherals">Computer Hardware & Peripherals</option>
                                 <option value="Machinery & Equipment">Machinery & Equipment</option>
                             </select>
-                            <select id="f11_sub_major" class="w-full p-3 border rounded-xl text-sm">
+                            <select id="f11_sub_major" class="transfer-input-field w-full p-3 border rounded-xl text-sm">
                                 <option value="">11. Sub Major Category</option>
                                 <option value="Office & School Furnitures">Office & School Furnitures</option>
                                 <option value="Telecommunication Equipment">Telecommunication Equipment</option>
@@ -400,15 +400,15 @@
                                 <option value="Computer Equipment">Computer Equipment</option>
                                 <option value="Multimedia Equipment">Multimedia Equipment</option>
                             </select>
-                            <input type="text" id="f12_sub_minor" placeholder="12. Sub Minor Category" class="w-full p-3 border rounded-xl text-sm">
-                            <input type="text" id="f13_dof_major" placeholder="13. DOF Major" class="w-full p-3 border rounded-xl text-sm">
-                            <input type="text" id="f14_dof_minor" placeholder="14. DOF Minor" class="w-full p-3 border rounded-xl text-sm">
-                            <select id="f15_category" class="w-full p-3 border rounded-xl text-sm">
+                            <input type="text" id="f12_sub_minor" placeholder="12. Sub Minor Category" class="transfer-input-field w-full p-3 border rounded-xl text-sm">
+                            <input type="text" id="f13_dof_major" placeholder="13. DOF Major" class="transfer-input-field w-full p-3 border rounded-xl text-sm">
+                            <input type="text" id="f14_dof_minor" placeholder="14. DOF Minor" class="transfer-input-field w-full p-3 border rounded-xl text-sm">
+                            <select id="f15_category" class="transfer-input-field w-full p-3 border rounded-xl text-sm">
                                 <option value="">15. Category</option>
                                 <option value="NON IT">NON IT</option>
                                 <option value="IT">IT</option>
                             </select>
-                            <select id="f16_class" class="w-full p-3 border rounded-xl text-sm">
+                            <select id="f16_class" class="transfer-input-field w-full p-3 border rounded-xl text-sm">
                                 <option value="">16. Classification [Asset Name]</option>
                                 <option value="CHAIR">CHAIR</option>
                                 <option value="TABLE">TABLE</option>
@@ -430,32 +430,32 @@
                             <i id="sec-c-icon" class="fa-solid fa-chevron-right"></i>
                         </button>
                         <div id="sec-c-content" class="p-4 space-y-4 hidden text-gray-800">
-                            <select id="f17_location" class="w-full p-3 border rounded-xl text-sm">
+                            <select id="f17_location" class="transfer-input-field w-full p-3 border rounded-xl text-sm">
                                 <option value="Abu Dhabi">17. Location Name: Abu Dhabi</option>
                             </select>
-                            <select id="f18_esis" class="w-full p-3 border rounded-xl text-sm">
+                            <select id="f18_esis" class="transfer-input-field w-full p-3 border rounded-xl text-sm">
                                 <option value="6024">18. School ESIS ID: 6024</option>
                             </select>
-                            <select id="f19_school_building" class="w-full p-3 border rounded-xl text-sm">
+                            <select id="f19_school_building" class="transfer-input-field w-full p-3 border rounded-xl text-sm">
                                 <option value="">19. School Building Name</option>
                                 <option value="Jern Yafoor School Building 1">Jern Yafoor School Building 1</option>
                                 <option value="Jern Yafoor School Building 2">Jern Yafoor School Building 2</option>
                             </select>
-                            <input type="text" id="f20_room_name" placeholder="20. Room Name" class="w-full p-3 border rounded-xl text-sm">
+                            <input type="text" id="f20_room_name" placeholder="20. Room Name" class="transfer-input-field w-full p-3 border rounded-xl text-sm">
                             <div class="flex gap-2 text-gray-800">
-                                <input type="text" id="f21_room_no" placeholder="21. Room No" class="flex-1 p-3 border rounded-xl text-sm">
+                                <input type="text" id="f21_room_no" placeholder="21. Room No" class="transfer-input-field flex-1 p-3 border rounded-xl text-sm">
                                 <button type="button" onclick="startCameraScanner('f21_room_no')" class="bg-indigo-600 text-white p-3 rounded-xl"><i class="fa-solid fa-camera"></i></button>
                             </div>
                             <div class="flex gap-2 text-gray-800">
-                                <input type="text" id="f22_room_barcode" placeholder="22. Room Barcode" class="flex-1 p-3 border rounded-xl text-sm">
+                                <input type="text" id="f22_room_barcode" placeholder="22. Room Barcode" class="transfer-input-field flex-1 p-3 border rounded-xl text-sm">
                                 <button type="button" onclick="startCameraScanner('f22_room_barcode')" class="bg-indigo-600 text-white p-3 rounded-xl"><i class="fa-solid fa-camera"></i></button>
                             </div>
-                            <select id="f23_floor_no" class="w-full p-3 border rounded-xl text-sm">
+                            <select id="f23_floor_no" class="transfer-input-field w-full p-3 border rounded-xl text-sm">
                                 <option value="">23. Floor No</option>
                                 <option value="1">1</option>
                                 <option value="2">2</option>
                             </select>
-                            <input type="text" id="f24_floor_desc" placeholder="24. Floor Description" class="w-full p-3 border rounded-xl text-sm">
+                            <input type="text" id="f24_floor_desc" placeholder="24. Floor Description" class="transfer-input-field w-full p-3 border rounded-xl text-sm">
                         </div>
                     </div>
 
@@ -466,41 +466,41 @@
                             <i id="sec-d-icon" class="fa-solid fa-chevron-right"></i>
                         </button>
                         <div id="sec-d-content" class="p-4 space-y-4 hidden text-gray-800">
-                            <select id="f25_barcode_stat" class="w-full p-3 border rounded-xl text-sm">
+                            <select id="f25_barcode_stat" class="transfer-input-field w-full p-3 border rounded-xl text-sm">
                                 <option value="Read">25. Barcode Status: Read</option>
                                 <option value="Counting">Counting</option>
                             </select>
-                            <select id="f26_asset_stat" class="w-full p-3 border rounded-xl text-sm">
+                            <select id="f26_asset_stat" class="transfer-input-field w-full p-3 border rounded-xl text-sm">
                                 <option value="Existing">26. Asset Status: Existing</option>
                                 <option value="Not Existing">Not Existing</option>
                             </select>
-                            <input type="text" id="f27_old_school" placeholder="27. Old School Name" class="w-full p-3 border rounded-xl text-sm">
+                            <input type="text" id="f27_old_school" placeholder="27. Old School Name" class="transfer-input-field w-full p-3 border rounded-xl text-sm">
                             <div class="flex gap-2">
-                                <input type="text" id="f28_trans_no" placeholder="28. Transaction No" class="flex-1 p-3 border rounded-xl text-sm">
+                                <input type="text" id="f28_trans_no" placeholder="28. Transaction No" class="transfer-input-field flex-1 p-3 border rounded-xl text-sm">
                                 <button type="button" onclick="startCameraScanner('f28_trans_no')" class="bg-indigo-600 text-white p-3 rounded-xl"><i class="fa-solid fa-camera"></i></button>
                             </div>
-                            <input type="text" id="f29_useful_life" placeholder="29. Asset Useful Life" class="w-full p-3 border rounded-xl text-sm">
-                            <input type="text" id="f30_vendor" placeholder="30. Asset Vendor Name" class="w-full p-3 border rounded-xl text-sm">
+                            <input type="text" id="f29_useful_life" placeholder="29. Asset Useful Life" class="transfer-input-field w-full p-3 border rounded-xl text-sm">
+                            <input type="text" id="f30_vendor" placeholder="30. Asset Vendor Name" class="transfer-input-field w-full p-3 border rounded-xl text-sm">
                             <div class="flex gap-2">
-                                <input type="text" id="f31_old_barcode" placeholder="31. Old Asset Barcode" class="flex-1 p-3 border rounded-xl text-sm">
+                                <input type="text" id="f31_old_barcode" placeholder="31. Old Asset Barcode" class="transfer-input-field flex-1 p-3 border rounded-xl text-sm">
                                 <button type="button" onclick="startCameraScanner('f31_old_barcode')" class="bg-indigo-600 text-white p-3 rounded-xl"><i class="fa-solid fa-camera"></i></button>
                             </div>
                             <div class="flex gap-2">
-                                <input type="text" id="f32_far_barcode" placeholder="32. Existing Old Asset Barcode From FAR" class="flex-1 p-3 border rounded-xl text-sm">
+                                <input type="text" id="f32_far_barcode" placeholder="32. Existing Old Asset Barcode From FAR" class="transfer-input-field flex-1 p-3 border rounded-xl text-sm">
                                 <button type="button" onclick="startCameraScanner('f32_far_barcode')" class="bg-indigo-600 text-white p-3 rounded-xl"><i class="fa-solid fa-camera"></i></button>
                             </div>
                             <div class="flex gap-2">
-                                <input type="text" id="f33_invoice_no" placeholder="33. Invoice No" class="flex-1 p-3 border rounded-xl text-sm">
+                                <input type="text" id="f33_invoice_no" placeholder="33. Invoice No" class="transfer-input-field flex-1 p-3 border rounded-xl text-sm">
                                 <button type="button" onclick="startCameraScanner('f33_invoice_no')" class="bg-indigo-600 text-white p-3 rounded-xl"><i class="fa-solid fa-camera"></i></button>
                             </div>
                             <div class="flex gap-2">
-                                <input type="text" id="f34_dn_no" placeholder="34. DN No" class="flex-1 p-3 border rounded-xl text-sm">
+                                <input type="text" id="f34_dn_no" placeholder="34. DN No" class="transfer-input-field flex-1 p-3 border rounded-xl text-sm">
                                 <button type="button" onclick="startCameraScanner('f34_dn_no')" class="bg-indigo-600 text-white p-3 rounded-xl"><i class="fa-solid fa-camera"></i></button>
                             </div>
-                            <input type="text" id="f35_remarks" placeholder="35. Remarks" class="w-full p-3 border rounded-xl text-sm">
-                            <input type="text" id="f36_phys_reg_no" readonly placeholder="36. Physical Asset Register No" class="w-full p-3 border rounded-xl text-sm bg-gray-50 text-indigo-600 font-bold">
-                            <input type="text" id="f37_fixed_reg_no" placeholder="37. Fixed Asset Register No" class="w-full p-3 border rounded-xl text-sm">
-                            <input type="text" id="f38_mapping" placeholder="38. Mapping Criteria" class="w-full p-3 border rounded-xl text-sm">
+                            <input type="text" id="f35_remarks" placeholder="35. Remarks" class="transfer-input-field w-full p-3 border rounded-xl text-sm">
+                            <input type="text" id="f36_phys_reg_no" readonly placeholder="36. Physical Asset Register No" class="transfer-input-field w-full p-3 border rounded-xl text-sm bg-gray-50 text-indigo-600 font-bold">
+                            <input type="text" id="f37_fixed_reg_no" placeholder="37. Fixed Asset Register No" class="transfer-input-field w-full p-3 border rounded-xl text-sm">
+                            <input type="text" id="f38_mapping" placeholder="38. Mapping Criteria" class="transfer-input-field w-full p-3 border rounded-xl text-sm">
                         </div>
                     </div>
 
