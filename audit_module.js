@@ -281,6 +281,11 @@ window.checkDuplicateBarcode = async (barcode) => {
 
 window.startCameraScanner = async (inputId) => {
     try {
+        // --- RELIABILITY FIX: STOP PREVIOUS SESSIONS ---
+        if (html5QrCode && html5QrCode.isScanning) {
+            await html5QrCode.stop();
+        }
+
         currentScanTarget = inputId;
         const modal = document.getElementById('scanner-modal');
         if (modal) {
@@ -289,24 +294,19 @@ window.startCameraScanner = async (inputId) => {
         }
 
         if (!html5QrCode) {
-            // @ts-ignore
             html5QrCode = new Html5Qrcode("scanner-container");
         }
 
-        // Optimization: Use rear camera by default for mobile
-        const config = { fps: 15, qrbox: { width: 250, height: 180 } };
+        const config = { fps: 20, qrbox: { width: 250, height: 180 } };
 
         await html5QrCode.start(
             { facingMode: "environment" },
             config,
             async (decodedText) => {
                 try {
-                    console.log("Scan Success:", decodedText);
                     const input = document.getElementById(currentScanTarget);
                     if (input) {
                         input.value = decodedText.trim().toUpperCase();
-
-                        // Instantly trigger search logic
                         if (currentScanTarget === 'f1_disposal_barcode_input') {
                             window.fetchDisposalAssetDetails(input.value);
                         } else if (currentScanTarget === 'f1_asset_barcode') {
@@ -315,20 +315,22 @@ window.startCameraScanner = async (inputId) => {
                             window.fetchTransferAssetDetails(input.value);
                         }
                     }
-
-                    // AUTO-CLOSE: Return to form immediately after successful scan
                     window.stopCameraScanner();
-
-                } catch (e) { console.error("Scan processing error:", e); }
+                } catch (e) { console.error(e); }
             },
             () => {}
         );
     } catch (err) {
-        console.error("Scanner Start Error:", err);
-        alert("Camera Error: Access denied or camera not found.");
-        window.stopCameraScanner();
+        console.error("Scanner Error:", err);
+        // Silently retry or reset
+        if (html5QrCode) {
+            try { await html5QrCode.clear(); } catch(e){}
+            html5QrCode = null;
+        }
+        alert("Camera Error: Re-initializing. Please try again.");
     }
 };
+
 
 window.stopCameraScanner = async () => {
     try {
