@@ -190,11 +190,10 @@ window.renderDashboard = async (staff) => {
 
         const authArea = document.getElementById('staff-auth-area');
         const dashArea = document.getElementById('staff-dash-area');
-        const logoutBtn = document.getElementById('staff-logout-btn');
 
         if (authArea) authArea.classList.add('hidden');
         if (dashArea) dashArea.classList.remove('hidden');
-        if (logoutBtn) logoutBtn.classList.remove('hidden');
+
 
         const initials = (staff.name || "JY").split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2);
         const avatar = document.getElementById('userAvatar');

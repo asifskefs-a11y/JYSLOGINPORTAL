@@ -118,22 +118,17 @@ window.removeInitialAuditPhoto = () => {
 
 window.openAssetAudit = () => {
     try {
-        const dash = document.getElementById('staff-dash-area');
-        const audit = document.getElementById('asset-audit-section');
-        if (dash) dash.classList.add('hidden');
-        if (audit) audit.classList.remove('hidden');
+        window.showStaffView('asset-audit-section');
         window.generatePhysRegNo();
     } catch (e) { console.error(e); }
 };
 
 window.closeAssetAudit = () => {
     try {
-        const dash = document.getElementById('staff-dash-area');
-        const audit = document.getElementById('asset-audit-section');
-        if (dash) dash.classList.remove('hidden');
-        if (audit) audit.classList.add('hidden');
+        window.showStaffView('staff-dash-area');
     } catch (e) { console.error(e); }
 };
+
 
 window.toggleAccordion = (sectionId) => {
     const content = document.getElementById(`${sectionId}-content`);
@@ -481,10 +476,7 @@ window.openDisposalModal = async (barcode) => {
         input.value = activeDisposalBarcode;
     }
 
-    const dash = document.getElementById('staff-dash-area');
-    const disposalSection = document.getElementById('asset-disposal-section');
-    if (dash) dash.classList.add('hidden');
-    if (disposalSection) disposalSection.classList.remove('hidden');
+    window.showStaffView('asset-disposal-section');
 
     // Reset UI state for fresh entry
     if (!barcode) {
@@ -498,6 +490,7 @@ window.openDisposalModal = async (barcode) => {
         window.fetchDisposalAssetDetails(activeDisposalBarcode);
     }
 };
+
 
 
 window.fetchDisposalAssetDetails = async (barcode) => {
@@ -611,10 +604,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 window.closeAssetDisposal = () => {
     try {
-        const dash = document.getElementById('staff-dash-area');
-        const disposalSection = document.getElementById('asset-disposal-section');
-        if (dash) dash.classList.remove('hidden');
-        if (disposalSection) disposalSection.classList.add('hidden');
+        window.showStaffView('staff-dash-area');
 
         activeDisposalBarcode = null;
         disposalPhotoBase64 = "";
@@ -624,6 +614,7 @@ window.closeAssetDisposal = () => {
         if (btnText) btnText.innerText = "Take Damage Photo";
     } catch (e) { console.error(e); }
 };
+
 
 
 window.handleDisposalPhoto = async (e) => {
@@ -789,10 +780,7 @@ window.bulkDeleteAssets = async () => {
 // --- ASSET TRANSFER MODULE ---
 window.openAssetTransfer = (barcode) => {
     try {
-        const dash = document.getElementById('staff-dash-area');
-        const transferSection = document.getElementById('asset-transfer-section');
-        if (dash) dash.classList.add('hidden');
-        if (transferSection) transferSection.classList.remove('hidden');
+        window.showStaffView('asset-transfer-section');
 
         // Set default date
         const dateInput = document.getElementById('t_collection_date');
@@ -811,6 +799,7 @@ window.openAssetTransfer = (barcode) => {
 
     } catch (e) { console.error(e); }
 };
+
 
 window.initTransferSigPads = () => {
     const ids = ['t_security_sig', 't_received_sig'];
@@ -853,12 +842,10 @@ window.initTransferSigPads = () => {
 
 window.closeAssetTransfer = () => {
     try {
-        const dash = document.getElementById('staff-dash-area');
-        const transferSection = document.getElementById('asset-transfer-section');
-        if (dash) dash.classList.remove('hidden');
-        if (transferSection) transferSection.classList.add('hidden');
+        window.showStaffView('staff-dash-area');
     } catch (e) { console.error(e); }
 };
+
 
 window.fetchTransferAssetDetails = async (barcode) => {
     const previewArea = document.getElementById('transfer-asset-preview');
@@ -1220,10 +1207,7 @@ window.filterAssetTable = () => {
 };
 window.openTransferLogs = async () => {
     try {
-        const dash = document.getElementById('staff-dash-area');
-        const logSection = document.getElementById('transfer-logs-section');
-        if (dash) dash.classList.add('hidden');
-        if (logSection) logSection.classList.remove('hidden');
+        window.showStaffView('transfer-logs-section');
 
         const snap = await get(ref(db, 'asset_transfers'));
         const transfers = snap.exists() ? Object.values(snap.val()) : [];
@@ -1233,9 +1217,7 @@ window.openTransferLogs = async () => {
 
 window.closeTransferLogs = () => {
     try {
-        const dash = document.getElementById('staff-dash-area');
-        const logSection = document.getElementById('transfer-logs-section');
-        if (dash) dash.classList.remove('hidden');
-        if (logSection) logSection.classList.add('hidden');
+        window.showStaffView('staff-dash-area');
     } catch (e) { console.error(e); }
 };
+

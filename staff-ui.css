@@ -1,4 +1,4 @@
-﻿/* --- STAFF PORTAL & TRANSFER UI (CLEAN VERSION 3.2.2) --- */
+﻿/* --- STAFF PORTAL & TRANSFER UI (CLEAN VERSION 3.4.1) --- */
 
 :root {
     --ios-system-font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
@@ -91,16 +91,16 @@ nav.flex {
     letter-spacing: 0.05em !important;
 }
 
-/* TRANSFER FORM LABELS - FIX FOR "DHUNLA" (FADED) LOOK */
+/* TRANSFER FORM LABELS */
 .transfer-step-label, label {
     font-size: 12px !important;
     font-weight: 800 !important;
-    color: var(--dark-navy) !important; /* Solid High Contrast Dark Blue */
+    color: var(--dark-navy) !important;
     text-transform: uppercase !important;
     letter-spacing: 0.025em !important;
     margin-bottom: 6px !important;
     display: block !important;
-    opacity: 1 !important; /* Ensure no transparency */
+    opacity: 1 !important;
 }
 
 /* GLOBAL INPUTS - HIGH CONTRAST */
@@ -230,8 +230,6 @@ h3.uppercase.tracking-widest {
     color: white !important;
 }
 
-
-
 /* CARD REFINEMENTS */
 .bg-white.rounded-2xl {
     border-radius: 24px !important;
@@ -243,13 +241,12 @@ h3.uppercase.tracking-widest {
 @media (max-width: 768px) {
     .view-section { padding: 12px !important; }
     #staff-dash-area { gap: 12px !important; }
-    .nav-pill-purple span, .nav-pill-red span { display: block !important; }
 }
 
 /* HIDE OLD STATS GRID */
 .stats-grid { display: none !important; }
 
-/* TASK GRID & CARDS (Compact Images - Fix for Issue 1) */
+/* TASK GRID & CARDS */
 .image-preview-container {
     display: flex !important;
     gap: 10px !important;
@@ -291,51 +288,44 @@ h3.uppercase.tracking-widest {
     backdrop-filter: blur(4px) !important;
 }
 
-/* CAMERA TRIGGER & HELPER TEXT (Fix for Issue 2) */
+/* CAMERA TRIGGER & ALIGNMENT (v3.4.1 Fix) */
 .camera-action-trigger {
     position: absolute !important;
-    right: 12px !important;
-    top: 36px !important;
-    width: 46px !important;
-    height: 46px !important;
-    background: #4F46E5 !important;
-    border-radius: 12px !important;
+    right: 8px !important;
+    top: 50% !important;
+    transform: translateY(-50%) !important;
+    width: 40px !important;
+    height: 40px !important;
+    background: var(--primary-indigo) !important;
+    border-radius: 10px !important;
     display: flex !important;
     align-items: center !important;
     justify-content: center !important;
     color: white !important;
-    box-shadow: 0 6px 15px rgba(79, 70, 229, 0.3) !important;
+    box-shadow: 0 4px 10px rgba(79, 70, 229, 0.2) !important;
     border: none !important;
     z-index: 20 !important;
+    cursor: pointer;
 }
 
-.transfer-helper-text {
-    font-size: 11px !important;
-    font-weight: 700 !important;
-    color: #475569 !important;
-    margin-top: 8px !important;
-    display: block !important;
-    opacity: 1 !important;
+.input-with-action-wrapper {
+    position: relative !important;
+    width: 100% !important;
+    display: flex !important;
+    align-items: center !important;
+}
+
+.input-with-action-wrapper .transfer-input-field {
+    padding-right: 56px !important;
+    width: 100% !important;
 }
 
 
 /* SIDE MENU DRAWER STYLES */
-#side-menu {
-    transition: opacity 0.3s ease;
-}
-
-#side-menu-content {
-    transition: transform 0.3s ease-in-out;
-}
-
-#side-menu.active {
-    display: block !important;
-    opacity: 1 !important;
-}
-
-#side-menu.active #side-menu-content {
-    transform: translateX(0) !important;
-}
+#side-menu { transition: opacity 0.3s ease; }
+#side-menu-content { transition: transform 0.3s ease-in-out; }
+#side-menu.active { display: block !important; opacity: 1 !important; }
+#side-menu.active #side-menu-content { transform: translateX(0) !important; }
 
 .menu-item-btn {
     width: 100% !important;
@@ -354,22 +344,8 @@ h3.uppercase.tracking-widest {
     text-align: left !important;
 }
 
-.menu-item-btn:active {
-    background: #f8fafc !important;
-    transform: scale(0.98);
-}
+.menu-item-btn:active { background: #f8fafc !important; transform: scale(0.98); }
+.menu-item-btn i { width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border-radius: 10px; font-size: 14px; }
 
-.menu-item-btn i {
-    width: 32px;
-    height: 32px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 10px;
-    font-size: 14px;
-}
-
-/* Scrollbar hide */
 .no-scrollbar::-webkit-scrollbar { display: none; }
 .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-
