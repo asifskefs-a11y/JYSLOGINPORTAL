@@ -23,10 +23,10 @@
         <!-- STAFF VIEW -->
         <section id="view-staff" class="view-section active p-4">
             <nav class="flex items-center justify-between p-4 bg-white mb-6 w-full box-border border-b-2 border-slate-100 shadow-sm rounded-2xl">
-                <a href="index.html" class="nav-pill-purple no-underline">
-                    <i class="fa-solid fa-arrow-left"></i>
-                    <span>Back</span>
-                </a>
+                <button onclick="window.toggleSideMenu()" class="nav-pill-purple no-underline border-none">
+                    <i class="fa-solid fa-bars"></i>
+                    <span>Menu</span>
+                </button>
                 <div class="text-center flex-1">
                     <h2 class="text-lg font-black tracking-tighter text-[#1E1B4B] uppercase leading-none">Staff</h2>
                     <p class="text-[8px] font-bold text-indigo-400 uppercase tracking-widest mt-1">Portal</p>
@@ -35,6 +35,69 @@
                     <span>Logout</span>
                 </button>
             </nav>
+
+            <!-- SIDE MENU OVERLAY (v3.3) -->
+            <div id="side-menu" class="fixed inset-0 bg-black/60 z-[99999] hidden backdrop-blur-sm transition-opacity duration-300" onclick="if(event.target === this) window.toggleSideMenu()">
+                <div id="side-menu-content" class="absolute left-0 top-0 h-full w-[85%] max-w-[320px] bg-[#F8F9FD] shadow-2xl p-6 transform -translate-x-full transition-transform duration-300 ease-in-out flex flex-col">
+                    <div class="flex justify-between items-center mb-10">
+                         <div class="flex flex-col">
+                             <h2 class="text-2xl font-black text-indigo-900 leading-none">JYS</h2>
+                             <p class="text-[10px] font-bold text-indigo-400 uppercase tracking-widest mt-1">Navigation Menu</p>
+                         </div>
+                         <button onclick="window.toggleSideMenu()" class="w-10 h-10 bg-white shadow-md rounded-full flex items-center justify-center text-slate-400"><i class="fa-solid fa-xmark"></i></button>
+                    </div>
+
+                    <div class="flex-1 overflow-y-auto no-scrollbar space-y-8 pb-10 text-gray-800">
+                        <!-- ASSET MANAGEMENT (MENU VERSION) -->
+                        <div id="menu-asset-section" class="hidden">
+                             <h3 class="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-4 ml-2">Asset Management</h3>
+                             <div class="space-y-3">
+                                 <button onclick="window.toggleSideMenu(); openAssetAudit()" class="menu-item-btn">
+                                     <i class="fa-solid fa-barcode bg-orange-100 text-orange-600"></i>
+                                     <span>Item Audit</span>
+                                 </button>
+                                 <button onclick="window.toggleSideMenu(); openDirectDisposal()" class="menu-item-btn">
+                                     <i class="fa-solid fa-trash-can bg-red-100 text-red-600"></i>
+                                     <span>Dispose Item</span>
+                                 </button>
+                                 <button onclick="window.toggleSideMenu(); openAssetTransfer()" class="menu-item-btn">
+                                     <i class="fa-solid fa-truck-ramp-box bg-indigo-100 text-indigo-600"></i>
+                                     <span>Asset Transfer</span>
+                                 </button>
+                                 <button onclick="window.toggleSideMenu(); openTransferLogs()" class="menu-item-btn">
+                                     <i class="fa-solid fa-clock-rotate-left bg-slate-100 text-slate-600"></i>
+                                     <span>Movement Logs</span>
+                                 </button>
+                             </div>
+                        </div>
+
+                        <!-- TASK MANAGEMENT -->
+                        <div>
+                             <h3 class="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-4 ml-2">Tasks & Tools</h3>
+                             <div class="space-y-3">
+                                 <button onclick="window.toggleSideMenu(); document.getElementById('tasksContainer').scrollIntoView({behavior: 'smooth'})" class="menu-item-btn">
+                                     <i class="fa-solid fa-list-check bg-emerald-100 text-emerald-600"></i>
+                                     <span>My Tasks</span>
+                                 </button>
+                                 <button onclick="window.toggleSideMenu(); document.getElementById('security-task-area').scrollIntoView({behavior: 'smooth'})" class="menu-item-btn hidden" id="menu-create-task-btn">
+                                     <i class="fa-solid fa-plus bg-teal-100 text-teal-600"></i>
+                                     <span>Create Task</span>
+                                 </button>
+                                 <a href="index.html" class="menu-item-btn no-underline">
+                                     <i class="fa-solid fa-home bg-purple-100 text-purple-600"></i>
+                                     <span>Home Portal</span>
+                                 </a>
+                             </div>
+                        </div>
+                    </div>
+
+
+                    <div class="mt-auto border-t pt-6">
+                         <button onclick="window.logoutStaff()" class="w-full bg-red-500 text-white py-4 rounded-2xl font-black uppercase tracking-widest shadow-lg active:scale-95 transition-transform">Logout Session</button>
+                    </div>
+                </div>
+            </div>
+
 
 
             <div id="staff-auth-area" class="w-full bg-white text-gray-800 rounded-2xl shadow-2xl overflow-hidden">
@@ -896,7 +959,22 @@
         </div>
     </div>
 
+    <script>
+        window.toggleSideMenu = function() {
+            const menu = document.getElementById('side-menu');
+            if (!menu) return;
+            if (menu.classList.contains('active')) {
+                menu.classList.remove('active');
+                setTimeout(() => menu.classList.add('hidden'), 300);
+            } else {
+                menu.classList.remove('hidden');
+                setTimeout(() => menu.classList.add('active'), 10);
+            }
+        };
+    </script>
+
     <script type="module" src="firebase_config.js?v=3.2"></script>
+
     <script type="module" src="ui_module.js?v=3.2"></script>
     <script type="module" src="auth_module.js?v=3.2"></script>
     <script type="module" src="attendance_module.js?v=3.2"></script>

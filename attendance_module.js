@@ -342,7 +342,9 @@ window.renderDashboard = async (staff) => {
 
         const roleNormalized = (staff.role || "").toLowerCase().trim().replace(/ /g, '').replace(/_/g, '');
         const assetAuditAccess = document.getElementById('asset-audit-access');
+        const menuAssetSection = document.getElementById('menu-asset-section');
         const securityArea = document.getElementById('security-task-area');
+        const menuCreateTaskBtn = document.getElementById('menu-create-task-btn');
         const securityTracker = document.getElementById('security-raised-tasks-area');
 
         if (roleNormalized !== 'security') {
@@ -350,12 +352,14 @@ window.renderDashboard = async (staff) => {
                 console.log("Removing Security Area for non-security role:", roleNormalized);
                 securityArea.remove();
             }
+            if (menuCreateTaskBtn) menuCreateTaskBtn.classList.add('hidden');
             if (securityTracker) securityTracker.remove();
         } else {
             if (securityArea) {
                 securityArea.classList.remove('hidden');
                 securityArea.style.display = 'block';
             }
+            if (menuCreateTaskBtn) menuCreateTaskBtn.classList.remove('hidden');
             if (securityTracker) {
                 securityTracker.classList.remove('hidden');
                 window.initRaisedTasksTracker('security-my-tasks-container');
@@ -363,13 +367,17 @@ window.renderDashboard = async (staff) => {
         }
 
         const authorizedRoles = ['cleanerleader', 'rttechnician', 'security', 'admin'];
+        const isAuth = authorizedRoles.includes(roleNormalized);
+
         if (assetAuditAccess) {
-            const isAuth = authorizedRoles.includes(roleNormalized);
-            assetAuditAccess.classList.toggle('hidden', !isAuth);
-            if (isAuth) {
-                assetAuditAccess.setAttribute('style', 'display: block !important; visibility: visible !important; opacity: 1 !important;');
-            }
+            assetAuditAccess.classList.add('hidden'); // ALWAYS HIDE ON DASHBOARD (v3.3)
+            assetAuditAccess.style.display = 'none';
         }
+
+        if (menuAssetSection) {
+            menuAssetSection.classList.toggle('hidden', !isAuth);
+        }
+
 
         window.loadRoleView(staff);
         if (window.initNotificationBell) window.initNotificationBell();
