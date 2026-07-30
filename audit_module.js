@@ -281,11 +281,6 @@ window.checkDuplicateBarcode = async (barcode) => {
 
 window.startCameraScanner = async (inputId) => {
     try {
-        // --- RELIABILITY FIX: STOP PREVIOUS SESSIONS ---
-        if (html5QrCode && html5QrCode.isScanning) {
-            await html5QrCode.stop();
-        }
-
         currentScanTarget = inputId;
         const modal = document.getElementById('scanner-modal');
         if (modal) {
@@ -293,43 +288,42 @@ window.startCameraScanner = async (inputId) => {
             modal.style.display = 'flex';
         }
 
-        if (!html5QrCode) {
-            html5QrCode = new Html5Qrcode("scanner-container");
-        }
-
-        const config = { fps: 20, qrbox: { width: 250, height: 180 } };
-
-        await html5QrCode.start(
-            { facingMode: "environment" },
-            config,
-            async (decodedText) => {
-                try {
-                    const input = document.getElementById(currentScanTarget);
-                    if (input) {
-                        input.value = decodedText.trim().toUpperCase();
-                        if (currentScanTarget === 'f1_disposal_barcode_input') {
-                            window.fetchDisposalAssetDetails(input.value);
-                        } else if (currentScanTarget === 'f1_asset_barcode') {
-                            await window.checkDuplicateBarcode(input.value);
-                        } else if (currentScanTarget === 't_asset_barcode') {
-                            window.fetchTransferAssetDetails(input.value);
+        // Delay to ensure DOM is ready and previous instances are cleared
+        setTimeout(async () => {
+            try {
+                if (html5QrCode) {
+                    try { await html5QrCode.stop(); } catch(e){}
+                    try { await html5QrCode.clear(); } catch(e){}
+                }
+                html5QrCode = new Html5Qrcode("scanner-container");
+                const config = { fps: 20, qrbox: { width: 250, height: 180 } };
+                await html5QrCode.start(
+                    { facingMode: "environment" },
+                    config,
+                    async (decodedText) => {
+                        const input = document.getElementById(currentScanTarget);
+                        if (input) {
+                            input.value = decodedText.trim().toUpperCase();
+                            if (currentScanTarget === 'f1_disposal_barcode_input') window.fetchDisposalAssetDetails(input.value);
+                            else if (currentScanTarget === 'f1_asset_barcode') await window.checkDuplicateBarcode(input.value);
+                            else if (currentScanTarget === 't_asset_barcode') window.fetchTransferAssetDetails(input.value);
                         }
-                    }
-                    window.stopCameraScanner();
-                } catch (e) { console.error(e); }
-            },
-            () => {}
-        );
+                        window.stopCameraScanner();
+                    },
+                    () => {}
+                );
+            } catch (err) {
+                console.error("Inner Scanner Error:", err);
+                alert("Camera busy or not found. Please try again.");
+                window.stopCameraScanner();
+            }
+        }, 300);
     } catch (err) {
-        console.error("Scanner Error:", err);
-        // Silently retry or reset
-        if (html5QrCode) {
-            try { await html5QrCode.clear(); } catch(e){}
-            html5QrCode = null;
-        }
-        alert("Camera Error: Re-initializing. Please try again.");
+        console.error("Outer Scanner Error:", err);
+        window.stopCameraScanner();
     }
 };
+
 
 
 window.stopCameraScanner = async () => {
@@ -809,38 +803,43 @@ window.initTransferSigPads = () => {
         const canvas = document.getElementById(id);
         if (!canvas) return;
 
-        // Match display size
+        // Ensure canvas size matches its display container
+        const rect = canvas.getBoundingClientRect();
+        if (rect.width === 0) return; // Wait if not visible
+
         const ratio = Math.max(window.devicePixelRatio || 1, 1);
-        canvas.width = canvas.offsetWidth * ratio;
-        canvas.height = canvas.offsetHeight * ratio;
-        canvas.getContext("2d").scale(ratio, ratio);
+        canvas.width = rect.width * ratio;
+        canvas.height = rect.height * ratio;
+        const ctx = canvas.getContext("2d");
+        ctx.scale(ratio, ratio);
 
         let drawing = false;
-        const ctx = canvas.getContext('2d');
-        ctx.lineWidth = 2;
+        ctx.lineWidth = 2.5;
         ctx.lineJoin = "round";
         ctx.lineCap = "round";
         ctx.strokeStyle = "#1E1B4B";
 
         const getPos = (e) => {
-            const rect = canvas.getBoundingClientRect();
+            const cRect = canvas.getBoundingClientRect();
             const clientX = e.touches ? e.touches[0].clientX : e.clientX;
             const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-            return { x: clientX - rect.left, y: clientY - rect.top };
+            return { x: clientX - cRect.left, y: clientY - cRect.top };
         };
 
-        const start = (e) => { drawing = true; const pos = getPos(e); ctx.beginPath(); ctx.moveTo(pos.x, pos.y); e.preventDefault(); };
-        const move = (e) => { if (!drawing) return; const pos = getPos(e); ctx.lineTo(pos.x, pos.y); ctx.stroke(); e.preventDefault(); };
+        const start = (e) => { drawing = true; const pos = getPos(e); ctx.beginPath(); ctx.moveTo(pos.x, pos.y); if(e.cancelable) e.preventDefault(); };
+        const move = (e) => { if (!drawing) return; const pos = getPos(e); ctx.lineTo(pos.x, pos.y); ctx.stroke(); if(e.cancelable) e.preventDefault(); };
         const end = () => { drawing = false; };
 
-        canvas.addEventListener('mousedown', start);
-        canvas.addEventListener('mousemove', move);
-        canvas.addEventListener('mouseup', end);
-        canvas.addEventListener('touchstart', start, {passive: false});
-        canvas.addEventListener('touchmove', move, {passive: false});
-        canvas.addEventListener('touchend', end);
+        // Clean previous listeners to avoid duplicates
+        canvas.onmousedown = start;
+        canvas.onmousemove = move;
+        canvas.onmouseup = end;
+        canvas.ontouchstart = start;
+        canvas.ontouchmove = move;
+        canvas.ontouchend = end;
     });
 };
+
 
 window.closeAssetTransfer = () => {
     try {
