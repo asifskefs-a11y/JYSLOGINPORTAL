@@ -11,6 +11,117 @@
     <link rel="apple-touch-icon" href="jys_Icon.png?v=3.2">
     <meta name="theme-color" content="#4f46e5">
     <link rel="stylesheet" href="style.css?v=3.2">
+    <style>
+        /* ============================================ */
+        /* EXTRA STYLES FOR LANDING PAGE */
+        /* ============================================ */
+
+        /* Portal Container */
+        .portal-container {
+            animation: fadeInUp 0.8s ease-out;
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Card Hover Effect */
+        .portal-card {
+            position: relative;
+            overflow: hidden;
+            cursor: pointer;
+        }
+
+        .portal-card::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+            opacity: 0;
+            transform: scale(0.5);
+            transition: all 0.6s ease;
+        }
+
+        .portal-card:hover::before {
+            opacity: 1;
+            transform: scale(1);
+        }
+
+        /* Logo Animation */
+        .logo-circular-frame {
+            transition: transform 0.5s ease;
+        }
+
+        .logo-circular-frame:hover {
+            transform: rotate(5deg) scale(1.05);
+        }
+
+        /* Glass Effect */
+        .glass-effect {
+            background: rgba(255, 255, 255, 0.25);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+
+        /* Responsive Adjustments */
+        @media (max-width: 640px) {
+            .portal-card {
+                padding: 24px !important;
+                min-width: unset !important;
+            }
+
+            .portal-card .w-20 {
+                width: 56px;
+                height: 56px;
+            }
+
+            .portal-card svg {
+                width: 28px;
+                height: 28px;
+            }
+        }
+
+        /* Dark Mode Support */
+        @media (prefers-color-scheme: dark) {
+            #view-landing {
+                background: linear-gradient(135deg, #1e1b4b 0%, #312e81 50%, #1e1b4b 100%) !important;
+            }
+
+            .portal-card {
+                background: rgba(30, 27, 75, 0.9) !important;
+                border-color: rgba(255, 255, 255, 0.1) !important;
+            }
+
+            .portal-card h3 {
+                color: #e0e7ff !important;
+            }
+
+            .portal-card p {
+                color: #94a3b8 !important;
+            }
+
+            #view-landing h1 {
+                background: linear-gradient(135deg, #e0e7ff, #c4b5fd, #e0e7ff) !important;
+                -webkit-background-clip: text !important;
+                -webkit-text-fill-color: transparent !important;
+            }
+
+            .portal-card .bg-white\/10 {
+                background: rgba(255,255,255,0.05) !important;
+            }
+        }
+    </style>
 </head>
 
 <body class="text-white">
@@ -26,48 +137,185 @@
 
     <div class="app-container">
         <!-- LANDING VIEW -->
-        <section id="view-landing" class="view-section active items-center justify-center p-4 flex-1">
-            <div class="portal-container">
+        <section id="view-landing" class="view-section active items-center justify-center p-4 flex-1 min-h-screen" style="background: linear-gradient(135deg, #f5f3ff 0%, #ede9fe 50%, #e0e7ff 100%);">
+            <div class="portal-container max-w-6xl mx-auto px-4 py-8">
+
+                <!-- ===== HEADER ===== -->
                 <header class="text-center mb-12">
-                    <div class="w-full flex items-center justify-center mb-6">
-                        <div class="logo-circular-frame h-[240px] w-[240px] flex items-center justify-center">
-                            <img src="schoollogo.png" class="w-full h-full object-contain" alt="JYS Logo">
+                    <!-- Logo with Glow Effect -->
+                    <div class="relative inline-block mb-6">
+                        <div class="absolute inset-0 bg-indigo-500/20 rounded-full blur-3xl animate-pulse"></div>
+                        <div class="logo-circular-frame h-[140px] w-[140px] md:h-[180px] md:w-[180px] flex items-center justify-center mx-auto relative z-10 bg-white/80 backdrop-blur-sm rounded-full shadow-2xl border-4 border-white/50">
+                            <img src="schoollogo.png" class="w-full h-full object-contain p-4" alt="JYS Logo" onerror="this.src='https://ui-avatars.com/api/?name=JYS&background=4f46e5&color=fff&size=128'">
                         </div>
+
+                        <!-- Decorative Rings -->
+                        <div class="absolute inset-0 rounded-full border-2 border-indigo-300/30 animate-ping" style="animation-duration: 3s;"></div>
+                        <div class="absolute inset-[-10px] rounded-full border-2 border-indigo-400/20 animate-ping" style="animation-duration: 4s; animation-delay: 0.5s;"></div>
                     </div>
-                    <h1 class="text-3xl md:text-5xl font-black tracking-tight text-indigo-900 drop-shadow-md">Jern Yafoor School</h1>
-                    <p class="text-lg md:text-xl mt-2 font-bold text-indigo-700 bg-white/30 backdrop-blur-sm inline-block px-4 py-1 rounded-full border border-white/50">JYS Login Portal</p>
+
+                    <!-- School Name with Gradient -->
+                    <h1 class="text-4xl md:text-6xl lg:text-7xl font-black tracking-tight bg-gradient-to-r from-indigo-900 via-purple-800 to-indigo-900 bg-clip-text text-transparent drop-shadow-lg">
+                        Jern Yafoor School
+                    </h1>
+
+                    <!-- Subtitle with Glass Effect -->
+                    <div class="mt-3 inline-block">
+                        <span class="text-base md:text-xl font-bold text-indigo-700 bg-white/40 backdrop-blur-sm px-6 py-2 rounded-full border border-white/50 shadow-lg">
+                            <i class="fa fa-graduation-cap mr-2 text-indigo-500"></i>
+                            JYS Login Portal
+                            <span class="ml-2 text-xs text-indigo-400 font-mono">v3.2</span>
+                        </span>
+                    </div>
+
+                    <!-- Tagline -->
+                    <p class="mt-4 text-indigo-600/80 text-sm md:text-base font-medium max-w-md mx-auto">
+                        <i class="fa fa-star text-yellow-500 mr-1"></i>
+                        New Century Education
+                        <i class="fa fa-star text-yellow-500 ml-1"></i>
+                    </p>
                 </header>
 
-                <main class="portal-main-container flex flex-col md:flex-row items-center justify-center gap-6 mt-12 w-full max-w-4xl mx-auto">
-                    <a href="visitor.html" class="portal-card flex flex-col items-center justify-center bg-slate-50 border border-slate-100 rounded-3xl p-8 transition-all duration-300 transform active:scale-95 hover:shadow-xl group text-center flex-1 min-w-[280px]" style="text-decoration: none;">
-                        <div class="bg-indigo-600 p-5 rounded-full mb-4 group-hover:bg-indigo-500 transition-colors shadow-lg">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-                            </svg>
+                <!-- ===== MAIN CARDS ===== -->
+                <main class="portal-main-container flex flex-col md:flex-row items-stretch justify-center gap-6 md:gap-8 mt-8 w-full max-w-4xl mx-auto">
+
+                    <!-- ===== Visitor Entry Card ===== -->
+                    <a href="visitor.html" class="portal-card group relative flex-1 min-w-[280px] bg-white/90 backdrop-blur-sm border border-white/50 rounded-3xl p-8 transition-all duration-500 transform hover:-translate-y-2 hover:shadow-2xl hover:shadow-indigo-500/20 active:scale-95 text-center cursor-pointer" style="text-decoration: none; box-shadow: 0 4px 20px rgba(79, 70, 229, 0.08);">
+
+                        <!-- Glow Background -->
+                        <div class="absolute inset-0 bg-gradient-to-br from-indigo-50/50 to-transparent rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+
+                        <!-- Icon with Gradient -->
+                        <div class="relative z-10">
+                            <div class="w-20 h-20 md:w-24 md:h-24 mx-auto rounded-2xl bg-gradient-to-br from-indigo-500 to-indigo-700 p-0.5 shadow-lg shadow-indigo-500/30 group-hover:shadow-indigo-500/50 transition-all duration-300 group-hover:scale-110">
+                                <div class="w-full h-full rounded-2xl bg-white/10 backdrop-blur-sm flex items-center justify-center">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 md:h-12 md:w-12 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                                    </svg>
+                                </div>
+                            </div>
+
+                            <!-- Badge -->
+                            <div class="absolute -top-2 -right-2 bg-emerald-500 text-white text-[10px] font-black px-3 py-1 rounded-full shadow-lg shadow-emerald-500/30">
+                                <i class="fa fa-check-circle mr-1"></i> Active
+                            </div>
                         </div>
-                        <span class="text-2xl font-bold text-[#221851]">Visitor Entry</span>
-                        <p class="text-sm mt-2 text-[#555555] font-medium">Register and track visitors</p>
+
+                        <!-- Content -->
+                        <div class="relative z-10 mt-6">
+                            <h3 class="text-xl md:text-2xl font-black text-indigo-900 group-hover:text-indigo-700 transition-colors">
+                                Visitor Entry
+                            </h3>
+                            <p class="text-sm mt-2 text-slate-500 font-medium leading-relaxed">
+                                Register and track visitors
+                            </p>
+
+                            <!-- Stats -->
+                            <div class="mt-4 flex items-center justify-center gap-4 text-xs text-slate-400">
+                                <span class="flex items-center gap-1">
+                                    <span class="w-2 h-2 bg-emerald-400 rounded-full"></span>
+                                    24/7 Access
+                                </span>
+                                <span class="w-px h-4 bg-slate-200"></span>
+                                <span class="flex items-center gap-1">
+                                    <i class="fa fa-users text-indigo-400"></i>
+                                    Instant Check-in
+                                </span>
+                            </div>
+
+                            <!-- Hover Arrow -->
+                            <div class="mt-4 text-indigo-500 opacity-0 group-hover:opacity-100 transform translate-y-2 group-hover:translate-y-0 transition-all duration-300">
+                                <i class="fa fa-arrow-right text-sm font-bold"></i>
+                                <span class="text-xs font-bold ml-1">Enter Portal</span>
+                            </div>
+                        </div>
                     </a>
 
-                    <a href="staff-login.html?v=3.2" class="portal-card flex flex-col items-center justify-center bg-slate-50 border border-slate-100 rounded-3xl p-8 transition-all duration-300 transform active:scale-95 hover:shadow-xl group text-center flex-1 min-w-[280px]" style="text-decoration: none;">
-                        <div class="bg-purple-600 p-5 rounded-full mb-4 group-hover:bg-purple-500 transition-colors shadow-lg">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                            </svg>
+                    <!-- ===== Staff Portal Card ===== -->
+                    <a href="staff-login.html?v=3.2" class="portal-card group relative flex-1 min-w-[280px] bg-white/90 backdrop-blur-sm border border-white/50 rounded-3xl p-8 transition-all duration-500 transform hover:-translate-y-2 hover:shadow-2xl hover:shadow-purple-500/20 active:scale-95 text-center cursor-pointer" style="text-decoration: none; box-shadow: 0 4px 20px rgba(168, 85, 247, 0.08);">
+
+                        <!-- Glow Background -->
+                        <div class="absolute inset-0 bg-gradient-to-br from-purple-50/50 to-transparent rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+
+                        <!-- Icon with Gradient -->
+                        <div class="relative z-10">
+                            <div class="w-20 h-20 md:w-24 md:h-24 mx-auto rounded-2xl bg-gradient-to-br from-purple-500 to-purple-700 p-0.5 shadow-lg shadow-purple-500/30 group-hover:shadow-purple-500/50 transition-all duration-300 group-hover:scale-110">
+                                <div class="w-full h-full rounded-2xl bg-white/10 backdrop-blur-sm flex items-center justify-center">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 md:h-12 md:w-12 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 12a3 3 0 100-6 3 3 0 000 6z" />
+                                    </svg>
+                                </div>
+                            </div>
+
+                            <!-- Badge -->
+                            <div class="absolute -top-2 -right-2 bg-purple-500 text-white text-[10px] font-black px-3 py-1 rounded-full shadow-lg shadow-purple-500/30">
+                                <i class="fa fa-lock mr-1"></i> Secure
+                            </div>
                         </div>
-                        <span class="text-2xl font-bold text-[#221851]">Staff Portal</span>
-                        <p class="text-sm mt-2 text-[#555555] font-medium">Access staff features</p>
+
+                        <!-- Content -->
+                        <div class="relative z-10 mt-6">
+                            <h3 class="text-xl md:text-2xl font-black text-indigo-900 group-hover:text-purple-700 transition-colors">
+                                Staff Portal
+                            </h3>
+                            <p class="text-sm mt-2 text-slate-500 font-medium leading-relaxed">
+                                Access staff features
+                            </p>
+
+                            <!-- Stats -->
+                            <div class="mt-4 flex items-center justify-center gap-4 text-xs text-slate-400">
+                                <span class="flex items-center gap-1">
+                                    <span class="w-2 h-2 bg-purple-400 rounded-full"></span>
+                                    Secure Login
+                                </span>
+                                <span class="w-px h-4 bg-slate-200"></span>
+                                <span class="flex items-center gap-1">
+                                    <i class="fa fa-id-card text-purple-400"></i>
+                                    Staff Access
+                                </span>
+                            </div>
+
+                            <!-- Hover Arrow -->
+                            <div class="mt-4 text-purple-500 opacity-0 group-hover:opacity-100 transform translate-y-2 group-hover:translate-y-0 transition-all duration-300">
+                                <i class="fa fa-arrow-right text-sm font-bold"></i>
+                                <span class="text-xs font-bold ml-1">Enter Portal</span>
+                            </div>
+                        </div>
                     </a>
                 </main>
 
-                <a href="admin.html" class="mt-12 text-sm text-[#221851] font-black hover:opacity-80 underline tracking-widest uppercase" style="text-decoration: none;">Admin Dashboard</a>
+                <!-- ===== BOTTOM SECTION ===== -->
+                <div class="mt-12 text-center">
+                    <!-- Admin Link -->
+                    <a href="admin.html" class="inline-flex items-center gap-3 text-sm text-indigo-600/60 hover:text-indigo-800 font-bold transition-all duration-300 hover:scale-105 group" style="text-decoration: none;">
+                        <span class="w-8 h-px bg-indigo-300 group-hover:w-12 transition-all duration-300"></span>
+                        <span class="tracking-widest uppercase">
+                            <i class="fa fa-crown mr-2 text-yellow-500"></i>
+                            Admin Dashboard
+                        </span>
+                        <span class="w-8 h-px bg-indigo-300 group-hover:w-12 transition-all duration-300"></span>
+                    </a>
+
+                    <!-- Footer -->
+                    <div class="mt-8 flex flex-col items-center gap-2">
+                        <p class="text-xs text-slate-400 font-medium tracking-wider">
+                            <i class="fa fa-copyright mr-1"></i>
+                            2026 Jern Yafoor School Portal
+                            <span class="mx-2 text-slate-300">•</span>
+                            <span class="font-mono text-[10px] text-indigo-300">v3.2</span>
+                        </p>
+
+                        <!-- Decorative Dots -->
+                        <div class="flex items-center gap-2">
+                            <span class="w-1.5 h-1.5 rounded-full bg-indigo-300"></span>
+                            <span class="w-1.5 h-1.5 rounded-full bg-purple-300"></span>
+                            <span class="w-1.5 h-1.5 rounded-full bg-indigo-300"></span>
+                        </div>
+                    </div>
+                </div>
             </div>
         </section>
-
-        <!-- FOOTER -->
-        <footer class="mt-auto py-6 text-center text-[10px] opacity-40 w-full text-indigo-900 font-bold">
-            &copy; 2026 Jarn Yafoor School Portal (v3.2)
-        </footer>
 
     </div>
 
