@@ -281,6 +281,17 @@ window.checkDuplicateBarcode = async (barcode) => {
 
 window.startCameraScanner = async (inputId) => {
     try {
+        // --- RELIABILITY FIX: HARD RESET SCANNER BEFORE START ---
+        if (html5QrCode) {
+            try {
+                if (html5QrCode.isScanning) {
+                    await html5QrCode.stop();
+                }
+                await html5QrCode.clear();
+            } catch (e) { console.warn("Reset Error:", e); }
+            html5QrCode = null;
+        }
+
         currentScanTarget = inputId;
         const modal = document.getElementById('scanner-modal');
         if (modal) {
@@ -288,15 +299,12 @@ window.startCameraScanner = async (inputId) => {
             modal.style.display = 'flex';
         }
 
-        // Delay to ensure DOM is ready and previous instances are cleared
+        // Delay to ensure hardware is released by browser
         setTimeout(async () => {
             try {
-                if (html5QrCode) {
-                    try { await html5QrCode.stop(); } catch(e){}
-                    try { await html5QrCode.clear(); } catch(e){}
-                }
                 html5QrCode = new Html5Qrcode("scanner-container");
-                const config = { fps: 20, qrbox: { width: 250, height: 180 } };
+                const config = { fps: 20, qrbox: { width: 260, height: 180 } };
+
                 await html5QrCode.start(
                     { facingMode: "environment" },
                     config,
@@ -304,25 +312,31 @@ window.startCameraScanner = async (inputId) => {
                         const input = document.getElementById(currentScanTarget);
                         if (input) {
                             input.value = decodedText.trim().toUpperCase();
-                            if (currentScanTarget === 'f1_disposal_barcode_input') window.fetchDisposalAssetDetails(input.value);
-                            else if (currentScanTarget === 'f1_asset_barcode') await window.checkDuplicateBarcode(input.value);
-                            else if (currentScanTarget === 't_asset_barcode') window.fetchTransferAssetDetails(input.value);
+                            if (currentScanTarget === 'f1_disposal_barcode_input') {
+                                window.fetchDisposalAssetDetails(input.value);
+                            } else if (currentScanTarget === 'f1_asset_barcode') {
+                                await window.checkDuplicateBarcode(input.value);
+                            } else if (currentScanTarget === 't_asset_barcode') {
+                                window.fetchTransferAssetDetails(input.value);
+                            }
                         }
                         window.stopCameraScanner();
                     },
-                    () => {}
+                    (err) => {} // Silent scan-loop errors
                 );
             } catch (err) {
-                console.error("Inner Scanner Error:", err);
-                alert("Camera busy or not found. Please try again.");
+                console.error("Scanner Start Fail:", err);
+                alert("Camera Hardware Error. Please refresh and try again.");
                 window.stopCameraScanner();
             }
-        }, 300);
+        }, 400);
+
     } catch (err) {
         console.error("Outer Scanner Error:", err);
         window.stopCameraScanner();
     }
 };
+
 
 
 

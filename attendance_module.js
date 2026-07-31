@@ -346,24 +346,23 @@ window.renderDashboard = async (staff) => {
         const menuCreateTaskBtn = document.getElementById('menu-create-task-btn');
         const securityTracker = document.getElementById('security-raised-tasks-area');
 
-        if (roleNormalized !== 'security') {
-            if (securityArea) {
-                console.log("Removing Security Area for non-security role:", roleNormalized);
-                securityArea.remove();
-            }
+        // STRICT ROLE BASED TASK VISIBILITY (Task 3)
+        const isSecurityOrAdmin = (roleNormalized === 'security' || roleNormalized === 'admin');
+
+        if (!isSecurityOrAdmin) {
+            console.log("Hiding Task Creation for Role:", roleNormalized);
+            if (securityArea) securityArea.classList.add('hidden');
             if (menuCreateTaskBtn) menuCreateTaskBtn.classList.add('hidden');
-            if (securityTracker) securityTracker.remove();
+            if (securityTracker) securityTracker.classList.add('hidden');
         } else {
-            if (securityArea) {
-                securityArea.classList.remove('hidden');
-                securityArea.style.display = 'block';
-            }
+            if (securityArea) securityArea.classList.remove('hidden');
             if (menuCreateTaskBtn) menuCreateTaskBtn.classList.remove('hidden');
             if (securityTracker) {
                 securityTracker.classList.remove('hidden');
                 window.initRaisedTasksTracker('security-my-tasks-container');
             }
         }
+
 
         const authorizedRoles = ['cleanerleader', 'rttechnician', 'security', 'admin'];
         const isAuth = authorizedRoles.includes(roleNormalized);
