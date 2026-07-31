@@ -305,6 +305,10 @@ body {
     background: linear-gradient(135deg, rgba(224, 231, 255, 1), rgba(199, 210, 254, 0.8));
 }
 
+.canvas-wrapper.unlocked .sig-lock-overlay {
+    display: none !important;
+}
+
 @keyframes pulse-emerald {
     0%, 100% { opacity: 1; transform: scale(1); }
     50% { opacity: 0.6; transform: scale(1.2); }
