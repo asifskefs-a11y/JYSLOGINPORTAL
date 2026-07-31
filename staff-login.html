@@ -237,91 +237,229 @@
                 </div>
             </div>
 
-            <!-- ASSET AUDIT SECTION -->
+            <!-- ASSET AUDIT SECTION - COMPLETE UPGRADED (v3.4.9) -->
             <div id="asset-audit-section" class="hidden w-full p-4 transfer-workflow-container">
-                <div class="workflow-header text-gray-800">
-                    <button onclick="window.showStaffView('staff-dash-area')" class="section-back-btn-circle">
+
+                <!-- ===== HEADER ===== -->
+                <div class="workflow-header flex items-center gap-4 text-gray-800">
+                    <button onclick="window.showStaffView('staff-dash-area')" class="section-back-btn-circle hover:bg-indigo-50 transition-colors">
                         <i class="fa-solid fa-arrow-left"></i>
                     </button>
-                    <h2 class="text-2xl font-black text-[#1E1B4B] uppercase tracking-tighter">Asset Register</h2>
+                    <div>
+                        <h2 class="text-2xl font-black text-indigo-900 uppercase tracking-tighter">Asset Register</h2>
+                        <p class="text-[9px] font-bold text-indigo-400 uppercase tracking-[0.2em]">Complete Documentation</p>
+                    </div>
                 </div>
 
                 <div class="transfer-form-card">
                     <form id="master-asset-form" class="space-y-6 pb-24 text-gray-800">
+
                         <!-- SECTION A: ASSET IDENTIFICATION -->
-                        <div class="border rounded-2xl overflow-hidden shadow-sm bg-white">
-                            <button type="button" onclick="toggleAccordion('sec-a')" class="w-full flex justify-between items-center p-4 bg-indigo-50 text-indigo-900 font-bold"><span>SECTION A: ASSET IDENTIFICATION</span><i id="sec-a-icon" class="fa-solid fa-chevron-down"></i></button>
+                        <div class="border border-indigo-100/60 rounded-2xl overflow-hidden shadow-sm bg-white transition-all duration-300">
+                            <button type="button" onclick="toggleAccordion('sec-a')" class="w-full flex justify-between items-center p-4 bg-indigo-50/50 text-indigo-900 font-bold hover:bg-indigo-50 transition-colors">
+                                <span class="flex items-center gap-2">
+                                    <span class="w-6 h-6 bg-indigo-600 text-white rounded-lg flex items-center justify-center text-xs font-black">A</span>
+                                    ASSET IDENTIFICATION
+                                </span>
+                                <i id="sec-a-icon" class="fa-solid fa-chevron-down text-indigo-400"></i>
+                            </button>
+
                             <div id="sec-a-content" class="p-4 space-y-4">
-                                <div class="input-with-action-wrapper"><input type="text" id="f1_asset_barcode" placeholder="1. Asset Barcode" class="transfer-input-field" oninput="window.checkDuplicateBarcode(this.value)"><button type="button" onclick="startCameraScanner('f1_asset_barcode')" class="camera-action-trigger"><i class="fa-solid fa-camera"></i></button></div>
-                                <div class="input-with-action-wrapper"><input type="text" id="f2_serial_no" placeholder="2. Serial No" class="transfer-input-field"><button type="button" onclick="startCameraScanner('f2_serial_no')" class="camera-action-trigger"><i class="fa-solid fa-camera"></i></button></div>
-                                <input type="text" id="f3_model_desc" placeholder="3. Model Description" class="transfer-input-field">
-                                <input type="text" id="f4_asset_cond" placeholder="4. Asset Condition" class="transfer-input-field">
-                                <input type="text" id="f5_price_stat" placeholder="5. Price Status" class="transfer-input-field">
-                                <input type="number" id="f6_unit_cost" placeholder="6. Asset Unit Cost" class="transfer-input-field">
-                                <input type="text" id="f7_asset_desc" placeholder="7. Asset Description" class="transfer-input-field">
-                                <div>
-                                    <label class="block text-[10px] font-bold text-gray-400 mb-1 ml-2 uppercase">8. Date Place In Service</label>
-                                    <input type="date" id="f8_service_date" class="transfer-input-field">
+                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                    <div class="input-with-action-wrapper relative">
+                                        <input type="text" id="f1_asset_barcode" placeholder="Asset Barcode *" class="transfer-input-field" oninput="window.checkDuplicateBarcode(this.value)">
+                                        <button type="button" onclick="startCameraScanner('f1_asset_barcode')" class="camera-action-trigger"><i class="fa-solid fa-camera"></i></button>
+                                    </div>
+                                    <div class="input-with-action-wrapper relative">
+                                        <input type="text" id="f2_serial_no" placeholder="Serial No" class="transfer-input-field">
+                                        <button type="button" onclick="startCameraScanner('f2_serial_no')" class="camera-action-trigger"><i class="fa-solid fa-camera"></i></button>
+                                    </div>
                                 </div>
-                                <input type="text" id="f9_manufacturer" placeholder="9. Manufacturer" class="transfer-input-field">
-                                <div class="mt-2"><label class="block text-[10px] font-bold text-gray-400 mb-1 ml-2 uppercase">40. Asset Photo (Initial Audit)</label><input type="file" id="f40_audit_photo_input" accept="image/*" capture="environment" class="hidden" onchange="handleInitialAuditPhoto(event)"><button type="button" onclick="document.getElementById('f40_audit_photo_input').click()" class="w-full py-4 border-2 border-dashed border-indigo-200 rounded-2xl text-indigo-600 font-bold flex items-center justify-center gap-2"><i class="fa-solid fa-camera text-xl"></i> <span id="audit-photo-btn-text">Capture Asset Photo</span></button><div id="audit-photo-preview" class="hidden mt-2 h-32 rounded-xl overflow-hidden border shadow-sm"><img src="" class="w-full h-full object-cover"></div></div>
+
+                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                    <input type="text" id="f3_model_desc" placeholder="Model Description" class="transfer-input-field">
+                                    <input type="text" id="f4_asset_cond" placeholder="Asset Condition" class="transfer-input-field">
+                                </div>
+
+                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                    <input type="text" id="f5_price_stat" placeholder="Price Status" class="transfer-input-field">
+                                    <input type="number" id="f6_unit_cost" placeholder="Asset Unit Cost (AED)" class="transfer-input-field">
+                                </div>
+
+                                <input type="text" id="f7_asset_desc" placeholder="Asset Description" class="transfer-input-field">
+
+                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                    <div>
+                                        <label class="block text-[9px] font-black text-indigo-400 mb-1 ml-2 uppercase">Date Place In Service</label>
+                                        <input type="date" id="f8_service_date" class="transfer-input-field">
+                                    </div>
+                                    <input type="text" id="f9_manufacturer" placeholder="Manufacturer" class="transfer-input-field">
+                                </div>
+
+                                <div class="mt-2">
+                                    <label class="block text-[9px] font-black text-indigo-400 mb-2 ml-2 uppercase">Asset Photo (Initial Audit)</label>
+                                    <input type="file" id="f40_audit_photo_input" accept="image/*" capture="environment" class="hidden" onchange="handleInitialAuditPhoto(event)">
+                                    <button type="button" onclick="document.getElementById('f40_audit_photo_input').click()" class="w-full py-5 border-2 border-dashed border-indigo-200 rounded-2xl text-indigo-600 font-bold flex items-center justify-center gap-3 hover:bg-indigo-50 transition-all">
+                                        <i class="fa-solid fa-camera text-xl"></i>
+                                        <span id="audit-photo-btn-text">Capture Asset Photo</span>
+                                    </button>
+                                    <div id="audit-photo-preview" class="hidden mt-3 h-40 rounded-2xl overflow-hidden border-2 border-indigo-100 shadow-sm"><img src="" class="w-full h-full object-cover"></div>
+                                </div>
                             </div>
                         </div>
 
                         <!-- SECTION B: CATEGORIZATION -->
-                        <div class="border rounded-2xl overflow-hidden shadow-sm bg-white text-gray-800">
-                            <button type="button" onclick="toggleAccordion('sec-b')" class="w-full flex justify-between items-center p-4 bg-indigo-50 text-indigo-900 font-bold"><span>SECTION B: CATEGORIZATION</span><i id="sec-b-icon" class="fa-solid fa-chevron-right"></i></button>
+                        <div class="border border-indigo-100/60 rounded-2xl overflow-hidden shadow-sm bg-white">
+                            <button type="button" onclick="toggleAccordion('sec-b')" class="w-full flex justify-between items-center p-4 bg-indigo-50/50 text-indigo-900 font-bold">
+                                <span class="flex items-center gap-2">
+                                    <span class="w-6 h-6 bg-indigo-600 text-white rounded-lg flex items-center justify-center text-xs font-black">B</span>
+                                    CATEGORIZATION
+                                </span>
+                                <i id="sec-b-icon" class="fa-solid fa-chevron-right text-indigo-400"></i>
+                            </button>
+
                             <div id="sec-b-content" class="p-4 space-y-4 hidden">
-                                <select id="f10_major_cat" class="transfer-input-field w-full"><option value="">10. Major Category</option><option value="Furniture & Fixtures">Furniture & Fixtures</option><option value="Office Equipment">Office Equipment</option><option value="Teaching Equipment">Teaching Equipment</option><option value="Computer Hardware & Peripherals">Computer Hardware & Peripherals</option><option value="Machinery & Equipment">Machinery & Equipment</option></select>
-                                <select id="f11_sub_major" class="transfer-input-field w-full"><option value="">11. Sub Major Category</option><option value="Office & School Furnitures">Office & School Furnitures</option><option value="Telecommunication Equipment">Telecommunication Equipment</option><option value="Boards & Tools">Boards & Tools</option><option value="Computer Equipment">Computer Equipment</option><option value="Multimedia Equipment">Multimedia Equipment</option></select>
-                                <input type="text" id="f12_sub_minor" placeholder="12. Sub Minor Category" class="transfer-input-field w-full">
-                                <input type="text" id="f13_dof_major" placeholder="13. DOF Major" class="transfer-input-field w-full">
-                                <input type="text" id="f14_dof_minor" placeholder="14. DOF Minor" class="transfer-input-field w-full">
-                                <select id="f15_category" class="transfer-input-field w-full"><option value="">15. Category</option><option value="NON IT">NON IT</option><option value="IT">IT</option></select>
-                                <select id="f16_class" class="transfer-input-field w-full"><option value="">16. Classification [Asset Name]</option><option value="CHAIR">CHAIR</option><option value="TABLE">TABLE</option><option value="DESK">DESK</option><option value="DISPLAY BOARDS / STANDS">DISPLAY BOARDS / STANDS</option><option value="CENTER TABLE">CENTER TABLE</option><option value="SMART BOARD">SMART BOARD</option><option value="PROJECTORS">PROJECTORS</option><option value="DRAWER">DRAWER</option><option value="SHELVES">SHELVES</option></select>
+                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                    <select id="f10_major_cat" class="transfer-input-field">
+                                        <option value="">Major Category</option>
+                                        <option value="Furniture & Fixtures">Furniture & Fixtures</option>
+                                        <option value="Office Equipment">Office Equipment</option>
+                                        <option value="Teaching Equipment">Teaching Equipment</option>
+                                        <option value="Computer Hardware & Peripherals">Computer Hardware & Peripherals</option>
+                                        <option value="Machinery & Equipment">Machinery & Equipment</option>
+                                    </select>
+                                    <select id="f11_sub_major" class="transfer-input-field">
+                                        <option value="">Sub Major Category</option>
+                                        <option value="Office & School Furnitures">Office & School Furnitures</option>
+                                        <option value="Telecommunication Equipment">Telecommunication Equipment</option>
+                                        <option value="Boards & Tools">Boards & Tools</option>
+                                        <option value="Computer Equipment">Computer Equipment</option>
+                                        <option value="Multimedia Equipment">Multimedia Equipment</option>
+                                    </select>
+                                </div>
+                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                    <input type="text" id="f12_sub_minor" placeholder="Sub Minor Category" class="transfer-input-field">
+                                    <input type="text" id="f13_dof_major" placeholder="DOF Major" class="transfer-input-field">
+                                </div>
+                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                    <input type="text" id="f14_dof_minor" placeholder="DOF Minor" class="transfer-input-field">
+                                    <select id="f15_category" class="transfer-input-field">
+                                        <option value="">Category</option>
+                                        <option value="NON IT">NON IT</option>
+                                        <option value="IT">IT</option>
+                                    </select>
+                                </div>
+                                <select id="f16_class" class="transfer-input-field">
+                                    <option value="">Classification [Asset Name]</option>
+                                    <option value="CHAIR">CHAIR</option>
+                                    <option value="TABLE">TABLE</option>
+                                    <option value="DESK">DESK</option>
+                                    <option value="DISPLAY BOARDS / STANDS">DISPLAY BOARDS / STANDS</option>
+                                    <option value="CENTER TABLE">CENTER TABLE</option>
+                                    <option value="SMART BOARD">SMART BOARD</option>
+                                    <option value="PROJECTORS">PROJECTORS</option>
+                                    <option value="DRAWER">DRAWER</option>
+                                    <option value="SHELVES">SHELVES</option>
+                                </select>
                             </div>
                         </div>
 
-                        <!-- SECTION C: LOCATION -->
-                        <div class="border rounded-2xl overflow-hidden shadow-sm bg-white text-gray-800">
-                            <button type="button" onclick="toggleAccordion('sec-c')" class="w-full flex justify-between items-center p-4 bg-indigo-50 text-indigo-900 font-bold"><span>SECTION C: LOCATION & ROOM DETAILS</span><i id="sec-c-icon" class="fa-solid fa-chevron-right"></i></button>
+                        <!-- SECTION C: LOCATION & ROOM DETAILS -->
+                        <div class="border border-indigo-100/60 rounded-2xl overflow-hidden shadow-sm bg-white">
+                            <button type="button" onclick="toggleAccordion('sec-c')" class="w-full flex justify-between items-center p-4 bg-indigo-50/50 text-indigo-900 font-bold">
+                                <span class="flex items-center gap-2">
+                                    <span class="w-6 h-6 bg-indigo-600 text-white rounded-lg flex items-center justify-center text-xs font-black">C</span>
+                                    LOCATION & ROOM DETAILS
+                                </span>
+                                <i id="sec-c-icon" class="fa-solid fa-chevron-right text-indigo-400"></i>
+                            </button>
+
                             <div id="sec-c-content" class="p-4 space-y-4 hidden">
-                                <select id="f17_location" class="transfer-input-field w-full"><option value="Abu Dhabi">17. Location Name: Abu Dhabi</option></select>
-                                <select id="f18_esis" class="transfer-input-field w-full"><option value="6024">18. School ESIS ID: 6024</option></select>
-                                <select id="f19_school_building" class="transfer-input-field w-full"><option value="">19. School Building Name</option><option value="Jern Yafoor School Building 1">Jern Yafoor School Building 1</option><option value="Jern Yafoor School Building 2">Jern Yafoor School Building 2</option></select>
-                                <input type="text" id="f20_room_name" placeholder="20. Room Name" class="transfer-input-field w-full">
-                                <div class="input-with-action-wrapper"><input type="text" id="f21_room_no" placeholder="21. Room No" class="transfer-input-field"><button type="button" onclick="startCameraScanner('f21_room_no')" class="camera-action-trigger"><i class="fa-solid fa-camera"></i></button></div>
-                                <div class="input-with-action-wrapper"><input type="text" id="f22_room_barcode" placeholder="22. Room Barcode" class="transfer-input-field"><button type="button" onclick="startCameraScanner('f22_room_barcode')" class="camera-action-trigger"><i class="fa-solid fa-camera"></i></button></div>
-                                <select id="f23_floor_no" class="transfer-input-field w-full"><option value="">23. Floor No</option><option value="1">1</option><option value="2">2</option></select>
-                                <input type="text" id="f24_floor_desc" placeholder="24. Floor Description" class="transfer-input-field w-full">
+                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                    <select id="f17_location" class="transfer-input-field">
+                                        <option value="Abu Dhabi">Location Name: Abu Dhabi</option>
+                                    </select>
+                                    <select id="f18_esis" class="transfer-input-field">
+                                        <option value="6024">School ESIS ID: 6024</option>
+                                    </select>
+                                </div>
+                                <select id="f19_school_building" class="transfer-input-field">
+                                    <option value="">School Building Name</option>
+                                    <option value="Jern Yafoor School Building 1">Jern Yafoor School Building 1</option>
+                                    <option value="Jern Yafoor School Building 2">Jern Yafoor School Building 2</option>
+                                </select>
+                                <input type="text" id="f20_room_name" placeholder="Room Name" class="transfer-input-field">
+                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                    <div class="input-with-action-wrapper relative">
+                                        <input type="text" id="f21_room_no" placeholder="Room No" class="transfer-input-field">
+                                        <button type="button" onclick="startCameraScanner('f21_room_no')" class="camera-action-trigger"><i class="fa-solid fa-camera"></i></button>
+                                    </div>
+                                    <div class="input-with-action-wrapper relative">
+                                        <input type="text" id="f22_room_barcode" placeholder="Room Barcode" class="transfer-input-field">
+                                        <button type="button" onclick="startCameraScanner('f22_room_barcode')" class="camera-action-trigger"><i class="fa-solid fa-camera"></i></button>
+                                    </div>
+                                </div>
+                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                    <select id="f23_floor_no" class="transfer-input-field">
+                                        <option value="">Floor No</option>
+                                        <option value="1">1</option>
+                                        <option value="2">2</option>
+                                    </select>
+                                    <input type="text" id="f24_floor_desc" placeholder="Floor Description" class="transfer-input-field">
+                                </div>
                             </div>
                         </div>
 
                         <!-- SECTION D: AUDIT & STATUS -->
-                        <div class="border rounded-2xl overflow-hidden shadow-sm bg-white text-gray-800">
-                            <button type="button" onclick="toggleAccordion('sec-d')" class="w-full flex justify-between items-center p-4 bg-indigo-50 text-indigo-900 font-bold"><span>SECTION D: AUDIT & STATUS</span><i id="sec-d-icon" class="fa-solid fa-chevron-right"></i></button>
+                        <div class="border border-indigo-100/60 rounded-2xl overflow-hidden shadow-sm bg-white">
+                            <button type="button" onclick="toggleAccordion('sec-d')" class="w-full flex justify-between items-center p-4 bg-indigo-50/50 text-indigo-900 font-bold">
+                                <span class="flex items-center gap-2">
+                                    <span class="w-6 h-6 bg-indigo-600 text-white rounded-lg flex items-center justify-center text-xs font-black">D</span>
+                                    AUDIT & STATUS
+                                </span>
+                                <i id="sec-d-icon" class="fa-solid fa-chevron-right text-indigo-400"></i>
+                            </button>
+
                             <div id="sec-d-content" class="p-4 space-y-4 hidden">
-                                <select id="f25_barcode_stat" class="transfer-input-field w-full"><option value="Read">25. Barcode Status: Read</option><option value="Counting">Counting</option></select>
-                                <select id="f26_asset_stat" class="transfer-input-field w-full"><option value="Existing">26. Asset Status: Existing</option><option value="Not Existing">Not Existing</option></select>
-                                <input type="text" id="f27_old_school" placeholder="27. Old School Name" class="transfer-input-field w-full">
-                                <input type="text" id="f28_trans_no" placeholder="28. Transaction No" class="transfer-input-field w-full">
-                                <input type="text" id="f29_useful_life" placeholder="29. Useful Life" class="transfer-input-field w-full">
-                                <input type="text" id="f30_vendor" placeholder="30. Vendor Name" class="transfer-input-field w-full">
-                                <input type="text" id="f31_old_barcode" placeholder="31. Old Barcode" class="transfer-input-field w-full">
-                                <input type="text" id="f32_far_barcode" placeholder="32. FAR Barcode" class="transfer-input-field w-full">
-                                <input type="text" id="f33_invoice_no" placeholder="33. Invoice No" class="transfer-input-field w-full">
-                                <input type="text" id="f34_dn_no" placeholder="34. DN No" class="transfer-input-field w-full">
-                                <input type="text" id="f35_remarks" placeholder="35. Remarks" class="transfer-input-field w-full">
-                                <div class="space-y-1">
-                                    <label class="block text-[8px] font-black text-slate-400 uppercase ml-2">36. Physical Reg No (Auto)</label>
-                                    <input type="text" id="f36_phys_reg_no" readonly class="transfer-input-field w-full bg-slate-50 font-bold text-indigo-600">
+                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                    <select id="f25_barcode_stat" class="transfer-input-field">
+                                        <option value="Read">Barcode Status: Read</option>
+                                        <option value="Counting">Counting</option>
+                                    </select>
+                                    <select id="f26_asset_stat" class="transfer-input-field">
+                                        <option value="Existing">Asset Status: Existing</option>
+                                        <option value="Not Existing">Not Existing</option>
+                                    </select>
                                 </div>
-                                <input type="text" id="f37_fixed_reg_no" placeholder="37. Fixed Asset Reg No" class="transfer-input-field w-full">
-                                <input type="text" id="f38_mapping" placeholder="38. Mapping Criteria" class="transfer-input-field w-full">
+                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                    <input type="text" id="f27_old_school" placeholder="Old School Name" class="transfer-input-field">
+                                    <input type="text" id="f28_trans_no" placeholder="Transaction No" class="transfer-input-field">
+                                </div>
+                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                    <input type="text" id="f29_useful_life" placeholder="Useful Life" class="transfer-input-field">
+                                    <input type="text" id="f30_vendor" placeholder="Vendor Name" class="transfer-input-field">
+                                </div>
+                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                    <input type="text" id="f31_old_barcode" placeholder="Old Barcode" class="transfer-input-field">
+                                    <input type="text" id="f32_far_barcode" placeholder="FAR Barcode" class="transfer-input-field">
+                                </div>
+                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                    <input type="text" id="f33_invoice_no" placeholder="Invoice No" class="transfer-input-field">
+                                    <input type="text" id="f34_dn_no" placeholder="DN No" class="transfer-input-field">
+                                </div>
+                                <input type="text" id="f35_remarks" placeholder="Remarks" class="transfer-input-field">
+                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                    <div class="space-y-1">
+                                        <label class="block text-[8px] font-black text-slate-400 uppercase ml-2">Physical Reg No (Auto)</label>
+                                        <input type="text" id="f36_phys_reg_no" readonly class="transfer-input-field bg-slate-50 font-bold text-indigo-600">
+                                    </div>
+                                    <input type="text" id="f37_fixed_reg_no" placeholder="Fixed Asset Reg No" class="transfer-input-field">
+                                </div>
+                                <input type="text" id="f38_mapping" placeholder="Mapping Criteria" class="transfer-input-field">
                             </div>
                         </div>
 
-                        <button type="submit" class="btn-submit-transfer">SAVE ASSET REGISTER</button>
+                        <button type="submit" class="btn-submit-transfer !py-5 !rounded-2xl !bg-gradient-to-r from-indigo-600 to-indigo-700 shadow-xl shadow-indigo-500/20 active:scale-95 transition-all">SAVE ASSET REGISTER</button>
                     </form>
                 </div>
             </div>
