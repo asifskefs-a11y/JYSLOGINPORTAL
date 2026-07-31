@@ -217,6 +217,23 @@ window.renderDashboard = async (staff) => {
         if (userNameDisplay) userNameDisplay.innerText = staff.name || "Staff Member";
         if (userBranchDisplay) userBranchDisplay.innerText = staff.branch || "School 1";
 
+        // --- UPDATE SIDEBAR PROFILE (Issue 3) ---
+        const menuUserName = document.getElementById('menuUserName');
+        const menuUserRole = document.getElementById('menuUserRole');
+        const menuAvatar = document.getElementById('menuAvatar');
+
+        if (menuUserName) menuUserName.innerText = staff.name || "User";
+        if (menuUserRole) menuUserRole.innerText = staff.role || "Navigation Menu";
+        if (menuAvatar) {
+            if (staff.profilePicUrl) {
+                const directUrl = window.formatDriveImageUrl(staff.profilePicUrl);
+                menuAvatar.innerHTML = `<img src="${directUrl}" class="w-full h-full object-cover" onerror="this.style.display='none'">`;
+            } else {
+                menuAvatar.innerText = initials;
+            }
+        }
+
+
         const cinBtn = document.getElementById('s-checkin-btn');
         const coutBtn = document.getElementById('s-checkout-btn');
 

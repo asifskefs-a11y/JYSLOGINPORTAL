@@ -1,4 +1,4 @@
-﻿/* --- STAFF PORTAL & TRANSFER UI (PREMIUM v3.4.6) --- */
+﻿/* --- STAFF PORTAL & TRANSFER UI (PREMIUM v3.4.7) --- */
 
 :root {
     --ios-system-font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
@@ -17,7 +17,7 @@ body {
     padding: 0 !important;
 }
 
-/* FULL SCREEN WORKFLOW CONTAINERS (Fixed Issue 6 & 7) */
+/* FULL SCREEN WORKFLOW CONTAINERS */
 .transfer-workflow-container {
     background-color: var(--bg-light) !important;
     position: fixed !important;
@@ -101,7 +101,7 @@ body {
 .stat-tab-card h3 { font-size: 18px !important; font-weight: 900 !important; margin: 0 !important; color: var(--dark-navy) !important; }
 .stat-tab-card p { font-size: 8px !important; font-weight: 800 !important; color: var(--slate-text) !important; text-transform: uppercase; }
 
-/* PREMIUM TASK CARDS (Issue 4) */
+/* PREMIUM TASK CARDS */
 .task-card {
     background: white !important;
     border-radius: 24px !important;
@@ -212,6 +212,73 @@ body {
 .tabs-wrapper { background: #e2e8f0 !important; border-radius: 14px !important; padding: 4px !important; display: flex !important; }
 .tabs-wrapper button { border-radius: 10px !important; padding: 8px 20px !important; font-weight: 900 !important; font-size: 10px !important; border: none !important; background: transparent; color: #64748b; }
 .tabs-wrapper button.tab-active { background: white !important; color: var(--primary-indigo) !important; box-shadow: 0 2px 8px rgba(0,0,0,0.1) !important; }
+
+/* SIDE MENU */
+#side-menu-content {
+    background: white !important;
+}
+
+.menu-header-profile {
+    background: linear-gradient(135deg, #4F46E5, #6366F1) !important;
+    padding: 40px 24px 30px !important;
+    margin: -24px -24px 30px -24px !important;
+    color: white !important;
+}
+
+.menu-item-btn {
+    width: 100% !important;
+    padding: 14px 16px !important;
+    border-radius: 16px !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 12px !important;
+    font-weight: 800 !important;
+    font-size: 12px !important;
+    text-transform: uppercase !important;
+    border: 1px solid #f1f5f9 !important;
+    background: white !important;
+    color: #1e1b4b !important;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.02) !important;
+    margin-bottom: 8px !important;
+    transition: all 0.2s ease !important;
+}
+
+.menu-item-btn:active { transform: scale(0.97); background: #f8fafc !important; }
+
+.menu-item-btn i {
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 10px;
+    font-size: 14px;
+}
+
+/* VISITOR OPTIMIZATION (Issue 1) */
+.visitor-glass-container {
+    background: rgba(255, 255, 255, 0.7) !important;
+    backdrop-filter: blur(10px) !important;
+    border-radius: 32px !important;
+    border: 1px solid rgba(255, 255, 255, 0.4) !important;
+    padding: 24px !important;
+}
+
+.visitor-input {
+    height: 58px !important;
+    font-size: 16px !important;
+    padding: 0 20px !important;
+    border-radius: 18px !important;
+}
+
+.visitor-label {
+    font-size: 11px !important;
+    font-weight: 800 !important;
+    text-transform: uppercase !important;
+    color: var(--slate-text) !important;
+    margin-bottom: 6px !important;
+    margin-left: 4px !important;
+}
 
 /* UTILS */
 .no-scrollbar::-webkit-scrollbar { display: none; }

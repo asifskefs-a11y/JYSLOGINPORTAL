@@ -7,8 +7,8 @@
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="style.css?v=3.4.5">
-    <link rel="stylesheet" href="staff-ui.css?v=3.4.5">
+    <link rel="stylesheet" href="style.css?v=3.4.7">
+    <link rel="stylesheet" href="staff-ui.css?v=3.4.7">
 </head>
 <body class="bg-[#F8F9FD] text-gray-800">
     <div class="app-container">
@@ -21,78 +21,87 @@
                 <h2 class="text-2xl font-black text-indigo-900 uppercase tracking-tighter">Visitor Entry</h2>
             </nav>
 
-            <div class="flex-1 p-4">
-                <div class="w-full bg-white rounded-3xl shadow-xl overflow-hidden p-8 border border-slate-100">
+            <div class="flex-1 p-5 flex flex-col items-center justify-center">
+                <div class="w-full max-w-lg visitor-glass-container shadow-2xl overflow-hidden">
                     <div id="v-signin-area">
-                        <div class="mb-8 border-b pb-4">
-                             <p class="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">Entry Portal</p>
-                             <h3 class="text-xl font-black text-indigo-600 uppercase">New Visitor Log</h3>
+                        <div class="mb-8 border-b border-white/20 pb-4">
+                             <p class="text-[11px] font-black text-indigo-500 uppercase tracking-[0.2em] mb-1">New Log</p>
+                             <h3 class="text-2xl font-black text-indigo-900 uppercase">Entry Portal</h3>
                         </div>
 
-                        <form id="visitor-form" class="space-y-5">
+                        <form id="visitor-form" class="space-y-6">
                             <div class="grid grid-cols-2 gap-4">
-                                <div>
-                                    <label class="transfer-step-label">Visitor ID</label>
-                                    <input type="text" id="v-id" readonly class="transfer-input-field bg-slate-50 font-bold text-indigo-600">
+                                <div class="space-y-1">
+                                    <label class="visitor-label">Visitor ID</label>
+                                    <input type="text" id="v-id" readonly class="transfer-input-field visitor-input bg-indigo-50/50 font-bold text-indigo-600 border-none shadow-inner">
                                 </div>
-                                <div>
-                                    <label class="transfer-step-label">Current Date</label>
-                                    <input type="text" id="v-date" readonly class="transfer-input-field bg-slate-50">
-                                </div>
-                            </div>
-
-                            <div>
-                                <label class="transfer-step-label">Visitor Details</label>
-                                <div class="space-y-4">
-                                    <input type="text" id="v-name" placeholder="Full Name" required class="transfer-input-field">
-                                    <input type="tel" id="v-mobile" placeholder="Mobile Number" required class="transfer-input-field">
-                                    <input type="text" id="v-company" placeholder="Company Name" required class="transfer-input-field">
-                                    <textarea id="v-purpose" placeholder="Purpose of Visit" required class="transfer-input-field h-24"></textarea>
+                                <div class="space-y-1">
+                                    <label class="visitor-label">Date</label>
+                                    <input type="text" id="v-date" readonly class="transfer-input-field visitor-input bg-indigo-50/50 border-none shadow-inner">
                                 </div>
                             </div>
 
-                            <div>
-                                <div class="flex justify-between items-center mb-2">
-                                    <label class="transfer-step-label">Signature Pad</label>
-                                    <button type="button" onclick="clearVisitorSig(); document.getElementById('visitor-sig-wrapper').classList.remove('unlocked')" class="text-[10px] text-red-500 font-bold uppercase underline">Clear & Lock</button>
+                            <div class="space-y-4">
+                                <div class="space-y-1">
+                                    <label class="visitor-label">Visitor Name</label>
+                                    <input type="text" id="v-name" placeholder="Full Name" required class="transfer-input-field visitor-input border-slate-200">
                                 </div>
-                                <div class="canvas-wrapper relative" id="visitor-sig-wrapper">
+                                <div class="space-y-1">
+                                    <label class="visitor-label">Contact No.</label>
+                                    <input type="tel" id="v-mobile" placeholder="Mobile Number" required class="transfer-input-field visitor-input border-slate-200">
+                                </div>
+                                <div class="space-y-1">
+                                    <label class="visitor-label">Organization</label>
+                                    <input type="text" id="v-company" placeholder="Company Name" required class="transfer-input-field visitor-input border-slate-200">
+                                </div>
+                                <div class="space-y-1">
+                                    <label class="visitor-label">Reason of Visit</label>
+                                    <textarea id="v-purpose" placeholder="Purpose of Visit" required class="transfer-input-field border-slate-200 h-28 p-5 rounded-2xl"></textarea>
+                                </div>
+                            </div>
+
+                            <div class="pt-2">
+                                <div class="flex justify-between items-center mb-3 px-1">
+                                    <label class="visitor-label !m-0">Signature required</label>
+                                    <button type="button" onclick="clearVisitorSig(); document.getElementById('visitor-sig-wrapper').classList.remove('unlocked')" class="text-[10px] text-red-500 font-bold uppercase underline">Reset</button>
+                                </div>
+                                <div class="canvas-wrapper relative !h-44 shadow-sm" id="visitor-sig-wrapper">
                                     <div class="sig-lock-overlay" onclick="window.unlockVisitorCanvas(this)">
-                                        <i class="fa-solid fa-lock"></i>
-                                        <span>Tap to sign</span>
+                                        <i class="fa-solid fa-lock text-3xl"></i>
+                                        <span class="mt-2">Tap here to sign</span>
                                     </div>
-                                    <canvas id="v-sig-pad" class="w-full h-32"></canvas>
+                                    <canvas id="v-sig-pad" class="w-full h-full bg-white"></canvas>
                                 </div>
                             </div>
 
-                            <button type="submit" class="btn-submit-transfer">Confirm Sign-In</button>
+                            <button type="submit" class="btn-submit-transfer !py-6 !text-lg !rounded-[22px] !mt-4">Confirm Entry</button>
                         </form>
                     </div>
 
-                    <div id="v-signout-area" class="hidden text-center py-10">
-                        <div class="w-24 h-24 bg-orange-100 text-orange-600 rounded-full mx-auto flex items-center justify-center mb-6 shadow-inner">
-                            <i class="fa-solid fa-right-from-bracket text-3xl"></i>
+                    <div id="v-signout-area" class="hidden text-center py-12 px-4">
+                        <div class="w-28 h-24 bg-orange-100 text-orange-600 rounded-full mx-auto flex items-center justify-center mb-8 shadow-inner">
+                            <i class="fa-solid fa-right-from-bracket text-4xl"></i>
                         </div>
-                        <h3 class="text-2xl font-black text-indigo-900 mb-2">Active Session</h3>
-                        <p class="text-slate-500 mb-8 font-medium">Welcome, <span id="v-active-name" class="text-indigo-600 font-bold"></span></p>
+                        <h3 class="text-3xl font-black text-indigo-900 mb-2">Active Entry</h3>
+                        <p class="text-slate-500 mb-10 font-medium text-lg">Welcome, <span id="v-active-name" class="text-indigo-600 font-bold"></span></p>
 
-                        <div class="bg-indigo-50/50 rounded-2xl p-6 mb-8 text-left border border-indigo-100">
-                            <div class="flex justify-between mb-2">
-                                <span class="text-[10px] font-black text-indigo-400 uppercase">Log ID:</span>
-                                <span id="v-active-id" class="text-xs font-bold text-indigo-900"></span>
+                        <div class="bg-indigo-50/50 rounded-3xl p-8 mb-10 text-left border border-indigo-100 shadow-sm">
+                            <div class="flex justify-between items-center mb-4 border-b border-indigo-100 pb-4">
+                                <span class="text-[11px] font-black text-indigo-400 uppercase tracking-widest">Tracking Log:</span>
+                                <span id="v-active-id" class="text-sm font-bold text-indigo-900 font-mono"></span>
                             </div>
-                            <div class="flex justify-between">
-                                <span class="text-[10px] font-black text-indigo-400 uppercase">Time In:</span>
-                                <span id="v-active-timein" class="text-xs font-bold text-indigo-900"></span>
+                            <div class="flex justify-between items-center">
+                                <span class="text-[11px] font-black text-indigo-400 uppercase tracking-widest">Arrival:</span>
+                                <span id="v-active-timein" class="text-sm font-bold text-indigo-900"></span>
                             </div>
                         </div>
-                        <button id="v-signout-btn" class="btn-submit-transfer !bg-orange-500 !shadow-orange-200">Sign Out Now</button>
+                        <button id="v-signout-btn" class="btn-submit-transfer !bg-orange-500 !shadow-orange-200 !py-6 !text-lg">Register Departure</button>
                     </div>
                 </div>
             </div>
 
-            <footer class="mt-auto py-10 text-center text-[10px] opacity-40 font-bold text-indigo-900 uppercase tracking-widest">
-                &copy; 2026 Jarn Yafoor School Visitor System
+            <footer class="mt-auto py-10 text-center text-[10px] opacity-40 font-bold text-indigo-900 uppercase tracking-[0.3em]">
+                &copy; 2026 JYS Visitor Control System
             </footer>
         </section>
     </div>

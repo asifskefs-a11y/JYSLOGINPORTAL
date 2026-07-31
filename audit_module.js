@@ -281,12 +281,10 @@ window.checkDuplicateBarcode = async (barcode) => {
 
 window.startCameraScanner = async (inputId) => {
     try {
-        // --- RELIABILITY FIX: HARD RESET SCANNER BEFORE START ---
+        // --- RELIABILITY FIX: AGGRESSIVE HARD RESET ---
         if (html5QrCode) {
             try {
-                if (html5QrCode.isScanning) {
-                    await html5QrCode.stop();
-                }
+                if (html5QrCode.isScanning) await html5QrCode.stop();
                 await html5QrCode.clear();
             } catch (e) { console.warn("Reset Error:", e); }
             html5QrCode = null;
@@ -303,7 +301,7 @@ window.startCameraScanner = async (inputId) => {
         setTimeout(async () => {
             try {
                 html5QrCode = new Html5Qrcode("scanner-container");
-                const config = { fps: 20, qrbox: { width: 260, height: 180 } };
+                const config = { fps: 24, qrbox: { width: 260, height: 180 } };
 
                 await html5QrCode.start(
                     { facingMode: "environment" },
@@ -323,19 +321,23 @@ window.startCameraScanner = async (inputId) => {
                         window.stopCameraScanner();
                     },
                     (err) => {} // Silent scan-loop errors
-                );
+                ).catch(err => {
+                    console.error("Scanner Start Fail:", err);
+                    alert("Camera Busy or Denied. Please refresh and try again.");
+                    window.stopCameraScanner();
+                });
             } catch (err) {
-                console.error("Scanner Start Fail:", err);
-                alert("Camera Hardware Error. Please refresh and try again.");
+                console.error("Scanner Hardware Error:", err);
                 window.stopCameraScanner();
             }
-        }, 400);
+        }, 500);
 
     } catch (err) {
         console.error("Outer Scanner Error:", err);
         window.stopCameraScanner();
     }
 };
+
 
 
 

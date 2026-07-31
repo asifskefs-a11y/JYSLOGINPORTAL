@@ -2,12 +2,12 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
     <title>Staff Portal - JYS Portal</title>
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/html5-qrcode"></script>
@@ -16,22 +16,26 @@
     <meta name="theme-color" content="#4f46e5">
     <link rel="stylesheet" href="style.css?v=3.2">
     <!-- STAFF UI MODULAR CSS -->
-    <link rel="stylesheet" href="staff-ui.css?v=3.4.4">
+    <link rel="stylesheet" href="staff-ui.css?v=3.4.7">
 </head>
 <body class="text-white">
 
-    <!-- SIDE MENU OVERLAY (v3.4.4) -->
+    <!-- SIDE MENU OVERLAY (v3.4.7) -->
     <div id="side-menu" class="fixed inset-0 bg-black/60 z-[200000] hidden backdrop-blur-sm transition-opacity duration-300" onclick="if(event.target === this) window.toggleSideMenu()">
-        <div id="side-menu-content" class="absolute left-0 top-0 h-full w-[85%] max-w-[320px] bg-[#F8F9FD] shadow-2xl p-6 transform -translate-x-full transition-transform duration-300 ease-in-out flex flex-col">
-            <div class="flex justify-between items-center mb-10 text-gray-800">
-                 <div class="flex flex-col">
-                     <h2 class="text-2xl font-black text-indigo-900 leading-none">JYS</h2>
-                     <p class="text-[10px] font-bold text-indigo-400 uppercase tracking-widest mt-1">Navigation Menu</p>
+        <div id="side-menu-content" class="absolute left-0 top-0 h-full w-[85%] max-w-[320px] bg-white shadow-2xl p-6 transform -translate-x-full transition-transform duration-300 ease-in-out flex flex-col">
+
+            <div class="menu-header-profile">
+                 <div class="flex items-center gap-4">
+                     <div class="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center font-black text-2xl border-2 border-white/40 overflow-hidden relative" id="menuAvatar">?</div>
+                     <div class="flex flex-col">
+                         <h2 class="text-xl font-black leading-none text-white" id="menuUserName">Staff User</h2>
+                         <p class="text-[10px] font-bold text-white/70 uppercase tracking-widest mt-1" id="menuUserRole">Navigation Menu</p>
+                     </div>
                  </div>
-                 <button onclick="window.toggleSideMenu()" class="w-10 h-10 bg-white shadow-md rounded-full flex items-center justify-center text-slate-400"><i class="fa-solid fa-xmark"></i></button>
+                 <button onclick="window.toggleSideMenu()" class="absolute top-6 right-6 w-8 h-8 bg-black/20 rounded-full flex items-center justify-center text-white/80"><i class="fa-solid fa-xmark"></i></button>
             </div>
 
-            <div class="flex-1 overflow-y-auto no-scrollbar space-y-8 pb-10 text-gray-800">
+            <div class="flex-1 overflow-y-auto no-scrollbar space-y-8 text-gray-800">
                 <!-- ASSET MANAGEMENT (MENU VERSION) -->
                 <div id="menu-asset-section" class="hidden">
                      <h3 class="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-4 ml-2">Asset Management</h3>
@@ -85,7 +89,7 @@
         <!-- STAFF VIEW -->
         <section id="view-staff" class="view-section active p-4">
 
-            <div id="staff-auth-area" class="w-full bg-white text-gray-800 rounded-2xl shadow-2xl overflow-hidden mt-8">
+            <div id="staff-auth-area" class="w-full bg-white text-gray-800 rounded-3xl shadow-2xl overflow-hidden mt-8">
                 <div class="flex border-b bg-slate-50/50">
                     <div class="flex-1 py-4 font-black text-indigo-600 text-center border-b-2 border-indigo-600 uppercase tracking-widest text-sm">Staff Secure Login</div>
                 </div>
@@ -169,7 +173,7 @@
             </div>
 
             <!-- TASKS MANAGEMENT SECTION -->
-            <div id="tasks-management-section" class="view-section hidden transfer-workflow-container">
+            <div id="tasks-management-section" class="hidden w-full p-4 transfer-workflow-container">
                 <div class="workflow-header">
                     <button onclick="window.showStaffView('staff-dash-area')" class="section-back-btn-circle">
                         <i class="fa-solid fa-arrow-left"></i>
@@ -178,92 +182,37 @@
                 </div>
 
                 <div class="transfer-form-card">
-                    <!-- TASK TABS -->
-                    <div class="flex items-center justify-between mb-8 px-2">
-                        <div class="flex flex-col">
-                            <h3 class="text-lg font-black text-indigo-900 leading-tight">My Assignments</h3>
-                            <p class="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">Manage tasks in real-time</p>
+                    <div class="tasks-section-header px-2 text-gray-800">
+                        <div class="flex items-center justify-between mb-6">
+                            <h2 class="text-lg font-black text-indigo-900 tracking-tight uppercase">Assignments</h2>
+                            <div class="tabs-wrapper">
+                                <button onclick="window.switchTaskView('active')" id="task-tab-active" class="px-6 py-2 text-[10px] font-black uppercase tracking-widest tab-active">Active</button>
+                                <button onclick="window.switchTaskView('history')" id="task-tab-history" class="px-6 py-2 text-[10px] font-black uppercase tracking-widest text-slate-400">History</button>
+                            </div>
                         </div>
-                        <div class="tabs-wrapper">
-                            <button onclick="window.switchTaskView('active')" id="task-tab-active" class="px-6 py-2 text-[10px] font-black uppercase tracking-widest tab-active">Active</button>
-                            <button onclick="window.switchTaskView('history')" id="task-tab-history" class="px-6 py-2 text-[10px] font-black uppercase tracking-widest text-slate-400">History</button>
+                    </div>
+                    <div class="tasks-grid mb-10 px-2" id="tasksContainer"></div>
+
+                    <div id="security-task-area" class="action-panel hidden text-gray-800 bg-white rounded-3xl p-6 shadow-sm border border-slate-100">
+                        <h3 class="text-sm font-black text-teal-600 uppercase tracking-widest mb-6 border-b pb-2">Raise New Task</h3>
+                        <div class="space-y-5">
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <select id="taskSchoolSelect" class="transfer-input-field p-3" onchange="window.filterStaffBySchoolAndRole()"><option value="">Select School</option><option value="Jern Yafoor School 1">Jern Yafoor School 1</option><option value="Jern Yafoor School 2">Jern Yafoor School 2</option></select>
+                                <select id="taskRoleSelect" class="transfer-input-field p-3" onchange="window.filterStaffBySchoolAndRole()"><option value="">Select Target Role</option><option value="Cleaner Leader">Cleaner Leader</option><option value="RT Technician">RT Technician</option><option value="Housekeeping">Housekeeping</option></select>
+                            </div>
+                            <select id="assignedStaffSelect" class="transfer-input-field w-full"><option value="">Assign Specific Staff (Optional)</option></select>
+                            <input type="text" id="areaNameInput" placeholder="Area Name" class="transfer-input-field w-full">
+                            <textarea id="taskDetailsInput" placeholder="Problem Details..." class="transfer-input-field w-full h-24"></textarea>
+                            <input type="file" id="cameraInput" accept="image/*" capture="environment" class="hidden" onchange="window.handleTaskImageCapture(event)">
+                            <button class="w-full py-4 border-2 border-dashed border-teal-200 rounded-2xl text-teal-600 font-bold flex items-center justify-center gap-2" onclick="document.getElementById('cameraInput').click()"><i class="fa-solid fa-camera text-xl"></i> <span id="cameraBtnText">Capture Task Photo</span></button>
+                            <div id="taskPhotoPreviewContainer" class="hidden relative rounded-2xl overflow-hidden border-2 border-teal-100 h-48"><img id="taskPhotoPreview" src="" class="w-full h-full object-cover"><button onclick="window.removeTaskPhoto()" class="absolute top-2 right-2 bg-red-500 text-white p-2 rounded-full shadow-lg"><i class="fa-solid fa-xmark"></i></button></div>
+                            <button id="submitTaskBtn" class="w-full bg-teal-600 text-white py-5 rounded-2xl font-black shadow-xl" onclick="window.submitNewMaintenanceTask()">CREATE & ROUTE TASK</button>
                         </div>
                     </div>
 
-                    <div id="tasksContainer" class="space-y-4 mb-10"></div>
-
-                    <!-- CREATE TASK PANEL (STRICTLY FOR SECURITY/ADMIN) -->
-                    <div id="security-task-area" class="hidden mt-12 bg-white rounded-[32px] p-8 shadow-xl border border-indigo-50">
-                        <div class="mb-8 border-b pb-4">
-                            <p class="text-[10px] font-black text-teal-500 uppercase tracking-[0.2em] mb-1">Incident Report</p>
-                            <h3 class="text-xl font-black text-teal-600 uppercase">Raise New Task</h3>
-                        </div>
-
-                        <div class="space-y-6">
-                            <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
-                                <div class="space-y-2">
-                                    <label class="transfer-step-label">Select School</label>
-                                    <select id="taskSchoolSelect" class="transfer-input-field" onchange="window.filterStaffBySchoolAndRole()">
-                                        <option value="">Choose Branch...</option>
-                                        <option value="Jern Yafoor School 1">Jern Yafoor School 1</option>
-                                        <option value="Jern Yafoor School 2">Jern Yafoor School 2</option>
-                                    </select>
-                                </div>
-                                <div class="space-y-2">
-                                    <label class="transfer-step-label">Target Role</label>
-                                    <select id="taskRoleSelect" class="transfer-input-field" onchange="window.filterStaffBySchoolAndRole()">
-                                        <option value="">Select Role...</option>
-                                        <option value="Cleaner Leader">Cleaner Leader</option>
-                                        <option value="RT Technician">RT Technician</option>
-                                        <option value="Housekeeping">Housekeeping</option>
-                                    </select>
-                                </div>
-                            </div>
-
-                            <div class="space-y-2">
-                                <label class="transfer-step-label">Specific Staff (Optional)</label>
-                                <select id="assignedStaffSelect" class="transfer-input-field w-full">
-                                    <option value="">All available staff</option>
-                                </select>
-                            </div>
-
-                            <div class="space-y-2">
-                                <label class="transfer-step-label">Location / Area</label>
-                                <input type="text" id="areaNameInput" placeholder="e.g. Block A, Room 102" class="transfer-input-field w-full">
-                            </div>
-
-                            <div class="space-y-2">
-                                <label class="transfer-step-label">Task Details</label>
-                                <textarea id="taskDetailsInput" placeholder="Describe the issue in detail..." class="transfer-input-field w-full h-28"></textarea>
-                            </div>
-
-                            <div class="space-y-4">
-                                <label class="transfer-step-label">Incident Photo</label>
-                                <button class="w-full py-5 border-2 border-dashed border-teal-200 rounded-3xl text-teal-600 font-bold flex items-center justify-center gap-3 transition-colors active:bg-teal-50" onclick="document.getElementById('cameraInput').click()">
-                                    <i class="fa-solid fa-camera text-xl"></i>
-                                    <span id="cameraBtnText">Capture Evidence</span>
-                                </button>
-                                <input type="file" id="cameraInput" accept="image/*" capture="environment" class="hidden" onchange="window.handleTaskImageCapture(event)">
-
-                                <div id="taskPhotoPreviewContainer" class="hidden relative rounded-3xl overflow-hidden border-4 border-white shadow-lg h-56">
-                                    <img id="taskPhotoPreview" src="" class="w-full h-full object-cover">
-                                    <button onclick="window.removeTaskPhoto()" class="absolute top-3 right-3 bg-red-500 text-white w-10 h-10 rounded-full shadow-lg flex items-center justify-center">
-                                        <i class="fa-solid fa-xmark"></i>
-                                    </button>
-                                </div>
-                            </div>
-
-                            <button id="submitTaskBtn" class="btn-submit-transfer !bg-teal-600 !mt-4" onclick="window.submitNewMaintenanceTask()">Create & Route Task</button>
-                        </div>
-                    </div>
-
-                    <!-- MONITORING FOR CREATORS -->
-                    <div id="security-raised-tasks-area" class="hidden mt-16 border-t pt-10 px-2 text-gray-800">
-                        <div class="flex items-center justify-between mb-8">
-                            <div class="flex flex-col">
-                                <h3 class="text-lg font-black text-indigo-900 leading-tight">Tasks I Raised</h3>
-                                <p class="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">Real-time status tracking</p>
-                            </div>
+                    <div id="security-raised-tasks-area" class="hidden space-y-6 mt-12 px-2 border-t pt-8 text-gray-800">
+                        <div class="flex items-center justify-between">
+                            <h2 class="text-lg font-black text-indigo-900 tracking-tight">Tasks I Raised</h2>
                             <div class="tabs-wrapper">
                                 <button onclick="window.switchRaisedTaskView('active')" id="admin-raised-tab-active" class="px-6 py-2 text-[10px] font-black uppercase tracking-widest tab-active">Active</button>
                                 <button onclick="window.switchRaisedTaskView('history')" id="admin-raised-tab-history" class="px-6 py-2 text-[10px] font-black uppercase tracking-widest text-slate-400">History</button>
@@ -274,238 +223,120 @@
                 </div>
             </div>
 
-
-            <!-- ASSET AUDIT SECTION (Issue 6 Fix) -->
-            <div id="asset-audit-section" class="view-section hidden transfer-workflow-container">
-                <div class="workflow-header">
+            <!-- ASSET AUDIT SECTION -->
+            <div id="asset-audit-section" class="hidden w-full p-4 transfer-workflow-container">
+                <div class="workflow-header text-gray-800">
                     <button onclick="window.showStaffView('staff-dash-area')" class="section-back-btn-circle">
                         <i class="fa-solid fa-arrow-left"></i>
                     </button>
-                    <h2 class="text-2xl font-black text-indigo-900 uppercase tracking-tighter">Asset Register</h2>
+                    <h2 class="text-2xl font-black text-[#1E1B4B] uppercase tracking-tighter">Asset Register</h2>
                 </div>
 
                 <div class="transfer-form-card">
                     <form id="master-asset-form" class="space-y-6 pb-24 text-gray-800">
-                        <div class="border rounded-3xl overflow-hidden shadow-sm bg-white">
-                            <button type="button" onclick="toggleAccordion('sec-a')" class="w-full flex justify-between items-center p-5 bg-indigo-50/50 text-indigo-900 font-black text-xs uppercase">
-                                <span>A: Identification</span>
-                                <i id="sec-a-icon" class="fa-solid fa-chevron-down"></i>
-                            </button>
-                            <div id="sec-a-content" class="p-5 space-y-5">
-                                <div class="input-with-action-wrapper">
-                                    <input type="text" id="f1_asset_barcode" placeholder="1. Asset Barcode" class="transfer-input-field" oninput="window.checkDuplicateBarcode(this.value)">
-                                    <button type="button" onclick="startCameraScanner('f1_asset_barcode')" class="camera-action-trigger"><i class="fa-solid fa-camera"></i></button>
-                                </div>
-                                <div class="input-with-action-wrapper">
-                                    <input type="text" id="f2_serial_no" placeholder="2. Serial No" class="transfer-input-field">
-                                    <button type="button" onclick="startCameraScanner('f2_serial_no')" class="camera-action-trigger"><i class="fa-solid fa-camera"></i></button>
-                                </div>
+                        <!-- SECTION A: ASSET IDENTIFICATION -->
+                        <div class="border rounded-2xl overflow-hidden shadow-sm bg-white">
+                            <button type="button" onclick="toggleAccordion('sec-a')" class="w-full flex justify-between items-center p-4 bg-indigo-50 text-indigo-900 font-bold"><span>SECTION A: ASSET IDENTIFICATION</span><i id="sec-a-icon" class="fa-solid fa-chevron-down"></i></button>
+                            <div id="sec-a-content" class="p-4 space-y-4">
+                                <div class="input-with-action-wrapper"><input type="text" id="f1_asset_barcode" placeholder="1. Asset Barcode" class="transfer-input-field" oninput="window.checkDuplicateBarcode(this.value)"><button type="button" onclick="startCameraScanner('f1_asset_barcode')" class="camera-action-trigger"><i class="fa-solid fa-camera"></i></button></div>
+                                <div class="input-with-action-wrapper"><input type="text" id="f2_serial_no" placeholder="2. Serial No" class="transfer-input-field"><button type="button" onclick="startCameraScanner('f2_serial_no')" class="camera-action-trigger"><i class="fa-solid fa-camera"></i></button></div>
                                 <input type="text" id="f3_model_desc" placeholder="3. Model Description" class="transfer-input-field">
                                 <input type="text" id="f4_asset_cond" placeholder="4. Asset Condition" class="transfer-input-field">
+                                <input type="text" id="f5_price_stat" placeholder="5. Price Status" class="transfer-input-field">
+                                <input type="number" id="f6_unit_cost" placeholder="6. Asset Unit Cost" class="transfer-input-field">
+                                <input type="text" id="f7_asset_desc" placeholder="7. Asset Description" class="transfer-input-field">
+                                <div>
+                                    <label class="block text-[10px] font-bold text-gray-400 mb-1 ml-2">8. DATE PLACE IN SERVICE</label>
+                                    <input type="date" id="f8_service_date" class="transfer-input-field">
+                                </div>
                                 <input type="text" id="f9_manufacturer" placeholder="9. Manufacturer" class="transfer-input-field">
-
-                                <div class="mt-4">
-                                    <label class="block text-[10px] font-black text-slate-400 uppercase ml-2 mb-3">40. Asset Photo</label>
-                                    <button type="button" onclick="document.getElementById('f40_audit_photo_input').click()" class="w-full py-5 border-2 border-dashed border-indigo-200 rounded-3xl text-indigo-600 font-bold flex items-center justify-center gap-2">
-                                        <i class="fa-solid fa-camera text-xl"></i>
-                                        <span>Capture Photo</span>
-                                    </button>
-                                    <input type="file" id="f40_audit_photo_input" accept="image/*" capture="environment" class="hidden" onchange="handleInitialAuditPhoto(event)">
-                                    <div id="audit-photo-preview" class="hidden mt-4 h-48 rounded-3xl overflow-hidden border shadow-sm">
-                                        <img src="" class="w-full h-full object-cover">
-                                    </div>
-                                </div>
+                                <div class="mt-2"><label class="block text-[10px] font-bold text-gray-400 mb-1 ml-2">40. ASSET PHOTO</label><input type="file" id="f40_audit_photo_input" accept="image/*" capture="environment" class="hidden" onchange="handleInitialAuditPhoto(event)"><button type="button" onclick="document.getElementById('f40_audit_photo_input').click()" class="w-full py-4 border-2 border-dashed border-indigo-200 rounded-2xl text-indigo-600 font-bold flex items-center justify-center gap-2"><i class="fa-solid fa-camera text-xl"></i> <span id="audit-photo-btn-text">Capture Asset Photo</span></button><div id="audit-photo-preview" class="hidden mt-2 h-32 rounded-xl overflow-hidden border shadow-sm"><img src="" class="w-full h-full object-cover"></div></div>
                             </div>
                         </div>
 
-                        <div class="border rounded-3xl overflow-hidden shadow-sm bg-white">
-                            <button type="button" onclick="toggleAccordion('sec-b')" class="w-full flex justify-between items-center p-5 bg-indigo-50/50 text-indigo-900 font-black text-xs uppercase">
-                                <span>B: Categorization</span>
-                                <i id="sec-b-icon" class="fa-solid fa-chevron-right"></i>
-                            </button>
-                            <div id="sec-b-content" class="p-5 space-y-4 hidden">
-                                <select id="f10_major_cat" class="transfer-input-field w-full">
-                                    <option value="">10. Major Category</option>
-                                    <option value="Furniture & Fixtures">Furniture & Fixtures</option>
-                                    <option value="Office Equipment">Office Equipment</option>
-                                </select>
-                                <select id="f15_category" class="transfer-input-field w-full">
-                                    <option value="">15. Category</option>
-                                    <option value="NON IT">NON IT</option>
-                                    <option value="IT">IT</option>
-                                </select>
+                        <!-- SECTION B: CATEGORIZATION -->
+                        <div class="border rounded-2xl overflow-hidden shadow-sm bg-white text-gray-800">
+                            <button type="button" onclick="toggleAccordion('sec-b')" class="w-full flex justify-between items-center p-4 bg-indigo-50 text-indigo-900 font-bold"><span>SECTION B: CATEGORIZATION</span><i id="sec-b-icon" class="fa-solid fa-chevron-right"></i></button>
+                            <div id="sec-b-content" class="p-4 space-y-4 hidden">
+                                <select id="f10_major_cat" class="transfer-input-field w-full"><option value="">10. Major Category</option><option value="Furniture & Fixtures">Furniture & Fixtures</option><option value="Office Equipment">Office Equipment</option></select>
+                                <select id="f11_sub_major" class="transfer-input-field w-full"><option value="">11. Sub Major Category</option></select>
+                                <input type="text" id="f12_sub_minor" placeholder="12. Sub Minor Category" class="transfer-input-field w-full">
+                                <input type="text" id="f13_dof_major" placeholder="13. DOF Major" class="transfer-input-field w-full">
+                                <input type="text" id="f14_dof_minor" placeholder="14. DOF Minor" class="transfer-input-field w-full">
+                                <select id="f15_category" class="transfer-input-field w-full"><option value="">15. Category</option><option value="NON IT">NON IT</option><option value="IT">IT</option></select>
+                                <select id="f16_class" class="transfer-input-field w-full"><option value="">16. Classification [Asset Name]</option></select>
                             </div>
                         </div>
 
-                        <div class="border rounded-3xl overflow-hidden shadow-sm bg-white">
-                            <button type="button" onclick="toggleAccordion('sec-c')" class="w-full flex justify-between items-center p-5 bg-indigo-50/50 text-indigo-900 font-black text-xs uppercase">
-                                <span>C: Location & Room</span>
-                                <i id="sec-c-icon" class="fa-solid fa-chevron-right"></i>
-                            </button>
-                            <div id="sec-c-content" class="p-5 space-y-4 hidden">
-                                <input type="text" id="f20_room_name" placeholder="Room Name" class="transfer-input-field w-full">
-                                <div class="input-with-action-wrapper">
-                                    <input type="text" id="f21_room_no" placeholder="21. Room No" class="transfer-input-field">
-                                    <button type="button" onclick="startCameraScanner('f21_room_no')" class="camera-action-trigger"><i class="fa-solid fa-camera"></i></button>
-                                </div>
+                        <!-- SECTION C: LOCATION -->
+                        <div class="border rounded-2xl overflow-hidden shadow-sm bg-white text-gray-800">
+                            <button type="button" onclick="toggleAccordion('sec-c')" class="w-full flex justify-between items-center p-4 bg-indigo-50 text-indigo-900 font-bold"><span>SECTION C: LOCATION & ROOM DETAILS</span><i id="sec-c-icon" class="fa-solid fa-chevron-right"></i></button>
+                            <div id="sec-c-content" class="p-4 space-y-4 hidden">
+                                <select id="f17_location" class="transfer-input-field w-full"><option value="Abu Dhabi">17. Location Name: Abu Dhabi</option></select>
+                                <select id="f18_esis" class="transfer-input-field w-full"><option value="6024">18. School ESIS ID: 6024</option></select>
+                                <select id="f19_school_building" class="transfer-input-field w-full"><option value="">19. School Building Name</option></select>
+                                <input type="text" id="f20_room_name" placeholder="20. Room Name" class="transfer-input-field w-full">
+                                <div class="input-with-action-wrapper"><input type="text" id="f21_room_no" placeholder="21. Room No" class="transfer-input-field"><button type="button" onclick="startCameraScanner('f21_room_no')" class="camera-action-trigger"><i class="fa-solid fa-camera"></i></button></div>
+                                <div class="input-with-action-wrapper"><input type="text" id="f22_room_barcode" placeholder="22. Room Barcode" class="transfer-input-field"><button type="button" onclick="startCameraScanner('f22_room_barcode')" class="camera-action-trigger"><i class="fa-solid fa-camera"></i></button></div>
+                                <select id="f23_floor_no" class="transfer-input-field w-full"><option value="">23. Floor No</option></select>
+                                <input type="text" id="f24_floor_desc" placeholder="24. Floor Description" class="transfer-input-field w-full">
                             </div>
                         </div>
 
-                        <button type="submit" class="btn-submit-transfer">Save Asset Record</button>
+                        <!-- SECTION D: AUDIT -->
+                        <div class="border rounded-2xl overflow-hidden shadow-sm bg-white text-gray-800">
+                            <button type="button" onclick="toggleAccordion('sec-d')" class="w-full flex justify-between items-center p-4 bg-indigo-50 text-indigo-900 font-bold"><span>SECTION D: AUDIT & STATUS</span><i id="sec-d-icon" class="fa-solid fa-chevron-right"></i></button>
+                            <div id="sec-d-content" class="p-4 space-y-4 hidden">
+                                <select id="f25_barcode_stat" class="transfer-input-field w-full"><option value="Read">25. Barcode Status: Read</option></select>
+                                <select id="f26_asset_stat" class="transfer-input-field w-full"><option value="Existing">26. Asset Status: Existing</option></select>
+                                <input type="text" id="f27_old_school" placeholder="27. Old School Name" class="transfer-input-field w-full">
+                                <input type="text" id="f28_trans_no" placeholder="28. Transaction No" class="transfer-input-field w-full">
+                                <input type="text" id="f35_remarks" placeholder="35. Remarks" class="transfer-input-field w-full">
+                                <input type="text" id="f36_phys_reg_no" readonly class="transfer-input-field w-full bg-slate-50 font-bold text-indigo-600">
+                                <input type="text" id="f37_fixed_reg_no" placeholder="37. Fixed Asset Reg No" class="transfer-input-field w-full">
+                            </div>
+                        </div>
+
+                        <button type="submit" class="btn-submit-transfer">SAVE ASSET REGISTER</button>
                     </form>
                 </div>
             </div>
 
-
-            <!-- ASSET DISPOSAL SECTION (Issue 6 Fix) -->
-            <div id="asset-disposal-section" class="view-section hidden transfer-workflow-container">
-                <div class="workflow-header">
-                    <button onclick="window.showStaffView('staff-dash-area')" class="section-back-btn-circle">
-                        <i class="fa-solid fa-arrow-left text-lg"></i>
-                    </button>
-                    <h2 class="text-2xl font-black text-red-600 uppercase tracking-tighter">Asset Disposal</h2>
-                </div>
+            <!-- ASSET DISPOSAL SECTION -->
+            <div id="asset-disposal-section" class="hidden w-full p-4 transfer-workflow-container">
+                <nav class="flex items-center gap-5 mb-8 px-2 text-gray-800">
+                    <button onclick="window.showStaffView('staff-dash-area')" class="section-back-btn-circle"><i class="fa-solid fa-arrow-left text-lg"></i></button>
+                    <h2 class="text-2xl font-black text-[#EF4444] uppercase tracking-tighter">Asset Disposal</h2>
+                </nav>
                 <div class="transfer-form-card">
                     <div class="space-y-8 text-gray-800">
-                        <div class="mb-2 border-b pb-4">
-                             <p class="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">Report Equipment</p>
-                             <h3 class="text-xl font-black text-red-500 uppercase">Broken / Scrapped</h3>
-                        </div>
-
                         <div class="space-y-6">
-                            <div class="relative">
-                                <label class="transfer-step-label">Scan Barcode</label>
-                                <div class="input-with-action-wrapper">
-                                    <input type="text" id="f1_disposal_barcode_input" placeholder="ENTER BARCODE..." class="transfer-input-field uppercase font-bold" oninput="window.fetchDisposalAssetDetails(this.value)">
-                                    <button type="button" onclick="startCameraScanner('f1_disposal_barcode_input')" class="camera-action-trigger"><i class="fa-solid fa-camera text-xl"></i></button>
-                                </div>
-                            </div>
-                            <div id="disposal-asset-preview" class="min-h-[40px] mb-4 bg-slate-50/50 rounded-2xl"></div>
-
-                            <div>
-                                <label class="transfer-step-label">Disposal Info</label>
-                                <div class="space-y-4">
-                                    <textarea id="disposal-reason" placeholder="Reason for disposal..." class="transfer-input-field h-28"></textarea>
-                                    <input type="text" id="disposal-scrap-loc" placeholder="New Scrap Location" class="transfer-input-field">
-                                </div>
-                            </div>
-
-                            <div class="space-y-4">
-                                <label class="transfer-step-label text-red-600">Damage Photo Proof (Mandatory)</label>
-                                <button onclick="document.getElementById('disposal-photo-input').click()" class="w-full py-5 border-2 border-dashed border-red-200 rounded-3xl text-red-600 font-bold flex items-center justify-center gap-2">
-                                    <i class="fa-solid fa-camera text-xl"></i>
-                                    <span>Take Damage Photo</span>
-                                </button>
-                                <input type="file" id="disposal-photo-input" accept="image/*" capture="environment" class="hidden" onchange="handleDisposalPhoto(event)">
-                                <div id="disposal-photo-preview" class="hidden mt-4 h-56 rounded-3xl overflow-hidden border-2 border-red-100 shadow-inner">
-                                    <img src="" class="w-full h-full object-cover">
-                                </div>
-                            </div>
+                            <div class="relative"><label class="transfer-step-label">Scan Barcode</label><div class="input-with-action-wrapper"><input type="text" id="f1_disposal_barcode_input" placeholder="ENTER BARCODE..." class="transfer-input-field uppercase font-bold" oninput="window.fetchDisposalAssetDetails(this.value)"><button type="button" onclick="startCameraScanner('f1_disposal_barcode_input')" class="camera-action-trigger"><i class="fa-solid fa-camera text-xl"></i></button></div></div>
+                            <div id="disposal-asset-preview" class="min-h-[40px] mb-4 bg-slate-50/50 rounded-xl"></div>
+                            <textarea id="disposal-reason" placeholder="Reason..." class="transfer-input-field h-24"></textarea>
+                            <input type="text" id="disposal-scrap-loc" placeholder="New Scrap Location" class="transfer-input-field">
+                            <div class="space-y-2"><label class="transfer-step-label text-red-500 font-black">Damage Photo Proof</label><input type="file" id="disposal-photo-input" accept="image/*" capture="environment" class="hidden" onchange="handleDisposalPhoto(event)"><button onclick="document.getElementById('disposal-photo-input').click()" class="w-full py-4 border-2 border-dashed border-red-200 rounded-2xl text-red-600 font-bold flex items-center justify-center gap-2"><i class="fa-solid fa-camera"></i> <span id="disposal-photo-btn-text">Take Damage Photo</span></button><div id="disposal-photo-preview" class="hidden mt-2 h-40 rounded-2xl overflow-hidden border-2 border-red-100 shadow-inner"><img src="" class="w-full h-full object-cover"></div></div>
                         </div>
-                        <button id="submit-disposal-btn" onclick="submitAssetDisposal()" class="btn-submit-transfer !bg-red-600 shadow-xl" disabled>Confirm Scrap & Dispose</button>
+                        <button id="submit-disposal-btn" onclick="submitAssetDisposal()" class="btn-submit-transfer !bg-red-600 shadow-xl" disabled>CONFIRM SCRAP & DISPOSE</button>
                     </div>
                 </div>
             </div>
 
-
             <!-- ASSET TRANSFER SECTION -->
             <div id="asset-transfer-section" class="hidden w-full p-4 transfer-workflow-container">
-                <div class="workflow-header">
-                    <button onclick="window.showStaffView('staff-dash-area')" class="section-back-btn-circle">
-                        <i class="fa-solid fa-arrow-left text-lg"></i>
-                    </button>
-                    <h2 class="text-2xl font-black text-indigo-900 uppercase tracking-tighter">Asset Transfer</h2>
-                </div>
-
-                <div class="transfer-form-card pb-24">
-                    <form id="transfer-form-multi" class="space-y-10 text-gray-800" onsubmit="window.submitAssetTransfer(event)">
-                        <!-- COLLECTOR INFO -->
-                        <div class="space-y-6">
-                            <div class="mb-4 border-b pb-4">
-                                <p class="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">Step 1</p>
-                                <h3 class="text-lg font-black text-indigo-600 uppercase">Collector Details</h3>
-                            </div>
-                            <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
-                                <div class="space-y-2">
-                                    <label class="transfer-step-label">Full Name</label>
-                                    <input type="text" id="t_collector_name" placeholder="Name of collector" required class="transfer-input-field">
-                                </div>
-                                <div class="space-y-2">
-                                    <label class="transfer-step-label">Company</label>
-                                    <input type="text" id="t_company_name" placeholder="Company name" required class="transfer-input-field">
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- ASSET DETAILS -->
-                        <div class="space-y-6">
-                            <div class="mb-4 border-b pb-4">
-                                <p class="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">Step 2</p>
-                                <h3 class="text-lg font-black text-indigo-600 uppercase">Asset Details</h3>
-                            </div>
-                            <div class="space-y-4">
-                                <label class="transfer-step-label">Identity Barcode</label>
-                                <div class="input-with-action-wrapper">
-                                    <input type="text" id="t_asset_barcode" placeholder="SCAN BARCODE..." class="transfer-input-field" oninput="window.fetchTransferAssetDetails(this.value)">
-                                    <button type="button" onclick="startCameraScanner('t_asset_barcode')" class="camera-action-trigger"><i class="fa-solid fa-camera text-xl"></i></button>
-                                </div>
-                                <div id="transfer-asset-preview" class="min-h-[40px] bg-slate-50/50 rounded-2xl border border-dashed border-slate-200"></div>
-                            </div>
-                        </div>
-
-                        <!-- AUTHORIZATION -->
-                        <div class="space-y-8">
-                            <div class="mb-4 border-b pb-4">
-                                <p class="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">Final Step</p>
-                                <h3 class="text-lg font-black text-indigo-600 uppercase">Authorization</h3>
-                            </div>
-
-                            <div class="space-y-8">
-                                <div class="space-y-3">
-                                    <label class="transfer-step-label">Security Name & Signature</label>
-                                    <input type="text" id="t_security_name" placeholder="Verified by" required class="transfer-input-field mb-3">
-                                    <div class="canvas-wrapper">
-                                        <div class="sig-lock-overlay" onclick="window.unlockCanvas(this)">
-                                            <i class="fa-solid fa-lock"></i>
-                                            <span>Tap to sign</span>
-                                        </div>
-                                        <canvas id="t_security_sig" class="w-full h-full"></canvas>
-                                    </div>
-                                    <button type="button" onclick="window.clearTransferSig('t_security_sig'); this.parentElement.querySelector('.canvas-wrapper').classList.remove('unlocked')" class="btn-clear-sig">Clear Signature</button>
-                                </div>
-
-                                <div class="space-y-3">
-                                    <label class="transfer-step-label">Receiver Name & Signature</label>
-                                    <input type="text" id="t_received_name" placeholder="Received by" required class="transfer-input-field mb-3">
-                                    <div class="canvas-wrapper">
-                                        <div class="sig-lock-overlay" onclick="window.unlockCanvas(this)">
-                                            <i class="fa-solid fa-lock"></i>
-                                            <span>Tap to sign</span>
-                                        </div>
-                                        <canvas id="t_received_sig" class="w-full h-full"></canvas>
-                                    </div>
-                                    <button type="button" onclick="window.clearTransferSig('t_received_sig'); this.parentElement.querySelector('.canvas-wrapper').classList.remove('unlocked')" class="btn-clear-sig">Clear Signature</button>
-                                </div>
-
-                                <div class="space-y-4">
-                                    <label class="transfer-step-label">Proof of Collection</label>
-                                    <button type="button" onclick="document.getElementById('t_photo_capture').click()" class="w-full py-5 border-2 border-dashed border-indigo-200 rounded-3xl text-indigo-600 font-bold flex items-center justify-center gap-2">
-                                        <i class="fa-solid fa-camera text-xl"></i>
-                                        <span id="t_photo_btn_text">Capture Transfer Photo</span>
-                                    </button>
-                                    <input type="file" id="t_photo_capture" accept="image/*" capture="environment" class="hidden" onchange="window.handleTransferPhoto(event)">
-                                    <div id="t_photo_preview" class="hidden h-48 rounded-3xl overflow-hidden border mt-2">
-                                        <img src="" class="w-full h-full object-cover">
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <button type="submit" id="submit-transfer-btn" class="btn-submit-transfer">Initiate Transfer</button>
+                <nav class="flex items-center gap-5 mb-8 px-2 text-gray-800">
+                    <button onclick="window.showStaffView('staff-dash-area')" class="section-back-btn-circle"><i class="fa-solid fa-arrow-left text-lg"></i></button>
+                    <h2 class="text-2xl font-black text-[#1E1B4B] uppercase tracking-tighter">Asset Transfer</h2>
+                </nav>
+                <div class="transfer-form-card">
+                    <form id="transfer-form-multi" class="space-y-8 text-gray-800" onsubmit="window.submitAssetTransfer(event)">
+                        <div class="space-y-6"><h3 class="text-sm font-black text-indigo-600 uppercase border-b pb-2">Collector Details</h3><div class="grid grid-cols-1 md:grid-cols-2 gap-4"><div><label class="transfer-step-label">Collector Name</label><input type="text" id="t_collector_name" placeholder="Full Name" required class="transfer-input-field"></div><div><label class="transfer-step-label">Company Name</label><input type="text" id="t_company_name" placeholder="Company Name" required class="transfer-input-field"></div></div></div>
+                        <div class="space-y-6"><h3 class="text-sm font-black text-indigo-600 uppercase border-b pb-2">Asset Details</h3><div class="mb-6 relative"><label class="transfer-step-label">Scan Barcode</label><div class="input-with-action-wrapper"><input type="text" id="t_asset_barcode" placeholder="SCAN BARCODE..." class="transfer-input-field" oninput="window.fetchTransferAssetDetails(this.value)"><button type="button" onclick="startCameraScanner('t_asset_barcode')" class="camera-action-trigger"><i class="fa-solid fa-camera text-xl"></i></button></div></div><div id="transfer-asset-preview" class="min-h-[40px] mb-4 bg-slate-50/50 rounded-xl"></div></div>
+                        <div class="space-y-6"><h3 class="text-sm font-black text-indigo-600 uppercase border-b pb-2">Authorization</h3><div class="grid grid-cols-1 md:grid-cols-2 gap-8"><div class="space-y-2"><label class="transfer-step-label">Security Name</label><input type="text" id="t_security_name" placeholder="Name" required class="transfer-input-field"><div class="canvas-wrapper"><div class="sig-lock-overlay" onclick="window.unlockCanvas(this)"><i class="fa-solid fa-lock"></i><span>Tap to sign</span></div><canvas id="t_security_sig" class="w-full h-full"></canvas></div><button type="button" onclick="window.clearTransferSig('t_security_sig'); this.parentElement.querySelector('.canvas-wrapper').classList.remove('unlocked')" class="btn-clear-sig">Clear & Lock</button></div><div class="space-y-2"><label class="transfer-step-label">Receiver Name</label><input type="text" id="t_received_name" placeholder="Name" required class="transfer-input-field"><div class="canvas-wrapper"><div class="sig-lock-overlay" onclick="window.unlockCanvas(this)"><i class="fa-solid fa-lock"></i><span>Tap to sign</span></div><canvas id="t_received_sig" class="w-full h-full"></canvas></div><button type="button" onclick="window.clearTransferSig('t_received_sig'); this.parentElement.querySelector('.canvas-wrapper').classList.remove('unlocked')" class="btn-clear-sig">Clear & Lock</button></div></div><div class="space-y-2"><label class="transfer-step-label">Photo Capture</label><input type="file" id="t_photo_capture" accept="image/*" capture="environment" class="hidden" onchange="window.handleTransferPhoto(event)"><button type="button" onclick="document.getElementById('t_photo_capture').click()" class="w-full py-4 border-2 border-dashed border-indigo-200 rounded-2xl text-indigo-600 font-bold flex items-center justify-center gap-2"><i class="fa-solid fa-camera text-xl"></i> <span id="t_photo_btn_text">Capture Photo</span></button></div></div>
+                        <button type="submit" id="submit-transfer-btn" class="btn-submit-transfer">INITIATE TRANSFER</button>
                     </form>
                 </div>
             </div>
-
 
             <!-- SIDE LOGS VIEW -->
             <div id="transfer-logs-section" class="hidden w-full p-4 transfer-workflow-container">
@@ -517,7 +348,7 @@
             </div>
         </section>
 
-        <footer class="mt-auto py-6 text-center text-[10px] opacity-40 w-full text-indigo-900 font-bold">&copy; 2026 Jarn Yafoor School Staff Portal (v3.4.4)</footer>
+        <footer class="mt-auto py-6 text-center text-[10px] opacity-40 w-full text-indigo-900 font-bold">&copy; 2026 Jarn Yafoor School Staff Portal (v3.4.7)</footer>
     </div>
 
     <!-- MODALS -->
