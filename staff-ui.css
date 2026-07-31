@@ -1,4 +1,4 @@
-﻿/* --- STAFF PORTAL & TRANSFER UI (PREMIUM v3.4.7) --- */
+﻿/* --- STAFF PORTAL & TRANSFER UI (PREMIUM v3.4.8) --- */
 
 :root {
     --ios-system-font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
@@ -13,8 +13,6 @@ body {
     background-color: var(--bg-light) !important;
     font-family: var(--ios-system-font) !important;
     color: var(--dark-navy);
-    margin: 0 !important;
-    padding: 0 !important;
 }
 
 /* FULL SCREEN WORKFLOW CONTAINERS */
@@ -34,10 +32,10 @@ body {
 
 .workflow-header {
     background: white !important;
-    padding: 16px !important;
+    padding: 24px 16px !important;
     display: flex !important;
     align-items: center !important;
-    gap: 12px !important;
+    gap: 16px !important;
     border-bottom: 2px solid #f1f5f9 !important;
     position: sticky !important;
     top: 0 !important;
@@ -132,7 +130,7 @@ body {
 .img-box img { width: 100% !important; height: 100% !important; object-fit: cover !important; }
 .img-label { position: absolute !important; bottom: 0; left: 0; right: 0; background: rgba(30, 27, 75, 0.75) !important; color: white !important; font-size: 8px !important; font-weight: 800 !important; text-align: center; padding: 5px 0; text-transform: uppercase; }
 
-/* INPUTS & CAMERA TRIGGER */
+/* INPUTS & CAMERA TRIGGER (Issue 5 Fix) */
 .input-with-action-wrapper { position: relative !important; width: 100% !important; display: flex !important; align-items: center !important; }
 .transfer-input-field {
     background-color: white !important;
@@ -143,6 +141,8 @@ body {
     font-weight: 700 !important;
     color: var(--dark-navy) !important;
     outline: none !important;
+    font-size: 14px !important;
+    min-height: 54px !important; /* Task 4: Larger text boxes */
 }
 
 .transfer-input-field:focus { border-color: var(--primary-indigo) !important; }
@@ -162,7 +162,8 @@ body {
     align-items: center !important;
     justify-content: center !important;
     box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3) !important;
-    z-index: 50 !important;
+    z-index: 100 !important; /* Task 5: Higher z-index for touch response */
+    cursor: pointer !important;
 }
 
 /* SIGNATURE PAD LOCK */
@@ -170,10 +171,10 @@ body {
     background: #f8fafc !important;
     border: 2px dashed #cbd5e1 !important;
     border-radius: 20px !important;
-    height: 170px !important;
+    height: 180px !important;
     position: relative !important;
     overflow: hidden !important;
-    margin: 10px 0 !important;
+    margin: 12px 0 !important;
 }
 
 .sig-lock-overlay {
@@ -208,9 +209,24 @@ body {
 #submit-disposal-btn { background: #EF4444 !important; box-shadow: 0 10px 25px rgba(239, 68, 68, 0.3) !important; }
 #submitTaskBtn { background: #10b981 !important; box-shadow: 0 10px 25px rgba(16, 185, 129, 0.3) !important; }
 
-/* TABS WRAPPER */
-.tabs-wrapper { background: #e2e8f0 !important; border-radius: 14px !important; padding: 4px !important; display: flex !important; }
-.tabs-wrapper button { border-radius: 10px !important; padding: 8px 20px !important; font-weight: 900 !important; font-size: 10px !important; border: none !important; background: transparent; color: #64748b; }
+/* TABS WRAPPER (Task 1: Fix Clipping) */
+.tabs-wrapper {
+    background: #e2e8f0 !important;
+    border-radius: 14px !important;
+    padding: 4px !important;
+    display: flex !important;
+    min-width: 160px !important; /* Ensure enough width */
+}
+.tabs-wrapper button {
+    border-radius: 10px !important;
+    padding: 8px 20px !important;
+    font-weight: 900 !important;
+    font-size: 10px !important;
+    border: none !important;
+    background: transparent;
+    color: #64748b;
+    white-space: nowrap !important;
+}
 .tabs-wrapper button.tab-active { background: white !important; color: var(--primary-indigo) !important; box-shadow: 0 2px 8px rgba(0,0,0,0.1) !important; }
 
 /* SIDE MENU */
@@ -240,44 +256,33 @@ body {
     color: #1e1b4b !important;
     box-shadow: 0 2px 6px rgba(0,0,0,0.02) !important;
     margin-bottom: 8px !important;
-    transition: all 0.2s ease !important;
 }
 
-.menu-item-btn:active { transform: scale(0.97); background: #f8fafc !important; }
-
-.menu-item-btn i {
-    width: 32px;
-    height: 32px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 10px;
-    font-size: 14px;
-}
-
-/* VISITOR OPTIMIZATION (Issue 1) */
+/* VISITOR OPTIMIZATION (Issue 4) */
 .visitor-glass-container {
-    background: rgba(255, 255, 255, 0.7) !important;
-    backdrop-filter: blur(10px) !important;
+    background: rgba(255, 255, 255, 0.4) !important; /* Transparent background */
+    backdrop-filter: blur(15px) !important;
     border-radius: 32px !important;
-    border: 1px solid rgba(255, 255, 255, 0.4) !important;
-    padding: 24px !important;
+    border: 1px solid rgba(255, 255, 255, 0.5) !important;
 }
 
 .visitor-input {
-    height: 58px !important;
+    height: 62px !important;
     font-size: 16px !important;
-    padding: 0 20px !important;
-    border-radius: 18px !important;
 }
 
 .visitor-label {
     font-size: 11px !important;
     font-weight: 800 !important;
     text-transform: uppercase !important;
-    color: var(--slate-text) !important;
-    margin-bottom: 6px !important;
-    margin-left: 4px !important;
+    color: var(--dark-navy) !important;
+}
+
+/* ARABIC TEXT (Issue 3) */
+.arabic-text {
+    font-weight: 900 !important;
+    font-size: 14px !important;
+    color: var(--primary-indigo) !important;
 }
 
 /* UTILS */

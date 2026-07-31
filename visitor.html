@@ -7,8 +7,8 @@
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="style.css?v=3.4.7">
-    <link rel="stylesheet" href="staff-ui.css?v=3.4.7">
+    <link rel="stylesheet" href="style.css?v=3.4.8">
+    <link rel="stylesheet" href="staff-ui.css?v=3.4.8">
 </head>
 <body class="bg-[#F8F9FD] text-gray-800">
     <div class="app-container">
@@ -22,9 +22,10 @@
             </nav>
 
             <div class="flex-1 p-5 flex flex-col items-center justify-center">
-                <div class="w-full max-w-lg visitor-glass-container shadow-2xl overflow-hidden">
+                <!-- Task 4: Transparent Background Container -->
+                <div class="w-full max-w-lg visitor-glass-container shadow-2xl overflow-hidden p-8">
                     <div id="v-signin-area">
-                        <div class="mb-8 border-b border-white/20 pb-4">
+                        <div class="mb-8 border-b border-indigo-100 pb-4">
                              <p class="text-[11px] font-black text-indigo-500 uppercase tracking-[0.2em] mb-1">New Log</p>
                              <h3 class="text-2xl font-black text-indigo-900 uppercase">Entry Portal</h3>
                         </div>
@@ -33,17 +34,18 @@
                             <div class="grid grid-cols-2 gap-4">
                                 <div class="space-y-1">
                                     <label class="visitor-label">Visitor ID</label>
-                                    <input type="text" id="v-id" readonly class="transfer-input-field visitor-input bg-indigo-50/50 font-bold text-indigo-600 border-none shadow-inner">
+                                    <input type="text" id="v-id" readonly class="transfer-input-field visitor-input bg-white/50 font-bold text-indigo-600 border-none shadow-inner">
                                 </div>
                                 <div class="space-y-1">
                                     <label class="visitor-label">Date</label>
-                                    <input type="text" id="v-date" readonly class="transfer-input-field visitor-input bg-indigo-50/50 border-none shadow-inner">
+                                    <input type="text" id="v-date" readonly class="transfer-input-field visitor-input bg-white/50 border-none shadow-inner">
                                 </div>
                             </div>
 
                             <div class="space-y-4">
                                 <div class="space-y-1">
                                     <label class="visitor-label">Visitor Name</label>
+                                    <!-- Task 4: Larger Input Field -->
                                     <input type="text" id="v-name" placeholder="Full Name" required class="transfer-input-field visitor-input border-slate-200">
                                 </div>
                                 <div class="space-y-1">
@@ -56,16 +58,16 @@
                                 </div>
                                 <div class="space-y-1">
                                     <label class="visitor-label">Reason of Visit</label>
-                                    <textarea id="v-purpose" placeholder="Purpose of Visit" required class="transfer-input-field border-slate-200 h-28 p-5 rounded-2xl"></textarea>
+                                    <textarea id="v-purpose" placeholder="Purpose of Visit" required class="transfer-input-field border-slate-200 h-32 p-5 rounded-2xl text-base"></textarea>
                                 </div>
                             </div>
 
                             <div class="pt-2">
-                                <div class="flex justify-between items-center mb-3 px-1">
+                                <div class="flex justify-between items-center mb-3 px-1 text-gray-800">
                                     <label class="visitor-label !m-0">Signature required</label>
                                     <button type="button" onclick="clearVisitorSig(); document.getElementById('visitor-sig-wrapper').classList.remove('unlocked')" class="text-[10px] text-red-500 font-bold uppercase underline">Reset</button>
                                 </div>
-                                <div class="canvas-wrapper relative !h-44 shadow-sm" id="visitor-sig-wrapper">
+                                <div class="canvas-wrapper relative !h-48 shadow-sm" id="visitor-sig-wrapper">
                                     <div class="sig-lock-overlay" onclick="window.unlockVisitorCanvas(this)">
                                         <i class="fa-solid fa-lock text-3xl"></i>
                                         <span class="mt-2">Tap here to sign</span>
@@ -83,9 +85,9 @@
                             <i class="fa-solid fa-right-from-bracket text-4xl"></i>
                         </div>
                         <h3 class="text-3xl font-black text-indigo-900 mb-2">Active Entry</h3>
-                        <p class="text-slate-500 mb-10 font-medium text-lg">Welcome, <span id="v-active-name" class="text-indigo-600 font-bold"></span></p>
+                        <p class="text-slate-500 mb-10 font-medium text-lg text-gray-800">Welcome, <span id="v-active-name" class="text-indigo-600 font-bold"></span></p>
 
-                        <div class="bg-indigo-50/50 rounded-3xl p-8 mb-10 text-left border border-indigo-100 shadow-sm">
+                        <div class="bg-indigo-50/50 rounded-3xl p-8 mb-10 text-left border border-indigo-100 shadow-sm text-gray-800">
                             <div class="flex justify-between items-center mb-4 border-b border-indigo-100 pb-4">
                                 <span class="text-[11px] font-black text-indigo-400 uppercase tracking-widest">Tracking Log:</span>
                                 <span id="v-active-id" class="text-sm font-bold text-indigo-900 font-mono"></span>
