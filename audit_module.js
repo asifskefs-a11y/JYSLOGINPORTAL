@@ -279,16 +279,33 @@ window.checkDuplicateBarcode = async (barcode) => {
     } catch (e) { console.error("Duplicate check error:", e); }
 };
 
+// ============================================
+// CAMERA SCANNER SYSTEM (v3.4.8 - ROBUST)
+// ============================================
+let isScannerStarting = false;
+let isScannerRunning = false;
+
 window.startCameraScanner = async (inputId) => {
+    if (isScannerStarting) return;
+
     try {
+        isScannerStarting = true;
         currentScanTarget = inputId;
+
         const modal = document.getElementById('scanner-modal');
         if (modal) {
             modal.classList.remove('hidden');
             modal.style.display = 'flex';
+            modal.style.visibility = 'visible';
+            modal.style.opacity = '1';
+
+            modal.onclick = (e) => {
+                if (e.target === modal) window.stopCameraScanner();
+            };
         }
 
-        // --- HARD RESET SCANNER INSTANCE (Task 5) ---
+        document.body.style.overflow = 'hidden';
+
         if (html5QrCode) {
             try {
                 if (html5QrCode.isScanning) await html5QrCode.stop();
@@ -297,17 +314,32 @@ window.startCameraScanner = async (inputId) => {
             html5QrCode = null;
         }
 
-        // Delay to allow DOM and hardware state to settle
+        const container = document.getElementById('scanner-container');
+        if (!container) {
+            isScannerStarting = false;
+            return;
+        }
+
+        // Clear previous video elements
+        const oldVideo = container.querySelector('video');
+        if (oldVideo) oldVideo.remove();
+
         setTimeout(async () => {
             try {
-                const scannerElement = document.getElementById("scanner-container");
-                if (!scannerElement) return;
-
                 html5QrCode = new Html5Qrcode("scanner-container");
                 const config = {
-                    fps: 24,
-                    qrbox: { width: 250, height: 180 },
-                    aspectRatio: 1.0
+                    fps: 30,
+                    qrbox: { width: 250, height: 250 },
+                    aspectRatio: 1.0,
+                    formatsToSupport: [
+                        Html5QrcodeSupportedFormats.QR_CODE,
+                        Html5QrcodeSupportedFormats.CODE_128,
+                        Html5QrcodeSupportedFormats.CODE_39,
+                        Html5QrcodeSupportedFormats.EAN_13,
+                        Html5QrcodeSupportedFormats.EAN_8,
+                        Html5QrcodeSupportedFormats.UPC_A,
+                        Html5QrcodeSupportedFormats.UPC_E
+                    ]
                 };
 
                 await html5QrCode.start(
@@ -316,48 +348,132 @@ window.startCameraScanner = async (inputId) => {
                     async (decodedText) => {
                         const input = document.getElementById(currentScanTarget);
                         if (input) {
-                            input.value = decodedText.trim().toUpperCase();
-                            if (currentScanTarget === 'f1_disposal_barcode_input') window.fetchDisposalAssetDetails(input.value);
-                            else if (currentScanTarget === 'f1_asset_barcode') await window.checkDuplicateBarcode(input.value);
-                            else if (currentScanTarget === 't_asset_barcode') window.fetchTransferAssetDetails(input.value);
+                            const cleanValue = decodedText.trim().toUpperCase();
+                            input.value = cleanValue;
+
+                            if (navigator.vibrate) navigator.vibrate(100);
+                            window.showScannerToast('✅ Scanned: ' + cleanValue);
+
+                            // Trigger callbacks
+                            if (currentScanTarget === 'f1_disposal_barcode_input') {
+                                if (window.fetchDisposalAssetDetails) await window.fetchDisposalAssetDetails(cleanValue);
+                            } else if (currentScanTarget === 'f1_asset_barcode') {
+                                if (window.checkDuplicateBarcode) await window.checkDuplicateBarcode(cleanValue);
+                            } else if (currentScanTarget === 't_asset_barcode') {
+                                if (window.fetchTransferAssetDetails) await window.fetchTransferAssetDetails(cleanValue);
+                            } else if (currentScanTarget === 'f21_room_no' || currentScanTarget === 'f22_room_barcode') {
+                                if (window.fetchRoomDetails) await window.fetchRoomDetails(cleanValue);
+                            }
                         }
-                        window.stopCameraScanner();
+                        setTimeout(() => window.stopCameraScanner(), 300);
                     },
-                    (err) => { /* Silent loop errors */ }
+                    (err) => {}
                 ).catch(err => {
                     console.error("Camera Start Failed:", err);
-                    alert("Camera Hardware Error. Please refresh and try again.");
+                    window.showScannerToast('Camera Error: Hardware busy');
                     window.stopCameraScanner();
                 });
+
+                isScannerRunning = true;
+                isScannerStarting = false;
             } catch (err) {
                 console.error("Scanner Setup Error:", err);
                 window.stopCameraScanner();
+                isScannerStarting = false;
             }
         }, 500);
 
     } catch (err) {
         console.error("Scanner Logic Error:", err);
         window.stopCameraScanner();
+        isScannerStarting = false;
     }
 };
-
-
-
-
-
 
 window.stopCameraScanner = async () => {
     try {
-        if (html5QrCode && html5QrCode.isScanning) {
-            await html5QrCode.stop();
+        isScannerRunning = false;
+        if (html5QrCode) {
+            try {
+                if (html5QrCode.isScanning) await html5QrCode.stop();
+                await html5QrCode.clear();
+            } catch (e) { console.warn("Stop Error:", e); }
+            html5QrCode = null;
         }
-    } catch (e) { console.error("Scanner Stop Error:", e); }
-    const modal = document.getElementById('scanner-modal');
-    if (modal) {
-        modal.classList.add('hidden');
-        modal.style.display = 'none';
-    }
+
+        const modal = document.getElementById('scanner-modal');
+        if (modal) {
+            modal.classList.add('hidden');
+            modal.style.display = 'none';
+            modal.style.visibility = 'hidden';
+            modal.style.opacity = '0';
+            modal.onclick = null;
+        }
+
+        document.body.style.overflow = '';
+        currentScanTarget = null;
+        isScannerStarting = false;
+    } catch (err) { console.error("Stop Scanner Error:", err); }
 };
+
+window.toggleScannerFlash = async () => {
+    try {
+        if (!html5QrCode || !html5QrCode.isScanning) return;
+        const video = document.querySelector('#scanner-container video');
+        if (video && video.srcObject) {
+            const track = video.srcObject.getVideoTracks()[0];
+            if (track && track.applyConstraints) {
+                const flashBtn = document.getElementById('flashBtn');
+                const isFlashOn = flashBtn?.dataset.flash === 'on';
+                await track.applyConstraints({ advanced: [{ torch: !isFlashOn }] });
+                if (flashBtn) {
+                    flashBtn.dataset.flash = isFlashOn ? 'off' : 'on';
+                    flashBtn.innerHTML = isFlashOn ? '<i class="fa fa-bolt"></i>' : '<i class="fa fa-bolt text-yellow-400"></i>';
+                }
+            }
+        }
+    } catch (err) { console.warn('Flash error:', err); }
+};
+
+window.openGalleryScanner = () => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    input.onchange = async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        try {
+            window.showScannerToast('📷 Scanning image...');
+            const tempScanner = new Html5Qrcode("scanner-container");
+            const result = await tempScanner.scanFile(file, true);
+            const inputField = document.getElementById(currentScanTarget);
+            if (inputField) {
+                inputField.value = result.trim().toUpperCase();
+                window.showScannerToast('✅ Scanned from gallery');
+                if (currentScanTarget === 'f1_disposal_barcode_input' && window.fetchDisposalAssetDetails) window.fetchDisposalAssetDetails(inputField.value);
+            }
+            await tempScanner.clear();
+            window.stopCameraScanner();
+        } catch (err) {
+            window.showScannerToast('No code found in image');
+        }
+    };
+    input.click();
+};
+
+window.showScannerToast = (message) => {
+    let toast = document.getElementById('scanner-toast');
+    if (!toast) {
+        toast = document.createElement('div');
+        toast.id = 'scanner-toast';
+        toast.style.cssText = `position:fixed; bottom:40px; left:50%; transform:translateX(-50%); background:#1E1B4B; color:white; padding:12px 24px; border-radius:16px; font-weight:700; font-size:12px; z-index:9999999; box-shadow:0 10px 30px rgba(0,0,0,0.5); text-transform:uppercase; tracking-widest; border:1px solid rgba(255,255,255,0.1); opacity:0; transition:opacity 0.3s;`;
+        document.body.appendChild(toast);
+    }
+    toast.textContent = message;
+    toast.style.opacity = '1';
+    setTimeout(() => { toast.style.opacity = '0'; }, 3000);
+};
+
 
 window.fetchRoomDetails = async (roomBarcode) => {
     try {

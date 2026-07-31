@@ -285,6 +285,18 @@ body {
     color: var(--primary-indigo) !important;
 }
 
+/* SCAN LINE ANIMATION (Task 5) */
+@keyframes animate-scan-line {
+    0% { top: 10%; opacity: 0; }
+    20% { opacity: 1; }
+    80% { opacity: 1; }
+    100% { top: 90%; opacity: 0; }
+}
+
+.animate-scan-line {
+    animation: animate-scan-line 2.5s ease-in-out infinite;
+}
+
 /* UTILS */
 .no-scrollbar::-webkit-scrollbar { display: none; }
 .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
