@@ -2,615 +2,375 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="theme-color" content="#1E1B4B">
     <title>Admin Portal - JYS Portal</title>
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-    <link rel="manifest" href="manifest.json?v=3.1">
-    <link rel="apple-touch-icon" href="jys_Icon.png?v=3.1">
-    <meta name="theme-color" content="#4f46e5">
-    <link rel="stylesheet" href="style.css">
-</head>
-<body class="text-white">
-    <div class="app-container">
-        <nav class="flex items-center justify-between p-3 bg-transparent w-full box-border z-[1000]">
-            <a href="index.html" class="flex items-center gap-1 px-3 py-2 bg-indigo-600 hover:bg-indigo-700 rounded-xl transition no-underline text-white font-bold text-xs shadow-md">
-                <i class="fa-solid f-arrow-left"></i>
-                <span>Back</span>
-            </a>
-            <h2 class="text-base font-black tracking-tight text-indigo-900 uppercase">Admin Portal</h2>
-            <div class="w-[60px]"></div>
-        </nav>
 
-        <!-- ADMIN AUTH VIEW -->
-        <section id="view-admin-auth" class="view-section p-4 items-center justify-center flex-1 active">
-            <div class="w-full bg-white text-gray-800 rounded-3xl shadow-2xl p-8">
-                <form id="admin-login-form" class="space-y-6">
-                    <div class="text-center mb-6">
-                        <div class="w-16 h-16 bg-indigo-100 text-indigo-600 rounded-full mx-auto flex items-center justify-center mb-2">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
+    <link rel="manifest" href="manifest.json?v=3.5">
+    <link rel="apple-touch-icon" href="jys_Icon.png?v=3.5">
+    <link rel="stylesheet" href="style.css?v=3.5">
+
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif !important;
+            background: #f8fafc;
+            min-height: 100vh;
+            -webkit-font-smoothing: antialiased;
+            overflow-x: hidden;
+        }
+
+        .safe-area { padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); }
+
+        .glass-effect {
+            background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(12px) saturate(180%);
+            -webkit-backdrop-filter: blur(12px) saturate(180%);
+            border: 1px solid rgba(255, 255, 255, 0.5);
+        }
+
+        .stat-card {
+            transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+            cursor: pointer;
+            border: 1px solid #f1f5f9;
+        }
+        .stat-card:hover { transform: translateY(-4px); box-shadow: 0 12px 30px rgba(79, 70, 229, 0.1); }
+
+        .quick-action-btn { transition: all 0.2s ease; border: 1px solid #f1f5f9; min-height: 44px; }
+        .quick-action-btn:active { transform: scale(0.95); }
+
+        .table-wrapper { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+        .table-wrapper thead th { position: sticky; top: 0; background: #f8fafc; z-index: 10; }
+
+        .status-badge { display: inline-flex; align-items: center; gap: 4px; padding: 3px 12px; border-radius: 8px; font-weight: 700; font-size: 9px; text-transform: uppercase; letter-spacing: 0.5px; }
+        .status-badge.open { background: #fef3c7; color: #d97706; }
+        .status-badge.closed { background: #d1fae5; color: #059669; }
+        .status-badge.rejected { background: #fee2e2; color: #dc2626; }
+
+        .progress-bar { transition: width 1.2s cubic-bezier(0.34, 1.56, 0.64, 1); }
+
+        /* DARK MODE */
+        @media (prefers-color-scheme: dark) {
+            body { background: #0f0a2a !important; color: #e0e7ff; }
+            .glass-effect, .stat-card, .quick-action-btn, .admin-main-card { background: rgba(30, 27, 75, 0.9) !important; border-color: rgba(76, 70, 150, 0.3) !important; }
+            .text-indigo-900, .text-slate-800 { color: #e0e7ff !important; }
+            .text-indigo-600 { color: #818cf8 !important; }
+            input, select, textarea { background: rgba(45, 42, 94, 0.8) !important; border-color: rgba(76, 70, 150, 0.5) !important; color: #e0e7ff !important; }
+        }
+
+        /* OVERLAP FIX: Force display none on hidden tabs */
+        .admin-tab-content.hidden {
+            display: none !important;
+            visibility: hidden !important;
+            height: 0 !important;
+            overflow: hidden !important;
+            margin: 0 !important;
+            padding: 0 !important;
+        }
+
+        .hidden { display: none !important; }
+        .fade-in { animation: fadeIn 0.5s ease-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    </style>
+</head>
+<body class="safe-area">
+    <div class="app-container min-h-screen flex flex-col">
+
+        <!-- ADMIN AUTH VIEW (PREMIUM v3.5.0) -->
+        <section id="view-admin-auth" class="view-section active flex-1 flex items-center justify-center p-4 bg-gradient-to-br from-indigo-50 via-white to-purple-50">
+            <div class="w-full max-w-md mx-auto fade-in">
+                <div class="glass-effect rounded-[40px] shadow-2xl p-8 sm:p-10 transition-all duration-300">
+                    <div class="text-center mb-8">
+                        <div class="w-20 h-20 bg-gradient-to-br from-indigo-500 to-indigo-700 rounded-3xl mx-auto flex items-center justify-center shadow-xl shadow-indigo-500/30 mb-4">
+                            <i class="fa-solid fa-crown text-3xl text-white"></i>
                         </div>
-                        <p class="text-xs text-gray-400">Restricted Access</p>
+                        <h2 class="text-3xl font-black text-indigo-900 uppercase tracking-tighter">Admin Portal</h2>
+                        <p class="text-[10px] font-bold text-indigo-400 uppercase tracking-widest mt-1">Restricted Access</p>
                     </div>
-                    <input type="tel" id="admin-mobile" placeholder="Admin Mobile" required class="w-full p-3 border rounded-xl text-sm outline-none focus:ring-2 focus:ring-indigo-600">
-                    <input type="password" id="admin-pass" placeholder="Password" required class="w-full p-3 border rounded-xl text-sm outline-none focus:ring-2 focus:ring-indigo-600">
-                    <button type="submit" class="w-full bg-indigo-600 text-white py-3 rounded-xl font-bold text-lg active:bg-indigo-700 transition">Unlock</button>
-                </form>
+
+                    <form id="admin-login-form" class="space-y-5">
+                        <div class="space-y-1.5">
+                            <label class="text-[10px] font-black text-indigo-400 uppercase tracking-wider flex items-center gap-1.5 ml-1"><i class="fa-solid fa-phone"></i> Admin Mobile</label>
+                            <input type="tel" id="admin-mobile" placeholder="Enter number" required class="w-full px-5 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-indigo-500 focus:bg-white outline-none transition-all font-medium text-sm">
+                        </div>
+                        <div class="space-y-1.5">
+                            <label class="text-[10px] font-black text-indigo-400 uppercase tracking-wider flex items-center gap-1.5 ml-1"><i class="fa-solid fa-lock"></i> Password</label>
+                            <div class="relative">
+                                <input type="password" id="admin-pass" placeholder="Enter password" required class="w-full px-5 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-indigo-500 focus:bg-white outline-none transition-all font-medium text-sm">
+                                <button type="button" onclick="window.togglePassword('admin-pass', this)" class="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-indigo-600"><i class="fa-regular fa-eye"></i></button>
+                            </div>
+                        </div>
+                        <button type="submit" class="w-full py-5 bg-gradient-to-r from-indigo-600 to-indigo-800 text-white rounded-2xl font-black text-sm uppercase tracking-widest shadow-xl shadow-indigo-500/30 active:scale-[0.98] transition-all flex items-center justify-center gap-3 mt-4">
+                            <i class="fa-solid fa-unlock-keyhole text-lg"></i> Unlock Dashboard
+                        </button>
+                    </form>
+                    <div class="mt-6 text-center"><a href="index.html" class="text-[10px] font-black text-slate-400 uppercase tracking-widest hover:text-indigo-600 flex items-center justify-center gap-2"><i class="fa-solid fa-arrow-left"></i> Back to Portal</a></div>
+                </div>
             </div>
         </section>
 
-        <!-- ADMIN DASHBOARD VIEW -->
-        <section id="view-admin-dash" class="view-section hidden p-4">
-            <nav class="w-full flex items-center justify-between mb-6 pt-4">
-                <div>
-                    <h2 class="text-2xl font-black tracking-tighter text-indigo-900 leading-none">ADMIN</h2>
-                    <p class="text-[10px] font-bold text-indigo-400 uppercase tracking-widest mt-1">Management Portal</p>
-                </div>
-                <div class="flex items-center gap-2">
-                    <input type="checkbox" id="nav-toggle" class="hidden peer">
-                    <label for="nav-toggle" class="md:hidden h-9 w-9 flex items-center justify-center bg-indigo-600 text-white rounded-lg shadow-md cursor-pointer z-[2000]">
-                        <i class="fa-solid fa-bars"></i>
-                    </label>
-
-                    <div id="admin-action-menu" class="flex items-center gap-2 bg-white/50 p-1.5 rounded-xl border border-indigo-50/50 shadow-sm transition-all duration-300 md:static fixed top-24 right-4 md:flex-row flex-col md:w-auto w-48 md:bg-white/50 bg-white md:shadow-sm shadow-2xl md:opacity-100 opacity-0 md:pointer-events-auto pointer-events-none peer-checked:opacity-100 peer-checked:pointer-events-auto z-[1900]">
-                         <button onclick="downloadExcelReport()" title="Attendance Report" class="h-9 w-9 flex items-center justify-center bg-indigo-600 text-white rounded-lg shadow-md hover:bg-indigo-700 active:scale-95 transition-all w-full md:w-9">
-                            <i class="fa-solid fa-file-invoice text-sm"></i>
-                            <span class="md:hidden ml-2 text-[10px] font-bold uppercase">Attendance</span>
-                         </button>
-                         <button onclick="exportTaskReportExcel()" title="Task Audit Report" class="h-9 w-9 flex items-center justify-center bg-emerald-600 text-white rounded-lg shadow-md hover:bg-emerald-700 active:scale-95 transition-all w-full md:w-9">
-                            <i class="fa-solid fa-tasks text-sm"></i>
-                            <span class="md:hidden ml-2 text-[10px] font-bold uppercase">Tasks</span>
-                         </button>
-                         <button onclick="downloadMasterAssetReport()" title="Master Asset Report" class="h-9 w-9 flex items-center justify-center bg-orange-500 text-white rounded-lg shadow-md hover:bg-orange-600 active:scale-95 transition-all w-full md:w-9">
-                            <i class="fa-solid fa-boxes-stacked text-sm"></i>
-                            <span class="md:hidden ml-2 text-[10px] font-bold uppercase">Assets</span>
-                         </button>
-                         <div class="md:w-px md:h-6 md:bg-indigo-100 w-full h-px bg-gray-100 my-1"></div>
-                         <button onclick="openTaskModal()" title="Raise Task" class="h-9 w-9 flex items-center justify-center bg-purple-600 text-white rounded-lg shadow-md hover:bg-purple-700 active:scale-95 transition-all w-full md:w-9">
-                            <i class="fa-solid fa-plus text-sm"></i>
-                            <span class="md:hidden ml-2 text-[10px] font-bold uppercase">Raise Task</span>
-                         </button>
-                         <button onclick="window.subscribeUserToPush()" title="Diagnostic" class="h-9 w-9 flex items-center justify-center bg-slate-700 text-white rounded-lg shadow-md hover:bg-slate-800 active:scale-95 transition-all w-full md:w-9">
-                            <i class="fa-solid fa-bug text-sm"></i>
-                            <span class="md:hidden ml-2 text-[10px] font-bold uppercase">Diag</span>
-                         </button>
-                         <button id="admin-logout-btn" onclick="window.handleUserLogout()" class="h-9 px-4 bg-red-600 text-white rounded-lg shadow-md hover:bg-red-700 active:scale-95 transition-all flex items-center gap-2 w-full md:w-auto" title="Logout">
-                            <i class="fa-solid fa-power-off text-xs"></i>
-                            <span class="text-[10px] font-black uppercase tracking-widest">Logout</span>
-                         </button>
+        <!-- ADMIN DASHBOARD VIEW (ULTRA OPTIMIZED) -->
+        <section id="view-admin-dash" class="view-section hidden p-4 sm:p-6 bg-[#f8fafc] flex-1">
+            <!-- TOP NAV -->
+            <nav class="w-full flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8">
+                <div class="flex items-center gap-3">
+                    <div class="w-12 h-12 bg-indigo-600 rounded-2xl flex items-center justify-center shadow-lg shadow-indigo-500/20"><i class="fa-solid fa-shield-halved text-white text-xl"></i></div>
+                    <div>
+                        <h2 class="text-3xl font-black tracking-tighter text-indigo-900 leading-none">ADMIN</h2>
+                        <p class="text-[10px] font-bold text-indigo-400 uppercase tracking-[0.2em] mt-1 flex items-center gap-2"><i class="fa-solid fa-circle text-[6px] text-emerald-400 animate-pulse"></i> Management Hub</p>
                     </div>
                 </div>
+                <button onclick="window.handleUserLogout()" class="px-6 py-3 bg-red-50 text-red-600 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-red-600 hover:text-white transition-all active:scale-95 flex items-center justify-center gap-2 border border-red-100">
+                    <i class="fa-solid fa-power-off"></i> Logout
+                </button>
             </nav>
 
-            <!-- KPI SUMMARY GRID -->
-            <div class="kpi-horizontal-container">
-                <div class="stat-card">
-                    <i class="fa-solid fa-users"></i>
-                    <div class="stat-card-info">
-                        <p>Visitors Today</p>
-                        <h3 id="kpi-visitors">0</h3>
+            <!-- KPI GRID -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+                <div class="stat-card bg-white p-5 rounded-3xl shadow-xl shadow-indigo-500/5 border border-slate-50 flex items-center gap-4" onclick="showAdminTab('tab-visitor-logs')">
+                    <div class="w-14 h-14 bg-indigo-50 rounded-2xl flex items-center justify-center text-indigo-600 text-2xl"><i class="fa-solid fa-users"></i></div>
+                    <div class="flex-1">
+                        <p class="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Visitors Today</p>
+                        <h3 class="text-2xl font-black text-indigo-900" id="kpi-visitors">0</h3>
+                        <div class="mt-2 h-1 w-full bg-slate-100 rounded-full overflow-hidden"><div class="h-full bg-indigo-600 progress-bar" style="width: 0%"></div></div>
                     </div>
                 </div>
-                <div class="stat-card">
-                    <i class="fa-solid fa-clock-rotate-left"></i>
-                    <div class="stat-card-info">
-                        <p>Active Tasks</p>
-                        <h3 id="kpi-tasks">0</h3>
+                <div class="stat-card bg-white p-5 rounded-3xl shadow-xl shadow-indigo-500/5 border border-slate-50 flex items-center gap-4" onclick="showAdminTab('tab-tasks')">
+                    <div class="w-14 h-14 bg-amber-50 rounded-2xl flex items-center justify-center text-amber-500 text-2xl"><i class="fa-solid fa-clock-rotate-left"></i></div>
+                    <div class="flex-1">
+                        <p class="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Active Tasks</p>
+                        <h3 class="text-2xl font-black text-amber-600" id="kpi-tasks">0</h3>
+                        <div class="mt-2 h-1 w-full bg-slate-100 rounded-full overflow-hidden"><div class="h-full bg-amber-500 progress-bar" style="width: 0%"></div></div>
                     </div>
                 </div>
-                <div class="stat-card">
-                    <i class="fa-solid fa-user-check"></i>
-                    <div class="stat-card-info">
-                        <p>Staff Present</p>
-                        <h3 id="kpi-staff">0</h3>
+                <div class="stat-card bg-white p-5 rounded-3xl shadow-xl shadow-indigo-500/5 border border-slate-50 flex items-center gap-4" onclick="showAdminTab('tab-staff-logs')">
+                    <div class="w-14 h-14 bg-emerald-50 rounded-2xl flex items-center justify-center text-emerald-500 text-2xl"><i class="fa-solid fa-user-check"></i></div>
+                    <div class="flex-1">
+                        <p class="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Staff Present</p>
+                        <h3 class="text-2xl font-black text-emerald-600" id="kpi-staff">0</h3>
+                        <div class="mt-2 h-1 w-full bg-slate-100 rounded-full overflow-hidden"><div class="h-full bg-emerald-500 progress-bar" style="width: 0%"></div></div>
                     </div>
                 </div>
-                <div class="stat-card">
-                    <i class="fa-solid fa-bell"></i>
-                    <div class="stat-card-info">
-                        <p>Alerts</p>
-                        <h3 id="kpi-alerts">0</h3>
+                <div class="stat-card bg-white p-5 rounded-3xl shadow-xl shadow-indigo-500/5 border border-slate-50 flex items-center gap-4">
+                    <div class="w-14 h-14 bg-red-50 rounded-2xl flex items-center justify-center text-red-500 text-2xl"><i class="fa-solid fa-bell"></i></div>
+                    <div class="flex-1">
+                        <p class="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Urgent Alerts</p>
+                        <h3 class="text-2xl font-black text-red-600" id="kpi-alerts">0</h3>
+                        <div class="mt-2 h-1 w-full bg-slate-100 rounded-full overflow-hidden"><div class="h-full bg-red-500 progress-bar" style="width: 0%"></div></div>
                     </div>
                 </div>
             </div>
 
-            <div class="max-w-7xl mx-auto rounded-3xl overflow-hidden shadow-2xl bg-white text-gray-800 border border-slate-100">
-                <!-- REDESIGNED NAVIGATION TABS -->
-                <div class="flex bg-slate-50 border-b border-slate-200 overflow-x-auto no-scrollbar p-1 gap-1">
-                    <button onclick="showAdminTab('tab-visitor-logs')" id="tabVisitorLogs" class="admin-tab-btn flex-1 py-3 px-4 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all active-tab whitespace-nowrap min-w-max">
-                        <i class="fa-solid fa-id-card-clip mr-2"></i>Visitor Logs
-                    </button>
-                    <button onclick="showAdminTab('tab-staff-logs')" id="tabStaffLogs" class="admin-tab-btn flex-1 py-3 px-4 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all whitespace-nowrap min-w-max">
-                        <i class="fa-solid fa-user-clock mr-2"></i>Staff Attendance
-                    </button>
-                    <button onclick="showAdminTab('tab-tasks')" id="taskAuditBtn" class="admin-tab-btn flex-1 py-3 px-4 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all whitespace-nowrap min-w-max">
-                        <i class="fa-solid fa-list-check mr-2"></i>Global Task Audit
-                    </button>
-                    <button onclick="showAdminTab('tab-my-tasks')" id="myTasksTrackerBtn" class="admin-tab-btn flex-1 py-3 px-4 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all whitespace-nowrap min-w-max text-orange-600">
-                        <i class="fa-solid fa-clipboard-user mr-2"></i>My Raised Tasks
-                    </button>
-                    <button onclick="showAdminTab('tab-staff-list')" id="staffMgmtBtn" class="admin-tab-btn flex-1 py-3 px-4 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all whitespace-nowrap min-w-max">
-                        <i class="fa-solid fa-address-book mr-2"></i>Staff Directory
-                    </button>
-                    <button onclick="showAdminTab('tab-assets')" id="assetMgmtBtn" class="admin-tab-btn flex-1 py-3 px-4 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all whitespace-nowrap min-w-max">
-                        <i class="fa-solid fa-barcode mr-2"></i>Asset Register
-                    </button>
-                    <button onclick="showAdminTab('tab-disposal')" id="assetDisposalBtn" class="admin-tab-btn flex-1 py-3 px-4 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all whitespace-nowrap min-w-max">
-                        <i class="fa-solid fa-trash-can mr-2"></i>Asset Disposal
-                    </button>
-                    <button onclick="showAdminTab('tab-transfers')" id="assetTransferBtn" class="admin-tab-btn flex-1 py-3 px-4 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all whitespace-nowrap min-w-max">
-                        <i class="fa-solid fa-truck-ramp-box mr-2"></i>Transfer Logs
-                    </button>
-                </div>
+            <!-- QUICK ACTIONS GRID -->
+            <div class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3 mb-8">
+                <button onclick="showAdminTab('tab-visitor-logs')" class="quick-action-btn flex flex-col items-center gap-2 p-4 bg-white rounded-2xl shadow-sm hover:border-indigo-200 transition-all active:scale-95 group">
+                    <div class="w-10 h-10 bg-indigo-50 rounded-xl flex items-center justify-center text-indigo-600 group-hover:bg-indigo-600 group-hover:text-white transition-colors"><i class="fa-solid fa-id-card-clip"></i></div>
+                    <span class="text-[8px] font-black uppercase text-slate-500 group-hover:text-indigo-600">Visitors</span>
+                </button>
+                <button onclick="showAdminTab('tab-staff-logs')" class="quick-action-btn flex flex-col items-center gap-2 p-4 bg-white rounded-2xl shadow-sm hover:border-emerald-200 transition-all active:scale-95 group">
+                    <div class="w-10 h-10 bg-emerald-50 rounded-xl flex items-center justify-center text-emerald-600 group-hover:bg-emerald-600 group-hover:text-white transition-colors"><i class="fa-solid fa-user-clock"></i></div>
+                    <span class="text-[8px] font-black uppercase text-slate-500 group-hover:text-emerald-600">Attendance</span>
+                </button>
+                <button onclick="showAdminTab('tab-tasks')" class="quick-action-btn flex flex-col items-center gap-2 p-4 bg-white rounded-2xl shadow-sm hover:border-purple-200 transition-all active:scale-95 group">
+                    <div class="w-10 h-10 bg-purple-50 rounded-xl flex items-center justify-center text-purple-600 group-hover:bg-purple-600 group-hover:text-white transition-colors"><i class="fa-solid fa-list-check"></i></div>
+                    <span class="text-[8px] font-black uppercase text-slate-500 group-hover:text-purple-600">Audit</span>
+                </button>
+                <button onclick="showAdminTab('tab-my-tasks')" class="quick-action-btn flex flex-col items-center gap-2 p-4 bg-white rounded-2xl shadow-sm hover:border-orange-200 transition-all active:scale-95 group">
+                    <div class="w-10 h-10 bg-orange-50 rounded-xl flex items-center justify-center text-orange-600 group-hover:bg-orange-600 group-hover:text-white transition-colors"><i class="fa-solid fa-clipboard-user"></i></div>
+                    <span class="text-[8px] font-black uppercase text-slate-500 group-hover:text-orange-600">Raised</span>
+                </button>
+                <button onclick="showAdminTab('tab-staff-list')" class="quick-action-btn flex flex-col items-center gap-2 p-4 bg-white rounded-2xl shadow-sm hover:border-slate-300 transition-all active:scale-95 group">
+                    <div class="w-10 h-10 bg-slate-50 rounded-xl flex items-center justify-center text-slate-600 group-hover:bg-slate-600 group-hover:text-white transition-colors"><i class="fa-solid fa-address-book"></i></div>
+                    <span class="text-[8px] font-black uppercase text-slate-500 group-hover:text-slate-600">Directory</span>
+                </button>
+                <button onclick="showAdminTab('tab-assets')" class="quick-action-btn flex flex-col items-center gap-2 p-4 bg-white rounded-2xl shadow-sm hover:border-cyan-200 transition-all active:scale-95 group">
+                    <div class="w-10 h-10 bg-cyan-50 rounded-xl flex items-center justify-center text-cyan-600 group-hover:bg-cyan-600 group-hover:text-white transition-colors"><i class="fa-solid fa-barcode"></i></div>
+                    <span class="text-[8px] font-black uppercase text-slate-500 group-hover:text-cyan-600">Assets</span>
+                </button>
+                <button onclick="showAdminTab('tab-disposal')" class="quick-action-btn flex flex-col items-center gap-2 p-4 bg-white rounded-2xl shadow-sm hover:border-red-200 transition-all active:scale-95 group">
+                    <div class="w-10 h-10 bg-red-50 rounded-xl flex items-center justify-center text-red-600 group-hover:bg-red-600 group-hover:text-white transition-colors"><i class="fa-solid fa-trash-can"></i></div>
+                    <span class="text-[8px] font-black uppercase text-slate-500 group-hover:text-red-600">Disposal</span>
+                </button>
+                <button onclick="showAdminTab('tab-transfers')" class="quick-action-btn flex flex-col items-center gap-2 p-4 bg-white rounded-2xl shadow-sm hover:border-indigo-200 transition-all active:scale-95 group">
+                    <div class="w-10 h-10 bg-indigo-50 rounded-xl flex items-center justify-center text-indigo-600 group-hover:bg-indigo-600 group-hover:text-white transition-colors"><i class="fa-solid fa-truck-ramp-box"></i></div>
+                    <span class="text-[8px] font-black uppercase text-slate-500 group-hover:text-indigo-600">Transfers</span>
+                </button>
+            </div>
 
-                <div class="p-4 space-y-4">
-                    <!-- My Raised Tasks Tab -->
-                    <div id="tab-my-tasks" class="admin-tab space-y-4 hidden">
-                        <div class="px-2 flex items-center justify-between">
-                            <div>
-                                <h3 class="text-orange-600 font-black text-lg uppercase tracking-tight">My Tasks Tracker</h3>
-                                <p class="text-[10px] text-slate-400 font-bold uppercase">Real-time status of tasks raised by Admin</p>
-                            </div>
-                            <div class="flex bg-slate-100 p-1 rounded-xl shadow-inner">
-                                <button onclick="window.switchRaisedTaskView('active')" id="admin-raised-tab-active" class="px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all bg-white text-indigo-600 shadow-sm">Active</button>
-                                <button onclick="window.switchRaisedTaskView('history')" id="admin-raised-tab-history" class="px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all text-slate-400">History</button>
-                            </div>
+            <!-- MAIN DATA CONTAINER -->
+            <div class="max-w-full mx-auto rounded-[32px] overflow-hidden shadow-2xl bg-white border border-slate-100 min-h-[500px] admin-main-card">
+                <div class="p-4 sm:p-6" id="admin-data-container">
+
+                    <!-- VISITOR LOGS TAB -->
+                    <div id="tab-visitor-logs" class="admin-tab-content space-y-4">
+                        <div class="flex items-center justify-between mb-2">
+                            <h3 class="text-indigo-900 font-black text-lg uppercase flex items-center gap-2"><i class="fa-solid fa-id-card-clip text-indigo-500"></i> Visitor Logs</h3>
+                            <button onclick="downloadExcelReport()" class="px-4 py-2 bg-indigo-600 text-white rounded-xl text-[10px] font-black uppercase shadow-lg shadow-indigo-500/20 active:scale-95">Export Excel</button>
+                        </div>
+                        <div class="flex gap-2"><input type="text" id="visitor-search" placeholder="Search..." class="flex-1 bg-slate-50 border p-3 rounded-xl text-xs outline-none focus:border-indigo-500" oninput="window.filterVisitorTable()"><input type="date" id="visitor-date-filter" class="bg-slate-50 border p-3 rounded-xl text-xs" onchange="window.filterVisitorTable()"></div>
+                        <div class="table-wrapper rounded-2xl border border-slate-100"><table class="w-full text-left text-[10px]"><thead class="bg-slate-50 uppercase text-indigo-600 font-black"><tr><th class="p-4">Type</th><th class="p-4">Pass No</th><th class="p-4">Full Name</th><th class="p-4">Mobile</th><th class="p-4">Company</th><th class="p-4">Purpose</th><th class="p-4">Date</th><th class="p-4">In</th><th class="p-4">Out</th><th class="p-4">Status</th><th class="p-4 text-center">Sig</th></tr></thead><tbody id="visitor-logs-body" class="divide-y divide-slate-50"></tbody></table></div>
+                    </div>
+
+                    <!-- STAFF LOGS TAB -->
+                    <div id="tab-staff-logs" class="admin-tab-content hidden space-y-4">
+                        <div class="flex items-center justify-between">
+                            <h3 class="text-emerald-900 font-black text-lg uppercase flex items-center gap-2"><i class="fa-solid fa-user-clock text-emerald-500"></i> Staff Attendance</h3>
+                            <button onclick="downloadExcelReport()" class="px-4 py-2 bg-emerald-600 text-white rounded-xl text-[10px] font-black uppercase shadow-lg active:scale-95">Attendance Report</button>
+                        </div>
+                        <div class="flex gap-2"><input type="text" id="staff-search" placeholder="Search..." class="flex-1 bg-slate-50 border p-3 rounded-xl text-xs outline-none" oninput="window.filterStaffTable()"><input type="date" id="staff-date-filter" class="bg-slate-50 border p-3 rounded-xl text-xs" onchange="window.filterStaffTable()"></div>
+                        <div class="table-wrapper rounded-2xl border border-slate-100"><table class="w-full text-left text-[10px]"><thead class="bg-slate-50 uppercase text-emerald-600 font-black"><tr><th class="p-4">Type</th><th class="p-4">Full Name</th><th class="p-4">Mobile</th><th class="p-4">School</th><th class="p-4">Position</th><th class="p-4">Date</th><th class="p-4">In</th><th class="p-4">Out</th><th class="p-4 text-center">Sig</th></tr></thead><tbody id="staff-attendance-body" class="divide-y divide-slate-50"></tbody></table></div>
+                    </div>
+
+                    <!-- TASK AUDIT TAB -->
+                    <div id="tab-tasks" class="admin-tab-content hidden space-y-4">
+                        <div class="flex items-center justify-between">
+                            <h3 class="text-purple-900 font-black text-lg uppercase flex items-center gap-2"><i class="fa-solid fa-list-check text-purple-500"></i> Global Task Audit</h3>
+                            <button onclick="exportTaskReportExcel()" class="px-4 py-2 bg-purple-600 text-white rounded-xl text-[10px] font-black uppercase shadow-lg active:scale-95">Tasks Report</button>
+                        </div>
+                        <div class="table-wrapper rounded-2xl border border-slate-100"><table class="w-full text-left text-[9px]"><thead class="bg-slate-50 uppercase text-purple-600 font-black"><tr><th class="p-3">ID</th><th class="p-3">School</th><th class="p-3">Area</th><th class="p-3">Details</th><th class="p-3">Dept</th><th class="p-3">Raised By</th><th class="p-3">Fixed By</th><th class="p-3">Status</th><th class="p-3">Reason</th><th class="p-3 text-center">Photos</th></tr></thead><tbody id="admin-task-list-body" class="divide-y divide-slate-50"></tbody></table></div>
+                    </div>
+
+                    <!-- MY RAISED TASKS TAB -->
+                    <div id="tab-my-tasks" class="admin-tab-content hidden space-y-4">
+                        <div class="flex items-center justify-between px-2">
+                            <h3 class="text-orange-600 font-black text-lg uppercase tracking-tight">Raised Tasks Tracker</h3>
+                            <div class="flex bg-slate-100 p-1 rounded-xl shadow-inner"><button onclick="window.switchRaisedTaskView('active')" id="admin-raised-tab-active" class="px-4 py-2 rounded-lg text-[9px] font-black uppercase bg-white text-indigo-600 shadow-sm">Active</button><button onclick="window.switchRaisedTaskView('history')" id="admin-raised-tab-history" class="px-4 py-2 rounded-lg text-[9px] font-black uppercase text-slate-400">History</button></div>
                         </div>
                         <div id="admin-my-tasks-container"></div>
                     </div>
-                    <!-- Table 1: Visitor Logs (Default Visible) -->
-                    <div id="tab-visitor-logs" class="admin-tab active space-y-4">
-                         <div class="flex flex-col md:flex-row gap-2">
-                            <input type="text" id="visitor-search" placeholder="Search Visitor Logs..." class="flex-1 bg-white border border-gray-200 p-3 rounded-xl outline-none text-xs" oninput="window.filterVisitorTable()">
-                            <input type="date" id="visitor-date-filter" class="bg-white border border-gray-200 p-2 rounded-xl text-xs" onchange="window.filterVisitorTable()">
-                        </div>
-                        <div class="overflow-x-auto rounded-xl border border-gray-100 shadow-sm custom-scrollbar">
-                            <table class="w-full text-left text-[10px] excel-table" id="visitorLogsTable">
-                                <thead class="bg-slate-50 uppercase font-bold text-indigo-600">
-                                    <tr>
-                                        <th class="p-3">Type</th>
-                                        <th class="p-3">Pass No</th>
-                                        <th class="p-3">Full Name</th>
-                                        <th class="p-3">Mobile</th>
-                                        <th class="p-3">Company</th>
-                                        <th class="p-3">Purpose</th>
-                                        <th class="p-3">Date</th>
-                                        <th class="p-3">In</th>
-                                        <th class="p-3">Out</th>
-                                        <th class="p-3">Status</th>
-                                        <th class="p-3 text-center">Sig</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="visitor-logs-body" class="divide-y divide-gray-50"></tbody>
-                            </table>
-                        </div>
-                    </div>
 
-                    <!-- Table 2: Staff Logs (Default Hidden) -->
-                    <div id="tab-staff-logs" class="admin-tab hidden space-y-4">
-                         <div class="flex flex-col md:flex-row gap-2">
-                            <input type="text" id="staff-search" placeholder="Search Staff Logs..." class="flex-1 bg-white border border-gray-200 p-3 rounded-xl outline-none text-xs" oninput="window.filterStaffTable()">
-                            <input type="date" id="staff-date-filter" class="bg-white border border-gray-200 p-2 rounded-xl text-xs" onchange="window.filterStaffTable()">
-                        </div>
-                        <div class="overflow-x-auto rounded-xl border border-gray-100 shadow-sm custom-scrollbar">
-                            <table class="w-full text-left text-[10px] excel-table" id="staffLogsTable">
-                                <thead class="bg-slate-50 uppercase font-bold text-indigo-600">
-                                    <tr>
-                                        <th class="p-3">Type</th>
-                                        <th class="p-3">Full Name</th>
-                                        <th class="p-3">Mobile</th>
-                                        <th class="p-3">School Name</th>
-                                        <th class="p-3">Position</th>
-                                        <th class="p-3">Company ID</th>
-                                        <th class="p-3">Date</th>
-                                        <th class="p-3">In</th>
-                                        <th class="p-3">Out</th>
-                                        <th class="p-3 text-center">Sig</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="staff-attendance-body" class="divide-y divide-gray-50"></tbody>
-                            </table>
-                        </div>
-                    </div>
-
-                    <!-- Task Audit Tab -->
-                    <div id="tab-tasks" class="admin-tab space-y-4 hidden">
-                        <div class="overflow-x-auto rounded-xl border border-gray-100">
-                            <table class="w-full text-left text-[9px]" id="task-audit-table">
-                                <thead class="bg-slate-50 uppercase font-bold text-green-600">
-                                    <tr>
-                                        <th class="p-2">Task ID</th>
-                                        <th class="p-2">School</th>
-                                        <th class="p-2">Area</th>
-                                        <th class="p-2">Details</th>
-                                        <th class="p-2">Dept</th>
-                                        <th class="p-2">Raised By</th>
-                                        <th class="p-2">Raised Date</th>
-                                        <th class="p-2">Raised Time</th>
-                                        <th class="p-2">Fixed By</th>
-                                        <th class="p-2">Closed Date</th>
-                                        <th class="p-2">Closed Time</th>
-                                        <th class="p-2">Status</th>
-                                        <th class="p-2">Reason</th>
-                                        <th class="p-2 text-center">Photos</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="admin-task-list-body" class="divide-y divide-gray-50"></tbody>
-                            </table>
-                        </div>
-                    </div>
-
-                    <!-- Staff Management -->
-                    <div id="tab-staff-list" class="admin-tab space-y-4 hidden">
+                    <!-- STAFF DIRECTORY TAB -->
+                    <div id="tab-staff-list" class="admin-tab-content hidden space-y-4">
                         <div class="flex justify-between items-center px-2">
-                            <h3 class="text-indigo-900 font-black text-lg uppercase tracking-tight">Staff Directory</h3>
-                            <button onclick="openAddStaffModal()" class="bg-indigo-600 text-white px-4 py-2 rounded-xl font-bold text-xs shadow-lg active:scale-95 transition flex items-center gap-2">
-                                <i class="fa-solid fa-user-plus"></i> Add New Staff
-                            </button>
+                            <h3 class="text-slate-900 font-black text-lg uppercase tracking-tight">Staff Directory</h3>
+                            <button onclick="openAddStaffModal()" class="bg-slate-800 text-white px-4 py-2 rounded-xl font-bold text-[10px] uppercase shadow-lg active:scale-95 transition flex items-center gap-2"><i class="fa-solid fa-user-plus"></i> Add Staff</button>
                         </div>
-                        <div class="overflow-x-auto rounded-xl border border-gray-100 bg-white">
-                            <table class="w-full text-left text-[10px]">
-                                <thead class="bg-slate-50 uppercase font-bold text-purple-600">
-                                    <tr>
-                                        <th class="p-3 text-center">Photo</th>
-                                        <th class="p-3">Staff Name</th>
-                                        <th class="p-3">ADEK Pass</th>
-                                        <th class="p-3">School Branch</th>
-                                        <th class="p-3">Position</th>
-                                        <th class="p-3">Company</th>
-                                        <th class="p-3">Mobile</th>
-                                        <th class="p-3 text-center">Action</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="admin-staff-list-body" class="divide-y divide-gray-50"></tbody>
-                            </table>
-                        </div>
+                        <div class="table-wrapper rounded-2xl border border-slate-100"><table class="w-full text-left text-[10px]"><thead class="bg-slate-50 uppercase text-slate-600 font-black"><tr><th class="p-4 text-center">Photo</th><th class="p-4">Name</th><th class="p-4">Pass</th><th class="p-4">School</th><th class="p-4">Position</th><th class="p-4">Mobile</th><th class="p-4 text-center">Action</th></tr></thead><tbody id="admin-staff-list-body" class="divide-y divide-slate-50"></tbody></table></div>
                     </div>
 
-                    <!-- Asset Register Tab -->
-                    <div id="tab-assets" class="admin-tab space-y-4 hidden">
-                        <div class="flex flex-col md:flex-row gap-2 items-center">
-                            <input type="text" id="asset-search" placeholder="Search Assets (Barcode, Description...)" class="flex-1 bg-white border border-gray-200 p-3 rounded-xl outline-none text-xs" oninput="filterAssetTable()">
-                            <div class="flex gap-2">
-                                <select id="asset-category-filter" class="flex-1 bg-white border border-gray-200 p-2 rounded-xl text-xs" onchange="filterAssetTable()">
-                                    <option value="all">All Categories</option>
-                                    <option value="IT">IT Assets</option>
-                                    <option value="Non-IT">Non-IT Assets</option>
-                                </select>
-                                <button onclick="window.bulkDeleteAssets()" class="bg-red-600 text-white px-4 py-2 rounded-xl font-bold text-xs shadow-lg active:scale-95 transition flex items-center gap-2 whitespace-nowrap">
-                                    <i class="fa-solid fa-trash-can"></i> Bulk Delete
-                                </button>
-                                <button onclick="document.getElementById('asset-import-input').click()" class="bg-indigo-600 text-white px-4 py-2 rounded-xl font-bold text-xs shadow-lg active:scale-95 transition flex items-center gap-2 whitespace-nowrap">
-                                    <i class="fa-solid fa-file-import"></i> Import Assets
-                                </button>
-                                <input type="file" id="asset-import-input" accept=".xlsx, .csv" class="hidden" onchange="window.handleAssetImport(event)">
+                    <!-- ASSET REGISTER TAB -->
+                    <div id="tab-assets" class="admin-tab-content hidden space-y-4">
+                        <div class="flex flex-col md:flex-row gap-3 items-center px-2">
+                            <h3 class="text-cyan-900 font-black text-lg uppercase flex-1">Asset Register</h3>
+                            <div class="flex gap-2 w-full md:w-auto">
+                                <button onclick="window.bulkDeleteAssets()" class="px-4 py-2 bg-red-500 text-white rounded-xl text-[9px] font-black uppercase shadow-lg">Bulk Delete</button>
+                                <button onclick="downloadMasterAssetReport()" class="px-4 py-2 bg-cyan-600 text-white rounded-xl text-[9px] font-black uppercase shadow-lg">Export Assets</button>
                             </div>
                         </div>
-                        <div class="overflow-x-auto rounded-xl border border-gray-100 bg-white shadow-sm" style="max-height: 70vh; overflow-y: auto;">
-                            <table class="w-full text-left border-collapse" id="asset-master-table">
-                                <thead class="sticky top-0 bg-[#f8f9fa] z-10 shadow-sm">
-                                    <tr class="text-[11px] uppercase font-bold text-indigo-900 border-b-2 border-indigo-100">
-                                        <!-- HEADERS GENERATED DYNAMICALLY -->
-                                    </tr>
-                                </thead>
-                                <tbody id="admin-asset-list-body" class="divide-y divide-gray-100 text-gray-800 bg-white"></tbody>
-                            </table>
-                        </div>
+                        <input type="text" id="asset-search" placeholder="Search Assets..." class="w-full bg-slate-50 border p-3 rounded-xl text-xs outline-none focus:border-cyan-500" oninput="filterAssetTable()">
+                        <div class="table-wrapper rounded-2xl border border-slate-100 max-h-[500px]"><table class="w-full text-left border-collapse" id="asset-master-table"><thead class="sticky top-0 bg-slate-50 z-10 shadow-sm"><tr class="text-[10px] uppercase font-black text-cyan-700 border-b-2 border-cyan-100"></tr></thead><tbody id="admin-asset-list-body" class="divide-y divide-slate-50"></tbody></table></div>
                     </div>
 
-                    <!-- Asset Disposal Tab -->
-                    <div id="tab-disposal" class="admin-tab space-y-4 hidden">
-                        <div class="flex flex-col md:flex-row justify-between items-center gap-4">
-                            <input type="text" id="disposal-search" placeholder="Search Disposed Assets (Barcode, Reason, User)..." class="flex-1 bg-white border border-gray-200 p-3 rounded-xl outline-none text-xs w-full" oninput="filterDisposalTable()">
-                            <button onclick="downloadDisposedAssetReport()" class="bg-red-600 text-white px-4 py-2 rounded-lg font-bold text-xs flex items-center gap-2 whitespace-nowrap">
-                                <i class="fa-solid fa-file-excel"></i> Export Disposed Assets
-                            </button>
+                    <!-- ASSET DISPOSAL TAB -->
+                    <div id="tab-disposal" class="admin-tab-content hidden space-y-4">
+                        <div class="flex items-center justify-between px-2">
+                            <h3 class="text-red-700 font-black text-lg uppercase flex items-center gap-2"><i class="fa-solid fa-trash-can"></i> Asset Disposal</h3>
+                            <button onclick="downloadDisposedAssetReport()" class="px-4 py-2 bg-red-600 text-white rounded-xl text-[10px] font-black uppercase shadow-lg">Export Excel</button>
                         </div>
-                        <div class="overflow-x-auto rounded-xl border border-gray-100 bg-white shadow-sm" style="max-height: 70vh; overflow-y: auto;">
-                            <table class="w-full text-left border-collapse" id="asset-disposal-table">
-                                <thead class="sticky top-0 bg-red-50 z-10 shadow-sm">
-                                    <tr class="text-[11px] uppercase font-bold text-red-900 border-b-2 border-red-100">
-                                        <th class="p-3 border-r min-w-[120px]">BARCODE</th>
-                                        <th class="p-3 border-r min-w-[200px]">ASSET TYPE / NAME</th>
-                                        <th class="p-3 border-r min-w-[150px]">SCRAP LOCATION</th>
-                                        <th class="p-3 border-r min-w-[200px]">DISPOSAL REASON</th>
-                                        <th class="p-3 border-r min-w-[120px] text-center">PHOTO</th>
-                                        <th class="p-3 border-r min-w-[150px]">REPORTED BY</th>
-                                        <th class="p-3 border-r min-w-[120px]">DISPOSAL DATE</th>
-                                        <th class="p-3 border-r min-w-[120px]">DISPOSAL TIME</th>
-                                        <th class="p-3 min-w-[100px] text-center text-red-600">ACTION</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="admin-disposal-list-body" class="divide-y divide-gray-100 text-gray-800 bg-white"></tbody>
-                            </table>
-                        </div>
+                        <input type="text" id="disposal-search" placeholder="Search scrap logs..." class="w-full bg-slate-50 border p-3 rounded-xl text-xs outline-none" oninput="filterDisposalTable()">
+                        <div class="table-wrapper rounded-2xl border border-red-50"><table class="w-full text-left" id="asset-disposal-table"><thead class="bg-red-50 uppercase text-red-900 font-black text-[10px]"><tr><th class="p-3">Barcode</th><th class="p-3">Asset Name</th><th class="p-3 text-center">Photo</th><th class="p-3">Reported By</th><th class="p-3 text-center">Action</th></tr></thead><tbody id="admin-disposal-list-body" class="divide-y divide-slate-50"></tbody></table></div>
                     </div>
 
-                    <!-- Asset Transfer Tab -->
-                    <div id="tab-transfers" class="admin-tab space-y-4 hidden">
-                        <div class="flex flex-col md:flex-row justify-between items-center gap-4 px-2">
-                            <div>
-                                <h3 class="text-indigo-900 font-black text-lg uppercase tracking-tight">Movement Logs</h3>
-                                <p class="text-[10px] text-slate-400 font-bold uppercase">Real-time tracking of asset transfers</p>
-                            </div>
-                            <div class="flex gap-2">
-                                <input type="text" id="transfer-search" placeholder="Search transfers..." class="bg-white border border-gray-200 p-2 rounded-xl text-xs w-64 outline-none" oninput="window.filterTransferTable()">
-                                <button onclick="window.exportTransferReport()" class="bg-indigo-600 text-white px-4 py-2 rounded-xl font-bold text-xs flex items-center gap-2">
-                                    <i class="fa-solid fa-file-export"></i> Export
-                                </button>
-                            </div>
+                    <!-- TRANSFER LOGS TAB -->
+                    <div id="tab-transfers" class="admin-tab-content hidden space-y-4">
+                        <div class="flex items-center justify-between px-2">
+                            <h3 class="text-indigo-900 font-black text-lg uppercase flex items-center gap-2"><i class="fa-solid fa-truck-ramp-box"></i> Movement Logs</h3>
+                            <button onclick="window.exportTransferReport()" class="px-4 py-2 bg-indigo-600 text-white rounded-xl text-[10px] font-black uppercase shadow-lg active:scale-95">Export Logs</button>
                         </div>
-                        <div class="overflow-x-auto rounded-xl border border-gray-100 bg-white shadow-sm">
-                            <table class="w-full text-left">
-                                <thead class="bg-indigo-50 text-indigo-600 uppercase font-black text-[10px]">
-                                    <tr>
-                                        <th class="p-3">TRF ID</th>
-                                        <th class="p-3">Collector Name</th>
-                                        <th class="p-3">Company</th>
-                                        <th class="p-3">Mobile</th>
-                                        <th class="p-3">Asset Serial/Barcode</th>
-                                        <th class="p-3">Manufacturer</th>
-                                        <th class="p-3">Reason</th>
-                                        <th class="p-3">Date</th>
-                                        <th class="p-3">Security Sig</th>
-                                        <th class="p-3">Received Sig</th>
-                                        <th class="p-3 text-center">Action</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="transfer-logs-body" class="divide-y divide-gray-50 text-gray-700"></tbody>
-                            </table>
-                        </div>
+                        <input type="text" id="transfer-search" placeholder="Search transfer logs..." class="w-full bg-slate-50 border p-3 rounded-xl text-xs outline-none" oninput="window.filterTransferTable()">
+                        <div class="table-wrapper rounded-2xl border border-slate-100 shadow-sm"><table class="w-full text-left text-[10px]"><thead class="bg-indigo-50 uppercase text-indigo-600 font-black"><tr><th class="p-3">ID</th><th class="p-3">Collector</th><th class="p-3">Asset</th><th class="p-3 text-center">Sigs</th><th class="p-3 text-center">Action</th></tr></thead><tbody id="transfer-logs-body" class="divide-y divide-slate-50"></tbody></table></div>
                     </div>
                 </div>
             </div>
         </section>
 
         <!-- FOOTER -->
-        <footer class="mt-auto py-6 text-center text-[10px] opacity-40 w-full">
-            &copy; 2026 Jarn Yafoor School Staff Management System
+        <footer class="mt-auto py-8 text-center text-[10px] opacity-40 w-full text-indigo-900 font-bold">
+            &copy; 2026 JYS Admin Management System (v3.5.0 Premium)
         </footer>
     </div>
 
-    <!-- TASK CREATION MODAL (Reuse from Staff if needed) -->
-    <div id="task-modal" class="fixed inset-0 bg-black/90 backdrop-blur-md z-50 hidden flex items-center justify-center p-4">
-        <div class="bg-white w-full max-w-3xl rounded-3xl overflow-hidden shadow-2xl text-gray-800">
-            <div class="p-6 border-b flex justify-between items-center bg-indigo-600 text-white">
-                <div class="flex items-center gap-3">
-                    <button id="cancelTaskBtn" type="button" onclick="closeTaskModal()" class="flex items-center gap-1 px-4 py-2 bg-red-600 hover:bg-red-700 rounded-xl transition text-xs font-bold border border-red-500 shadow-md">
-                        <i class="fa-solid fa-xmark"></i>
-                        <span>Cancel / Back</span>
-                    </button>
-                    <h3 class="text-lg font-bold">Raise New Issue / Task</h3>
-                </div>
-                <button type="button" onclick="closeTaskModal()"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg></button>
-            </div>
-            <form id="task-form" class="p-6 space-y-4" onsubmit="window.submitNewMaintenanceTask(event)">
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <select id="task-school" required class="p-3 border rounded-xl bg-white text-sm" onchange="window.filterStaffBySchoolAndRole()">
-                        <option value="">Select School</option>
-                        <option value="Jern Yafoor School 1">Jern Yafoor School 1</option>
-                        <option value="Jern Yafoor School 2">Jern Yafoor School 2</option>
-                    </select>
-                    <select id="task-target" required class="p-3 border rounded-xl bg-white text-sm" onchange="window.filterStaffBySchoolAndRole()">
-                        <option value="">Target Role</option>
-                    </select>
-                </div>
-
-                <select id="task-assigned-staff" class="w-full p-3 border rounded-xl bg-white text-sm">
-                    <option value="">Assign Specific Staff (Optional)</option>
-                </select>
-
-                <input type="text" id="task-loc" placeholder="Location (e.g. Block A, Room 102)" required class="w-full p-3 border rounded-xl text-sm">
-                <textarea id="task-desc" placeholder="Problem Details..." required class="w-full p-3 border rounded-xl h-24 text-sm"></textarea>
-
-                <select id="task-priority" required class="w-full p-3 border rounded-xl bg-white text-sm">
-                    <option value="Low">Low Priority</option>
-                    <option value="Medium">Medium</option>
-                    <option value="High">High</option>
-                </select>
-                <div>
-                    <label class="block text-xs font-bold text-gray-500 mb-2">Before Work Photo (Mandatory)</label>
-                    <input type="file" id="task-photo-in" accept="image/*" capture="environment" class="w-full p-2 border rounded-xl" onchange="window.handleTaskImageCapture(event)">
-                </div>
-                <button type="submit" id="task-submit-btn" class="w-full bg-indigo-600 text-white py-4 rounded-2xl font-bold shadow-lg">Save & Route Task</button>
+    <!-- MODALS (Hidden by default, preserved original structures) -->
+    <div id="task-modal" class="fixed inset-0 bg-black/90 backdrop-blur-md z-[100000] hidden flex items-center justify-center p-4">
+        <div class="bg-white w-full max-w-3xl rounded-[40px] overflow-hidden shadow-2xl text-gray-800">
+            <div class="p-6 border-b flex justify-between items-center bg-indigo-600 text-white"><h3 class="text-lg font-bold">Raise New Issue</h3><button type="button" onclick="closeTaskModal()"><i class="fa-solid fa-xmark text-xl"></i></button></div>
+            <form id="task-form" class="p-8 space-y-5" onsubmit="window.submitNewMaintenanceTask(event)">
+                <div class="grid grid-cols-2 gap-4"><select id="task-school" required class="p-4 border-2 border-slate-100 rounded-2xl bg-slate-50 text-sm outline-none" onchange="window.filterStaffBySchoolAndRole()"><option value="">Select School</option><option value="Jern Yafoor School 1">School 1</option><option value="Jern Yafoor School 2">School 2</option></select><select id="task-target" required class="p-4 border-2 border-slate-100 rounded-2xl bg-slate-50 text-sm outline-none" onchange="window.filterStaffBySchoolAndRole()"><option value="">Target Role</option></select></div>
+                <select id="task-assigned-staff" class="w-full p-4 border-2 border-slate-100 rounded-2xl bg-slate-50 text-sm outline-none"><option value="">Assign Specific Staff (Optional)</option></select>
+                <input type="text" id="task-loc" placeholder="Location Details" required class="w-full p-4 border-2 border-slate-100 rounded-2xl bg-slate-50 text-sm outline-none">
+                <textarea id="task-desc" placeholder="Details..." required class="w-full p-4 border-2 border-slate-100 rounded-2xl bg-slate-50 text-sm outline-none h-24 resize-none"></textarea>
+                <div class="flex items-center gap-3"><input type="file" id="task-photo-in" accept="image/*" capture="environment" class="hidden" onchange="window.handleTaskImageCapture(event)"><button type="button" onclick="document.getElementById('task-photo-in').click()" class="flex-1 py-4 border-2 border-dashed border-indigo-200 rounded-2xl text-indigo-600 font-bold text-xs uppercase flex items-center justify-center gap-2 hover:bg-indigo-50"><i class="fa-solid fa-camera"></i> Capture Photo</button><button type="submit" class="flex-1 py-4 bg-indigo-600 text-white rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl">Save Task</button></div>
             </form>
         </div>
     </div>
 
-    <!-- ADD STAFF MODAL -->
-    <div id="add-staff-modal" class="fixed inset-0 bg-black/90 backdrop-blur-md z-[100] hidden flex items-center justify-center p-4">
-        <div class="bg-white w-full max-w-md rounded-3xl overflow-hidden shadow-2xl text-gray-800">
-            <div class="p-6 border-b flex justify-between items-center bg-purple-600 text-white">
-                <h3 class="text-lg font-bold">Add New Staff Member</h3>
-                <button onclick="closeAddStaffModal()"><i class="fa-solid fa-xmark text-xl"></i></button>
-            </div>
-            <form id="add-staff-form" class="p-6 space-y-4 max-h-[80vh] overflow-y-auto">
-                <div class="flex flex-col items-center mb-4">
-                    <div class="relative group cursor-pointer" onclick="document.getElementById('adminStaffProfilePic').click()">
-                        <div id="adminStaffPhotoPreview" class="w-24 h-24 bg-slate-100 rounded-full flex items-center justify-center border-4 border-slate-50 shadow-inner overflow-hidden">
-                            <i class="fa-solid fa-user text-3xl text-slate-300"></i>
-                        </div>
-                        <div class="absolute inset-0 bg-black/20 rounded-full opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                            <i class="fa-solid fa-camera text-white"></i>
-                        </div>
-                    </div>
-                    <input type="file" id="adminStaffProfilePic" accept="image/*" class="hidden" onchange="handleAdminStaffPhotoSelect(event)">
-                    <p class="text-[10px] text-slate-400 mt-2 font-bold uppercase tracking-widest">Click to upload photo</p>
-                </div>
+    <!-- MODAL CONTAINERS (Existing IDs) -->
+    <div id="add-staff-modal" class="fixed inset-0 bg-black/90 backdrop-blur-md z-[100001] hidden flex items-center justify-center p-4"></div>
+    <div id="edit-staff-modal" class="fixed inset-0 bg-black/90 backdrop-blur-md z-[100002] hidden flex items-center justify-center p-4"></div>
+    <div id="notification-modal" class="fixed inset-0 bg-black/90 backdrop-blur-md z-[100003] hidden flex items-center justify-center p-4"></div>
+    <div id="import-progress-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-[100004] hidden flex items-center justify-center p-4"></div>
+    <div id="asset-disposal-modal" class="fixed inset-0 bg-black/90 z-[100005] hidden flex items-center justify-center p-4"></div>
+    <div id="imageModal" class="modal"><span class="modal-close" onclick="closeZoomModal()">&times;</span><img id="modalImage" src="" alt="Enlarged View"></div>
 
-                <div class="grid grid-cols-2 gap-4">
-                    <input type="text" id="add-staff-name" placeholder="Full Name" required class="p-3 border rounded-xl text-sm w-full">
-                    <input type="tel" id="add-staff-mobile" placeholder="Mobile Number" required class="p-3 border rounded-xl text-sm w-full">
-                </div>
-                <div class="grid grid-cols-2 gap-4">
-                    <input type="text" id="add-staff-adek" placeholder="ADEK Pass Number" required class="p-3 border rounded-xl text-sm w-full">
-                    <input type="text" id="add-staff-company-name" placeholder="Company Name" required class="p-3 border rounded-xl text-sm w-full">
-                </div>
-                <div class="grid grid-cols-2 gap-4">
-                    <select id="add-staff-branch" required class="p-3 border rounded-xl text-sm w-full bg-white">
-                        <option value="">Select School</option>
-                        <option value="Jern Yafoor School 1">Jern Yafoor School 1</option>
-                        <option value="Jern Yafoor School 2">Jern Yafoor School 2</option>
-                    </select>
-                    <select id="add-staff-role" required class="p-3 border rounded-xl text-sm w-full bg-white">
-                        <option value="">Position</option>
-                        <option value="Cleaner">Cleaner</option>
-                        <option value="Cleaner Leader">Cleaner Leader</option>
-                        <option value="RT Technician">RT Technician</option>
-                        <option value="Security">Security</option>
-                        <option value="Technician">Technician</option>
-                    </select>
-                </div>
-                <input type="text" id="add-staff-company-id" placeholder="Company ID Number" required class="p-3 border rounded-xl text-sm w-full">
-                <input type="password" id="add-staff-pass" placeholder="Assign Password" required class="p-3 border rounded-xl text-sm w-full">
+    <script type="module" src="firebase_config.js?v=3.2"></script>
+    <script type="module" src="ui_module.js?v=3.2"></script>
+    <script type="module" src="auth_module.js?v=3.2"></script>
+    <script type="module" src="attendance_module.js?v=3.2"></script>
+    <script type="module" src="task_module.js?v=3.2"></script>
+    <script type="module" src="admin_module.js?v=3.2"></script>
+    <script type="module" src="export_module.js?v=3.2"></script>
+    <script type="module" src="visitor_module.js?v=3.2"></script>
+    <script type="module" src="init_module.js?v=3.2"></script>
+    <script type="module" src="audit_module.js?v=3.2"></script>
+    <script>
+        // PREMIUM HELPERS
+        window.togglePassword = (id, btn) => { const el = document.getElementById(id); const isPass = el.type === 'password'; el.type = isPass ? 'text' : 'password'; btn.querySelector('i').classList.toggle('fa-eye'); btn.querySelector('i').classList.toggle('fa-eye-slash'); };
+        window.showAdminTab = (tabId) => {
+            // Forcefully hide all tab content sections
+            const allTabs = document.querySelectorAll('.admin-tab-content');
+            allTabs.forEach(el => {
+                el.classList.add('hidden');
+                el.style.display = 'none'; // Double enforcement
+            });
 
-                <button type="submit" id="add-staff-submit-btn" class="w-full bg-purple-600 text-white py-4 rounded-2xl font-black shadow-lg active:scale-95 transition">REGISTER NEW STAFF</button>
-            </form>
-        </div>
-    </div>
+            // Show target tab
+            const target = document.getElementById(tabId);
+            if (target) {
+                target.classList.remove('hidden');
+                target.style.display = 'block'; // Force visible
+            }
 
-    <!-- EDIT STAFF MODAL -->
-    <div id="edit-staff-modal" class="fixed inset-0 bg-black/90 backdrop-blur-md z-[110] hidden flex items-center justify-center p-4">
-        <div class="bg-white w-full max-w-md rounded-3xl overflow-hidden shadow-2xl text-gray-800">
-            <div class="p-6 border-b flex justify-between items-center bg-indigo-600 text-white">
-                <h3 class="text-lg font-bold">Edit Staff Details</h3>
-                <button onclick="closeEditStaffModal()"><i class="fa-solid fa-xmark text-xl"></i></button>
-            </div>
-            <form id="edit-staff-form" class="p-6 space-y-4 max-h-[80vh] overflow-y-auto">
-                <input type="hidden" id="edit-staff-id">
-                <div class="flex flex-col items-center mb-4">
-                    <div class="relative group cursor-pointer" onclick="document.getElementById('editStaffProfilePic').click()">
-                        <div id="editStaffPhotoPreview" class="w-24 h-24 bg-slate-100 rounded-full flex items-center justify-center border-4 border-slate-50 shadow-inner overflow-hidden">
-                            <i class="fa-solid fa-user text-3xl text-slate-300"></i>
-                        </div>
-                        <div class="absolute inset-0 bg-black/20 rounded-full opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                            <i class="fa-solid fa-camera text-white"></i>
-                        </div>
-                    </div>
-                    <input type="file" id="editStaffProfilePic" accept="image/*" class="hidden" onchange="handleEditStaffPhotoSelect(event)">
-                    <p class="text-[10px] text-slate-400 mt-2 font-bold uppercase tracking-widest">Update Photo (Optional)</p>
-                </div>
+            window.scrollTo(0, 0);
 
-                <div class="grid grid-cols-2 gap-4">
-                    <input type="text" id="edit-staff-name" placeholder="Full Name" required class="p-3 border rounded-xl text-sm w-full">
-                    <input type="tel" id="edit-staff-mobile" placeholder="Mobile Number" readonly class="p-3 border rounded-xl text-sm w-full bg-gray-50 text-gray-500">
-                </div>
-                <div class="grid grid-cols-2 gap-4">
-                    <input type="text" id="edit-staff-adek" placeholder="ADEK Pass Number" required class="p-3 border rounded-xl text-sm w-full">
-                    <input type="text" id="edit-staff-company-name" placeholder="Company Name" required class="p-3 border rounded-xl text-sm w-full">
-                </div>
-                <div class="grid grid-cols-2 gap-4">
-                    <select id="edit-staff-branch" required class="p-3 border rounded-xl text-sm w-full bg-white">
-                        <option value="">Select School</option>
-                        <option value="Jern Yafoor School 1">Jern Yafoor School 1</option>
-                        <option value="Jern Yafoor School 2">Jern Yafoor School 2</option>
-                    </select>
-                    <select id="edit-staff-role" required class="p-3 border rounded-xl text-sm w-full bg-white">
-                        <option value="">Position</option>
-                        <option value="Cleaner">Cleaner</option>
-                        <option value="Cleaner Leader">Cleaner Leader</option>
-                        <option value="RT Technician">RT Technician</option>
-                        <option value="Security">Security</option>
-                        <option value="Technician">Technician</option>
-                    </select>
-                </div>
-                <input type="text" id="edit-staff-company-id" placeholder="Company ID Number" required class="p-3 border rounded-xl text-sm w-full">
-                <input type="password" id="edit-staff-pass" placeholder="Update Password" required class="p-3 border rounded-xl text-sm w-full">
+            // Visual feedback for quick action buttons
+            document.querySelectorAll('.quick-action-btn').forEach(btn => {
+                btn.classList.remove('ring-2', 'ring-indigo-500', 'bg-indigo-50');
+            });
 
-                <button type="submit" id="edit-staff-submit-btn" class="w-full bg-indigo-600 text-white py-4 rounded-2xl font-black shadow-lg active:scale-95 transition">SAVE UPDATED DETAILS</button>
-            </form>
-        </div>
-    </div>
-
-    <!-- NOTIFICATION PERMISSION MODAL -->
-    <div id="notification-modal" class="fixed inset-0 bg-black/90 backdrop-blur-md z-[200] hidden flex items-center justify-center p-4">
-        <div class="bg-white w-full max-w-sm rounded-3xl overflow-hidden shadow-2xl p-8 text-center text-gray-800">
-            <div class="w-20 h-20 bg-indigo-100 text-indigo-600 rounded-full mx-auto flex items-center justify-center mb-6 animate-bounce">
-                <i class="fa-solid fa-bell text-3xl"></i>
-            </div>
-            <h3 class="text-xl font-black text-indigo-900 mb-2 uppercase tracking-tight">Enable Alerts</h3>
-            <p class="text-sm text-gray-500 mb-8 font-medium">Get real-time updates when tasks are completed or issues are raised.</p>
-            <button onclick="window.requestNotificationPermission()" class="w-full bg-indigo-600 text-white py-4 rounded-2xl font-black shadow-xl active:scale-95 transition uppercase tracking-widest">Enable Notifications Now</button>
-            <button onclick="document.getElementById('notification-modal').classList.add('hidden')" class="mt-4 text-[10px] font-bold text-gray-400 uppercase underline">Maybe Later</button>
-        </div>
-    </div>
-
-    <!-- ASSET IMPORT PROGRESS MODAL -->
-    <div id="import-progress-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-[300] hidden flex items-center justify-center p-4">
-        <div class="bg-white w-full max-w-sm rounded-3xl p-8 text-center text-gray-800 shadow-2xl">
-            <div id="import-spinner" class="w-16 h-16 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-            <h3 class="text-xl font-black text-indigo-900 mb-2 uppercase tracking-tight">Importing Assets</h3>
-            <p id="import-progress-text" class="text-sm text-gray-500 mb-4 font-medium">Processing records...</p>
-            <div class="w-full bg-gray-100 h-3 rounded-full overflow-hidden">
-                <div id="import-progress-bar" class="bg-indigo-600 h-full transition-all duration-300" style="width: 0%"></div>
-            </div>
-            <p id="import-count-text" class="text-[10px] font-bold text-gray-400 uppercase mt-4">0 / 0</p>
-        </div>
-    </div>
-
-    <!-- ASSET DISPOSAL MODAL -->
-    <div id="asset-disposal-modal" class="fixed inset-0 bg-black/90 z-[70] hidden flex items-center justify-center p-4">
-        <div class="bg-white w-full max-w-md rounded-3xl overflow-hidden p-6 text-gray-800 shadow-2xl">
-            <div class="flex justify-between items-center mb-2">
-                <h3 class="text-xl font-bold text-red-600">Asset Disposal</h3>
-                <button onclick="closeDisposalModal()"><i class="fa-solid fa-xmark text-gray-400"></i></button>
-            </div>
-            <p class="text-[10px] text-gray-400 uppercase font-black mb-4">Report Broken or Scrapped Equipment</p>
-
-            <div class="space-y-4">
-                <!-- REAL-TIME SEARCH FIELD -->
-                <div class="space-y-1">
-                    <label class="block text-[10px] font-black text-gray-400 uppercase ml-1">Scan or Type Asset Barcode</label>
-                    <div class="disposal-barcode-wrapper">
-                        <input type="text" id="f1_disposal_barcode_input" placeholder="Enter Barcode (e.g. AT...)" class="p-3 border rounded-xl text-sm font-bold uppercase focus:ring-2 focus:ring-red-500 outline-none transition-all">
-                        <button type="button" onclick="startCameraScanner('f1_disposal_barcode_input')" class="bg-red-600 text-white shadow-lg active:scale-95 transition"><i class="fa-solid fa-camera"></i></button>
-                    </div>
-                </div>
-
-                <!-- LIVE ASSET PREVIEW AREA -->
-                <div id="disposal-asset-preview" class="min-h-[60px]">
-                    <p class="text-xs text-gray-400 italic text-center p-4">Enter a barcode to see details</p>
-                </div>
-
-                <textarea id="disposal-reason" placeholder="Reason for disposal (e.g. Broken screen, missing parts)..." class="w-full p-3 border rounded-xl h-20 text-sm focus:ring-2 focus:ring-red-500 outline-none"></textarea>
-
-                <div class="grid grid-cols-1 gap-4">
-                    <input type="text" id="disposal-scrap-loc" placeholder="New Scrap Location (e.g. Warehouse B)" class="w-full p-3 border rounded-xl text-sm focus:ring-2 focus:ring-red-500 outline-none">
-                </div>
-
-                <div>
-                    <label class="block text-xs font-bold text-gray-500 mb-2">Damage Photo Proof (Mandatory)</label>
-                    <input type="file" id="disposal-photo-input" accept="image/*" capture="environment" class="hidden" onchange="handleDisposalPhoto(event)">
-                    <button onclick="document.getElementById('disposal-photo-input').click()" class="w-full py-3 border-2 border-dashed border-red-200 rounded-xl text-red-600 font-bold flex items-center justify-center gap-2 hover:bg-red-50 transition">
-                        <i class="fa-solid fa-camera"></i> <span id="disposal-photo-btn-text">Take Damage Photo</span>
-                    </button>
-                    <div id="disposal-photo-preview" class="hidden mt-2 h-32 rounded-xl overflow-hidden relative border border-red-100 shadow-inner">
-                        <img src="" class="w-full h-full object-cover">
-                        <button onclick="window.removeDisposalPhoto()" class="absolute top-2 right-2 bg-red-600 text-white p-1 rounded-full text-[10px] shadow-lg"><i class="fa-solid fa-xmark"></i></button>
-                    </div>
-                </div>
-
-                <div class="flex gap-2 pt-2">
-                    <button onclick="closeDisposalModal()" class="flex-1 py-4 border rounded-xl font-bold text-xs uppercase tracking-widest text-gray-400">Cancel</button>
-                    <button id="submit-disposal-btn" onclick="submitAssetDisposal()" class="flex-1 py-4 bg-red-600 text-white rounded-xl font-black text-xs uppercase tracking-widest shadow-lg active:scale-95 transition disabled:opacity-50 disabled:grayscale" disabled>Confirm Scrap</button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <script type="module" src="firebase_config.js?v=2.2"></script>
-    <script type="module" src="ui_module.js?v=2.2"></script>
-    <script type="module" src="auth_module.js?v=2.2"></script>
-    <script type="module" src="attendance_module.js?v=2.2"></script>
-    <script type="module" src="task_module.js?v=2.2"></script>
-    <script type="module" src="admin_module.js?v=2.2"></script>
-    <script type="module" src="export_module.js?v=2.2"></script>
-    <script type="module" src="visitor_module.js?v=2.2"></script>
-    <script type="module" src="init_module.js?v=2.2"></script>
-    <script type="module" src="audit_module.js?v=2.2"></script>
+            const clickedBtn = document.querySelector(`button[onclick*="'${tabId}'"]`);
+            if (clickedBtn) clickedBtn.classList.add('ring-2', 'ring-indigo-500', 'bg-indigo-50');
+        };
+        // Initial KPI Animation Bridge
+        window.updateKPIStats = (stats) => {
+            Object.keys(stats).forEach(id => {
+                const el = document.getElementById(id);
+                if (el) { el.textContent = stats[id].value; const bar = el.closest('.stat-card').querySelector('.progress-bar'); if (bar) bar.style.width = stats[id].pct + '%'; }
+            });
+        };
+    </script>
 </body>
 </html>
