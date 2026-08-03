@@ -15,8 +15,18 @@
     <link rel="apple-touch-icon" href="jys_Icon.png?v=3.2">
     <meta name="theme-color" content="#1E1B4B">
     <link rel="stylesheet" href="style.css?v=3.2">
-    <!-- STAFF UI MODULAR CSS -->
-    <link rel="stylesheet" href="staff-ui.css?v=3.5.0">
+    <style>
+        /* STAFF UI MODULAR CSS */
+        @media (prefers-color-scheme: dark) {
+            body { background: #f8fafc !important; color: #1e293b !important; }
+            .bg-white, .profile-card, .transfer-form-card, .menu-item-btn { background: white !important; color: #1e293b !important; }
+            .text-indigo-900 { color: #1e1b4b !important; }
+        }
+
+        tr:hover td {
+            color: inherit !important;
+        }
+    </style>
 </head>
 <body class="text-white">
 
@@ -44,7 +54,11 @@
                      <div class="space-y-2">
                          <button onclick="window.toggleSideMenu(); window.showStaffView('asset-audit-section')" class="menu-item-btn">
                              <i class="fa-solid fa-barcode"></i>
-                             <span>Item Audit</span>
+                             <span>Item Audit (Register)</span>
+                         </button>
+                         <button onclick="window.toggleSideMenu(); window.showStaffView('asset-edit-section')" class="menu-item-btn">
+                             <i class="fa-solid fa-pen-to-square"></i>
+                             <span>Asset Edit</span>
                          </button>
                          <button onclick="window.toggleSideMenu(); window.showStaffView('asset-disposal-section')" class="menu-item-btn">
                              <i class="fa-solid fa-trash-can"></i>
@@ -380,7 +394,7 @@
                 </div>
             </div>
 
-            <!-- ASSET DISPOSAL SECTION -->
+            <!-- ASSET DISPOSAL SECTION (Requirement 6 Redesign) -->
             <div id="asset-disposal-section" class="hidden w-full p-4 transfer-workflow-container">
                 <nav class="flex items-center gap-4 mb-8 px-2">
                     <button onclick="window.showStaffView('staff-dash-area')" class="section-back-btn-circle w-12 h-12 rounded-full bg-red-50 text-red-600 flex items-center justify-center transition-all active:scale-95 shadow-sm"><i class="fa-solid fa-arrow-left text-lg"></i></button>
@@ -392,19 +406,58 @@
                             <label class="text-[10px] font-black text-red-500 uppercase tracking-wider flex items-center gap-2"><i class="fa-solid fa-qrcode"></i> Scan Barcode</label>
                             <div class="relative group">
                                 <div class="absolute left-4 top-1/2 -translate-y-1/2 text-red-300"><i class="fa-solid fa-barcode text-lg"></i></div>
-                                <input type="text" id="f1_disposal_barcode_input" placeholder="ENTER BARCODE..." class="w-full pl-14 pr-14 py-4 bg-slate-50 border-2 border-slate-200 rounded-xl focus:border-red-500 focus:bg-white outline-none transition-all text-sm font-bold uppercase tracking-wider">
-                                <button type="button" onclick="startCameraScanner('f1_disposal_barcode_input')" class="absolute right-2 top-1/2 -translate-y-1/2 w-11 h-11 bg-red-500 text-white rounded-xl flex items-center justify-center shadow-lg shadow-red-500/25"><i class="fa-solid fa-camera text-lg"></i></button>
+                                <input type="text" id="d_asset_barcode" placeholder="ENTER BARCODE..." class="w-full pl-14 pr-14 py-4 bg-slate-50 border-2 border-slate-200 rounded-xl focus:border-red-500 focus:bg-white outline-none transition-all text-sm font-bold uppercase tracking-wider" oninput="window.fetchDisposalAssetDetails(this.value)">
+                                <button type="button" onclick="startCameraScanner('d_asset_barcode')" class="absolute right-2 top-1/2 -translate-y-1/2 w-11 h-11 bg-red-500 text-white rounded-xl flex items-center justify-center shadow-lg shadow-red-500/25"><i class="fa-solid fa-camera text-lg"></i></button>
                             </div>
                         </div>
                         <div id="disposal-asset-preview" class="min-h-[40px] bg-slate-50 rounded-xl p-4 border-2 border-dashed border-slate-200"></div>
-                        <div class="space-y-2"><label class="text-[10px] font-black text-slate-500 uppercase tracking-wider flex items-center gap-2"><i class="fa-regular fa-pen-to-square"></i> Reason</label><textarea id="disposal-reason" placeholder="Enter reason..." class="w-full px-4 py-4 bg-slate-50 border-2 border-slate-200 rounded-xl focus:border-red-500 focus:bg-white outline-none transition-all h-24 resize-none"></textarea></div>
-                        <div class="space-y-2"><label class="text-[10px] font-black text-slate-500 uppercase tracking-wider flex items-center gap-2"><i class="fa-solid fa-location-dot"></i> Scrap Location</label><input type="text" id="disposal-scrap-loc" placeholder="Enter location..." class="w-full px-4 py-4 bg-slate-50 border-2 border-slate-200 rounded-xl focus:border-red-500 focus:bg-white outline-none transition-all"></div>
-                        <div class="space-y-3">
-                            <label class="text-[10px] font-black text-red-500 uppercase tracking-wider flex items-center gap-2"><i class="fa-regular fa-image"></i> Damage Photo Proof *</label>
-                            <input type="file" id="disposal-photo-input" accept="image/*" capture="environment" class="hidden" onchange="handleDisposalPhoto(event)">
-                            <button onclick="document.getElementById('disposal-photo-input').click()" class="w-full py-5 border-3 border-dashed border-red-200 hover:border-red-400 rounded-2xl text-red-500 font-black flex items-center justify-center gap-3 transition-all hover:bg-red-50 group"><i class="fa-solid fa-camera text-2xl group-hover:scale-110 transition-transform"></i> <span id="disposal-photo-btn-text">Take Damage Photo</span></button>
-                            <div id="disposal-photo-preview" class="hidden mt-3 h-48 rounded-2xl overflow-hidden border-2 border-red-200 shadow-sm relative"><img src="" class="w-full h-full object-cover"><button type="button" onclick="document.getElementById('disposal-photo-preview').classList.add('hidden'); document.getElementById('disposal-photo-input').value = ''; document.getElementById('disposal-photo-btn-text').textContent = 'Take Damage Photo'" class="absolute top-2 right-2 w-8 h-8 bg-red-500 text-white rounded-full flex items-center justify-center shadow-lg"><i class="fa-solid fa-times text-sm"></i></button></div>
+
+                        <!-- Auto-filled Fields (Read-only) -->
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <input type="text" id="d_asset_desc" placeholder="Asset Description" readonly class="transfer-input-field bg-gray-50 opacity-70">
+                            <input type="text" id="d_vendor_name" placeholder="Vendor Name" readonly class="transfer-input-field bg-gray-50 opacity-70">
                         </div>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <input type="text" id="d_category" placeholder="Category" readonly class="transfer-input-field bg-gray-50 opacity-70">
+                            <input type="text" id="d_service_date" placeholder="Date Place In Service" readonly class="transfer-input-field bg-gray-50 opacity-70">
+                        </div>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <input type="text" id="d_floor_desc" placeholder="Floor Description" readonly class="transfer-input-field bg-gray-50 opacity-70">
+                            <input type="text" id="d_floor_no" placeholder="Floor No" readonly class="transfer-input-field bg-gray-50 opacity-70">
+                        </div>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <input type="text" id="d_location_name" placeholder="Location Name" readonly class="transfer-input-field bg-gray-50 opacity-70">
+                            <input type="text" id="d_manufacturer" placeholder="Manufacturer" readonly class="transfer-input-field bg-gray-50 opacity-70">
+                        </div>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <input type="text" id="d_model_desc" placeholder="Model Description" readonly class="transfer-input-field bg-gray-50 opacity-70">
+                            <input type="text" id="d_room_barcode" placeholder="Room Barcode" readonly class="transfer-input-field bg-gray-50 opacity-70">
+                        </div>
+                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                            <input type="text" id="d_room_name" placeholder="Room Name" readonly class="transfer-input-field bg-gray-50 opacity-70">
+                            <input type="text" id="d_room_number" placeholder="Room Number" readonly class="transfer-input-field bg-gray-50 opacity-70">
+                            <input type="text" id="d_building_name" placeholder="Building Name" readonly class="transfer-input-field bg-gray-50 opacity-70">
+                        </div>
+
+                        <!-- Damage Input Section -->
+                        <div class="space-y-4 border-t pt-6">
+                            <h3 class="text-sm font-black text-red-600 uppercase tracking-widest mb-4">Damage Details</h3>
+                            <div class="space-y-3">
+                                <label class="text-[10px] font-black text-red-500 uppercase tracking-wider flex items-center gap-2"><i class="fa-regular fa-image"></i> Before Photo (Required) *</label>
+                                <input type="file" id="disposal-photo-input" accept="image/*" capture="environment" class="hidden" onchange="handleDisposalPhoto(event)">
+                                <button onclick="document.getElementById('disposal-photo-input').click()" class="w-full py-5 border-3 border-dashed border-red-200 hover:border-red-400 rounded-2xl text-red-500 font-black flex items-center justify-center gap-3 transition-all hover:bg-red-50 group"><i class="fa-solid fa-camera text-2xl group-hover:scale-110 transition-transform"></i> <span id="disposal-photo-btn-text">Take Before Photo</span></button>
+                                <div id="disposal-photo-preview" class="hidden mt-3 h-48 rounded-2xl overflow-hidden border-2 border-red-200 shadow-sm relative"><img src="" class="w-full h-full object-cover"></div>
+                            </div>
+                            <div class="space-y-3">
+                                <label class="text-[10px] font-black text-indigo-500 uppercase tracking-wider flex items-center gap-2"><i class="fa-regular fa-image"></i> Audit Photo (After Photo)</label>
+                                <input type="file" id="disposal-after-photo-input" accept="image/*" capture="environment" class="hidden" onchange="handleDisposalAfterPhoto(event)">
+                                <button onclick="document.getElementById('disposal-after-photo-input').click()" class="w-full py-5 border-3 border-dashed border-indigo-200 hover:border-indigo-400 rounded-2xl text-indigo-500 font-black flex items-center justify-center gap-3 transition-all hover:bg-indigo-50 group"><i class="fa-solid fa-camera text-2xl group-hover:scale-110 transition-transform"></i> <span id="d_after_photo_btn_text">Take After Photo</span></button>
+                                <div id="d_after_photo_preview" class="hidden mt-3 h-48 rounded-2xl overflow-hidden border-2 border-indigo-200 shadow-sm relative"><img src="" class="w-full h-full object-cover"></div>
+                            </div>
+                            <div class="space-y-2"><label class="text-[10px] font-black text-slate-500 uppercase tracking-wider flex items-center gap-2"><i class="fa-regular fa-pen-to-square"></i> Reason Of Disposable *</label><textarea id="d_disposal_reason" placeholder="Enter reason..." class="w-full px-4 py-4 bg-slate-50 border-2 border-slate-200 rounded-xl focus:border-red-500 focus:bg-white outline-none transition-all h-24 resize-none"></textarea></div>
+                            <div class="space-y-2"><label class="text-[10px] font-black text-slate-500 uppercase tracking-wider flex items-center gap-2"><i class="fa-solid fa-location-dot"></i> Scrap Location</label><input type="text" id="d_scrap_loc" placeholder="Enter location..." class="w-full px-4 py-4 bg-slate-50 border-2 border-slate-200 rounded-xl focus:border-red-500 focus:bg-white outline-none transition-all"></div>
+                        </div>
+
                         <button id="submit-disposal-btn" onclick="submitAssetDisposal()" class="w-full py-5 bg-gradient-to-r from-red-600 to-red-800 text-white rounded-2xl font-black text-lg shadow-xl shadow-red-500/30 active:scale-[0.98] transition-all flex items-center justify-center gap-3 disabled:opacity-50" disabled>CONFIRM SCRAP & DISPOSE <span class="text-xs opacity-60">→</span></button>
                     </div>
                 </div>
@@ -442,6 +495,54 @@
                         <div class="space-y-3"><label class="text-[10px] font-black text-indigo-500 uppercase tracking-wider flex items-center gap-2"><i class="fa-regular fa-image"></i> Transfer Photo Capture</label><input type="file" id="t_photo_capture" accept="image/*" capture="environment" class="hidden" onchange="window.handleTransferPhoto(event)"><button type="button" onclick="document.getElementById('t_photo_capture').click()" class="w-full py-4 border-2 border-dashed border-indigo-200 rounded-2xl text-indigo-600 font-bold flex items-center justify-center gap-2 hover:bg-indigo-50 transition-all"><i class="fa-solid fa-camera text-xl"></i> <span id="t_photo_btn_text">Capture Transfer Photo</span></button><div id="t_photo_preview" class="hidden mt-2 h-40 rounded-2xl overflow-hidden border-2 border-indigo-100 shadow-sm"><img src="" class="w-full h-full object-cover"></div></div></div>
                         <button type="submit" id="submit-transfer-btn" class="w-full py-5 bg-gradient-to-r from-indigo-600 to-indigo-800 text-white rounded-2xl font-black text-lg shadow-xl shadow-indigo-500/30 active:scale-[0.98] transition-all uppercase tracking-widest flex items-center justify-center gap-3">CONFIRM TRANSFER <span class="text-xs opacity-60">→</span></button>
                     </form>
+                </div>
+            </div>
+
+            <!-- ASSET EDIT SECTION (Requirement 8 New Feature) -->
+            <div id="asset-edit-section" class="hidden w-full p-4 transfer-workflow-container">
+                <nav class="flex items-center gap-4 mb-8 px-2">
+                    <button onclick="window.showStaffView('staff-dash-area')" class="section-back-btn-circle w-12 h-12 rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center active:scale-95 shadow-sm"><i class="fa-solid fa-arrow-left text-lg"></i></button>
+                    <div><h2 class="text-2xl font-black text-indigo-900 uppercase tracking-tighter">Asset Edit</h2><p class="text-[10px] font-bold text-indigo-400 uppercase tracking-widest mt-0.5"><i class="fa-solid fa-pen-to-square"></i> Update Asset Location & Info</p></div>
+                </nav>
+                <div class="transfer-form-card">
+                    <div class="bg-white rounded-3xl shadow-xl border border-indigo-50 p-6 space-y-6 text-gray-800">
+                        <div class="space-y-2">
+                            <label class="text-[10px] font-black text-indigo-500 uppercase tracking-wider flex items-center gap-2"><i class="fa-solid fa-qrcode"></i> Scan Asset Barcode</label>
+                            <div class="relative group">
+                                <div class="absolute left-4 top-1/2 -translate-y-1/2 text-indigo-300"><i class="fa-solid fa-barcode text-lg"></i></div>
+                                <input type="text" id="edit_asset_barcode" placeholder="SCAN BARCODE..." class="w-full pl-14 pr-14 py-4 bg-slate-50 border-2 border-slate-200 rounded-xl focus:border-indigo-500 focus:bg-white outline-none transition-all text-sm font-bold uppercase tracking-wider" oninput="window.fetchEditAssetDetails(this.value)">
+                                <button type="button" onclick="startCameraScanner('edit_asset_barcode')" class="absolute right-2 top-1/2 -translate-y-1/2 w-11 h-11 bg-indigo-500 text-white rounded-xl flex items-center justify-center shadow-lg shadow-indigo-500/25 active:scale-95 transition-all"><i class="fa-solid fa-camera text-lg"></i></button>
+                            </div>
+                        </div>
+                        <div id="edit-asset-preview" class="min-h-[40px] bg-slate-50 rounded-xl p-4 border-2 border-dashed border-slate-200"></div>
+
+                        <form id="asset-edit-form" class="space-y-4" onsubmit="window.submitAssetEdit(event)">
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <input type="text" id="e_serial_no" placeholder="Serial No" class="transfer-input-field">
+                                <input type="text" id="e_model_desc" placeholder="Model Description" class="transfer-input-field">
+                            </div>
+                            <input type="text" id="e_asset_cond" placeholder="Asset Condition" class="transfer-input-field">
+                            <input type="text" id="e_asset_desc" placeholder="Asset Description" class="transfer-input-field">
+                            <input type="text" id="e_manufacturer" placeholder="Manufacturer" class="transfer-input-field">
+
+                            <div class="border-t pt-4 space-y-4">
+                                <h3 class="text-xs font-black text-indigo-600 uppercase tracking-widest">Update Location</h3>
+                                <input type="text" id="e_location" placeholder="Location Name" class="transfer-input-field">
+                                <input type="text" id="e_building" placeholder="Building Name" class="transfer-input-field">
+                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                    <input type="text" id="e_room_name" placeholder="Room Name" class="transfer-input-field">
+                                    <input type="text" id="e_room_no" placeholder="Room No" class="transfer-input-field">
+                                </div>
+                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                    <input type="text" id="e_room_barcode" placeholder="Room Barcode" class="transfer-input-field">
+                                    <input type="text" id="e_floor_no" placeholder="Floor No" class="transfer-input-field">
+                                </div>
+                                <input type="text" id="e_floor_desc" placeholder="Floor Description" class="transfer-input-field">
+                            </div>
+
+                            <button type="submit" id="submit-edit-btn" class="w-full py-5 bg-gradient-to-r from-indigo-600 to-indigo-800 text-white rounded-2xl font-black text-lg shadow-xl shadow-indigo-500/30 active:scale-[0.98] transition-all uppercase tracking-widest">SAVE CHANGES</button>
+                        </form>
+                    </div>
                 </div>
             </div>
 

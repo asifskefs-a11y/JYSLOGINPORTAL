@@ -1001,3 +1001,8 @@ canvas, .signature-pad {
     opacity: 1 !important;
     visibility: visible !important;
 }
+
+/* Fix for white-on-white text on hover in tables */
+tr:hover td {
+    color: #1e293b !important;
+}
