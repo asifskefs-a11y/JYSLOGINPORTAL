@@ -63,11 +63,13 @@
 
         .progress-bar { transition: width 1.2s cubic-bezier(0.34, 1.56, 0.64, 1); }
 
-        /* DARK MODE DISABLED FOR DATA AREAS */
+        /* DARK MODE */
         @media (prefers-color-scheme: dark) {
-            body { background: #f8fafc !important; color: #1e293b !important; }
-            .glass-effect, .stat-card, .quick-action-btn, .admin-main-card { background: rgba(255, 255, 255, 0.9) !important; border-color: rgba(241, 245, 249, 1) !important; }
-            .text-indigo-900, .text-slate-800 { color: #1e1b4b !important; }
+            body { background: #0f0a2a !important; color: #e0e7ff; }
+            .glass-effect, .stat-card, .quick-action-btn, .admin-main-card { background: rgba(30, 27, 75, 0.9) !important; border-color: rgba(76, 70, 150, 0.3) !important; }
+            .text-indigo-900, .text-slate-800 { color: #e0e7ff !important; }
+            .text-indigo-600 { color: #818cf8 !important; }
+            input, select, textarea { background: rgba(45, 42, 94, 0.8) !important; border-color: rgba(76, 70, 150, 0.5) !important; color: #e0e7ff !important; }
         }
 
         /* OVERLAP FIX: Force display none on hidden tabs */
@@ -83,11 +85,6 @@
         .hidden { display: none !important; }
         .fade-in { animation: fadeIn 0.5s ease-out; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-
-        /* Fixed hover white-out issue */
-        tr:hover td {
-            color: inherit !important;
-        }
     </style>
 </head>
 <body class="safe-area">
@@ -342,7 +339,31 @@
     <script>
         // PREMIUM HELPERS
         window.togglePassword = (id, btn) => { const el = document.getElementById(id); const isPass = el.type === 'password'; el.type = isPass ? 'text' : 'password'; btn.querySelector('i').classList.toggle('fa-eye'); btn.querySelector('i').classList.toggle('fa-eye-slash'); };
+        window.showAdminTab = (tabId) => {
+            // Forcefully hide all tab content sections
+            const allTabs = document.querySelectorAll('.admin-tab-content');
+            allTabs.forEach(el => {
+                el.classList.add('hidden');
+                el.style.display = 'none'; // Double enforcement
+            });
 
+            // Show target tab
+            const target = document.getElementById(tabId);
+            if (target) {
+                target.classList.remove('hidden');
+                target.style.display = 'block'; // Force visible
+            }
+
+            window.scrollTo(0, 0);
+
+            // Visual feedback for quick action buttons
+            document.querySelectorAll('.quick-action-btn').forEach(btn => {
+                btn.classList.remove('ring-2', 'ring-indigo-500', 'bg-indigo-50');
+            });
+
+            const clickedBtn = document.querySelector(`button[onclick*="'${tabId}'"]`);
+            if (clickedBtn) clickedBtn.classList.add('ring-2', 'ring-indigo-500', 'bg-indigo-50');
+        };
         // Initial KPI Animation Bridge
         window.updateKPIStats = (stats) => {
             Object.keys(stats).forEach(id => {

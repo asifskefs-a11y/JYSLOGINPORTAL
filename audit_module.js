@@ -7,13 +7,11 @@ let currentAuditSessionAssets = [];
 let html5QrCode = null;
 let currentScanTarget = null;
 let activeDisposalBarcode = null;
-let disposalPhotoBase64 = ""; // This will be used as "Before Photo" for disposal
+let disposalPhotoBase64 = "";
 let initialAuditPhotoBase64 = "";
 let damageAuditPhotoBase64 = "";
 let transferPhotoBase64 = "";
 let assetTemplates = {};
-let assetEditBarcode = null;
-let disposalAfterPhotoBase64 = ""; // Requirement 6: Audit Photo (After Photo)
 
 // --- ASSET TRANSFER HELPERS ---
 window.handleTransferReasonChange = (val) => {
@@ -642,47 +640,41 @@ window.fetchDisposalAssetDetails = async (barcode) => {
     previewArea.innerHTML = '<div class="p-4 text-center"><i class="fa-solid fa-spinner fa-spin text-indigo-600"></i><p class="text-[10px] mt-1">Searching...</p></div>';
 
     try {
+        // Robust Multi-Field Search
         let asset = null;
+
+        // 1. Direct Hit by Key
         const snap = await get(child(ref(db), `assets/${cleanBC}`));
         if (snap.exists()) {
             asset = snap.val();
+        } else if (window.appCache && window.appCache.assets) {
+            // 2. Search by Aliases in Cache
+            asset = window.appCache.assets.find(a =>
+                String(a.assetBarcode || "").toUpperCase() === cleanBC ||
+                String(a['Asset Barcode'] || "").toUpperCase() === cleanBC ||
+                String(a['1. Asset Barcode'] || "").toUpperCase() === cleanBC ||
+                String(a.barcode || "").toUpperCase() === cleanBC ||
+                String(a.serialNo || "").toUpperCase() === cleanBC ||
+                String(a['Serial No'] || "").toUpperCase() === cleanBC
+            );
         }
 
         if (asset) {
-            // Auto-fill Requirement 6 fields
-            const fields = {
-                'd_asset_barcode': cleanBC,
-                'd_asset_desc': asset.assetDescription || asset.modelDescription || "-",
-                'd_vendor_name': asset.vendorName || "-",
-                'd_category': asset.category || asset.majorCategory || "-",
-                'd_service_date': asset.serviceDate || "-",
-                'd_floor_desc': asset.floorDescription || "-",
-                'd_floor_no': asset.floorNo || "-",
-                'd_location_name': asset.locationName || "-",
-                'd_manufacturer': asset.manufacturer || "-",
-                'd_model_desc': asset.modelDescription || "-",
-                'd_room_barcode': asset.currentRoomBarcode || "-",
-                'd_room_name': asset.roomName || "-",
-                'd_room_number': asset.roomNo || "-",
-                'd_building_name': asset.buildingName || "-"
-            };
+            // Extract Rich Metadata
+            const name = asset.classification || asset['Classification'] || asset['Classification (Aset Name)'] || asset.modelDescription || asset['Model Description'] || asset.assetDescription || asset.minorCategory || "Unnamed Asset";
+            const location = asset.locationName || asset['Location Name'] || asset.buildingName || asset.schoolName || asset.roomNo || asset.roomName || "N/A";
+            const cat = asset.majorCategory || asset.minorCategory || "Asset Record Found";
+            const photoUrl = window.getDirectDriveImageUrl(asset.auditPhotoUrl || asset.audit_photo || asset.beforePhotoUrl || asset.photoUrl || asset.initialAuditPhoto);
 
-            Object.keys(fields).forEach(id => {
-                const el = document.getElementById(id);
-                if (el) el.value = fields[id];
-            });
-
-            // Photo preview for After Photo (Audit Photo) if it exists
-            const photoUrl = window.getDirectDriveImageUrl(asset.auditPhotoUrl || asset.photoUrl);
             previewArea.innerHTML = `
                 <div class="flex items-center gap-4 p-3 bg-indigo-50/50 rounded-2xl border border-indigo-100 shadow-sm animate-fade-in">
                     <div class="w-16 h-16 bg-white rounded-xl overflow-hidden border border-indigo-100 flex-shrink-0">
                         ${photoUrl && photoUrl.includes('http') ? `<img src="${photoUrl}" class="w-full h-full object-cover" alt="Asset Preview">` : '<div class="w-full h-full flex items-center justify-center text-[8px] text-gray-300">No Image</div>'}
                     </div>
                     <div class="flex-1 min-w-0">
-                        <p class="text-[9px] font-black text-indigo-400 uppercase tracking-widest">${asset.category || "Asset Found"}</p>
-                        <h4 class="text-xs font-bold text-indigo-900 truncate">${asset.assetDescription || cleanBC}</h4>
-                        <p class="text-[10px] text-gray-500 mt-0.5 truncate"><i class="fa-solid fa-location-dot mr-1"></i>${asset.locationName || "-"}</p>
+                        <p class="text-[9px] font-black text-indigo-400 uppercase tracking-widest">${cat}</p>
+                        <h4 class="text-xs font-bold text-indigo-900 truncate">${name}</h4>
+                        <p class="text-[10px] text-gray-500 mt-0.5 truncate"><i class="fa-solid fa-location-dot mr-1"></i>${location}</p>
                     </div>
                     <div class="bg-green-100 text-green-600 px-2 py-1 rounded-lg">
                         <i class="fa-solid fa-check-circle text-xs"></i>
@@ -691,7 +683,13 @@ window.fetchDisposalAssetDetails = async (barcode) => {
             `;
             activeDisposalBarcode = cleanBC;
             if (submitBtn) submitBtn.disabled = false;
-            window.activeDisposalAssetData = asset;
+
+            // Store original metadata for disposal payload
+            window.activeDisposalAssetData = {
+                assetName: name,
+                assetType: asset.majorCategory || "N/A",
+                originalLocation: location
+            };
 
         } else {
             previewArea.innerHTML = `
@@ -714,172 +712,144 @@ window.fetchDisposalAssetDetails = async (barcode) => {
     }
 };
 
-window.handleDisposalAfterPhoto = async (e) => {
+window.removeDisposalPhoto = () => {
+    disposalPhotoBase64 = "";
+    const input = document.getElementById('disposal-photo-input');
+    if (input) input.value = "";
+    const preview = document.getElementById('disposal-photo-preview');
+    if (preview) preview.classList.add('hidden');
+    const btnText = document.getElementById('disposal-photo-btn-text');
+    if (btnText) btnText.innerText = "Take Damage Photo";
+};
+
+// --- BIND REAL-TIME LISTENER ON STARTUP ---
+document.addEventListener('DOMContentLoaded', () => {
+    const bcInput = document.getElementById('f1_disposal_barcode_input');
+    if (bcInput) {
+        bcInput.addEventListener('input', (e) => {
+            const val = e.target.value.trim().toUpperCase();
+            // Debounce or instant search
+            window.fetchDisposalAssetDetails(val);
+        });
+    }
+});
+
+window.closeAssetDisposal = () => {
+    try {
+        window.showStaffView('staff-dash-area');
+
+        activeDisposalBarcode = null;
+        disposalPhotoBase64 = "";
+        const preview = document.getElementById('disposal-photo-preview');
+        const btnText = document.getElementById('disposal-photo-btn-text');
+        if (preview) preview.classList.add('hidden');
+        if (btnText) btnText.innerText = "Take Damage Photo";
+    } catch (e) { console.error(e); }
+};
+
+
+
+window.handleDisposalPhoto = async (e) => {
     try {
         const file = e.target.files[0];
         if (!file) return;
-        const btnText = document.getElementById('d_after_photo_btn_text');
+        const btnText = document.getElementById('disposal-photo-btn-text');
         if (btnText) btnText.innerText = "Compressing...";
-        disposalAfterPhotoBase64 = await window.compressImageFile(file, 1000, 1000, 0.7);
-        const preview = document.getElementById('d_after_photo_preview');
+        disposalPhotoBase64 = await window.compressImageFile(file, 1000, 1000, 0.7);
+        const preview = document.getElementById('disposal-photo-preview');
         if (preview) {
             preview.classList.remove('hidden');
-            preview.querySelector('img').src = disposalAfterPhotoBase64;
+            preview.querySelector('img').src = disposalPhotoBase64;
         }
-        if (btnText) btnText.innerText = "After Photo Captured ✓";
+        if (btnText) btnText.innerText = "Damage Photo Captured ✓";
     } catch (e) { console.error(e); }
 };
 
 window.submitAssetDisposal = async () => {
     try {
-        const reason = document.getElementById('d_disposal_reason').value;
-        const scrapLoc = document.getElementById('d_scrap_loc').value;
-        if (!reason || !disposalPhotoBase64) return alert("Before Photo and Reason are required!");
+        const reason = document.getElementById('disposal-reason').value;
+        const scrapLoc = document.getElementById('disposal-scrap-loc').value;
+        if (!reason || !scrapLoc || !disposalPhotoBase64) return alert("Photo and details required!");
 
         const btn = document.getElementById('submit-disposal-btn');
-        if (btn) { btn.disabled = true; btn.innerText = "Processing Disposal..."; }
+        if (btn) { btn.disabled = true; btn.innerText = "Uploading Proof Photo..."; }
 
-        // 1. Upload Photos
-        const [urlBefore, urlAfter] = await Promise.all([
-            window.uploadToDrive({ action: "upload", type: "disposed_asset", fileName: `BEFORE_${activeDisposalBarcode}_${Date.now()}.jpg`, image: disposalPhotoBase64 }),
-            disposalAfterPhotoBase64 ? window.uploadToDrive({ action: "upload", type: "disposed_asset", fileName: `AFTER_${activeDisposalBarcode}_${Date.now()}.jpg`, image: disposalAfterPhotoBase64 }) : Promise.resolve({fileUrl: ""})
-        ]);
+        // 1. ENSURE RELIABLE IMAGE UPLOAD
+        const result = await window.uploadToDrive({
+            action: "upload",
+            type: "disposed_asset",
+            fileName: `DISPOSAL_${activeDisposalBarcode}_${Date.now()}.jpg`,
+            image: disposalPhotoBase64
+        });
 
-        // 2. Construct Data
+        if (result.status !== 'success' || !result.fileUrl) {
+            throw new Error(result.message || "Upload failed or URL missing");
+        }
+
+        // 2. CONSTRUCT COMPLETE METADATA PAYLOAD
         const now = new Date();
+        const assetInfo = window.activeDisposalAssetData || {};
+
         const disposalData = {
-            ...window.activeDisposalAssetData,
+            assetBarcode: activeDisposalBarcode,
+            assetName: assetInfo.assetName || "-",
+            assetType: assetInfo.assetType || "-",
+            originalLocation: assetInfo.originalLocation || "-",
             assetStatus: 'Disposed',
             disposalReason: reason,
             scrapLocation: scrapLoc,
-            beforePhotoUrl: urlBefore.fileUrl || "",
-            afterPhotoUrl: urlAfter.fileUrl || "",
-            disposalDate: now.toLocaleDateString(),
-            disposalTime: now.toLocaleTimeString(),
-            disposedBy: window.currentStaff ? window.currentStaff.name : "System",
+            disposalPhotoUrl: result.fileUrl,
+            reportedBy: window.currentStaff ? window.currentStaff.name : "System",
+            reportedRole: window.currentStaff ? window.currentStaff.role : "Admin",
+            date: now.toISOString().split('T')[0],
+            time: now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true }),
             timestamp: Date.now()
         };
 
-        const updates = {};
-        updates[`assets/${activeDisposalBarcode}`] = disposalData;
-        updates[`disposed_assets/${activeDisposalBarcode}`] = disposalData;
+        // 3. FETCH EXISTING FULL RECORD TO PRESERVE 39 COLUMNS
+        const assetSnap = await get(child(ref(db), `assets/${activeDisposalBarcode}`));
+        const existingData = assetSnap.exists() ? assetSnap.val() : {};
 
+        // Final merged record
+        const finalPayload = { ...existingData, ...disposalData };
+
+        // 4. PUSH TO DISPOSED_ASSETS (As requested) and update /assets
+        const updates = {};
+        updates[`assets/${activeDisposalBarcode}`] = finalPayload;
+        updates[`disposed_assets/${activeDisposalBarcode}`] = finalPayload;
+
+        console.log("Saving Comprehensive Disposal Record...");
         await update(ref(db), updates);
-        alert("Asset Disposed Successfully!");
+
+        // --- MULTI-CAST NOTIFICATION: ASSET DISPOSAL (CRITICAL) ---
+        if (typeof window.triggerMultiRoleNotification === 'function') {
+            const adekId = window.currentStaff ? (window.currentStaff.adekPass || window.currentStaff.adcPassNumber) : "System";
+            window.triggerMultiRoleNotification({
+                title: `Asset Disposed - ${disposalData.assetName || activeDisposalBarcode}`,
+                body: `User: ${disposalData.reportedBy} (${adekId}) | Location: ${disposalData.scrapLocation} | Time: ${disposalData.time}`,
+                image: disposalData.disposalPhotoUrl,
+                roles: ["Admin", "Security"], // Multi-cast to Admin and Security
+                tag: "asset-disposal",
+                icon: "fa-trash-can",
+                url: "/JYSLOGINPORTAL/admin.html"
+            });
+        }
+
+        alert("Asset marked as Disposed. Record synchronized with metadata and photo proof.");
         window.closeAssetDisposal();
-        if (typeof window.loadRoleView === 'function') window.loadRoleView(window.currentStaff);
+
+
+        // Force refresh
+        if (window.appCache) window.appCache.isInitialized = false;
+        if (typeof window.loadAdminDashboard === 'function') window.loadAdminDashboard();
 
     } catch (err) {
-        alert("Error: " + err.message);
-    } finally {
+        console.error("Disposal Submit Error:", err);
+        alert("CRITICAL ERROR: " + err.message);
+    }
+    finally {
         const btn = document.getElementById('submit-disposal-btn');
         if (btn) { btn.disabled = false; btn.innerText = "Confirm Scrap"; }
-    }
-};
-
-window.recoverDisposedAsset = async (barcode) => {
-    if (!confirm(`Are you sure you want to recover asset ${barcode} back to active register?`)) return;
-    try {
-        const snap = await get(child(ref(db), `disposed_assets/${barcode}`));
-        if (!snap.exists()) return alert("Disposal record not found.");
-
-        const data = snap.val();
-        data.assetStatus = 'Active';
-        data.updatedAt = new Date().toISOString();
-
-        const updates = {};
-        updates[`assets/${barcode}`] = data;
-        updates[`disposed_assets/${barcode}`] = null;
-
-        await update(ref(db), updates);
-        alert("Asset recovered successfully!");
-        if (typeof window.loadAdminDashboard === 'function') window.loadAdminDashboard();
-    } catch (e) { alert("Error: " + e.message); }
-};
-
-window.openAssetEdit = async (barcode) => {
-    try {
-        window.showStaffView('asset-edit-section');
-        if (barcode) {
-            document.getElementById('edit_asset_barcode').value = barcode;
-            window.fetchEditAssetDetails(barcode);
-        }
-    } catch (e) { console.error(e); }
-};
-
-window.fetchEditAssetDetails = async (barcode) => {
-    const cleanBC = barcode.trim().toUpperCase();
-    try {
-        const snap = await get(child(ref(db), `assets/${cleanBC}`));
-        if (snap.exists()) {
-            const a = snap.val();
-            assetEditBarcode = cleanBC;
-
-            // Fill all fields in the edit form
-            const fieldMap = {
-                'e_serial_no': 'serialNo',
-                'e_model_desc': 'modelDescription',
-                'e_asset_cond': 'assetCondition',
-                'e_asset_desc': 'assetDescription',
-                'e_manufacturer': 'manufacturer',
-                'e_location': 'locationName',
-                'e_building': 'buildingName',
-                'e_room_name': 'roomName',
-                'e_room_no': 'roomNo',
-                'e_room_barcode': 'currentRoomBarcode',
-                'e_floor_no': 'floorNo',
-                'e_floor_desc': 'floorDescription'
-            };
-
-            Object.keys(fieldMap).forEach(elId => {
-                const el = document.getElementById(elId);
-                if (el) el.value = a[fieldMap[elId]] || "";
-            });
-
-            const photoUrl = window.getDirectDriveImageUrl(a.auditPhotoUrl || a.photoUrl);
-            const preview = document.getElementById('edit-asset-preview');
-            if (preview) {
-                preview.innerHTML = `<img src="${photoUrl}" class="w-full h-32 object-cover rounded-xl border">`;
-            }
-        } else {
-            alert("Asset not found!");
-        }
-    } catch (e) { console.error(e); }
-};
-
-window.submitAssetEdit = async (e) => {
-    if (e) e.preventDefault();
-    if (!assetEditBarcode) return;
-
-    const btn = document.getElementById('submit-edit-btn');
-    btn.disabled = true;
-    btn.innerText = "SAVING...";
-
-    try {
-        const updates = {
-            serialNo: document.getElementById('e_serial_no').value,
-            modelDescription: document.getElementById('e_model_desc').value,
-            assetCondition: document.getElementById('e_asset_cond').value,
-            assetDescription: document.getElementById('e_asset_desc').value,
-            manufacturer: document.getElementById('e_manufacturer').value,
-            locationName: document.getElementById('e_location').value,
-            buildingName: document.getElementById('e_building').value,
-            roomName: document.getElementById('e_room_name').value,
-            roomNo: document.getElementById('e_room_no').value,
-            currentRoomBarcode: document.getElementById('e_room_barcode').value,
-            floorNo: document.getElementById('e_floor_no').value,
-            floorDescription: document.getElementById('e_floor_desc').value,
-            updatedAt: new Date().toISOString(),
-            lastEditedBy: window.currentStaff ? window.currentStaff.name : "System"
-        };
-
-        await update(ref(db, `assets/${assetEditBarcode}`), updates);
-        alert("Asset details updated successfully!");
-        window.showStaffView('staff-dash-area');
-    } catch (err) { alert("Error: " + err.message); }
-    finally {
-        btn.disabled = false;
-        btn.innerText = "SAVE CHANGES";
     }
 };
 
@@ -1025,12 +995,6 @@ window.fetchTransferAssetDetails = async (barcode) => {
         const snap = await get(child(ref(db), `assets/${cleanBC}`));
         if (snap.exists()) {
             const a = snap.val();
-            // Auto-fill Transfer Fields Requirement 7
-            document.getElementById('t_asset_manufacturer').value = a.manufacturer || "-";
-            document.getElementById('t_asset_description').value = a.assetDescription || a.modelDescription || "-";
-            document.getElementById('t_asset_serial_no').value = a.serialNo || "-";
-            document.getElementById('t_asset_location').value = a.locationName || "-";
-
             const name = a.assetDescription || a.modelDescription || 'Unnamed Asset';
             const location = a.locationName || a.buildingName || 'Unknown';
             const photoUrl = window.getDirectDriveImageUrl(a.auditPhotoUrl || a.photoUrl);
@@ -1068,17 +1032,15 @@ window.submitAssetTransfer = async (event) => {
         const collectionReason = document.getElementById('t_collection_reason').value;
         const collectionDate = document.getElementById('t_collection_date').value;
         const landline = document.getElementById('t_company_landline').value;
+        const mobile = document.getElementById('t_mobile_number').value;
 
         const manufacturer = document.getElementById('t_asset_manufacturer').value;
         const description = document.getElementById('t_asset_description').value;
-        const serialNo = document.getElementById('t_asset_serial_no').value;
-        const location = document.getElementById('t_asset_location').value;
+        const transferReason = document.getElementById('t_transfer_reason_select').value;
+        const otherReasonText = document.getElementById('t_other_reason_text').value;
 
-        // Requirement 7 Reason logic
-        let transferReason = "";
-        if (document.getElementById('t_repair_check').checked) transferReason = "Repair/Maintenance";
-        else if (document.getElementById('t_replace_check').checked) transferReason = "Replacement";
-        else transferReason = document.getElementById('t_other_reason_text').value || "Other";
+        const securityName = document.getElementById('t_security_name').value;
+        const receivedName = document.getElementById('t_received_name').value;
 
         // Upload Signatures & Photo
         const sigSecurity = window.getCanvasBase64('t_security_sig');
@@ -1090,8 +1052,9 @@ window.submitAssetTransfer = async (event) => {
         }
 
         const uploadTask = async (img, fileName, type) => {
-            if (!img) return {fileUrl: ""};
-            return await window.uploadToDrive({ action: "upload", type: type, fileName, image: img });
+            if (!img) return "";
+            const res = await window.uploadToDrive({ action: "upload", type: type, fileName, image: img });
+            return res.fileUrl || res.signatureUrl || "";
         };
 
         const [urlSec, urlRec, urlPhoto] = await Promise.all([
@@ -1112,14 +1075,15 @@ window.submitAssetTransfer = async (event) => {
             collectionReason,
             collectionDate,
             companyLandline: landline,
+            mobileNumber: mobile,
             assetManufacturer: manufacturer,
             assetDescription: description,
-            assetSerialNo: serialNo,
-            assetLocation: location,
-            reasonOfTransfer: transferReason,
-            securitySignatureUrl: urlSec.fileUrl || "",
-            receivedSignatureUrl: urlRec.fileUrl || "",
-            transferPhotoUrl: urlPhoto.fileUrl || "",
+            reasonOfTransfer: transferReason === 'Other Reason' ? otherReasonText : transferReason,
+            securityName,
+            receivedByName: receivedName,
+            securitySignatureUrl: urlSec,
+            receivedSignatureUrl: urlRec,
+            transferPhotoUrl: urlPhoto,
             status: 'In-Transit',
             initiatedBy: staff.name || "System",
             timestamp: now.getTime(),
@@ -1128,6 +1092,17 @@ window.submitAssetTransfer = async (event) => {
         };
 
         await set(ref(db, `asset_transfers/${transferId}`), transferData);
+
+        // Notify
+        if (typeof window.triggerMultiRoleNotification === 'function') {
+            window.triggerMultiRoleNotification({
+                title: "Asset Transfer Out",
+                body: `${collectorName} collected ${barcode} for ${transferData.reasonOfTransfer}`,
+                roles: ["Admin", "Security"],
+                icon: "fa-truck-ramp-box"
+            });
+        }
+
         alert("Asset Transfer Recorded Successfully!");
         window.closeAssetTransfer();
         if (typeof window.loadRoleView === 'function') window.loadRoleView(staff);
@@ -1284,14 +1259,9 @@ window.renderAdminAssetTable = (data, targetTable = 'both') => {
                     <td class="p-3 border-r font-mono text-gray-600">${a.date || "-"}</td>
                     <td class="p-3 border-r font-mono text-gray-600">${a.time || "-"}</td>
                     <td class="p-3 text-center">
-                        <div class="flex items-center justify-center gap-2">
-                            <button onclick="window.recoverDisposedAsset('${barcode}')" class="text-indigo-600 hover:text-indigo-800 transition" title="Recover Asset">
-                                <i class="fa-solid fa-rotate-left"></i>
-                            </button>
-                            <button onclick="window.deleteAssetRecord('${barcode}')" class="text-red-600 hover:text-red-800 transition" title="Delete Permanent">
-                                <i class="fa-solid fa-trash-can"></i>
-                            </button>
-                        </div>
+                        <button onclick="window.deleteAssetRecord('${barcode}')" class="text-red-600 hover:text-red-800 transition" title="Delete Permanent">
+                            <i class="fa-solid fa-trash-can"></i>
+                        </button>
                     </td>
                 `;
                 disposalBody.appendChild(tr);
