@@ -749,6 +749,36 @@ window.closeAssetDisposal = () => {
 
 
 
+// --- GLOBAL SCANNER BINDING ---
+document.addEventListener('DOMContentLoaded', () => {
+    const disposalInput = document.getElementById('f1_disposal_barcode_input');
+    if (disposalInput) {
+        disposalInput.addEventListener('change', (e) => {
+            if (typeof window.handleBarcodeScan === 'function') {
+                window.handleBarcodeScan(e.target.value, 'dispose_staff');
+            }
+        });
+    }
+});
+
+let disposalBeforePhotoBase64 = "";
+
+window.handleDisposalBeforePhoto = async (e) => {
+    try {
+        const file = e.target.files[0];
+        if (!file) return;
+        const btnText = document.getElementById('before-photo-btn-text');
+        if (btnText) btnText.innerText = "Compressing...";
+        disposalBeforePhotoBase64 = await window.compressImageFile(file, 1000, 1000, 0.7);
+        const preview = document.getElementById('before-photo-preview');
+        if (preview) {
+            preview.classList.remove('hidden');
+            preview.querySelector('img').src = disposalBeforePhotoBase64;
+        }
+        if (btnText) btnText.innerText = "Before Photo Captured ✓";
+    } catch (e) { console.error(e); }
+};
+
 window.handleDisposalPhoto = async (e) => {
     try {
         const file = e.target.files[0];
@@ -761,73 +791,65 @@ window.handleDisposalPhoto = async (e) => {
             preview.classList.remove('hidden');
             preview.querySelector('img').src = disposalPhotoBase64;
         }
-        if (btnText) btnText.innerText = "Damage Photo Captured ✓";
+        if (btnText) btnText.innerText = "Audit Photo Captured ✓";
     } catch (e) { console.error(e); }
 };
 
 window.submitAssetDisposal = async () => {
     try {
         const reason = document.getElementById('disposal-reason').value;
-        const scrapLoc = document.getElementById('disposal-scrap-loc').value;
-        if (!reason || !scrapLoc || !disposalPhotoBase64) return alert("Photo and details required!");
+        if (!reason || !disposalPhotoBase64 || !disposalBeforePhotoBase64 || !window.activeDisposalBarcode) {
+            return alert("Before/After photos and Reason are mandatory!");
+        }
 
         const btn = document.getElementById('submit-disposal-btn');
-        if (btn) { btn.disabled = true; btn.innerText = "Uploading Proof Photo..."; }
+        if (btn) { btn.disabled = true; btn.innerText = "Uploading Evidence..."; }
 
-        // 1. ENSURE RELIABLE IMAGE UPLOAD
-        const result = await window.uploadToDrive({
-            action: "upload",
-            type: "disposed_asset",
-            fileName: `DISPOSAL_${activeDisposalBarcode}_${Date.now()}.jpg`,
+        // 1. Upload Photos
+        const beforeRes = await window.uploadToDrive({
+            action: "upload", type: "disposed_asset",
+            fileName: `BEFORE_${window.activeDisposalBarcode}_${Date.now()}.jpg`,
+            image: disposalBeforePhotoBase64
+        });
+
+        const afterRes = await window.uploadToDrive({
+            action: "upload", type: "disposed_asset",
+            fileName: `AUDIT_${window.activeDisposalBarcode}_${Date.now()}.jpg`,
             image: disposalPhotoBase64
         });
 
-        if (result.status !== 'success' || !result.fileUrl) {
-            throw new Error(result.message || "Upload failed or URL missing");
-        }
-
-        // 2. CONSTRUCT COMPLETE METADATA PAYLOAD
+        // 2. Build Record
         const now = new Date();
         const assetInfo = window.activeDisposalAssetData || {};
-
         const disposalData = {
-            assetBarcode: activeDisposalBarcode,
-            assetName: assetInfo.assetName || "-",
-            assetType: assetInfo.assetType || "-",
-            originalLocation: assetInfo.originalLocation || "-",
+            ...assetInfo,
             assetStatus: 'Disposed',
             disposalReason: reason,
-            scrapLocation: scrapLoc,
-            disposalPhotoUrl: result.fileUrl,
-            reportedBy: window.currentStaff ? window.currentStaff.name : "System",
-            reportedRole: window.currentStaff ? window.currentStaff.role : "Admin",
-            date: now.toISOString().split('T')[0],
-            time: now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true }),
-            timestamp: Date.now()
+            beforePhotoUrl: beforeRes.fileUrl,
+            disposalPhotoUrl: afterRes.fileUrl,
+            disposedBy: window.currentStaff ? window.currentStaff.name : "Staff",
+            disposalDate: now.toLocaleDateString(),
+            disposalTime: now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            timestamp: Date.now(),
+            updatedAt: now.toISOString()
         };
 
-        // 3. FETCH EXISTING FULL RECORD TO PRESERVE 39 COLUMNS
-        const assetSnap = await get(child(ref(db), `assets/${activeDisposalBarcode}`));
-        const existingData = assetSnap.exists() ? assetSnap.val() : {};
-
-        // Final merged record
-        const finalPayload = { ...existingData, ...disposalData };
-
-        // 4. PUSH TO DISPOSED_ASSETS (As requested) and update /assets
         const updates = {};
-        updates[`assets/${activeDisposalBarcode}`] = finalPayload;
-        updates[`disposed_assets/${activeDisposalBarcode}`] = finalPayload;
+        updates[`assets/${window.activeDisposalBarcode}`] = disposalData;
+        updates[`disposed_assets/${window.activeDisposalBarcode}`] = disposalData;
 
-        console.log("Saving Comprehensive Disposal Record...");
         await update(ref(db), updates);
+        alert("Asset successfully moved to Disposal List.");
 
-        // --- MULTI-CAST NOTIFICATION: ASSET DISPOSAL (CRITICAL) ---
-        if (typeof window.triggerMultiRoleNotification === 'function') {
-            const adekId = window.currentStaff ? (window.currentStaff.adekPass || window.currentStaff.adcPassNumber) : "System";
-            window.triggerMultiRoleNotification({
-                title: `Asset Disposed - ${disposalData.assetName || activeDisposalBarcode}`,
-                body: `User: ${disposalData.reportedBy} (${adekId}) | Location: ${disposalData.scrapLocation} | Time: ${disposalData.time}`,
-                image: disposalData.disposalPhotoUrl,
+        // Reset
+        location.reload();
+
+    } catch (e) {
+        alert("Error: " + e.message);
+        const btn = document.getElementById('submit-disposal-btn');
+        if (btn) { btn.disabled = false; btn.innerText = "CONFIRM SCRAP & DISPOSE"; }
+    }
+};
                 roles: ["Admin", "Security"], // Multi-cast to Admin and Security
                 tag: "asset-disposal",
                 icon: "fa-trash-can",
@@ -1237,35 +1259,50 @@ window.renderAdminAssetTable = (data, targetTable = 'both') => {
                            "UNKNOWN";
 
             const tr = document.createElement('tr');
-            tr.className = "hover:bg-gray-50 transition border-b border-gray-100 text-[12px]";
+            tr.className = "hover:bg-indigo-50 hover:text-indigo-900 transition-colors duration-200 border-b border-gray-100 text-[12px]";
 
             if (isDisposed && disposalBody && (targetTable === 'both' || targetTable === 'disposal')) {
-                // SPECIAL RENDERING FOR DISPOSAL TABLE (EXTENDED METADATA)
-                const assetName = a['Classification'] || a['Asset Description'] || a['Model Description'] || "-";
+                // SPECIAL RENDERING FOR DISPOSAL TABLE (14+ MANDATORY FIELDS)
+                const beforePhoto = window.getDirectDriveImageUrl(a.beforePhotoUrl);
+                const afterPhoto = window.getDirectDriveImageUrl(a.disposalPhotoUrl);
+
                 tr.innerHTML = `
-                    <td class="p-3 border-r font-mono font-bold">${barcode}</td>
-                    <td class="p-3 border-r font-bold text-indigo-900">${assetName}</td>
-                    <td class="p-3 border-r">${a.scrapLocation || a.locationName || "-"}</td>
-                    <td class="p-3 border-r italic text-red-600 font-medium">${a.disposalReason || "-"}</td>
-                    <td class="p-3 border-r text-center">
-                        ${damagePhotoUrl ? `<img src="${damagePhoto}" class="h-10 w-10 object-cover rounded border border-red-200 mx-auto cursor-pointer hover:scale-150 transition" onclick="window.openImageZoom('${damagePhoto}')">` : '<span class="text-[8px] opacity-30">No Photo</span>'}
-                    </td>
+                    <td class="p-3 border-r font-mono font-bold text-red-600">${barcode}</td>
+                    <td class="p-3 border-r font-bold">${a.assetDescription || window.findValueByFuzzyKey(a, 'Asset Description') || '-'}</td>
+                    <td class="p-3 border-r">${a.vendorName || window.findValueByFuzzyKey(a, 'Vendor Name') || '-'}</td>
+                    <td class="p-3 border-r"><span class="px-2 py-0.5 bg-red-50 text-red-600 rounded text-[9px] font-bold">${a.Classification || a.majorCategory || '-'}</span></td>
+                    <td class="p-3 border-r">${a.serviceDate || window.findValueByFuzzyKey(a, 'Service Date') || '-'}</td>
+                    <td class="p-3 border-r">${a.floorDesc || window.findValueByFuzzyKey(a, 'Floor Description') || '-'}</td>
+                    <td class="p-3 border-r">${a.floorNo || window.findValueByFuzzyKey(a, 'Floor No') || '-'}</td>
+                    <td class="p-3 border-r font-bold text-indigo-900">${a.locationName || window.findValueByFuzzyKey(a, 'Location Name') || '-'}</td>
+                    <td class="p-3 border-r">${a.manufacturer || window.findValueByFuzzyKey(a, 'Manufacturer') || '-'}</td>
+                    <td class="p-3 border-r">${a.modelDesc || window.findValueByFuzzyKey(a, 'Model Description') || '-'}</td>
+                    <td class="p-3 border-r font-mono">${a.roomBarcode || window.findValueByFuzzyKey(a, 'Room Barcode') || '-'}</td>
+                    <td class="p-3 border-r">${a.roomName || window.findValueByFuzzyKey(a, 'Room Name') || '-'}</td>
+                    <td class="p-3 border-r font-bold">${a.roomNo || window.findValueByFuzzyKey(a, 'Room Number') || '-'}</td>
+                    <td class="p-3 border-r">${a.buildingName || window.findValueByFuzzyKey(a, 'School Building Name') || '-'}</td>
+                    <td class="p-3 border-r italic text-red-700 font-medium">${a.disposalReason || "-"}</td>
                     <td class="p-3 border-r">
                         <div class="flex flex-col">
-                            <span class="font-bold text-gray-700">${a.reportedBy || "-"}</span>
-                            <span class="text-[9px] text-gray-400 uppercase">${a.reportedRole || "-"}</span>
+                            <span class="font-black text-indigo-900">${a.disposedBy || "-"}</span>
+                            <span class="text-[8px] opacity-40 uppercase">${a.disposalDate || a.date || "-"} ${a.disposalTime || a.time || ""}</span>
                         </div>
                     </td>
-                    <td class="p-3 border-r font-mono text-gray-600">${a.date || "-"}</td>
-                    <td class="p-3 border-r font-mono text-gray-600">${a.time || "-"}</td>
+                    <td class="p-3 border-r">
+                        <div class="flex gap-1 justify-center">
+                            ${a.beforePhotoUrl ? `<img src="${beforePhoto}" class="h-10 w-10 object-cover rounded border border-amber-200 cursor-pointer hover:scale-150 transition" onclick="window.openImageZoom('${beforePhoto}')" title="Before">` : '<i class="fa-solid fa-image-slash opacity-10"></i>'}
+                            ${a.disposalPhotoUrl ? `<img src="${afterPhoto}" class="h-10 w-10 object-cover rounded border border-red-200 cursor-pointer hover:scale-150 transition" onclick="window.openImageZoom('${afterPhoto}')" title="Audit Photo">` : '<i class="fa-solid fa-image-slash opacity-10"></i>'}
+                        </div>
+                    </td>
                     <td class="p-3 text-center">
-                        <button onclick="window.deleteAssetRecord('${barcode}')" class="text-red-600 hover:text-red-800 transition" title="Delete Permanent">
-                            <i class="fa-solid fa-trash-can"></i>
+                        <button onclick="window.recoverDisposedAsset('${barcode}')" class="text-indigo-600 hover:text-indigo-800 transition" title="Recover Asset">
+                            <i class="fa-solid fa-rotate-left"></i>
                         </button>
                     </td>
                 `;
                 disposalBody.appendChild(tr);
-            } else if (!isDisposed && body && (targetTable === 'both' || targetTable === 'assets')) {
+            }
+else if (!isDisposed && body && (targetTable === 'both' || targetTable === 'assets')) {
                 // STANDARD RENDERING FOR REGISTER
                 let rowHtml = `<td class="p-3 border-r text-center"><input type="checkbox" class="asset-checkbox" value="${barcode}"></td>`;
                 dynamicHeaders.forEach(h => {
@@ -1280,9 +1317,14 @@ window.renderAdminAssetTable = (data, targetTable = 'both') => {
                         ${damagePhotoUrl ? `<img src="${damagePhoto}" class="h-10 w-10 object-cover rounded border border-red-200 mx-auto cursor-pointer hover:scale-110 transition" onclick="window.openImageZoom('${damagePhoto}')">` : '<i class="fa-solid fa-image-slash opacity-20"></i>'}
                     </td>
                     <td class="p-3 text-center">
-                        <button onclick="window.deleteAssetRecord('${barcode}')" class="text-red-600 hover:text-red-800 transition" title="Delete Asset">
-                            <i class="fa-solid fa-trash-can"></i>
-                        </button>
+                        <div class="flex items-center justify-center gap-2">
+                            <button onclick="window.openEditAssetModal('${barcode}')" class="text-indigo-600 hover:text-indigo-800 transition" title="Edit Asset">
+                                <i class="fa-solid fa-pen-to-square"></i>
+                            </button>
+                            <button onclick="window.deleteAssetRecord('${barcode}')" class="text-red-600 hover:text-red-800 transition" title="Delete Asset">
+                                <i class="fa-solid fa-trash-can"></i>
+                            </button>
+                        </div>
                     </td>
                 `;
                 tr.innerHTML = rowHtml;
