@@ -4,6 +4,26 @@
 // ✅ SILENT CORS FALLBACK - FORCED HTTPS
 // ================================================
 
+// ✅ FIXED: FileSaver.js Fallback
+// Ensures reports can be downloaded even if the FileSaver CDN is blocked or fails.
+if (typeof saveAs === 'undefined') {
+    window.saveAs = function(blob, filename) {
+        try {
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = filename;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            setTimeout(() => URL.revokeObjectURL(link.href), 100);
+        } catch (e) {
+            console.error("Fallback download failed:", e);
+            alert("Download failed. Please try again.");
+        }
+    };
+    console.warn("⚠️ FileSaver.js not loaded - using fallback download");
+}
+
 // ✅ FIXED: Robust image fetch with multiple fallbacks & forced https
 const getImageBuffer = async (url) => {
     if (!url || !url.includes('http') || url.includes('placeholder')) return null;

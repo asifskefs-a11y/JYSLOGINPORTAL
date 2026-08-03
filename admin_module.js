@@ -461,40 +461,75 @@ window.renderAdminAssetTable = (data, targetTable = 'both') => {
     }
 };
 
-// ================================================
-// TRANSFER TABLE RENDER
-// ================================================
+// =========================================================
+// RENDER TRANSFER TABLE - 26 COLUMNS (ADMIN VIEW v3.5.1)
+// =========================================================
+
 window.renderTransferTable = (transfers) => {
     const body = document.getElementById('transfer-logs-body');
     if (!body) return;
     body.innerHTML = '';
 
     if (!transfers || transfers.length === 0) {
-        body.innerHTML = '<tr><td colspan="5" class="p-8 text-center text-gray-400">No transfer records found</td></tr>';
+        body.innerHTML = `<tr><td colspan="26" class="p-8 text-center text-gray-400">No transfer records found</td></tr>`;
         return;
     }
 
     transfers.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0)).forEach(t => {
         const tr = document.createElement('tr');
-        tr.className = "hover:bg-gray-50 border-b text-[11px]";
+        tr.className = "hover:bg-indigo-50 transition-colors border-b border-gray-100 text-[9px]";
 
-        const secSig = t.securitySignatureUrl ? `<img src="${window.getDirectDriveImageUrl(t.securitySignatureUrl)}" class="h-8 mx-auto rounded border cursor-pointer" onclick="window.openImageZoom('${t.securitySignatureUrl}')">` : '-';
-        const recSig = t.receivedSignatureUrl ? `<img src="${window.getDirectDriveImageUrl(t.receivedSignatureUrl)}" class="h-8 mx-auto rounded border cursor-pointer" onclick="window.openImageZoom('${t.receivedSignatureUrl}')">` : '-';
+        const secSig = t.securitySignatureUrl
+            ? `<img src="${window.getDirectDriveImageUrl(t.securitySignatureUrl)}" class="h-8 mx-auto rounded border cursor-pointer hover:scale-150 transition" onclick="window.openImageZoom('${t.securitySignatureUrl}')">`
+            : '-';
+        const recSig = t.receivedSignatureUrl
+            ? `<img src="${window.getDirectDriveImageUrl(t.receivedSignatureUrl)}" class="h-8 mx-auto rounded border cursor-pointer hover:scale-150 transition" onclick="window.openImageZoom('${t.receivedSignatureUrl}')">`
+            : '-';
+        const auditPhoto = t.auditPhotoAfter
+            ? `<img src="${window.getDirectDriveImageUrl(t.auditPhotoAfter)}" class="h-8 w-8 object-cover rounded border cursor-pointer hover:scale-150 transition" onclick="window.openImageZoom('${t.auditPhotoAfter}')">`
+            : '-';
+        const transferPhoto = t.transferPhotoUrl
+            ? `<img src="${window.getDirectDriveImageUrl(t.transferPhotoUrl)}" class="h-8 w-8 object-cover rounded border cursor-pointer hover:scale-150 transition" onclick="window.openImageZoom('${t.transferPhotoUrl}')">`
+            : '-';
 
         tr.innerHTML = `
-            <td class="p-3 font-bold text-indigo-900">${t.transferId || t.id || "-"}</td>
-            <td class="p-3 font-bold">${t.collectorName || "-"}</td>
-            <td class="p-3 font-mono">${t.assetBarcode || "-"}</td>
-            <td class="p-3 text-center">
-                <div class="flex gap-2 justify-center">
-                    <span title="Security">${secSig}</span>
-                    <span title="Receiver">${recSig}</span>
-                </div>
+            <td class="p-2 font-mono font-bold text-indigo-600">${t.assetBarcode || '-'}</td>
+            <td class="p-2 max-w-[120px] truncate font-medium">${t.assetDescription || '-'}</td>
+            <td class="p-2">${t.assetVendorName || '-'}</td>
+            <td class="p-2"><span class="px-2 py-0.5 bg-slate-100 rounded text-[8px] font-bold">${t.category || '-'}</span></td>
+            <td class="p-2 text-[8px]">${t.datePlaceInService || '-'}</td>
+            <td class="p-2 max-w-[80px] truncate">${t.floorDescription || '-'}</td>
+            <td class="p-2 text-center">${t.floorNo || '-'}</td>
+            <td class="p-2 font-bold text-slate-700">${t.locationName || '-'}</td>
+            <td class="p-2">${t.manufacturer || '-'}</td>
+            <td class="p-2 max-w-[80px] truncate">${t.modelDescription || '-'}</td>
+            <td class="p-2 font-mono text-[8px]">${t.roomBarcode || '-'}</td>
+            <td class="p-2 max-w-[80px] truncate">${t.roomName || '-'}</td>
+            <td class="p-2 font-bold">${t.roomNumber || '-'}</td>
+            <td class="p-2 max-w-[100px] truncate">${t.schoolBuildingName || '-'}</td>
+            <td class="p-2 text-center">${auditPhoto}</td>
+            <td class="p-2 font-black text-indigo-900">${t.collectorFullName || t.collectorName || '-'}</td>
+            <td class="p-2 font-bold">${t.companyName || '-'}</td>
+            <td class="p-2 max-w-[100px] truncate italic text-[8px]">${t.reasonForCollection || '-'}</td>
+            <td class="p-2 font-mono text-[8px]">${t.dateOfCollection || t.date || '-'}</td>
+            <td class="p-2">${t.companyLandlineNo || '-'}</td>
+            <td class="p-2 font-mono text-[8px]">${t.assetSerialNo || '-'}</td>
+            <td class="p-2">
+                <span class="px-2 py-1 rounded-full font-black text-[7px] uppercase ${t.reasonForTransfer === 'Repair/Maintenance' ? 'bg-amber-50 text-amber-700' : t.reasonForTransfer === 'Replacement' ? 'bg-blue-50 text-blue-700' : 'bg-purple-50 text-purple-700'}">
+                    ${t.reasonForTransfer || '-'}
+                </span>
             </td>
-            <td class="p-3 text-center">
-                <button onclick="window.completeAssetTransfer('${t.transferId || t.id}')" class="bg-indigo-600 text-white px-3 py-1.5 rounded-lg font-bold text-[9px] hover:bg-indigo-700 transition shadow-sm uppercase ${t.status === 'Completed' ? 'opacity-30 cursor-not-allowed' : ''}" ${t.status === 'Completed' ? 'disabled' : ''}>
-                    ${t.status === 'Completed' ? 'Done' : 'Complete'}
-                </button>
+            <td class="p-2 text-center">${secSig}</td>
+            <td class="p-2 text-center">${recSig}</td>
+            <td class="p-2 text-center">${transferPhoto}</td>
+            <td class="p-2 text-center">
+                ${t.status === 'Completed'
+                    ? '<span class="px-2 py-1 bg-emerald-100 text-emerald-700 rounded-full text-[8px] font-black uppercase">Done</span>'
+                    : `<button onclick="window.completeAssetTransfer('${t.transferId || t.id}')"
+                            class="bg-indigo-600 text-white px-3 py-1.5 rounded-lg font-bold text-[8px] hover:bg-indigo-700 transition shadow-sm uppercase">
+                        Complete
+                    </button>`
+                }
             </td>
         `;
         body.appendChild(tr);

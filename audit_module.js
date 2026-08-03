@@ -165,7 +165,52 @@ window.initTransferSigPads = () => {
     });
 };
 
-window.openTransferLogs = async () => { window.showStaffView('transfer-logs-section'); };
+// =========================================================
+// ASSET TRANSFER - ROLE-BASED ACCESS CONTROL (v3.5.1)
+// =========================================================
+
+// ✅ ALL ROLES HAVE ACCESS
+const TRANSFER_ALLOWED_ROLES = ['admin', 'security', 'cleaner leader', 'technician'];
+
+// Check if current user has transfer access
+window.hasTransferAccess = () => {
+    if (window.isAdminLoggedIn) return true;
+    if (!window.currentStaff) return false;
+
+    const userRole = (window.currentStaff.role || "").toLowerCase().trim();
+    return TRANSFER_ALLOWED_ROLES.includes(userRole);
+};
+
+// Open Asset Transfer - Accessible to ALL
+window.openAssetTransfer = () => {
+    if (!window.hasTransferAccess()) {
+        alert("❌ You don't have permission to access Asset Transfer.");
+        return;
+    }
+
+    try {
+        window.showStaffView('asset-transfer-section');
+        const dateInput = document.getElementById('t_collection_date');
+        if (dateInput) dateInput.value = new Date().toISOString().split('T')[0];
+        window.initTransferSigPads();
+    } catch (e) { console.error(e); }
+};
+
+// Open Movement Logs - Accessible to ALL
+window.openTransferLogs = async () => {
+    if (!window.hasTransferAccess()) {
+        alert("❌ You don't have permission to view Movement Logs.");
+        return;
+    }
+
+    try {
+        window.showStaffView('transfer-logs-section');
+        const snap = await get(ref(db, 'asset_transfers'));
+        const transfers = snap.exists() ? Object.values(snap.val()) : [];
+        window.renderTransferTable(transfers);
+    } catch (e) { console.error(e); }
+};
+
 window.closeAssetTransfer = () => { window.showStaffView('staff-dash-area'); };
 
 console.log("✅ audit_module.js loaded (FIXED)");

@@ -1,8 +1,31 @@
 import { db } from './firebase_config.js';
 import { ref, set, get, update } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
-// --- VISITOR SYSTEM ---
+// --- VISITOR SYSTEM (v3.5.1 - FIXED) ---
 let vCanvas, vCtx, vDrawing = false;
+
+// ✅ FIXED: Self-contained compression function
+// Ensures visitor sign-in works even if attendance_module.js hasn't loaded.
+function getCompressedSignature(canvas) {
+    if (!canvas) return null;
+    try {
+        const offscreen = document.createElement('canvas');
+        offscreen.width = 300;
+        offscreen.height = 150;
+        const ctx = offscreen.getContext('2d');
+        ctx.fillStyle = "#FFFFFF";
+        ctx.fillRect(0, 0, 300, 150);
+        ctx.imageSmoothingQuality = 'high';
+        ctx.drawImage(canvas, 0, 0, 300, 150);
+        return offscreen.toDataURL("image/jpeg", 0.4);
+    } catch (e) {
+        console.error("Compression error:", e);
+        return null;
+    }
+}
+
+// Ensure global availability for init_module.js
+window.getCompressedSignature = getCompressedSignature;
 window.initVisitorCanvas = () => {
     vCanvas = document.getElementById('v-sig-pad');
     if (!vCanvas) return;
