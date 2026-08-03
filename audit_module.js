@@ -193,7 +193,6 @@ window.stopCameraScanner = async () => {
 window.fetchTransferAssetDetails = async (barcode) => {
     const previewArea = document.getElementById('transfer-asset-preview');
     const submitBtn = document.getElementById('submit-transfer-btn');
-    const barcodeInput = document.getElementById('t_asset_barcode');
 
     if (!barcode) {
         if (previewArea) previewArea.innerHTML = "";
@@ -212,15 +211,13 @@ window.fetchTransferAssetDetails = async (barcode) => {
     if (submitBtn) submitBtn.disabled = true;
 
     try {
-        // 2. Optimized Firebase Fetch
         const snap = await get(child(ref(db), `assets/${barcode.trim().toUpperCase()}`));
 
         if (snap.exists()) {
             const a = snap.val();
-            window.activeTransferAsset = a; // Store for submission payload
+            window.activeTransferAsset = a;
 
-            // 3. Automatic Mapping to UI (Visible & Hidden)
-            // Note: Adjusting IDs to match your standard schema
+            // Mapping to hidden fields
             const mapping = {
                 't_asset_description': a.assetDescription || a.modelDescription || "-",
                 't_asset_vendor': a.vendorName || a.vendor || "-",
@@ -236,18 +233,33 @@ window.fetchTransferAssetDetails = async (barcode) => {
                 if (el) el.value = mapping[id];
             }
 
-            // 4. Success Preview
+            // 2. SUCCESS PREVIEW: Detailed view for Staff
             if (previewArea) {
                 previewArea.innerHTML = `
-                    <div class="p-4 bg-emerald-50 rounded-2xl border border-emerald-100 shadow-sm animate-fade-in">
-                        <div class="flex items-center gap-3">
-                            <div class="w-12 h-12 rounded-xl overflow-hidden border border-emerald-200">
+                    <div class="p-5 bg-white rounded-2xl border-2 border-indigo-100 shadow-xl animate-fade-in space-y-4">
+                        <div class="flex items-center gap-4 pb-3 border-b border-indigo-50">
+                            <div class="w-16 h-16 rounded-xl overflow-hidden border-2 border-indigo-50 shadow-sm">
                                 <img src="${window.getDirectDriveImageUrl(a.auditPhotoUrl || a.photoUrl)}" class="w-full h-full object-cover">
                             </div>
                             <div>
-                                <h4 class="text-xs font-black text-indigo-900 uppercase">${a.assetDescription || a.modelDescription || 'Asset Found'}</h4>
-                                <p class="text-[9px] text-emerald-600 font-bold uppercase tracking-wider">${a.assetBarcode || barcode}</p>
+                                <h4 class="text-sm font-black text-indigo-900 uppercase leading-tight">${a.assetDescription || a.modelDescription || 'Asset Found'}</h4>
+                                <p class="text-[10px] text-indigo-500 font-mono font-bold mt-1">${a.assetBarcode || barcode}</p>
                             </div>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-y-3 gap-x-4 text-[10px]">
+                            <div class="space-y-0.5"><p class="text-slate-400 font-bold uppercase tracking-tighter">Location</p><p class="text-indigo-900 font-black">${a.locationName || a.location || "-"}</p></div>
+                            <div class="space-y-0.5"><p class="text-slate-400 font-bold uppercase tracking-tighter">Building</p><p class="text-indigo-900 font-black">${a.buildingName || a.schoolBuilding || "-"}</p></div>
+                            <div class="space-y-0.5"><p class="text-slate-400 font-bold uppercase tracking-tighter">Floor / Room</p><p class="text-indigo-900 font-black">F${a.floorNo || "0"} - R${a.roomNo || "-"}</p></div>
+                            <div class="space-y-0.5"><p class="text-slate-400 font-bold uppercase tracking-tighter">Serial No</p><p class="text-indigo-900 font-black">${a.serialNo || a.serialNumber || "-"}</p></div>
+                            <div class="space-y-0.5"><p class="text-slate-400 font-bold uppercase tracking-tighter">Vendor</p><p class="text-indigo-900 font-black">${a.vendorName || a.vendor || "-"}</p></div>
+                            <div class="space-y-0.5"><p class="text-slate-400 font-bold uppercase tracking-tighter">Category</p><p class="text-indigo-900 font-black">${a.majorCategory || a.category || "-"}</p></div>
+                        </div>
+
+                        <div class="pt-2">
+                            <span class="inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-50 text-emerald-600 rounded-full text-[9px] font-black uppercase tracking-wider">
+                                <i class="fa-solid fa-check-circle"></i> Ready for Transfer
+                            </span>
                         </div>
                     </div>
                 `;
@@ -255,30 +267,26 @@ window.fetchTransferAssetDetails = async (barcode) => {
             if (submitBtn) submitBtn.disabled = false;
 
         } else {
-            // 5. Validation Guard: Asset Not Registered
+            // 3. VALIDATION GUARD: Asset Not Registered
             if (previewArea) {
                 previewArea.innerHTML = `
-                    <div class="p-4 bg-red-50 text-red-600 rounded-2xl border border-red-100 flex items-center gap-3">
-                        <i class="fa-solid fa-circle-exclamation text-xl"></i>
+                    <div class="p-4 bg-red-50 text-red-600 rounded-2xl border-2 border-red-100 flex items-center gap-4">
+                        <div class="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center text-red-600">
+                            <i class="fa-solid fa-circle-exclamation text-2xl"></i>
+                        </div>
                         <div>
-                            <p class="text-[11px] font-black uppercase">Asset Not Registered</p>
-                            <p class="text-[9px] opacity-70">This barcode does not exist in the master register.</p>
+                            <p class="text-xs font-black uppercase">Asset Not Registered</p>
+                            <p class="text-[9px] font-bold opacity-80 leading-tight">This barcode does not exist in the register. Please audit it first.</p>
                         </div>
                     </div>
                 `;
             }
-            alert("❌ ERROR: Asset Not Registered!\n\nPlease register this asset in the Item Audit section before attempting a transfer.");
-
-            // Clear fields
+            alert("❌ ERROR: Asset Not Registered!");
             window.activeTransferAsset = null;
-            const fieldsToClear = ['t_asset_description', 't_asset_vendor', 't_asset_category', 't_asset_location', 't_asset_manufacturer', 't_asset_serial_no_display'];
-            fieldsToClear.forEach(id => { if(document.getElementById(id)) document.getElementById(id).value = ""; });
-
             if (submitBtn) submitBtn.disabled = true;
         }
     } catch (e) {
         console.error("Fetch Error:", e);
-        if (previewArea) previewArea.innerHTML = `<div class="p-3 bg-amber-50 text-amber-700 text-[10px] rounded-xl font-bold">⚠️ Connection slow. Retrying...</div>`;
     }
 };
 
