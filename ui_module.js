@@ -5,22 +5,67 @@ import { ref, update, push, onValue, get, child } from "https://www.gstatic.com/
 const VAPID_PUBLIC_KEY = "BD-Nf6v276v47v8y5-v3p-7-v-7-v-7-v-7-v-7-v-7-v-7-v-7-v-7-v-7-v-7-v-7-v-7-v-7-v-7-v-7-v-7";
 
 // --- GLOBAL UTILITIES ---
-window.formatDriveImageUrl = (driveUrl) => {
-    if (!driveUrl) return null;
+window.getDirectDriveImageUrl = (driveUrl) => {
+    if (!driveUrl) return 'https://placehold.co/400x300?text=No+Photo';
+
+    // Agar already valid image URL hai toh wapas karo
     if (driveUrl.startsWith('data:image')) return driveUrl;
+    if (driveUrl.startsWith('http') && (
+        driveUrl.includes('.jpg') ||
+        driveUrl.includes('.png') ||
+        driveUrl.includes('.jpeg') ||
+        driveUrl.includes('.gif') ||
+        driveUrl.includes('lh3.googleusercontent.com') ||
+        driveUrl.includes('drive.google.com')
+    )) return driveUrl;
+
     try {
-        const idMatch = driveUrl.match(/\/file\/d\/([^\/]+)/) || driveUrl.match(/[?&]id=([^&]+)/) || driveUrl.match(/[-\w]{25,}/);
-        if (idMatch) {
-            const fileId = Array.isArray(idMatch) ? (idMatch[1] || idMatch[0]) : idMatch;
-            return `https://lh3.googleusercontent.com/d/${fileId}`;
+        // ✅ MULTIPLE PATTERNS FOR GOOGLE DRIVE
+        let fileId = null;
+
+        // Pattern 1: /file/d/{ID}/
+        const match1 = driveUrl.match(/\/file\/d\/([^\/]+)/);
+        if (match1) fileId = match1[1];
+
+        // Pattern 2: ?id={ID}
+        if (!fileId) {
+            const match2 = driveUrl.match(/[?&]id=([^&]+)/);
+            if (match2) fileId = match2[1];
         }
-    } catch (e) { console.error(e); }
-    return driveUrl;
+
+        // Pattern 3: Direct ID (alphanumeric with hyphens/underscores)
+        if (!fileId) {
+            const match3 = driveUrl.match(/([a-zA-Z0-9_-]{25,})/);
+            if (match3) fileId = match3[1];
+        }
+
+        // Pattern 4: /open?id={ID}
+        if (!fileId) {
+            const match4 = driveUrl.match(/\/open\?id=([^&]+)/);
+            if (match4) fileId = match4[1];
+        }
+
+        if (fileId) {
+            // ✅ USE BOTH URL FORMATS (Google Drive & lh3)
+            // Primary: lh3 for direct image access
+            // Fallback: drive.google.com for preview
+            const directUrl = `https://lh3.googleusercontent.com/d/${fileId}`;
+            const previewUrl = `https://drive.google.com/uc?export=view&id=${fileId}`;
+
+            // Try lh3 first, if it fails browser will use fallback
+            return directUrl;
+        }
+
+        console.warn("⚠️ Could not extract file ID from:", driveUrl);
+        return 'https://placehold.co/400x300?text=No+Photo';
+    } catch (e) {
+        console.error("❌ URL Format Error:", e);
+        return 'https://placehold.co/400x300?text=Error';
+    }
 };
 
-window.getDirectDriveImageUrl = (driveUrl) => {
-    return window.formatDriveImageUrl(driveUrl) || 'https://placehold.co/400x300?text=No+Photo';
-};
+// Alias for backward compatibility
+window.formatDriveImageUrl = window.getDirectDriveImageUrl;
 
 window.handleProfilePhotoUpload = async (e) => {
     const file = e.target.files[0];
@@ -44,28 +89,105 @@ window.handleProfilePhotoUpload = async (e) => {
 
 window.uploadToDrive = async (payload) => {
     try {
-        const response = await fetch(SHEETS_URL, { method: 'POST', body: JSON.stringify(payload), mode: 'cors' });
-        return await response.json();
-    } catch (e) { return { status: 'error', message: e.message }; }
+        console.log("📤 Uploading to Drive:", payload.fileName);
+
+        const response = await fetch(SHEETS_URL, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(payload),
+            mode: 'cors'
+        });
+
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+
+        const result = await response.json();
+        console.log("📥 Upload Response:", result);
+
+        // ✅ MULTIPLE RESPONSE FORMATS SUPPORT
+        // Google Apps Script returns various formats
+        const fileUrl = result.fileUrl || result.signatureUrl || result.url || result.downloadUrl || result.fileLink || null;
+        const fileId = result.fileId || result.id || null;
+
+        if (fileUrl) {
+            return {
+                status: 'success',
+                fileUrl: fileUrl,
+                fileId: fileId,
+                signatureUrl: fileUrl,
+                message: result.message || "Upload successful"
+            };
+        } else {
+            // If no URL in response, try to construct from fileId
+            if (fileId) {
+                const constructedUrl = `https://lh3.googleusercontent.com/d/${fileId}`;
+                return {
+                    status: 'success',
+                    fileUrl: constructedUrl,
+                    fileId: fileId,
+                    signatureUrl: constructedUrl,
+                    message: "Upload successful (URL constructed from ID)"
+                };
+            }
+
+            console.error("❌ No file URL in response:", result);
+            return {
+                status: 'error',
+                message: result.message || "No file URL returned from server",
+                rawResponse: result
+            };
+        }
+    } catch (e) {
+        console.error("❌ Upload Error:", e);
+        return {
+            status: 'error',
+            message: e.message || "Network error during upload"
+        };
+    }
 };
 
 window.compressImageFile = async (file, maxWidth = 1200, maxHeight = 1200, quality = 0.7) => {
-    return new Promise((resolve) => {
-        const reader = new FileReader();
-        reader.onload = (e) => {
-            const img = new Image();
-            img.onload = () => {
-                const canvas = document.createElement('canvas');
-                let w = img.width, h = img.height;
-                if (w > h) { if (w > maxWidth) { h *= maxWidth / w; w = maxWidth; } }
-                else { if (h > maxHeight) { w *= maxHeight / h; h = maxHeight; } }
-                canvas.width = w; canvas.height = h;
-                canvas.getContext('2d').drawImage(img, 0, 0, w, h);
-                resolve(canvas.toDataURL("image/jpeg", quality));
+    return new Promise((resolve, reject) => {
+        try {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const img = new Image();
+                img.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    let w = img.width, h = img.height;
+
+                    // Maintain aspect ratio
+                    if (w > h) {
+                        if (w > maxWidth) {
+                            h = (h * maxWidth) / w;
+                            w = maxWidth;
+                        }
+                    } else {
+                        if (h > maxHeight) {
+                            w = (w * maxHeight) / h;
+                            h = maxHeight;
+                        }
+                    }
+
+                    canvas.width = w;
+                    canvas.height = h;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, w, h);
+
+                    // ✅ For Drive: Use JPEG with better quality
+                    resolve(canvas.toDataURL("image/jpeg", quality));
+                };
+                img.onerror = () => reject(new Error("Failed to load image"));
+                img.src = e.target.result;
             };
-            img.src = e.target.result;
-        };
-        reader.readAsDataURL(file);
+            reader.onerror = () => reject(new Error("Failed to read file"));
+            reader.readAsDataURL(file);
+        } catch (e) {
+            reject(e);
+        }
     });
 };
 

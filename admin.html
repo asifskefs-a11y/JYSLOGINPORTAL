@@ -73,7 +73,6 @@
 
         .progress-bar { transition: width 1.2s cubic-bezier(0.34, 1.56, 0.64, 1); }
 
-        /* FIX #1: Tab overlapping - Force proper tab management */
         .tab-section {
             display: none !important;
             visibility: hidden !important;
@@ -100,7 +99,6 @@
             min-height: 500px;
         }
 
-        /* FIX #3 & #10: Fix white-on-white hover issues */
         .table-wrapper table tbody tr {
             transition: all 0.2s ease;
             color: #1e293b !important;
@@ -115,11 +113,6 @@
             color: #334155 !important;
         }
 
-        .table-wrapper table td:hover {
-            color: #0f172a !important;
-        }
-
-        /* FIX #5: Asset Register hover fix */
         #tab-assets .table-wrapper table tbody tr:hover {
             background-color: #e0f2fe !important;
             cursor: pointer;
@@ -135,7 +128,6 @@
             background-color: transparent !important;
         }
 
-        /* FIX: Staff Directory hover fix */
         #tab-staff-list .table-wrapper table tbody tr:hover {
             background-color: #f8fafc !important;
             cursor: pointer;
@@ -145,7 +137,6 @@
             color: #334155 !important;
         }
 
-        /* Pagination Styles */
         .pagination-container {
             display: flex;
             justify-content: center;
@@ -156,6 +147,7 @@
             background: white;
             border-radius: 16px;
             box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            flex-wrap: wrap;
         }
 
         .pagination-btn {
@@ -197,7 +189,6 @@
             padding: 0 8px;
         }
 
-        /* DARK MODE */
         @media (prefers-color-scheme: dark) {
             body { background: #0f0a2a !important; color: #e0e7ff; }
             .glass-effect, .stat-card, .quick-action-btn, .admin-main-card { background: rgba(30, 27, 75, 0.9) !important; border-color: rgba(76, 70, 150, 0.3) !important; }
@@ -268,7 +259,7 @@
 
             <!-- KPI GRID -->
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-                <div class="stat-card bg-white p-5 rounded-3xl shadow-xl shadow-indigo-500/5 border border-slate-50 flex items-center gap-4" onclick="showAdminTab('tab-visitor-logs')">
+                <div class="stat-card bg-white p-5 rounded-3xl shadow-xl shadow-indigo-500/5 border border-slate-50 flex items-center gap-4" onclick="window.showAdminTab('tab-visitor-logs')">
                     <div class="w-14 h-14 bg-indigo-50 rounded-2xl flex items-center justify-center text-indigo-600 text-2xl"><i class="fa-solid fa-users"></i></div>
                     <div class="flex-1">
                         <p class="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Visitors Today</p>
@@ -276,7 +267,7 @@
                         <div class="mt-2 h-1 w-full bg-slate-100 rounded-full overflow-hidden"><div class="h-full bg-indigo-600 progress-bar" id="bar-visitors" style="width: 0%"></div></div>
                     </div>
                 </div>
-                <div class="stat-card bg-white p-5 rounded-3xl shadow-xl shadow-indigo-500/5 border border-slate-50 flex items-center gap-4" onclick="showAdminTab('tab-tasks')">
+                <div class="stat-card bg-white p-5 rounded-3xl shadow-xl shadow-indigo-500/5 border border-slate-50 flex items-center gap-4" onclick="window.showAdminTab('tab-tasks')">
                     <div class="w-14 h-14 bg-amber-50 rounded-2xl flex items-center justify-center text-amber-500 text-2xl"><i class="fa-solid fa-clock-rotate-left"></i></div>
                     <div class="flex-1">
                         <p class="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Active Tasks</p>
@@ -284,7 +275,7 @@
                         <div class="mt-2 h-1 w-full bg-slate-100 rounded-full overflow-hidden"><div class="h-full bg-amber-500 progress-bar" id="bar-tasks" style="width: 0%"></div></div>
                     </div>
                 </div>
-                <div class="stat-card bg-white p-5 rounded-3xl shadow-xl shadow-indigo-500/5 border border-slate-50 flex items-center gap-4" onclick="showAdminTab('tab-staff-logs')">
+                <div class="stat-card bg-white p-5 rounded-3xl shadow-xl shadow-indigo-500/5 border border-slate-50 flex items-center gap-4" onclick="window.showAdminTab('tab-staff-logs')">
                     <div class="w-14 h-14 bg-emerald-50 rounded-2xl flex items-center justify-center text-emerald-500 text-2xl"><i class="fa-solid fa-user-check"></i></div>
                     <div class="flex-1">
                         <p class="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Staff Present</p>
@@ -304,35 +295,35 @@
 
             <!-- QUICK ACTIONS GRID -->
             <div class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3 mb-8">
-                <button onclick="showAdminTab('tab-visitor-logs')" class="quick-action-btn flex flex-col items-center gap-2 p-4 bg-white rounded-2xl shadow-sm hover:border-indigo-200 transition-all active:scale-95 group">
+                <button onclick="window.showAdminTab('tab-visitor-logs')" class="quick-action-btn flex flex-col items-center gap-2 p-4 bg-white rounded-2xl shadow-sm hover:border-indigo-200 transition-all active:scale-95 group">
                     <div class="w-10 h-10 bg-indigo-50 rounded-xl flex items-center justify-center text-indigo-600 group-hover:bg-indigo-600 group-hover:text-white transition-colors"><i class="fa-solid fa-id-card-clip"></i></div>
                     <span class="text-[8px] font-black uppercase text-slate-500 group-hover:text-indigo-600">Visitors</span>
                 </button>
-                <button onclick="showAdminTab('tab-staff-logs')" class="quick-action-btn flex flex-col items-center gap-2 p-4 bg-white rounded-2xl shadow-sm hover:border-emerald-200 transition-all active:scale-95 group">
+                <button onclick="window.showAdminTab('tab-staff-logs')" class="quick-action-btn flex flex-col items-center gap-2 p-4 bg-white rounded-2xl shadow-sm hover:border-emerald-200 transition-all active:scale-95 group">
                     <div class="w-10 h-10 bg-emerald-50 rounded-xl flex items-center justify-center text-emerald-600 group-hover:bg-emerald-600 group-hover:text-white transition-colors"><i class="fa-solid fa-user-clock"></i></div>
                     <span class="text-[8px] font-black uppercase text-slate-500 group-hover:text-emerald-600">Attendance</span>
                 </button>
-                <button onclick="showAdminTab('tab-tasks')" class="quick-action-btn flex flex-col items-center gap-2 p-4 bg-white rounded-2xl shadow-sm hover:border-purple-200 transition-all active:scale-95 group">
+                <button onclick="window.showAdminTab('tab-tasks')" class="quick-action-btn flex flex-col items-center gap-2 p-4 bg-white rounded-2xl shadow-sm hover:border-purple-200 transition-all active:scale-95 group">
                     <div class="w-10 h-10 bg-purple-50 rounded-xl flex items-center justify-center text-purple-600 group-hover:bg-purple-600 group-hover:text-white transition-colors"><i class="fa-solid fa-list-check"></i></div>
                     <span class="text-[8px] font-black uppercase text-slate-500 group-hover:text-purple-600">Audit</span>
                 </button>
-                <button onclick="showAdminTab('tab-my-tasks')" class="quick-action-btn flex flex-col items-center gap-2 p-4 bg-white rounded-2xl shadow-sm hover:border-orange-200 transition-all active:scale-95 group">
+                <button onclick="window.showAdminTab('tab-my-tasks')" class="quick-action-btn flex flex-col items-center gap-2 p-4 bg-white rounded-2xl shadow-sm hover:border-orange-200 transition-all active:scale-95 group">
                     <div class="w-10 h-10 bg-orange-50 rounded-xl flex items-center justify-center text-orange-600 group-hover:bg-orange-600 group-hover:text-white transition-colors"><i class="fa-solid fa-clipboard-user"></i></div>
                     <span class="text-[8px] font-black uppercase text-slate-500 group-hover:text-orange-600">Raised</span>
                 </button>
-                <button onclick="showAdminTab('tab-staff-list')" class="quick-action-btn flex flex-col items-center gap-2 p-4 bg-white rounded-2xl shadow-sm hover:border-slate-300 transition-all active:scale-95 group">
+                <button onclick="window.showAdminTab('tab-staff-list')" class="quick-action-btn flex flex-col items-center gap-2 p-4 bg-white rounded-2xl shadow-sm hover:border-slate-300 transition-all active:scale-95 group">
                     <div class="w-10 h-10 bg-slate-50 rounded-xl flex items-center justify-center text-slate-600 group-hover:bg-slate-600 group-hover:text-white transition-colors"><i class="fa-solid fa-address-book"></i></div>
                     <span class="text-[8px] font-black uppercase text-slate-500 group-hover:text-slate-600">Directory</span>
                 </button>
-                <button onclick="showAdminTab('tab-assets')" class="quick-action-btn flex flex-col items-center gap-2 p-4 bg-white rounded-2xl shadow-sm hover:border-cyan-200 transition-all active:scale-95 group">
+                <button onclick="window.showAdminTab('tab-assets')" class="quick-action-btn flex flex-col items-center gap-2 p-4 bg-white rounded-2xl shadow-sm hover:border-cyan-200 transition-all active:scale-95 group">
                     <div class="w-10 h-10 bg-cyan-50 rounded-xl flex items-center justify-center text-cyan-600 group-hover:bg-cyan-600 group-hover:text-white transition-colors"><i class="fa-solid fa-barcode"></i></div>
                     <span class="text-[8px] font-black uppercase text-slate-500 group-hover:text-cyan-600">Assets</span>
                 </button>
-                <button onclick="showAdminTab('tab-disposal')" class="quick-action-btn flex flex-col items-center gap-2 p-4 bg-white rounded-2xl shadow-sm hover:border-red-200 transition-all active:scale-95 group">
+                <button onclick="window.showAdminTab('tab-disposal')" class="quick-action-btn flex flex-col items-center gap-2 p-4 bg-white rounded-2xl shadow-sm hover:border-red-200 transition-all active:scale-95 group">
                     <div class="w-10 h-10 bg-red-50 rounded-xl flex items-center justify-center text-red-600 group-hover:bg-red-600 group-hover:text-white transition-colors"><i class="fa-solid fa-trash-can"></i></div>
                     <span class="text-[8px] font-black uppercase text-slate-500 group-hover:text-red-600">Disposal</span>
                 </button>
-                <button onclick="showAdminTab('tab-transfers')" class="quick-action-btn flex flex-col items-center gap-2 p-4 bg-white rounded-2xl shadow-sm hover:border-indigo-200 transition-all active:scale-95 group">
+                <button onclick="window.showAdminTab('tab-transfers')" class="quick-action-btn flex flex-col items-center gap-2 p-4 bg-white rounded-2xl shadow-sm hover:border-indigo-200 transition-all active:scale-95 group">
                     <div class="w-10 h-10 bg-indigo-50 rounded-xl flex items-center justify-center text-indigo-600 group-hover:bg-indigo-600 group-hover:text-white transition-colors"><i class="fa-solid fa-truck-ramp-box"></i></div>
                     <span class="text-[8px] font-black uppercase text-slate-500 group-hover:text-indigo-600">Transfers</span>
                 </button>
@@ -346,31 +337,91 @@
                     <div id="tab-visitor-logs" class="tab-section space-y-4">
                         <div class="flex items-center justify-between mb-2">
                             <h3 class="text-indigo-900 font-black text-lg uppercase flex items-center gap-2"><i class="fa-solid fa-id-card-clip text-indigo-500"></i> Visitor Logs</h3>
-                            <button onclick="downloadExcelReport()" class="px-4 py-2 bg-indigo-600 text-white rounded-xl text-[10px] font-black uppercase shadow-lg shadow-indigo-500/20 active:scale-95">Export Excel</button>
+                            <button onclick="window.downloadExcelReport()" class="px-4 py-2 bg-indigo-600 text-white rounded-xl text-[10px] font-black uppercase shadow-lg shadow-indigo-500/20 active:scale-95">Export Excel</button>
                         </div>
-                        <div class="flex gap-2"><input type="text" id="visitor-search" placeholder="Search..." class="flex-1 bg-slate-50 border p-3 rounded-xl text-xs outline-none focus:border-indigo-500" oninput="window.filterVisitorTable()"><input type="date" id="visitor-date-filter" class="bg-slate-50 border p-3 rounded-xl text-xs" onchange="window.filterVisitorTable()"></div>
-                        <div class="table-wrapper rounded-2xl border border-slate-100" id="visitor-table-wrapper"><table class="w-full text-left text-[10px]"><thead class="bg-slate-50 uppercase text-indigo-600 font-black"><tr><th class="p-4">Type</th><th class="p-4">Pass No</th><th class="p-4">Full Name</th><th class="p-4">Mobile</th><th class="p-4">Company</th><th class="p-4">Purpose</th><th class="p-4">Date</th><th class="p-4">In</th><th class="p-4">Out</th><th class="p-4">Status</th><th class="p-4 text-center">Sig</th></tr></thead><tbody id="visitor-logs-body" class="divide-y divide-slate-50"></tbody></table></div>
-                        <div id="visitor-pagination" class="pagination-container"></div>
+                        <div class="flex gap-2 flex-wrap">
+                            <input type="text" id="visitor-search" placeholder="Search..." class="flex-1 min-w-[120px] bg-slate-50 border p-3 rounded-xl text-xs outline-none focus:border-indigo-500" oninput="window.filterVisitorTable()">
+                            <input type="date" id="visitor-date-filter" class="bg-slate-50 border p-3 rounded-xl text-xs" onchange="window.filterVisitorTable()">
+                        </div>
+                        <div class="table-wrapper rounded-2xl border border-slate-100" id="visitor-table-wrapper">
+                            <table class="w-full text-left text-[10px]">
+                                <thead class="bg-slate-50 uppercase text-indigo-600 font-black">
+                                    <tr>
+                                        <th class="p-4">Type</th>
+                                        <th class="p-4">Pass No</th>
+                                        <th class="p-4">Full Name</th>
+                                        <th class="p-4">Mobile</th>
+                                        <th class="p-4">Company</th>
+                                        <th class="p-4">Purpose</th>
+                                        <th class="p-4">Date</th>
+                                        <th class="p-4">In</th>
+                                        <th class="p-4">Out</th>
+                                        <th class="p-4">Status</th>
+                                        <th class="p-4 text-center">Sig</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="visitor-logs-body" class="divide-y divide-slate-50"></tbody>
+                            </table>
+                        </div>
+                        <div id="visitor-logs-pagination" class="pagination-container"></div>
                     </div>
 
                     <!-- STAFF LOGS TAB -->
                     <div id="tab-staff-logs" class="tab-section space-y-4">
                         <div class="flex items-center justify-between">
                             <h3 class="text-emerald-900 font-black text-lg uppercase flex items-center gap-2"><i class="fa-solid fa-user-clock text-emerald-500"></i> Staff Attendance</h3>
-                            <button onclick="downloadExcelReport()" class="px-4 py-2 bg-emerald-600 text-white rounded-xl text-[10px] font-black uppercase shadow-lg active:scale-95">Attendance Report</button>
+                            <button onclick="window.downloadExcelReport()" class="px-4 py-2 bg-emerald-600 text-white rounded-xl text-[10px] font-black uppercase shadow-lg active:scale-95">Attendance Report</button>
                         </div>
-                        <div class="flex gap-2"><input type="text" id="staff-search" placeholder="Search..." class="flex-1 bg-slate-50 border p-3 rounded-xl text-xs outline-none" oninput="window.filterStaffTable()"><input type="date" id="staff-date-filter" class="bg-slate-50 border p-3 rounded-xl text-xs" onchange="window.filterStaffTable()"></div>
-                        <div class="table-wrapper rounded-2xl border border-slate-100" id="staff-table-wrapper"><table class="w-full text-left text-[10px]"><thead class="bg-slate-50 uppercase text-emerald-600 font-black"><tr><th class="p-4">Type</th><th class="p-4">Full Name</th><th class="p-4">Mobile</th><th class="p-4">School</th><th class="p-4">Position</th><th class="p-4">Date</th><th class="p-4">In</th><th class="p-4">Out</th><th class="p-4 text-center">Sig</th></tr></thead><tbody id="staff-attendance-body" class="divide-y divide-slate-50"></tbody></table></div>
-                        <div id="staff-pagination" class="pagination-container"></div>
+                        <div class="flex gap-2 flex-wrap">
+                            <input type="text" id="staff-search" placeholder="Search..." class="flex-1 min-w-[120px] bg-slate-50 border p-3 rounded-xl text-xs outline-none" oninput="window.filterStaffTable()">
+                            <input type="date" id="staff-date-filter" class="bg-slate-50 border p-3 rounded-xl text-xs" onchange="window.filterStaffTable()">
+                        </div>
+                        <div class="table-wrapper rounded-2xl border border-slate-100" id="staff-table-wrapper">
+                            <table class="w-full text-left text-[10px]">
+                                <thead class="bg-slate-50 uppercase text-emerald-600 font-black">
+                                    <tr>
+                                        <th class="p-4">Type</th>
+                                        <th class="p-4">Full Name</th>
+                                        <th class="p-4">Mobile</th>
+                                        <th class="p-4">School</th>
+                                        <th class="p-4">Position</th>
+                                        <th class="p-4">Date</th>
+                                        <th class="p-4">In</th>
+                                        <th class="p-4">Out</th>
+                                        <th class="p-4 text-center">Sig</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="staff-attendance-body" class="divide-y divide-slate-50"></tbody>
+                            </table>
+                        </div>
+                        <div id="staff-attendance-pagination" class="pagination-container"></div>
                     </div>
 
                     <!-- TASK AUDIT TAB -->
                     <div id="tab-tasks" class="tab-section space-y-4">
                         <div class="flex items-center justify-between">
                             <h3 class="text-purple-900 font-black text-lg uppercase flex items-center gap-2"><i class="fa-solid fa-list-check text-purple-500"></i> Global Task Audit</h3>
-                            <button onclick="exportTaskReportExcel()" class="px-4 py-2 bg-purple-600 text-white rounded-xl text-[10px] font-black uppercase shadow-lg active:scale-95">Tasks Report</button>
+                            <button onclick="window.exportTaskReportExcel()" class="px-4 py-2 bg-purple-600 text-white rounded-xl text-[10px] font-black uppercase shadow-lg active:scale-95">Tasks Report</button>
                         </div>
-                        <div class="table-wrapper rounded-2xl border border-slate-100" id="tasks-table-wrapper"><table class="w-full text-left text-[9px]"><thead class="bg-slate-50 uppercase text-purple-600 font-black"><tr><th class="p-3">ID</th><th class="p-3">School</th><th class="p-3">Area</th><th class="p-3">Details</th><th class="p-3">Dept</th><th class="p-3">Raised By</th><th class="p-3">Fixed By</th><th class="p-3">Status</th><th class="p-3">Reason</th><th class="p-3 text-center">Photos</th></tr></thead><tbody id="admin-task-list-body" class="divide-y divide-slate-50"></tbody></table></div>
+                        <div class="table-wrapper rounded-2xl border border-slate-100" id="tasks-table-wrapper">
+                            <table class="w-full text-left text-[9px]">
+                                <thead class="bg-slate-50 uppercase text-purple-600 font-black">
+                                    <tr>
+                                        <th class="p-3">ID</th>
+                                        <th class="p-3">School</th>
+                                        <th class="p-3">Area</th>
+                                        <th class="p-3">Details</th>
+                                        <th class="p-3">Dept</th>
+                                        <th class="p-3">Raised By</th>
+                                        <th class="p-3">Fixed By</th>
+                                        <th class="p-3">Status</th>
+                                        <th class="p-3">Reason</th>
+                                        <th class="p-3 text-center">Photos</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="admin-task-list-body" class="divide-y divide-slate-50"></tbody>
+                            </table>
+                        </div>
                         <div id="tasks-pagination" class="pagination-container"></div>
                     </div>
 
@@ -378,7 +429,10 @@
                     <div id="tab-my-tasks" class="tab-section space-y-4">
                         <div class="flex items-center justify-between px-2">
                             <h3 class="text-orange-600 font-black text-lg uppercase tracking-tight">Raised Tasks Tracker</h3>
-                            <div class="flex bg-slate-100 p-1 rounded-xl shadow-inner"><button onclick="window.switchRaisedTaskView('active')" id="admin-raised-tab-active" class="px-4 py-2 rounded-lg text-[9px] font-black uppercase bg-white text-indigo-600 shadow-sm">Active</button><button onclick="window.switchRaisedTaskView('history')" id="admin-raised-tab-history" class="px-4 py-2 rounded-lg text-[9px] font-black uppercase text-slate-400">History</button></div>
+                            <div class="flex bg-slate-100 p-1 rounded-xl shadow-inner">
+                                <button onclick="window.switchRaisedTaskView('active')" id="admin-raised-tab-active" class="px-4 py-2 rounded-lg text-[9px] font-black uppercase bg-white text-indigo-600 shadow-sm">Active</button>
+                                <button onclick="window.switchRaisedTaskView('history')" id="admin-raised-tab-history" class="px-4 py-2 rounded-lg text-[9px] font-black uppercase text-slate-400">History</button>
+                            </div>
                         </div>
                         <div id="admin-my-tasks-container"></div>
                         <div id="my-tasks-pagination" class="pagination-container"></div>
@@ -388,9 +442,24 @@
                     <div id="tab-staff-list" class="tab-section space-y-4">
                         <div class="flex justify-between items-center px-2">
                             <h3 class="text-slate-900 font-black text-lg uppercase tracking-tight">Staff Directory</h3>
-                            <button onclick="openAddStaffModal()" class="bg-slate-800 text-white px-4 py-2 rounded-xl font-bold text-[10px] uppercase shadow-lg active:scale-95 transition flex items-center gap-2"><i class="fa-solid fa-user-plus"></i> Add Staff</button>
+                            <button onclick="window.openAddStaffModal()" class="bg-slate-800 text-white px-4 py-2 rounded-xl font-bold text-[10px] uppercase shadow-lg active:scale-95 transition flex items-center gap-2"><i class="fa-solid fa-user-plus"></i> Add Staff</button>
                         </div>
-                        <div class="table-wrapper rounded-2xl border border-slate-100" id="directory-table-wrapper"><table class="w-full text-left text-[10px]"><thead class="bg-slate-50 uppercase text-slate-600 font-black"><tr><th class="p-4 text-center">Photo</th><th class="p-4">Name</th><th class="p-4">Pass</th><th class="p-4">School</th><th class="p-4">Position</th><th class="p-4">Mobile</th><th class="p-4 text-center">Action</th></tr></thead><tbody id="admin-staff-list-body" class="divide-y divide-slate-50"></tbody></table></div>
+                        <div class="table-wrapper rounded-2xl border border-slate-100" id="directory-table-wrapper">
+                            <table class="w-full text-left text-[10px]">
+                                <thead class="bg-slate-50 uppercase text-slate-600 font-black">
+                                    <tr>
+                                        <th class="p-4 text-center">Photo</th>
+                                        <th class="p-4">Name</th>
+                                        <th class="p-4">Pass</th>
+                                        <th class="p-4">School</th>
+                                        <th class="p-4">Position</th>
+                                        <th class="p-4">Mobile</th>
+                                        <th class="p-4 text-center">Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="admin-staff-list-body" class="divide-y divide-slate-50"></tbody>
+                            </table>
+                        </div>
                         <div id="directory-pagination" class="pagination-container"></div>
                     </div>
 
@@ -400,11 +469,18 @@
                             <h3 class="text-cyan-900 font-black text-lg uppercase flex-1">Asset Register</h3>
                             <div class="flex gap-2 w-full md:w-auto">
                                 <button onclick="window.bulkDeleteAssets()" class="px-4 py-2 bg-red-500 text-white rounded-xl text-[9px] font-black uppercase shadow-lg">Bulk Delete</button>
-                                <button onclick="downloadMasterAssetReport()" class="px-4 py-2 bg-cyan-600 text-white rounded-xl text-[9px] font-black uppercase shadow-lg">Export Assets</button>
+                                <button onclick="window.downloadMasterAssetReport()" class="px-4 py-2 bg-cyan-600 text-white rounded-xl text-[9px] font-black uppercase shadow-lg">Export Assets</button>
                             </div>
                         </div>
-                        <input type="text" id="asset-search" placeholder="Search Assets..." class="w-full bg-slate-50 border p-3 rounded-xl text-xs outline-none focus:border-cyan-500" oninput="filterAssetTable()">
-                        <div class="table-wrapper rounded-2xl border border-slate-100" id="assets-table-wrapper"><table class="w-full text-left border-collapse" id="asset-master-table"><thead class="sticky top-0 bg-slate-50 z-10 shadow-sm"><tr class="text-[10px] uppercase font-black text-cyan-700 border-b-2 border-cyan-100"></tr></thead><tbody id="admin-asset-list-body" class="divide-y divide-slate-50"></tbody></table></div>
+                        <input type="text" id="asset-search" placeholder="Search Assets..." class="w-full bg-slate-50 border p-3 rounded-xl text-xs outline-none focus:border-cyan-500" oninput="window.filterAssetTable()">
+                        <div class="table-wrapper rounded-2xl border border-slate-100" id="assets-table-wrapper">
+                            <table class="w-full text-left border-collapse" id="asset-master-table">
+                                <thead class="sticky top-0 bg-slate-50 z-10 shadow-sm">
+                                    <tr class="text-[10px] uppercase font-black text-cyan-700 border-b-2 border-cyan-100"></tr>
+                                </thead>
+                                <tbody id="admin-asset-list-body" class="divide-y divide-slate-50"></tbody>
+                            </table>
+                        </div>
                         <div id="assets-pagination" class="pagination-container"></div>
                     </div>
 
@@ -412,10 +488,36 @@
                     <div id="tab-disposal" class="tab-section space-y-4">
                         <div class="flex items-center justify-between px-2">
                             <h3 class="text-red-700 font-black text-lg uppercase flex items-center gap-2"><i class="fa-solid fa-trash-can"></i> Asset Disposal Registry</h3>
-                            <button onclick="downloadDisposedAssetReport()" class="px-4 py-2 bg-red-600 text-white rounded-xl text-[10px] font-black uppercase shadow-lg">Export Excel</button>
+                            <button onclick="window.downloadDisposedAssetReport()" class="px-4 py-2 bg-red-600 text-white rounded-xl text-[10px] font-black uppercase shadow-lg">Export Excel</button>
                         </div>
-                        <input type="text" id="disposal-search" placeholder="Search scrap logs..." class="w-full bg-slate-50 border p-3 rounded-xl text-xs outline-none" oninput="filterDisposalTable()">
-                        <div class="table-wrapper rounded-2xl border border-red-50" id="disposal-table-wrapper"><table class="w-full text-left" id="asset-disposal-table"><thead class="bg-red-50 uppercase text-red-900 font-black text-[9px]"><tr><th class="p-3">Barcode</th><th class="p-3">Description</th><th class="p-3">Vendor</th><th class="p-3">Category</th><th class="p-3">Service Date</th><th class="p-3">Floor Desc</th><th class="p-3">Floor No</th><th class="p-3">Location</th><th class="p-3">Manufacturer</th><th class="p-3">Model</th><th class="p-3">Room BC</th><th class="p-3">Room Name</th><th class="p-3">Room No</th><th class="p-3">Building</th><th class="p-3">Reason</th><th class="p-3">Disposed By</th><th class="p-3 text-center">Photos</th><th class="p-3 text-center">Action</th></tr></thead><tbody id="admin-disposal-list-body" class="divide-y divide-slate-50"></tbody></table></div>
+                        <input type="text" id="disposal-search" placeholder="Search scrap logs..." class="w-full bg-slate-50 border p-3 rounded-xl text-xs outline-none" oninput="window.filterDisposalTable()">
+                        <div class="table-wrapper rounded-2xl border border-red-50" id="disposal-table-wrapper">
+                            <table class="w-full text-left" id="asset-disposal-table">
+                                <thead class="bg-red-50 uppercase text-red-900 font-black text-[9px]">
+                                    <tr>
+                                        <th class="p-3">Barcode</th>
+                                        <th class="p-3">Description</th>
+                                        <th class="p-3">Vendor</th>
+                                        <th class="p-3">Category</th>
+                                        <th class="p-3">Service Date</th>
+                                        <th class="p-3">Floor Desc</th>
+                                        <th class="p-3">Floor No</th>
+                                        <th class="p-3">Location</th>
+                                        <th class="p-3">Manufacturer</th>
+                                        <th class="p-3">Model</th>
+                                        <th class="p-3">Room BC</th>
+                                        <th class="p-3">Room Name</th>
+                                        <th class="p-3">Room No</th>
+                                        <th class="p-3">Building</th>
+                                        <th class="p-3">Reason</th>
+                                        <th class="p-3">Disposed By</th>
+                                        <th class="p-3 text-center">Photos</th>
+                                        <th class="p-3 text-center">Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="admin-disposal-list-body" class="divide-y divide-slate-50"></tbody>
+                            </table>
+                        </div>
                         <div id="disposal-pagination" class="pagination-container"></div>
                     </div>
 
@@ -426,7 +528,20 @@
                             <button onclick="window.exportTransferReport()" class="px-4 py-2 bg-indigo-600 text-white rounded-xl text-[10px] font-black uppercase shadow-lg active:scale-95">Export Logs</button>
                         </div>
                         <input type="text" id="transfer-search" placeholder="Search transfer logs..." class="w-full bg-slate-50 border p-3 rounded-xl text-xs outline-none" oninput="window.filterTransferTable()">
-                        <div class="table-wrapper rounded-2xl border border-slate-100 shadow-sm" id="transfer-table-wrapper"><table class="w-full text-left text-[10px]"><thead class="bg-indigo-50 uppercase text-indigo-600 font-black"><tr><th class="p-3">ID</th><th class="p-3">Collector</th><th class="p-3">Asset</th><th class="p-3 text-center">Sigs</th><th class="p-3 text-center">Action</th></tr></thead><tbody id="transfer-logs-body" class="divide-y divide-slate-50"></tbody></table></div>
+                        <div class="table-wrapper rounded-2xl border border-slate-100 shadow-sm" id="transfer-table-wrapper">
+                            <table class="w-full text-left text-[10px]">
+                                <thead class="bg-indigo-50 uppercase text-indigo-600 font-black">
+                                    <tr>
+                                        <th class="p-3">ID</th>
+                                        <th class="p-3">Collector</th>
+                                        <th class="p-3">Asset</th>
+                                        <th class="p-3 text-center">Sigs</th>
+                                        <th class="p-3 text-center">Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="transfer-logs-body" class="divide-y divide-slate-50"></tbody>
+                            </table>
+                        </div>
                         <div id="transfer-pagination" class="pagination-container"></div>
                     </div>
                 </div>
@@ -537,6 +652,39 @@
             </form>
         </div>
     </div>
+
+    <!-- ✅ ASSET TRANSFER MODAL (RESTORED) -->
+    <div id="asset-transfer-modal" class="fixed inset-0 bg-black/90 z-[100007] hidden flex items-center justify-center p-4">
+        <div class="bg-white w-full max-w-2xl rounded-[40px] overflow-hidden shadow-2xl">
+            <div class="p-6 bg-indigo-600 text-white flex justify-between items-center">
+                <h3 class="text-lg font-bold uppercase tracking-tight">Asset Movement / Transfer</h3>
+                <button onclick="document.getElementById('asset-transfer-modal').classList.add('hidden')"><i class="fa-solid fa-xmark text-xl"></i></button>
+            </div>
+            <form id="transfer-form" class="p-8 space-y-4" onsubmit="window.submitAssetTransfer(event)">
+                <div class="grid grid-cols-2 gap-4">
+                    <input type="text" id="t_asset_barcode" placeholder="Asset Barcode" required class="p-4 bg-slate-50 border-2 rounded-2xl outline-none">
+                    <input type="text" id="t_to_location" placeholder="Destination Location" required class="p-4 bg-slate-50 border-2 rounded-2xl outline-none">
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <input type="text" id="t_collector_name" placeholder="Collector Name" required class="p-4 bg-slate-50 border-2 rounded-2xl outline-none">
+                    <input type="text" id="t_company_name" placeholder="Company" required class="p-4 bg-slate-50 border-2 rounded-2xl outline-none">
+                </div>
+                <!-- Signature Pads -->
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="text-[9px] font-bold uppercase text-slate-400 ml-2">Security Sig</label>
+                        <canvas id="t_security_sig" class="w-full h-24 bg-slate-50 border-2 border-dashed rounded-2xl"></canvas>
+                    </div>
+                    <div>
+                        <label class="text-[9px] font-bold uppercase text-slate-400 ml-2">Receiver Sig</label>
+                        <canvas id="t_received_sig" class="w-full h-24 bg-slate-50 border-2 border-dashed rounded-2xl"></canvas>
+                    </div>
+                </div>
+                <button type="submit" id="submit-transfer-btn" class="w-full py-4 bg-indigo-600 text-white rounded-2xl font-black uppercase tracking-widest shadow-xl">Initiate Transfer</button>
+            </form>
+        </div>
+    </div>
+
     <div id="imageModal" class="modal"><span class="modal-close" onclick="closeZoomModal()">&times;</span><img id="modalImage" src="" alt="Enlarged View"></div>
 
     <script type="module" src="firebase_config.js?v=3.2"></script>
@@ -547,105 +695,86 @@
     <script type="module" src="task_module.js?v=3.2"></script>
     <script type="module" src="admin_module.js?v=3.5.1"></script>
     <script type="module" src="export_module.js?v=3.2"></script>
-    <script type="module" src="visitor_module.js?v=3.2"></script>
     <script type="module" src="init_module.js?v=3.2"></script>
 
-    <!-- PAGINATION MODULE -->
     <script>
-        // Universal Pagination System
+        // ================================================
+        // UNIVERSAL PAGINATION SYSTEM - 20 ROWS PER PAGE
+        // ================================================
         window.paginationState = {};
+
+        const PAGINATION_ID_MAP = {
+            'visitor-logs-body': 'visitor-logs-pagination',
+            'staff-attendance-body': 'staff-attendance-pagination',
+            'admin-task-list-body': 'tasks-pagination',
+            'admin-staff-list-body': 'directory-pagination',
+            'admin-asset-list-body': 'assets-pagination',
+            'admin-disposal-list-body': 'disposal-pagination',
+            'transfer-logs-body': 'transfer-pagination'
+        };
 
         window.setupPagination = function(tableBodyId, paginationContainerId, rowsPerPage = 20) {
             const tbody = document.getElementById(tableBodyId);
             const container = document.getElementById(paginationContainerId);
-
             if (!tbody || !container) return;
 
             const stateKey = tableBodyId;
-            if (!window.paginationState[stateKey]) {
-                window.paginationState[stateKey] = { currentPage: 1, rowsPerPage: rowsPerPage };
-            }
+            if (!window.paginationState[stateKey]) window.paginationState[stateKey] = { currentPage: 1, rowsPerPage };
 
             const state = window.paginationState[stateKey];
-            const rows = Array.from(tbody.querySelectorAll('tr'));
-            const totalPages = Math.ceil(rows.length / rowsPerPage);
+            const rows = Array.from(tbody.querySelectorAll('tr')).filter(r => r.textContent.trim() !== '');
+            const totalRows = rows.length;
+            const totalPages = Math.max(1, Math.ceil(totalRows / rowsPerPage));
 
             if (totalPages <= 1) {
                 container.innerHTML = '';
+                container.style.display = 'none';
+                rows.forEach(r => r.style.display = '');
                 return;
             }
 
-            // Show rows for current page
+            container.style.display = 'flex';
+            const start = (state.currentPage - 1) * rowsPerPage;
+            const end = Math.min(start + rowsPerPage, totalRows);
+
             rows.forEach((row, index) => {
-                const start = (state.currentPage - 1) * rowsPerPage;
-                const end = start + rowsPerPage;
                 row.style.display = (index >= start && index < end) ? '' : 'none';
             });
 
-            // Build pagination UI
-            let html = '<button class="pagination-btn" onclick="window.changePage(\'' + stateKey + '\', ' + (state.currentPage - 1) + ')" ' + (state.currentPage === 1 ? 'disabled' : '') + '><i class="fa-solid fa-chevron-left"></i></button>';
-
-            html += '<span class="page-info">Page ' + state.currentPage + ' of ' + totalPages + '</span>';
-
-            // Page number buttons
-            const maxButtons = 5;
-            let startPage = Math.max(1, state.currentPage - Math.floor(maxButtons / 2));
-            let endPage = Math.min(totalPages, startPage + maxButtons - 1);
-
-            if (endPage - startPage < maxButtons - 1) {
-                startPage = Math.max(1, endPage - maxButtons + 1);
-            }
-
-            for (let i = startPage; i <= endPage; i++) {
-                html += '<button class="pagination-btn ' + (i === state.currentPage ? 'active' : '') + '" onclick="window.changePage(\'' + stateKey + '\', ' + i + ')">' + i + '</button>';
-            }
-
-            html += '<button class="pagination-btn" onclick="window.changePage(\'' + stateKey + '\', ' + (state.currentPage + 1) + ')" ' + (state.currentPage === totalPages ? 'disabled' : '') + '><i class="fa-solid fa-chevron-right"></i></button>';
-
+            let html = `<button class="pagination-btn" onclick="window.changePage('${stateKey}', ${state.currentPage - 1})" ${state.currentPage === 1 ? 'disabled' : ''}><i class="fa-solid fa-chevron-left"></i></button>`;
+            html += `<span class="page-info">Page ${state.currentPage} of ${totalPages}</span>`;
+            html += `<button class="pagination-btn" onclick="window.changePage('${stateKey}', ${state.currentPage + 1})" ${state.currentPage === totalPages ? 'disabled' : ''}><i class="fa-solid fa-chevron-right"></i></button>`;
+            html += `<span class="page-info" style="margin-left:12px;font-size:9px;opacity:0.5;">${start+1}-${end} of ${totalRows}</span>`;
             container.innerHTML = html;
-            container.style.display = 'flex';
         };
 
         window.changePage = function(stateKey, newPage) {
-            if (!window.paginationState[stateKey]) return;
-
             const state = window.paginationState[stateKey];
-            const tbody = document.getElementById(stateKey);
-            if (!tbody) return;
-
-            const rows = Array.from(tbody.querySelectorAll('tr'));
-            const totalPages = Math.ceil(rows.length / state.rowsPerPage);
-
-            if (newPage < 1 || newPage > totalPages) return;
-
+            if (!state) return;
             state.currentPage = newPage;
-            window.setupPagination(stateKey, stateKey.replace('-body', '-pagination'), state.rowsPerPage);
-
-            // Scroll to top of table
-            const wrapper = tbody.closest('.table-wrapper');
-            if (wrapper) wrapper.scrollTop = 0;
+            window.setupPagination(stateKey, PAGINATION_ID_MAP[stateKey], state.rowsPerPage);
         };
 
-        // Auto-initialize pagination for all tables
         window.initAllPaginations = function() {
-            const paginationMap = {
-                'visitor-logs-body': 'visitor-pagination',
-                'staff-attendance-body': 'staff-pagination',
-                'admin-task-list-body': 'tasks-pagination',
-                'admin-staff-list-body': 'directory-pagination',
-                'admin-asset-list-body': 'assets-pagination',
-                'admin-disposal-list-body': 'disposal-pagination',
-                'transfer-logs-body': 'transfer-pagination'
-            };
-
-            Object.entries(paginationMap).forEach(([bodyId, paginationId]) => {
-                window.setupPagination(bodyId, paginationId, 20);
-            });
+            Object.entries(PAGINATION_ID_MAP).forEach(([bodyId, pagId]) => window.setupPagination(bodyId, pagId));
         };
-    </script>
 
-    <script>
-        // PREMIUM HELPERS - FIXED VERSION
+        // ================================================
+        // ADMIN TAB NAVIGATION
+        // ================================================
+        window.showAdminTab = (tabId) => {
+            document.querySelectorAll('.tab-section').forEach(el => el.classList.remove('active'));
+            const target = document.getElementById(tabId);
+            if (target) {
+                target.classList.add('active');
+                setTimeout(() => {
+                    if (window.renderTabFromAppCache) window.renderTabFromAppCache(tabId);
+                    if (window.initAllPaginations) window.initAllPaginations();
+                }, 150);
+            }
+            window.scrollTo(0, 0);
+        };
+
         window.togglePassword = (id, btn) => {
             const el = document.getElementById(id);
             const isPass = el.type === 'password';
@@ -654,38 +783,6 @@
             btn.querySelector('i').classList.toggle('fa-eye-slash');
         };
 
-        window.showAdminTab = (tabId) => {
-            // Remove active class from all tabs
-            const allTabs = document.querySelectorAll('.tab-section');
-            allTabs.forEach(el => {
-                el.classList.remove('active');
-            });
-
-            // Add active class to target tab
-            const target = document.getElementById(tabId);
-            if (target) {
-                target.classList.add('active');
-
-                // Initialize pagination for this tab after a short delay to allow rendering
-                setTimeout(() => {
-                    window.initAllPaginations();
-                }, 100);
-            }
-
-            window.scrollTo(0, 0);
-
-            // Visual feedback for quick action buttons
-            document.querySelectorAll('.quick-action-btn').forEach(btn => {
-                btn.classList.remove('ring-2', 'ring-indigo-500', 'bg-indigo-50');
-            });
-
-            // Hook into Admin Module for rendering if available
-            if (window.renderTabFromAppCache) {
-                window.renderTabFromAppCache(tabId);
-            }
-        };
-
-        // KPI Animation Bridge
         window.updateKPIStats = (stats) => {
             Object.keys(stats).forEach(id => {
                 const el = document.getElementById(id);
@@ -697,32 +794,21 @@
             });
         };
 
-        // Auto-refresh KPI stats every 30 seconds
         window.startKPIRefresh = function() {
             if (window.refreshDashboardData) {
                 window.refreshDashboardData();
-                setInterval(() => {
-                    if (window.refreshDashboardData) {
-                        window.refreshDashboardData();
-                    }
-                }, 30000);
+                setInterval(() => { if (window.refreshDashboardData) window.refreshDashboardData(); }, 30000);
             }
         };
 
-        // Initialize when dashboard becomes visible
         const observer = new MutationObserver((mutations) => {
-            mutations.forEach((mutation) => {
-                if (mutation.target.id === 'view-admin-dash' &&
-                    !mutation.target.classList.contains('hidden')) {
-                    window.startKPIRefresh();
-                }
+            mutations.forEach((m) => {
+                if (m.target.id === 'view-admin-dash' && !m.target.classList.contains('hidden')) window.startKPIRefresh();
             });
         });
-
         const dashView = document.getElementById('view-admin-dash');
-        if (dashView) {
-            observer.observe(dashView, { attributes: true, attributeFilter: ['class'] });
-        }
+        if (dashView) observer.observe(dashView, { attributes: true, attributeFilter: ['class'] });
+
     </script>
 </body>
 </html>

@@ -71,25 +71,27 @@ window.initSigPad = () => {
 };
 
 window.getCompressedSignature = (canvas) => {
+    if (!canvas) return null;
+
     // Create an offscreen canvas for resizing
     const offscreen = document.createElement('canvas');
-    // Extreme optimization for slow internet: 200x100 resolution
-    offscreen.width = 200;
-    offscreen.height = 100;
+    // ✅ Better resolution for Drive upload (300x150 instead of 200x100)
+    offscreen.width = 300;
+    offscreen.height = 150;
     const ctx = offscreen.getContext('2d');
 
     // Fill white background (crucial for JPEG)
     ctx.fillStyle = "#FFFFFF";
-    ctx.fillRect(0, 0, 200, 100);
+    ctx.fillRect(0, 0, 300, 150);
 
     // Smooth scaling
     ctx.imageSmoothingEnabled = true;
     ctx.imageSmoothingQuality = 'high';
 
-    ctx.drawImage(canvas, 0, 0, 200, 100);
+    ctx.drawImage(canvas, 0, 0, 300, 150);
 
-    // 0.2 quality JPEG is highly compressed (~3-5KB) but still very readable for signatures
-    return offscreen.toDataURL("image/jpeg", 0.2);
+    // ✅ Better quality for Drive (0.4 instead of 0.2)
+    return offscreen.toDataURL("image/jpeg", 0.4);
 };
 
 window.openSignatureModal = (title, callback) => {
