@@ -215,45 +215,67 @@ window.fetchTransferAssetDetails = async (barcode) => {
 
         if (snap.exists()) {
             const a = snap.val();
+            console.log("📦 Raw Asset Data Fetched:", a); // For Debugging
             window.activeTransferAsset = a;
 
-            // Mapping to hidden fields
-            const mapping = {
-                't_asset_description': a.assetDescription || a.modelDescription || "-",
-                't_asset_vendor': a.vendorName || a.vendor || "-",
-                't_asset_category': a.majorCategory || a.category || "-",
-                't_asset_location': a.locationName || a.location || "-",
-                't_asset_manufacturer': a.manufacturer || "-",
-                't_asset_serial_no_display': a.serialNo || a.serialNumber || "-",
-                't_asset_building': a.buildingName || a.schoolBuilding || "-"
+            // Robust Value Helper (Fuzzy Key Mapping)
+            const val = (keys) => {
+                for (let k of keys) { if (a[k] !== undefined && a[k] !== null && a[k] !== "") return a[k]; }
+                return "-";
             };
 
-            for (let id in mapping) {
+            // Enhanced Mapping with multiple key support
+            const data = {
+                desc: val(['assetDescription', 'modelDescription', 'Asset Description', 'description']),
+                vendor: val(['vendorName', 'vendor', 'Vendor', 'f30_vendor']),
+                cat: val(['majorCategory', 'category', 'Category', 'f15_category', 'classification']),
+                loc: val(['locationName', 'location', 'Location', 'f17_location']),
+                building: val(['buildingName', 'schoolBuilding', 'Building', 'f19_school_building']),
+                floor: val(['floorNo', 'Floor No', 'f23_floor_no']),
+                room: val(['roomNo', 'roomNumber', 'Room No', 'f21_room_no']),
+                serial: val(['serialNo', 'serialNumber', 'Serial No', 'f2_serial_no']),
+                manuf: val(['manufacturer', 'Manufacturer', 'f9_manufacturer']),
+                photo: val(['auditPhotoUrl', 'photoUrl', 'initialAuditPhoto', 'audit_photo', 'f40_audit_photo_url'])
+            };
+
+            // Update hidden inputs for submission
+            const inputMap = {
+                't_asset_description': data.desc,
+                't_asset_vendor': data.vendor,
+                't_asset_category': data.cat,
+                't_asset_location': data.loc,
+                't_asset_manufacturer': data.manuf,
+                't_asset_serial_no_display': data.serial,
+                't_asset_building': data.building
+            };
+
+            for (let id in inputMap) {
                 const el = document.getElementById(id);
-                if (el) el.value = mapping[id];
+                if (el) el.value = inputMap[id];
             }
 
-            // 2. SUCCESS PREVIEW: Detailed view for Staff
+            // 2. SUCCESS PREVIEW: Robust rendering
             if (previewArea) {
+                const displayPhoto = window.getDirectDriveImageUrl(data.photo);
                 previewArea.innerHTML = `
                     <div class="p-5 bg-white rounded-2xl border-2 border-indigo-100 shadow-xl animate-fade-in space-y-4">
                         <div class="flex items-center gap-4 pb-3 border-b border-indigo-50">
-                            <div class="w-16 h-16 rounded-xl overflow-hidden border-2 border-indigo-50 shadow-sm">
-                                <img src="${window.getDirectDriveImageUrl(a.auditPhotoUrl || a.photoUrl)}" class="w-full h-full object-cover">
+                            <div class="w-16 h-16 rounded-xl overflow-hidden border-2 border-indigo-50 shadow-sm bg-slate-50 flex items-center justify-center">
+                                ${data.photo !== '-' ? `<img src="${displayPhoto}" class="w-full h-full object-cover">` : `<i class="fa-solid fa-image text-slate-300 text-xl"></i>`}
                             </div>
                             <div>
-                                <h4 class="text-sm font-black text-indigo-900 uppercase leading-tight">${a.assetDescription || a.modelDescription || 'Asset Found'}</h4>
+                                <h4 class="text-sm font-black text-indigo-900 uppercase leading-tight">${data.desc !== '-' ? data.desc : 'ASSET FOUND'}</h4>
                                 <p class="text-[10px] text-indigo-500 font-mono font-bold mt-1">${a.assetBarcode || barcode}</p>
                             </div>
                         </div>
 
                         <div class="grid grid-cols-2 gap-y-3 gap-x-4 text-[10px]">
-                            <div class="space-y-0.5"><p class="text-slate-400 font-bold uppercase tracking-tighter">Location</p><p class="text-indigo-900 font-black">${a.locationName || a.location || "-"}</p></div>
-                            <div class="space-y-0.5"><p class="text-slate-400 font-bold uppercase tracking-tighter">Building</p><p class="text-indigo-900 font-black">${a.buildingName || a.schoolBuilding || "-"}</p></div>
-                            <div class="space-y-0.5"><p class="text-slate-400 font-bold uppercase tracking-tighter">Floor / Room</p><p class="text-indigo-900 font-black">F${a.floorNo || "0"} - R${a.roomNo || "-"}</p></div>
-                            <div class="space-y-0.5"><p class="text-slate-400 font-bold uppercase tracking-tighter">Serial No</p><p class="text-indigo-900 font-black">${a.serialNo || a.serialNumber || "-"}</p></div>
-                            <div class="space-y-0.5"><p class="text-slate-400 font-bold uppercase tracking-tighter">Vendor</p><p class="text-indigo-900 font-black">${a.vendorName || a.vendor || "-"}</p></div>
-                            <div class="space-y-0.5"><p class="text-slate-400 font-bold uppercase tracking-tighter">Category</p><p class="text-indigo-900 font-black">${a.majorCategory || a.category || "-"}</p></div>
+                            <div class="space-y-0.5"><p class="text-slate-400 font-bold uppercase tracking-tighter">Location</p><p class="text-indigo-900 font-black">${data.loc}</p></div>
+                            <div class="space-y-0.5"><p class="text-slate-400 font-bold uppercase tracking-tighter">Building</p><p class="text-indigo-900 font-black">${data.building}</p></div>
+                            <div class="space-y-0.5"><p class="text-slate-400 font-bold uppercase tracking-tighter">Floor / Room</p><p class="text-indigo-900 font-black">F${data.floor} - R${data.room}</p></div>
+                            <div class="space-y-0.5"><p class="text-slate-400 font-bold uppercase tracking-tighter">Serial No</p><p class="text-indigo-900 font-black">${data.serial}</p></div>
+                            <div class="space-y-0.5"><p class="text-slate-400 font-bold uppercase tracking-tighter">Vendor</p><p class="text-indigo-900 font-black">${data.vendor}</p></div>
+                            <div class="space-y-0.5"><p class="text-slate-400 font-bold uppercase tracking-tighter">Category</p><p class="text-indigo-900 font-black">${data.cat}</p></div>
                         </div>
 
                         <div class="pt-2">
