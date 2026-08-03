@@ -34,23 +34,30 @@ const getImageBuffer = async (url) => {
 };
 
 // ================================================
-// ASSET TRANSFER LOGIC (FIXED)
+// ASSET TRANSFER LOGIC (FIXED & SCHEMA v3.5.1)
 // ================================================
 window.submitAssetTransfer = async (event) => {
     if (event) event.preventDefault();
-    const barcode = document.getElementById('t_asset_barcode').value.trim();
-    const toLocation = document.getElementById('t_to_location')?.value.trim(); // ✅ FIXED ID
 
-    if (!barcode || !toLocation) return alert("Barcode and Destination Location are required!");
+    const barcode = document.getElementById('t_asset_barcode').value.trim();
+    const toLocation = document.getElementById('t_to_location')?.value.trim();
+
+    // 1. Critical Validation
+    if (!barcode) return alert("Please scan or enter an Asset Barcode first!");
+    if (!window.activeTransferAsset) return alert("❌ Cannot proceed: Asset details not loaded or asset not registered.");
 
     const btn = document.getElementById('submit-transfer-btn');
-    btn.disabled = true; btn.innerText = "UPLOADING...";
+    const originalText = btn.innerText;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> UPLOADING...';
 
     try {
+        // 2. Signature Capture
         const sigSecurity = window.getCanvasBase64('t_security_sig');
         const sigReceived = window.getCanvasBase64('t_received_sig');
-        if (!sigSecurity || !sigReceived) throw new Error("Both signatures required!");
+        if (!sigSecurity || !sigReceived) throw new Error("Both signatures (Security & Receiver) are required!");
 
+        // 3. Parallel Image Upload to Google Drive (Slow Net Optimized)
         const uploadTask = async (img, fileName, type) => {
             if (!img) return "";
             const res = await window.uploadToDrive({ action: "upload", type, fileName, image: img });
@@ -64,25 +71,61 @@ window.submitAssetTransfer = async (event) => {
         ]);
 
         const transferId = "TRF-" + Date.now();
+        const asset = window.activeTransferAsset;
+
+        // 4. Extended 26-Column Schema Mapping
         const transferData = {
-            transferId, assetBarcode: barcode, toLocation, // ✅ STORED FOR COMPLETION
-            collectorName: document.getElementById('t_collector_name').value,
-            companyName: document.getElementById('t_company_name').value,
+            transferId,
+            assetBarcode: barcode,
+            assetDescription: asset.assetDescription || asset.modelDescription || "-",
+            assetVendorName: asset.vendorName || asset.vendor || "-",
+            category: asset.majorCategory || asset.category || "-",
+            datePlaceInService: asset.serviceDate || asset.datePlaceInService || "-",
+            floorDescription: asset.floorDescription || "-",
+            floorNo: asset.floorNo || "-",
+            locationName: asset.locationName || asset.location || "-",
+            manufacturer: asset.manufacturer || "-",
+            modelDescription: asset.modelDescription || "-",
+            roomBarcode: asset.roomBarcode || "-",
+            roomName: asset.roomName || "-",
+            roomNumber: asset.roomNo || asset.roomNumber || "-",
+            schoolBuildingName: asset.buildingName || asset.schoolBuilding || "-",
+            auditPhotoAfter: asset.auditPhotoUrl || asset.photoUrl || "-",
+
+            collectorFullName: document.getElementById('t_collector_name').value.trim(),
+            companyName: document.getElementById('t_company_name').value.trim(),
+            reasonForCollection: document.getElementById('t_collection_reason')?.value.trim() || "-",
+            dateOfCollection: document.getElementById('t_collection_date').value,
+            companyLandlineNo: document.getElementById('t_company_landline')?.value.trim() || "-",
+            assetManufacturer: asset.manufacturer || "-",
+            assetSerialNo: asset.serialNo || asset.serialNumber || "-",
+            assetLocation: asset.locationName || asset.location || "-",
+            toLocation: toLocation || "Unknown",
+
+            reasonForTransfer: document.getElementById('t_transfer_reason_select')?.value || "-",
             securitySignatureUrl: urlSec,
             receivedSignatureUrl: urlRec,
             transferPhotoUrl: urlPhoto,
             status: 'In-Transit',
             timestamp: Date.now(),
-            date: new Date().toLocaleDateString()
+            date: new Date().toLocaleDateString('en-US')
         };
 
+        // 5. Final Save to Firebase
         await set(ref(db, `asset_transfers/${transferId}`), transferData);
-        alert("✅ Transfer Recorded!");
+
+        alert("✅ Transfer Success! Record created in Movement Logs.");
+
+        // Cleanup UI
         window.closeAssetTransfer();
         if (window.refreshDashboardData) window.refreshDashboardData();
 
-    } catch (e) { alert("Error: " + e.message); }
-    finally { btn.disabled = false; btn.innerText = "INITIATE TRANSFER"; }
+    } catch (e) {
+        alert("Transfer Error: " + e.message);
+    } finally {
+        btn.disabled = false;
+        btn.innerText = originalText;
+    }
 };
 
 // ✅ FIXED: Complete transfer updates locationName
@@ -118,11 +161,17 @@ window.startCameraScanner = async (inputId) => {
         if (modal) { modal.classList.remove('hidden'); modal.style.display = 'flex'; }
         if (html5QrCode) { await html5QrCode.stop().catch(()=>{}); await html5QrCode.clear(); }
         html5QrCode = new Html5Qrcode("scanner-container");
-        await html5QrCode.start({ facingMode: "environment" }, { fps: 30, qrbox: 250 }, async (text) => {
+         await html5QrCode.start({ facingMode: "environment" }, { fps: 30, qrbox: 250 }, async (text) => {
             const input = document.getElementById(currentScanTarget);
             if (input) {
                 input.value = text.trim().toUpperCase();
-                if (window.checkDuplicateBarcode && currentScanTarget === 'f1_asset_barcode') window.checkDuplicateBarcode(input.value);
+                // Trigger auto-fetch if it's the transfer barcode input
+                if (currentScanTarget === 't_asset_barcode') {
+                    window.fetchTransferAssetDetails(input.value);
+                }
+                if (window.checkDuplicateBarcode && currentScanTarget === 'f1_asset_barcode') {
+                    window.checkDuplicateBarcode(input.value);
+                }
             }
             window.stopCameraScanner();
         });
@@ -142,14 +191,95 @@ window.stopCameraScanner = async () => {
 // REMAINING WORKING FUNCTIONS
 // ================================================
 window.fetchTransferAssetDetails = async (barcode) => {
+    const previewArea = document.getElementById('transfer-asset-preview');
+    const submitBtn = document.getElementById('submit-transfer-btn');
+    const barcodeInput = document.getElementById('t_asset_barcode');
+
+    if (!barcode) {
+        if (previewArea) previewArea.innerHTML = "";
+        return;
+    }
+
+    // 1. Instant UI Feedback (Slow Net Friendly)
+    if (previewArea) {
+        previewArea.innerHTML = `
+            <div class="flex items-center gap-3 p-3 bg-indigo-50 text-indigo-600 rounded-xl animate-pulse">
+                <i class="fa-solid fa-spinner fa-spin"></i>
+                <span class="text-[10px] font-bold uppercase tracking-widest">Searching Asset Register...</span>
+            </div>
+        `;
+    }
+    if (submitBtn) submitBtn.disabled = true;
+
     try {
-        const snap = await get(child(ref(db), `assets/${barcode}`));
+        // 2. Optimized Firebase Fetch
+        const snap = await get(child(ref(db), `assets/${barcode.trim().toUpperCase()}`));
+
         if (snap.exists()) {
             const a = snap.val();
-            const preview = document.getElementById('transfer-asset-preview');
-            if (preview) preview.innerHTML = `<div class="p-3 bg-indigo-50 rounded-xl">Found: ${a.assetDescription || a.modelDescription}</div>`;
+            window.activeTransferAsset = a; // Store for submission payload
+
+            // 3. Automatic Mapping to UI (Visible & Hidden)
+            // Note: Adjusting IDs to match your standard schema
+            const mapping = {
+                't_asset_description': a.assetDescription || a.modelDescription || "-",
+                't_asset_vendor': a.vendorName || a.vendor || "-",
+                't_asset_category': a.majorCategory || a.category || "-",
+                't_asset_location': a.locationName || a.location || "-",
+                't_asset_manufacturer': a.manufacturer || "-",
+                't_asset_serial_no_display': a.serialNo || a.serialNumber || "-",
+                't_asset_building': a.buildingName || a.schoolBuilding || "-"
+            };
+
+            for (let id in mapping) {
+                const el = document.getElementById(id);
+                if (el) el.value = mapping[id];
+            }
+
+            // 4. Success Preview
+            if (previewArea) {
+                previewArea.innerHTML = `
+                    <div class="p-4 bg-emerald-50 rounded-2xl border border-emerald-100 shadow-sm animate-fade-in">
+                        <div class="flex items-center gap-3">
+                            <div class="w-12 h-12 rounded-xl overflow-hidden border border-emerald-200">
+                                <img src="${window.getDirectDriveImageUrl(a.auditPhotoUrl || a.photoUrl)}" class="w-full h-full object-cover">
+                            </div>
+                            <div>
+                                <h4 class="text-xs font-black text-indigo-900 uppercase">${a.assetDescription || a.modelDescription || 'Asset Found'}</h4>
+                                <p class="text-[9px] text-emerald-600 font-bold uppercase tracking-wider">${a.assetBarcode || barcode}</p>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+            if (submitBtn) submitBtn.disabled = false;
+
+        } else {
+            // 5. Validation Guard: Asset Not Registered
+            if (previewArea) {
+                previewArea.innerHTML = `
+                    <div class="p-4 bg-red-50 text-red-600 rounded-2xl border border-red-100 flex items-center gap-3">
+                        <i class="fa-solid fa-circle-exclamation text-xl"></i>
+                        <div>
+                            <p class="text-[11px] font-black uppercase">Asset Not Registered</p>
+                            <p class="text-[9px] opacity-70">This barcode does not exist in the master register.</p>
+                        </div>
+                    </div>
+                `;
+            }
+            alert("❌ ERROR: Asset Not Registered!\n\nPlease register this asset in the Item Audit section before attempting a transfer.");
+
+            // Clear fields
+            window.activeTransferAsset = null;
+            const fieldsToClear = ['t_asset_description', 't_asset_vendor', 't_asset_category', 't_asset_location', 't_asset_manufacturer', 't_asset_serial_no_display'];
+            fieldsToClear.forEach(id => { if(document.getElementById(id)) document.getElementById(id).value = ""; });
+
+            if (submitBtn) submitBtn.disabled = true;
         }
-    } catch (e) {}
+    } catch (e) {
+        console.error("Fetch Error:", e);
+        if (previewArea) previewArea.innerHTML = `<div class="p-3 bg-amber-50 text-amber-700 text-[10px] rounded-xl font-bold">⚠️ Connection slow. Retrying...</div>`;
+    }
 };
 
 window.initTransferSigPads = () => {

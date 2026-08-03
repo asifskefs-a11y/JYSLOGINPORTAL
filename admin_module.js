@@ -14,6 +14,16 @@ window.appCache = {
     transfers: []
 };
 
+// NEW: Stores the currently filtered results for pagination
+window.currentFilteredData = {
+    visitors: null,
+    staff: null,
+    tasks: null,
+    assets: null,
+    disposal: null,
+    transfers: null
+};
+
 // ================================================
 // DATA AGGREGATOR
 // ================================================
@@ -94,65 +104,39 @@ window.renderTabFromAppCache = (tabId) => {
 
     switch (tabId) {
         case 'tab-visitor-logs':
-            renderVisitorLogs(window.appCache.visitors || []);
+            renderVisitorLogs(window.currentFilteredData.visitors || window.appCache.visitors || []);
             break;
         case 'tab-staff-logs':
-            renderStaffAttendance(window.appCache.attendance || []);
+            renderStaffAttendance(window.currentFilteredData.staff || window.appCache.attendance || []);
             break;
         case 'tab-tasks':
-            renderGlobalTaskAudit();
+            renderGlobalTaskAudit(window.currentFilteredData.tasks || window.appCache.tasks || []);
             break;
         case 'tab-staff-list':
-            renderStaffDirectory();
+            renderStaffDirectory(window.appCache.staff || []);
             break;
         case 'tab-assets':
-            if (window.appCache.assets.length === 0) {
+            const assetData = window.currentFilteredData.assets || window.appCache.assets || [];
+            if (assetData.length === 0 && window.appCache.assets.length === 0) {
                 const body = document.getElementById('admin-asset-list-body');
-                if (body) {
-                    body.innerHTML = `
-                        <tr>
-                            <td colspan="20" class="p-8 text-center text-gray-400">
-                                <i class="fa-solid fa-database text-4xl block mb-4"></i>
-                                No assets found in database.
-                                <button onclick="window.loadAdminDashboard()" class="mt-4 px-4 py-2 bg-indigo-600 text-white rounded-xl text-xs">
-                                    Refresh Data
-                                </button>
-                            </td>
-                        </tr>
-                    `;
-                }
+                if (body) body.innerHTML = `<tr><td colspan="20" class="p-8 text-center text-gray-400"><i class="fa-solid fa-database text-4xl block mb-4"></i>No assets found.</td></tr>`;
             } else {
-                if (window.renderAdminAssetTable) {
-                    window.renderAdminAssetTable(window.appCache.assets, 'assets');
-                }
+                window.renderAdminAssetTable(assetData, 'assets');
             }
             break;
         case 'tab-disposal':
-            if (window.renderAdminAssetTable) {
-                const disposed = window.appCache.assets.filter(a => a.assetStatus === 'Disposed' || a.disposalReason);
-                window.renderAdminAssetTable(disposed, 'disposal');
-            }
+            const disposalData = window.currentFilteredData.disposal || window.appCache.assets.filter(a => a.assetStatus === 'Disposed' || a.disposalReason);
+            window.renderAdminAssetTable(disposalData, 'disposal');
             break;
         case 'tab-transfers':
-            if (window.renderTransferTable) {
-                window.renderTransferTable(window.appCache.transfers);
-            }
+            window.renderTransferTable(window.currentFilteredData.transfers || window.appCache.transfers || []);
             break;
         case 'tab-my-tasks':
             if (typeof window.initRaisedTasksTracker === 'function') {
                 window.initRaisedTasksTracker('admin-my-tasks-container');
-            } else {
-                console.warn("⚠️ initRaisedTasksTracker not loaded yet");
             }
             break;
-        default:
-            console.warn("⚠️ Unknown tab:", tabId);
     }
-
-    // ✅ Pagination triggered after render
-    setTimeout(() => {
-        if (window.initAllPaginations) window.initAllPaginations();
-    }, 200);
 };
 
 // ================================================
@@ -172,7 +156,14 @@ function renderVisitorLogs(visitors) {
         return;
     }
 
-    data.forEach(v => {
+    // Lazy Rendering Logic
+    const tableId = 'visitor-logs-body';
+    if (!window.paginationState[tableId]) window.paginationState[tableId] = { currentPage: 1, rowsPerPage: 20 };
+    const state = window.paginationState[tableId];
+    const start = (state.currentPage - 1) * state.rowsPerPage;
+    const pageData = data.slice(start, start + state.rowsPerPage);
+
+    pageData.forEach(v => {
         const tr = document.createElement('tr');
         const sigHtml = v.signatureUrl
             ? `<img src="${window.getDirectDriveImageUrl(v.signatureUrl)}" class="h-8 w-16 object-contain mx-auto border rounded bg-white cursor-pointer" onclick="window.openImageZoom('${v.signatureUrl}')">`
@@ -192,6 +183,8 @@ function renderVisitorLogs(visitors) {
         `;
         body.appendChild(tr);
     });
+
+    if (window.setupPaginationUI) window.setupPaginationUI(tableId, data.length);
 }
 
 function renderStaffAttendance(attendance) {
@@ -207,7 +200,14 @@ function renderStaffAttendance(attendance) {
         return;
     }
 
-    data.forEach(a => {
+    // Lazy Rendering Logic
+    const tableId = 'staff-attendance-body';
+    if (!window.paginationState[tableId]) window.paginationState[tableId] = { currentPage: 1, rowsPerPage: 20 };
+    const state = window.paginationState[tableId];
+    const start = (state.currentPage - 1) * state.rowsPerPage;
+    const pageData = data.slice(start, start + state.rowsPerPage);
+
+    pageData.forEach(a => {
         const tr = document.createElement('tr');
         const sigHtml = a.signatureUrl
             ? `<img src="${window.getDirectDriveImageUrl(a.signatureUrl)}" class="h-8 w-16 object-contain mx-auto border rounded bg-white cursor-pointer" onclick="window.openImageZoom('${a.signatureUrl}')">`
@@ -225,22 +225,31 @@ function renderStaffAttendance(attendance) {
         `;
         body.appendChild(tr);
     });
+
+    if (window.setupPaginationUI) window.setupPaginationUI(tableId, data.length);
 }
 
-function renderGlobalTaskAudit() {
+function renderGlobalTaskAudit(tasks) {
     const body = document.getElementById('admin-task-list-body');
     if (!body) return;
     body.innerHTML = '';
 
-    const tasks = window.appCache.tasks || [];
-    tasks.sort((a, b) => new Date(b.raisedTimestamp || 0) - new Date(a.raisedTimestamp || 0));
+    const data = tasks || window.appCache.tasks || [];
+    data.sort((a, b) => new Date(b.raisedTimestamp || 0) - new Date(a.raisedTimestamp || 0));
 
-    if (tasks.length === 0) {
+    if (data.length === 0) {
         body.innerHTML = `<tr><td colspan="10" class="p-8 text-center text-gray-400">No tasks found</td></tr>`;
         return;
     }
 
-    tasks.forEach(t => {
+    // Lazy Rendering Logic
+    const tableId = 'admin-task-list-body';
+    if (!window.paginationState[tableId]) window.paginationState[tableId] = { currentPage: 1, rowsPerPage: 20 };
+    const state = window.paginationState[tableId];
+    const start = (state.currentPage - 1) * state.rowsPerPage;
+    const pageData = data.slice(start, start + state.rowsPerPage);
+
+    pageData.forEach(t => {
         const bImg = window.getDirectDriveImageUrl(t.beforePhotoUrl || t.beforePhoto);
         const aImg = window.getDirectDriveImageUrl(t.afterPhotoUrl || t.afterPhoto);
         const tr = document.createElement('tr');
@@ -265,6 +274,8 @@ function renderGlobalTaskAudit() {
         `;
         body.appendChild(tr);
     });
+
+    if (window.setupPaginationUI) window.setupPaginationUI(tableId, data.length);
 }
 
 function renderStaffDirectory() {
@@ -279,7 +290,14 @@ function renderStaffDirectory() {
         return;
     }
 
-    staff.forEach(s => {
+    // Lazy Rendering Logic
+    const tableId = 'admin-staff-list-body';
+    if (!window.paginationState[tableId]) window.paginationState[tableId] = { currentPage: 1, rowsPerPage: 20 };
+    const state = window.paginationState[tableId];
+    const start = (state.currentPage - 1) * state.rowsPerPage;
+    const pageData = staff.slice(start, start + state.rowsPerPage);
+
+    pageData.forEach(s => {
         const profileImg = window.getDirectDriveImageUrl(s.profilePicUrl);
         const tr = document.createElement('tr');
         tr.innerHTML = `
@@ -299,119 +317,80 @@ function renderStaffDirectory() {
         `;
         body.appendChild(tr);
     });
+
+    if (window.setupPaginationUI) window.setupPaginationUI(tableId, staff.length);
 }
 
 // ================================================
-// ASSET TABLE RENDER - SINGLE SOURCE OF TRUTH
+// ASSET TABLE RENDER - SINGLE SOURCE OF TRUTH (Lazy Rendering)
 // ================================================
 window.renderAdminAssetTable = (data, targetTable = 'both') => {
     try {
-        console.log(`🎨 Rendering asset table: ${targetTable}, Data length: ${data?.length || 0}`);
-
         const body = document.getElementById('admin-asset-list-body');
         const disposalBody = document.getElementById('admin-disposal-list-body');
 
-        if (!body && !disposalBody) {
-            console.warn("⚠️ Asset table bodies not found in DOM");
-            return;
-        }
-
-        if (body && (targetTable === 'both' || targetTable === 'assets')) {
-            body.innerHTML = '';
-        }
-        if (disposalBody && (targetTable === 'both' || targetTable === 'disposal')) {
-            disposalBody.innerHTML = '';
-        }
+        if (body && (targetTable === 'both' || targetTable === 'assets')) body.innerHTML = '';
+        if (disposalBody && (targetTable === 'both' || targetTable === 'disposal')) disposalBody.innerHTML = '';
 
         if (!data || data.length === 0) {
-            const emptyMsg = `
-                <tr>
-                    <td colspan="20" class="p-8 text-center text-gray-400">
-                        <i class="fa-solid fa-box-open text-4xl block mb-4"></i>
-                        No assets found.
-                        <button onclick="window.loadAdminDashboard()" class="mt-4 px-4 py-2 bg-indigo-600 text-white rounded-xl text-xs">
-                            Refresh Data
-                        </button>
-                    </td>
-                </tr>
-            `;
-            if (body && (targetTable === 'both' || targetTable === 'assets')) {
-                body.innerHTML = emptyMsg;
-            }
-            if (disposalBody && (targetTable === 'both' || targetTable === 'disposal')) {
-                disposalBody.innerHTML = emptyMsg;
-            }
+            const emptyMsg = `<tr><td colspan="30" class="p-8 text-center text-gray-400"><i class="fa-solid fa-box-open text-4xl block mb-4"></i>No data found.</td></tr>`;
+            if (body && (targetTable === 'both' || targetTable === 'assets')) body.innerHTML = emptyMsg;
+            if (disposalBody && (targetTable === 'both' || targetTable === 'disposal')) disposalBody.innerHTML = emptyMsg;
             return;
         }
+
+        // Logic to slice data for current page
+        const tableId = (targetTable === 'disposal') ? 'admin-disposal-list-body' : 'admin-asset-list-body';
+        if (!window.paginationState[tableId]) window.paginationState[tableId] = { currentPage: 1, rowsPerPage: 20 };
+        const state = window.paginationState[tableId];
+        const start = (state.currentPage - 1) * state.rowsPerPage;
+        const pageData = data.slice(start, start + state.rowsPerPage);
 
         const sampleRecord = data[0];
         const dynamicHeaders = Object.keys(sampleRecord).filter(k =>
-            !['updatedAt', 'createdAt', 'assetBarcode', 'initialAuditPhotoData',
-              'disposalPhotoData', 'assetStatus', 'auditPhotoUrl', 'disposalPhotoUrl',
-              'initialAuditPhoto', 'disposalDamagedPhoto', 'audit_photo', 'beforePhotoUrl',
-              'afterPhotoUrl', 'photoUrl', 'assetCondition', 'lastAuditTimestamp', 'lastAuditBy'].includes(k)
+            !['updatedAt', 'createdAt', 'assetBarcode', 'initialAuditPhotoData', 'disposalPhotoData', 'assetStatus', 'auditPhotoUrl', 'disposalPhotoUrl', 'initialAuditPhoto', 'disposalDamagedPhoto', 'audit_photo', 'beforePhotoUrl', 'afterPhotoUrl', 'photoUrl', 'assetCondition', 'lastAuditTimestamp', 'lastAuditBy'].includes(k)
         );
 
         if (window.updateAssetTableHeaders && (targetTable === 'both' || targetTable === 'assets')) {
             window.updateAssetTableHeaders(dynamicHeaders);
         }
 
-        data.forEach((a, index) => {
+        pageData.forEach((a, index) => {
             const isDisposed = a.assetStatus === 'Disposed' || a.disposalReason;
-
-            const barcode = a.assetBarcode ||
-                           a['Asset Barcode'] ||
-                           a['1. Asset Barcode'] ||
-                           a.barcode ||
-                           a.id ||
-                           a.serialNo ||
-                           `ASSET-${index}`;
-
-            const initialPhotoUrl = a.auditPhotoUrl || a.audit_photo || a.beforePhotoUrl ||
-                                   a.photoUrl || a.initialAuditPhoto ||
-                                   (a.initialAuditPhotoData?.fileUrl);
-            const damagePhotoUrl = a.disposalPhotoUrl || a.afterPhotoUrl ||
-                                  a.disposalDamagedPhoto ||
-                                  (a.disposalPhotoData?.fileUrl);
-
-            const initialPhoto = window.getDirectDriveImageUrl(initialPhotoUrl);
-            const damagePhoto = window.getDirectDriveImageUrl(damagePhotoUrl);
+            const barcode = a.assetBarcode || a['Asset Barcode'] || a.barcode || `ASSET-${index}`;
+            const initialPhoto = window.getDirectDriveImageUrl(a.auditPhotoUrl || a.audit_photo || a.beforePhotoUrl || a.photoUrl || a.initialAuditPhoto);
+            const damagePhoto = window.getDirectDriveImageUrl(a.disposalPhotoUrl || a.afterPhotoUrl || a.disposalDamagedPhoto);
 
             if (isDisposed && disposalBody && (targetTable === 'both' || targetTable === 'disposal')) {
                 const tr = document.createElement('tr');
                 tr.className = "hover:bg-red-50 border-b text-[11px]";
                 tr.innerHTML = `
                     <td class="p-3 font-mono font-bold text-red-600">${barcode}</td>
-                    <td class="p-3 font-bold">${a.assetDescription || a.modelDescription || a.classification || '-'}</td>
-                    <td class="p-3">${a.vendorName || a.vendor || '-'}</td>
-                    <td class="p-3"><span class="px-2 py-0.5 bg-red-50 text-red-600 rounded text-[9px] font-bold">${a.majorCategory || a.category || '-'}</span></td>
-                    <td class="p-3">${a.serviceDate || a.datePlaceInService || '-'}</td>
+                    <td class="p-3 font-bold">${a.assetDescription || a.modelDescription || '-'}</td>
+                    <td class="p-3">${a.vendorName || '-'}</td>
+                    <td class="p-3"><span class="px-2 py-0.5 bg-red-50 text-red-600 rounded text-[9px] font-bold">${a.majorCategory || '-'}</span></td>
+                    <td class="p-3">${a.serviceDate || '-'}</td>
                     <td class="p-3">${a.floorDescription || '-'}</td>
-                    <td class="p-3">${a.floorNo || '-'}</td>
-                    <td class="p-3 font-bold text-indigo-900">${a.locationName || a.location || '-'}</td>
+                    <td class="p-3 text-center">${a.floorNo || '-'}</td>
+                    <td class="p-3 font-bold text-indigo-900">${a.locationName || '-'}</td>
                     <td class="p-3">${a.manufacturer || '-'}</td>
-                    <td class="p-3">${a.modelDescription || a.model || '-'}</td>
-                    <td class="p-3 font-mono">${a.roomBarcode || a.currentRoomBarcode || '-'}</td>
+                    <td class="p-3">${a.modelDescription || '-'}</td>
+                    <td class="p-3 font-mono">${a.roomBarcode || '-'}</td>
                     <td class="p-3">${a.roomName || '-'}</td>
-                    <td class="p-3 font-bold">${a.roomNo || a.roomNumber || '-'}</td>
-                    <td class="p-3">${a.buildingName || a.schoolBuilding || '-'}</td>
+                    <td class="p-3 font-bold">${a.roomNo || '-'}</td>
+                    <td class="p-3">${a.buildingName || '-'}</td>
                     <td class="p-3 italic text-red-700 font-medium">${a.disposalReason || '-'}</td>
                     <td class="p-3">
-                        <div class="flex flex-col">
-                            <span class="font-black text-indigo-900">${a.disposedBy || a.lastAuditBy || '-'}</span>
-                            <span class="text-[8px] opacity-40 uppercase">${a.disposalDate || a.lastAuditTimestamp || '-'}</span>
-                        </div>
+                        <div class="flex flex-col"><span class="font-black text-indigo-900">${a.disposedBy || '-'}</span><span class="text-[8px] opacity-40 uppercase">${a.disposalDate || '-'}</span></div>
                     </td>
-                    <td class="p-3">
+                    <td class="p-3 text-center">
                         <div class="flex gap-1 justify-center">
-                            ${initialPhotoUrl ? `<img src="${initialPhoto}" class="h-8 w-8 object-cover rounded border" onclick="window.openImageZoom('${initialPhoto}')">` : '-'}
-                            ${damagePhotoUrl ? `<img src="${damagePhoto}" class="h-8 w-8 object-cover rounded border border-red-200" onclick="window.openImageZoom('${damagePhoto}')">` : '-'}
+                            <img src="${initialPhoto}" class="h-8 w-8 object-cover rounded border" onclick="window.openImageZoom('${initialPhoto}')">
+                            <img src="${damagePhoto}" class="h-8 w-8 object-cover rounded border" onclick="window.openImageZoom('${damagePhoto}')">
                         </div>
                     </td>
                     <td class="p-3 text-center">
-                        <button onclick="window.recoverDisposedAsset('${barcode}')" class="text-indigo-600 hover:text-indigo-800 transition" title="Recover Asset">
-                            <i class="fa-solid fa-rotate-left"></i>
-                        </button>
+                        <button onclick="window.recoverDisposedAsset('${barcode}')" class="text-indigo-600 hover:text-indigo-800 transition"><i class="fa-solid fa-rotate-left"></i></button>
                     </td>
                 `;
                 disposalBody.appendChild(tr);
@@ -419,31 +398,15 @@ window.renderAdminAssetTable = (data, targetTable = 'both') => {
             else if (!isDisposed && body && (targetTable === 'both' || targetTable === 'assets')) {
                 const tr = document.createElement('tr');
                 tr.className = "hover:bg-indigo-50 border-b text-[11px]";
-
                 let rowHtml = `<td class="p-3 text-center"><input type="checkbox" class="asset-checkbox" value="${barcode}"></td>`;
-
-                dynamicHeaders.forEach(h => {
-                    let val = a[h];
-                    if (val === undefined || val === null || val === "") val = "-";
-                    if (typeof val === 'string' && val.length > 50) val = val.substring(0, 50) + '...';
-                    rowHtml += `<td class="p-3">${val}</td>`;
-                });
-
+                dynamicHeaders.forEach(h => { rowHtml += `<td class="p-3">${a[h] || "-"}</td>`; });
                 rowHtml += `
-                    <td class="p-3 text-center">
-                        ${initialPhotoUrl ? `<img src="${initialPhoto}" class="h-8 w-8 object-cover rounded border mx-auto cursor-pointer hover:scale-110 transition" onclick="window.openImageZoom('${initialPhoto}')">` : '-'}
-                    </td>
-                    <td class="p-3 text-center">
-                        ${damagePhotoUrl ? `<img src="${damagePhoto}" class="h-8 w-8 object-cover rounded border border-red-200 mx-auto cursor-pointer hover:scale-110 transition" onclick="window.openImageZoom('${damagePhoto}')">` : '-'}
-                    </td>
+                    <td class="p-3 text-center"><img src="${initialPhoto}" class="h-8 w-8 object-cover rounded border" onclick="window.openImageZoom('${initialPhoto}')"></td>
+                    <td class="p-3 text-center"><img src="${damagePhoto}" class="h-8 w-8 object-cover rounded border" onclick="window.openImageZoom('${damagePhoto}')"></td>
                     <td class="p-3 text-center">
                         <div class="flex items-center justify-center gap-2">
-                            <button onclick="window.openEditAssetModal('${barcode}')" class="text-indigo-600 hover:text-indigo-800 transition" title="Edit Asset">
-                                <i class="fa-solid fa-pen-to-square"></i>
-                            </button>
-                            <button onclick="window.deleteAssetRecord('${barcode}')" class="text-red-600 hover:text-red-800 transition" title="Delete Asset">
-                                <i class="fa-solid fa-trash-can"></i>
-                            </button>
+                            <button onclick="window.openEditAssetModal('${barcode}')" class="text-indigo-600 hover:text-indigo-800"><i class="fa-solid fa-pen-to-square"></i></button>
+                            <button onclick="window.deleteAssetRecord('${barcode}')" class="text-red-600 hover:text-red-800"><i class="fa-solid fa-trash-can"></i></button>
                         </div>
                     </td>
                 `;
@@ -452,13 +415,12 @@ window.renderAdminAssetTable = (data, targetTable = 'both') => {
             }
         });
 
-        setTimeout(() => {
-            if (window.initAllPaginations) window.initAllPaginations();
-        }, 200);
+        // Trigger pagination UI update without hiding rows (since only 20 exist)
+        if (window.setupPaginationUI) {
+            window.setupPaginationUI(tableId, data.length);
+        }
 
-    } catch (e) {
-        console.error("❌ Error rendering asset table:", e);
-    }
+    } catch (e) { console.error("❌ Error rendering asset table:", e); }
 };
 
 // =========================================================
@@ -475,7 +437,16 @@ window.renderTransferTable = (transfers) => {
         return;
     }
 
-    transfers.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0)).forEach(t => {
+    transfers.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+
+    // Lazy Rendering Logic
+    const tableId = 'transfer-logs-body';
+    if (!window.paginationState[tableId]) window.paginationState[tableId] = { currentPage: 1, rowsPerPage: 20 };
+    const state = window.paginationState[tableId];
+    const start = (state.currentPage - 1) * state.rowsPerPage;
+    const pageData = transfers.slice(start, start + state.rowsPerPage);
+
+    pageData.forEach(t => {
         const tr = document.createElement('tr');
         tr.className = "hover:bg-indigo-50 transition-colors border-b border-gray-100 text-[9px]";
 
@@ -507,7 +478,7 @@ window.renderTransferTable = (transfers) => {
             <td class="p-2 max-w-[80px] truncate">${t.roomName || '-'}</td>
             <td class="p-2 font-bold">${t.roomNumber || '-'}</td>
             <td class="p-2 max-w-[100px] truncate">${t.schoolBuildingName || '-'}</td>
-            <td class="p-2 text-center">${auditPhoto}</td>
+            <td class="p-3 text-center">${auditPhoto}</td>
             <td class="p-2 font-black text-indigo-900">${t.collectorFullName || t.collectorName || '-'}</td>
             <td class="p-2 font-bold">${t.companyName || '-'}</td>
             <td class="p-2 max-w-[100px] truncate italic text-[8px]">${t.reasonForCollection || '-'}</td>
@@ -534,6 +505,8 @@ window.renderTransferTable = (transfers) => {
         `;
         body.appendChild(tr);
     });
+
+    if (window.setupPaginationUI) window.setupPaginationUI(tableId, transfers.length);
 };
 
 // ================================================
@@ -586,40 +559,93 @@ window.saveAssetEdit = async () => {
 };
 
 // ================================================
-// FILTER FUNCTIONS
+// FILTER FUNCTIONS (Lag-Free & Optimized)
 // ================================================
+let searchTimer;
+const debounceSearch = (func) => {
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(func, 300);
+};
+
 window.filterVisitorTable = () => {
-    const q = document.getElementById('visitor-search')?.value?.toLowerCase() || '';
-    const date = document.getElementById('visitor-date-filter')?.value || '';
-    const filtered = window.appCache.visitors.filter(v => JSON.stringify(v).toLowerCase().includes(q) && (!date || v.date === new Date(date).toLocaleDateString('en-US')));
-    renderVisitorLogs(filtered);
-    setTimeout(() => window.initAllPaginations(), 100);
+    debounceSearch(() => {
+        const q = document.getElementById('visitor-search')?.value?.toLowerCase() || '';
+        const date = document.getElementById('visitor-date-filter')?.value || '';
+        const filtered = window.appCache.visitors.filter(v =>
+            (v.name?.toLowerCase().includes(q) || v.id?.toLowerCase().includes(q) || v.mobile?.includes(q) || v.company?.toLowerCase().includes(q)) &&
+            (!date || v.date === new Date(date).toLocaleDateString('en-US'))
+        );
+        window.currentFilteredData.visitors = q || date ? filtered : null;
+        if (window.paginationState['visitor-logs-body']) window.paginationState['visitor-logs-body'].currentPage = 1;
+        renderVisitorLogs(filtered);
+    });
 };
 
 window.filterStaffTable = () => {
-    const q = document.getElementById('staff-search')?.value?.toLowerCase() || '';
-    const date = document.getElementById('staff-date-filter')?.value || '';
-    const filtered = window.appCache.attendance.filter(a => JSON.stringify(a).toLowerCase().includes(q) && (!date || a.date === new Date(date).toLocaleDateString('en-US')));
-    renderStaffAttendance(filtered);
-    setTimeout(() => window.initAllPaginations(), 100);
+    debounceSearch(() => {
+        const q = document.getElementById('staff-search')?.value?.toLowerCase() || '';
+        const date = document.getElementById('staff-date-filter')?.value || '';
+        const filtered = window.appCache.attendance.filter(a =>
+            (a.name?.toLowerCase().includes(q) || a.mobile?.includes(q) || a.role?.toLowerCase().includes(q)) &&
+            (!date || a.date === new Date(date).toLocaleDateString('en-US'))
+        );
+        window.currentFilteredData.staff = q || date ? filtered : null;
+        if (window.paginationState['staff-attendance-body']) window.paginationState['staff-attendance-body'].currentPage = 1;
+        renderStaffAttendance(filtered);
+    });
 };
 
 window.filterAssetTable = () => {
-    const q = document.getElementById('asset-search')?.value?.toLowerCase() || '';
-    const filtered = window.appCache.assets.filter(a => (a.assetStatus !== 'Disposed' && !a.disposalReason) && JSON.stringify(a).toLowerCase().includes(q));
-    window.renderAdminAssetTable(filtered, 'assets');
+    debounceSearch(() => {
+        const q = document.getElementById('asset-search')?.value?.toLowerCase() || '';
+        const filtered = window.appCache.assets.filter(a => {
+            const isDisposed = a.assetStatus === 'Disposed' || a.disposalReason;
+            if (isDisposed) return false;
+            return (
+                a.assetBarcode?.toLowerCase().includes(q) ||
+                a['Asset Barcode']?.toLowerCase().includes(q) ||
+                a.assetDescription?.toLowerCase().includes(q) ||
+                a.modelDescription?.toLowerCase().includes(q) ||
+                a.serialNo?.toLowerCase().includes(q) ||
+                a.locationName?.toLowerCase().includes(q)
+            );
+        });
+        window.currentFilteredData.assets = q ? filtered : null;
+        if (window.paginationState['admin-asset-list-body']) window.paginationState['admin-asset-list-body'].currentPage = 1;
+        window.renderAdminAssetTable(filtered, 'assets');
+    });
 };
 
 window.filterDisposalTable = () => {
-    const q = document.getElementById('disposal-search')?.value?.toLowerCase() || '';
-    const filtered = window.appCache.assets.filter(a => (a.assetStatus === 'Disposed' || a.disposalReason) && JSON.stringify(a).toLowerCase().includes(q));
-    window.renderAdminAssetTable(filtered, 'disposal');
+    debounceSearch(() => {
+        const q = document.getElementById('disposal-search')?.value?.toLowerCase() || '';
+        const filtered = window.appCache.assets.filter(a => {
+            const isDisposed = a.assetStatus === 'Disposed' || a.disposalReason;
+            if (!isDisposed) return false;
+            return (
+                a.assetBarcode?.toLowerCase().includes(q) ||
+                a.assetDescription?.toLowerCase().includes(q) ||
+                a.disposalReason?.toLowerCase().includes(q)
+            );
+        });
+        window.currentFilteredData.disposal = q ? filtered : null;
+        if (window.paginationState['admin-disposal-list-body']) window.paginationState['admin-disposal-list-body'].currentPage = 1;
+        window.renderAdminAssetTable(filtered, 'disposal');
+    });
 };
 
 window.filterTransferTable = () => {
-    const q = document.getElementById('transfer-search')?.value?.toLowerCase() || '';
-    const filtered = window.appCache.transfers.filter(t => JSON.stringify(t).toLowerCase().includes(q));
-    window.renderTransferTable(filtered);
+    debounceSearch(() => {
+        const q = document.getElementById('transfer-search')?.value?.toLowerCase() || '';
+        const filtered = window.appCache.transfers.filter(t =>
+            t.assetBarcode?.toLowerCase().includes(q) ||
+            t.collectorName?.toLowerCase().includes(q) ||
+            t.transferId?.toLowerCase().includes(q)
+        );
+        window.currentFilteredData.transfers = q ? filtered : null;
+        if (window.paginationState['transfer-logs-body']) window.paginationState['transfer-logs-body'].currentPage = 1;
+        window.renderTransferTable(filtered);
+    });
 };
 
 // ================================================

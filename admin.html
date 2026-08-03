@@ -539,40 +539,42 @@
                             </div>
                         </div>
 
+                        <!-- Search Filter -->
                         <input type="text" id="transfer-search" placeholder="🔍 Search transfer logs..."
                                class="w-full bg-slate-50 border p-3 rounded-xl text-xs outline-none focus:border-indigo-500"
                                oninput="window.filterTransferTable()">
 
+                        <!-- Table: 26 Columns -->
                         <div class="table-wrapper rounded-2xl border border-slate-100 shadow-sm" id="transfer-table-wrapper">
                             <table class="w-full text-left text-[9px]" id="transfer-master-table">
                                 <thead class="bg-indigo-50 uppercase text-indigo-600 font-black sticky top-0 z-10 shadow-sm whitespace-nowrap">
                                     <tr>
-                                        <th class="p-3 min-w-[100px]">Barcode</th>
-                                        <th class="p-3 min-w-[150px]">Asset Description</th>
-                                        <th class="p-3 min-w-[120px]">Vendor</th>
-                                        <th class="p-3 min-w-[120px]">Category</th>
-                                        <th class="p-3 min-w-[100px]">Service Date</th>
-                                        <th class="p-3 min-w-[120px]">Floor Desc</th>
-                                        <th class="p-3 min-w-[70px]">Floor No</th>
-                                        <th class="p-3 min-w-[120px]">Location</th>
-                                        <th class="p-3 min-w-[120px]">Manufacturer</th>
-                                        <th class="p-3 min-w-[120px]">Model</th>
-                                        <th class="p-3 min-w-[100px]">Room BC</th>
-                                        <th class="p-3 min-w-[120px]">Room Name</th>
-                                        <th class="p-3 min-w-[80px]">Room No</th>
-                                        <th class="p-3 min-w-[150px]">Building</th>
-                                        <th class="p-3 min-w-[80px] text-center">Audit Photo</th>
-                                        <th class="p-3 min-w-[150px]">Collector Name</th>
-                                        <th class="p-3 min-w-[150px]">Company</th>
-                                        <th class="p-3 min-w-[150px]">Collection Reason</th>
-                                        <th class="p-3 min-w-[110px]">Collection Date</th>
-                                        <th class="p-3 min-w-[110px]">Landline</th>
-                                        <th class="p-3 min-w-[120px]">Serial No</th>
-                                        <th class="p-3 min-w-[130px]">Transfer Reason</th>
-                                        <th class="p-3 min-w-[100px] text-center">Security Sig</th>
-                                        <th class="p-3 min-w-[100px] text-center">Receiver Sig</th>
-                                        <th class="p-3 min-w-[100px] text-center">Proof Photo</th>
-                                        <th class="p-3 min-w-[100px] text-center">Action</th>
+                                        <th class="p-2 min-w-[80px]">Barcode</th>
+                                        <th class="p-2 min-w-[120px]">Asset Description</th>
+                                        <th class="p-2 min-w-[100px]">Vendor</th>
+                                        <th class="p-2 min-w-[100px]">Category</th>
+                                        <th class="p-2 min-w-[90px]">Service Date</th>
+                                        <th class="p-2 min-w-[100px]">Floor Desc</th>
+                                        <th class="p-2 min-w-[60px]">Floor No</th>
+                                        <th class="p-2 min-w-[100px]">Location</th>
+                                        <th class="p-2 min-w-[100px]">Manufacturer</th>
+                                        <th class="p-2 min-w-[100px]">Model</th>
+                                        <th class="p-2 min-w-[90px]">Room BC</th>
+                                        <th class="p-2 min-w-[100px]">Room Name</th>
+                                        <th class="p-2 min-w-[70px]">Room No</th>
+                                        <th class="p-2 min-w-[120px]">Building</th>
+                                        <th class="p-2 min-w-[80px] text-center">Audit Photo</th>
+                                        <th class="p-2 min-w-[120px]">Collector Name</th>
+                                        <th class="p-2 min-w-[120px]">Company</th>
+                                        <th class="p-2 min-w-[120px]">Collection Reason</th>
+                                        <th class="p-2 min-w-[100px]">Collection Date</th>
+                                        <th class="p-2 min-w-[100px]">Landline</th>
+                                        <th class="p-2 min-w-[100px]">Serial No</th>
+                                        <th class="p-2 min-w-[120px]">Transfer Reason</th>
+                                        <th class="p-2 min-w-[80px] text-center">Security Sig</th>
+                                        <th class="p-2 min-w-[80px] text-center">Receiver Sig</th>
+                                        <th class="p-2 min-w-[80px] text-center">Proof Photo</th>
+                                        <th class="p-2 min-w-[80px] text-center">Action</th>
                                     </tr>
                                 </thead>
                                 <tbody id="transfer-logs-body" class="divide-y divide-slate-50"></tbody>
@@ -735,7 +737,7 @@
 
     <script>
         // ================================================
-        // UNIVERSAL PAGINATION SYSTEM - 20 ROWS PER PAGE
+        // UNIVERSAL PAGINATION SYSTEM (Lag-Free Lazy Rendering)
         // ================================================
         window.paginationState = {};
 
@@ -749,23 +751,20 @@
             'transfer-logs-body': 'transfer-pagination'
         };
 
-        window.setupPagination = function(tableBodyId, paginationContainerId, rowsPerPage = 20) {
-            const tbody = document.getElementById(tableBodyId);
-            const container = document.getElementById(paginationContainerId);
-            if (!tbody || !container) return;
+        // NEW: Handles UI only, doesn't touch DOM rows
+        window.setupPaginationUI = function(tableBodyId, totalRows, rowsPerPage = 20) {
+            const container = document.getElementById(PAGINATION_ID_MAP[tableBodyId]);
+            if (!container) return;
 
-            const stateKey = tableBodyId;
-            if (!window.paginationState[stateKey]) window.paginationState[stateKey] = { currentPage: 1, rowsPerPage };
-
-            const state = window.paginationState[stateKey];
-            const rows = Array.from(tbody.querySelectorAll('tr')).filter(r => r.textContent.trim() !== '');
-            const totalRows = rows.length;
+            if (!window.paginationState[tableBodyId]) {
+                window.paginationState[tableBodyId] = { currentPage: 1, rowsPerPage };
+            }
+            const state = window.paginationState[tableBodyId];
             const totalPages = Math.max(1, Math.ceil(totalRows / rowsPerPage));
 
             if (totalPages <= 1) {
                 container.innerHTML = '';
                 container.style.display = 'none';
-                rows.forEach(r => r.style.display = '');
                 return;
             }
 
@@ -773,26 +772,29 @@
             const start = (state.currentPage - 1) * rowsPerPage;
             const end = Math.min(start + rowsPerPage, totalRows);
 
-            rows.forEach((row, index) => {
-                row.style.display = (index >= start && index < end) ? '' : 'none';
-            });
-
-            let html = `<button class="pagination-btn" onclick="window.changePage('${stateKey}', ${state.currentPage - 1})" ${state.currentPage === 1 ? 'disabled' : ''}><i class="fa-solid fa-chevron-left"></i></button>`;
+            let html = `<button class="pagination-btn" onclick="window.changePage('${tableBodyId}', ${state.currentPage - 1})" ${state.currentPage === 1 ? 'disabled' : ''}><i class="fa-solid fa-chevron-left"></i></button>`;
             html += `<span class="page-info">Page ${state.currentPage} of ${totalPages}</span>`;
-            html += `<button class="pagination-btn" onclick="window.changePage('${stateKey}', ${state.currentPage + 1})" ${state.currentPage === totalPages ? 'disabled' : ''}><i class="fa-solid fa-chevron-right"></i></button>`;
+            html += `<button class="pagination-btn" onclick="window.changePage('${tableBodyId}', ${state.currentPage + 1})" ${state.currentPage === totalPages ? 'disabled' : ''}><i class="fa-solid fa-chevron-right"></i></button>`;
             html += `<span class="page-info" style="margin-left:12px;font-size:9px;opacity:0.5;">${start+1}-${end} of ${totalRows}</span>`;
             container.innerHTML = html;
         };
 
+        // NEW: Triggers re-render instead of hiding/showing
         window.changePage = function(stateKey, newPage) {
             const state = window.paginationState[stateKey];
             if (!state) return;
             state.currentPage = newPage;
-            window.setupPagination(stateKey, PAGINATION_ID_MAP[stateKey], state.rowsPerPage);
+
+            // Re-trigger the specific render function based on the active tab/state
+            const activeTab = document.querySelector('.tab-section.active')?.id;
+            if (window.renderTabFromAppCache) {
+                window.renderTabFromAppCache(activeTab);
+            }
         };
 
+        // Keep for initial/simple loads but optimized
         window.initAllPaginations = function() {
-            Object.entries(PAGINATION_ID_MAP).forEach(([bodyId, pagId]) => window.setupPagination(bodyId, pagId));
+            // Usually called after render, which now calls setupPaginationUI
         };
 
         // ================================================
