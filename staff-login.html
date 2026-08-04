@@ -487,23 +487,28 @@
                         </div></div>
                         <!-- ======================================== -->
                         <!-- ASSET BATCH DETAILS - MOBILE RESPONSIVE -->
-                        <!-- ======================================== -->
-                        <!-- ASSET BATCH DETAILS - FIXED -->
-                        <!-- ======================================== -->
-                        <div class="asset-batch-container space-y-4">
+                        <!-- ================================================================ -->
+                        <!-- ASSET BATCH DETAILS - FORCED LIGHT THEME                        -->
+                        <!-- ================================================================ -->
+                        <div id="asset-batch-container" class="asset-batch-container">
                             <!-- Section Header -->
                             <div class="flex items-center gap-2 border-b-2 border-indigo-100/60 pb-2">
                                 <div class="w-6 h-6 bg-indigo-600 text-white rounded-lg flex items-center justify-center text-[10px] font-black">2</div>
-                                <h3 class="text-sm font-black text-indigo-600 uppercase tracking-wider">Asset Batch Details</h3>
-                                <span id="batch-counter" class="ml-auto text-[10px] font-black text-indigo-400 bg-indigo-50 px-3 py-1 rounded-full">0 items</span>
+                                <h3 class="section-heading text-sm font-black text-indigo-600 uppercase tracking-wider">
+                                    Asset Batch Details
+                                </h3>
+                                <span id="batch-counter" class="ml-auto text-[10px] font-black text-indigo-400 bg-indigo-50 px-3 py-1 rounded-full">
+                                    0 items
+                                </span>
                             </div>
 
-                            <!-- Input Row -->
-                            <div class="form-group">
-                                <label class="text-[10px] font-black text-indigo-400 uppercase tracking-wider flex items-center gap-2">
+                            <!-- Form Label -->
+                            <div class="form-group mt-3">
+                                <label class="form-label text-[10px] font-black text-indigo-400 uppercase tracking-wider flex items-center gap-2">
                                     <i class="fa-solid fa-qrcode"></i> Scan/Enter Barcode *
                                 </label>
 
+                                <!-- Input Row -->
                                 <div class="batch-input-row">
                                     <div class="input-with-camera">
                                         <div class="input-icon">
@@ -518,60 +523,21 @@
                                             autocorrect="off"
                                             autocapitalize="off"
                                             spellcheck="false"
-                                            aria-label="Asset Barcode"
                                         >
-                                        <button
-                                            type="button"
-                                            onclick="startCameraScanner('t_asset_barcode')"
-                                            class="camera-button"
-                                            aria-label="Scan barcode with camera"
-                                        >
+                                        <button type="button" onclick="startCameraScanner('t_asset_barcode')" class="camera-button">
                                             <i class="fa-solid fa-camera text-lg"></i>
                                         </button>
                                     </div>
-                                    <button
-                                        type="button"
-                                        onclick="window.addAssetToBatch()"
-                                        class="add-asset-button"
-                                        aria-label="Add asset to batch"
-                                    >
+                                    <button type="button" onclick="window.addAssetToBatch()" class="add-asset-button">
                                         <i class="fa-solid fa-plus"></i>
                                         <span class="button-text">Add Asset</span>
                                     </button>
                                 </div>
                             </div>
 
-                            <!-- ======================================== -->
-                            <!-- DESKTOP TABLE VIEW -->
-                            <!-- ======================================== -->
-                            <div class="table-responsive-wrapper">
-                                <div class="table-scroll-container">
-                                    <table class="batch-table">
-                                        <thead>
-                                            <tr>
-                                                <th class="col-barcode">Barcode</th>
-                                                <th class="col-description">Asset Description</th>
-                                                <th class="col-location">Source Location</th>
-                                                <th class="col-action">Action</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody id="transfer-batch-body">
-                                            <tr id="empty-batch-row">
-                                                <td colspan="4" class="empty-state">
-                                                    <i class="fa-solid fa-box-open block text-2xl mb-2 opacity-20"></i>
-                                                    No assets added to batch yet.
-                                                </td>
-                                            </tr>
-                                        </tbody>
-                                    </table>
-                                </div>
-                            </div>
-
-                            <!-- ======================================== -->
-                            <!-- MOBILE CARDS VIEW - FIXED EYE ICON -->
-                            <!-- ======================================== -->
+                            <!-- Mobile Cards Container -->
                             <div id="batch-mobile-cards" class="batch-mobile-cards">
-                                <!-- Cards rendered by JS with VISIBLE EYE ICON -->
+                                <!-- Cards rendered by JavaScript -->
                             </div>
                         </div>
                         <div class="space-y-4"><div class="flex items-center gap-2 border-b-2 border-indigo-100/60 pb-2"><div class="w-6 h-6 bg-indigo-600 text-white rounded-lg flex items-center justify-center text-[10px] font-black">3</div><h3 class="text-sm font-black text-indigo-600 uppercase tracking-wider">Authorization</h3></div>
@@ -756,9 +722,9 @@
         };
     </script>
 
-    <!-- ======================================== -->
-    <!-- ASSET DETAILS MODAL - FIXED -->
-    <!-- ======================================== -->
+    <!-- ================================================================ -->
+    <!-- 16-FIELD DETAILS MODAL - FORCED LIGHT THEME                      -->
+    <!-- ================================================================ -->
     <div id="asset-details-modal" class="asset-details-modal" style="display: none;">
         <div class="modal-overlay" onclick="window.closeAssetDetailsModal()"></div>
         <div class="modal-container animate-slide-up">
@@ -775,9 +741,8 @@
                 </button>
             </div>
 
-            <!-- Modal Body - 16 Fields -->
+            <!-- Modal Body -->
             <div id="modal-preview-container" class="modal-body">
-                <!-- Content rendered by JavaScript -->
                 <div class="modal-loading">
                     <i class="fa-solid fa-spinner fa-spin text-2xl"></i>
                     <span>Loading asset details...</span>
@@ -792,6 +757,34 @@
             </div>
         </div>
     </div>
+
+    <!-- ================================================================ -->
+    <!-- FORCE LIGHT THEME SCRIPT                                        -->
+    <!-- ================================================================ -->
+    <script>
+        (function forceLightTheme() {
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', forceLightTheme);
+                return;
+            }
+            console.log('🎨 Forcing Light Theme...');
+            const style = document.createElement('style');
+            style.id = 'force-light-theme-js';
+            style.textContent = `
+                #asset-batch-container, .asset-batch-container { background: #ffffff !important; color: #0f172a !important; }
+                .batch-card { background: #f8fafc !important; color: #0f172a !important; border: 1px solid #cbd5e1 !important; }
+                .asset-details-modal .modal-container { background: #ffffff !important; color: #0f172a !important; }
+                .asset-details-modal .modal-body { background: #f8fafc !important; }
+                .detail-item { background: #ffffff !important; border: 1px solid #e2e8f0 !important; }
+                @media (prefers-color-scheme: dark) {
+                    .asset-batch-container, .batch-card, .modal-container, .modal-body, .detail-item {
+                        background-color: white !important; color: #0f172a !important;
+                    }
+                }
+            `;
+            document.head.appendChild(style);
+        })();
+    </script>
 
     <script type="module" src="firebase_config.js?v=3.2"></script>
     <script type="module" src="ui_module.js?v=3.2"></script>
