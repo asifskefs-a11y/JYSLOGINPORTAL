@@ -212,37 +212,63 @@ window.addAssetToBatch = async () => {
     }
 };
 
+// ======================================== */
+// RENDER BATCH TABLE - MOBILE RESPONSIVE */
+// ======================================== */
+
 window.renderBatchTable = () => {
     const body = document.getElementById('transfer-batch-body');
+    const mobileCards = document.getElementById('batch-mobile-cards');
+
     if (!body) return;
 
     if (!window.transferBatch || window.transferBatch.length === 0) {
+        // Empty state for table
         body.innerHTML = `
             <tr id="empty-batch-row">
-                <td colspan="4" class="px-4 py-8 text-center text-slate-400 font-medium italic">
+                <td colspan="4" class="empty-state">
                     <i class="fa-solid fa-box-open block text-2xl mb-2 opacity-20"></i>
                     No assets added to batch yet.
                 </td>
             </tr>
         `;
+
+        // Empty state for mobile cards
+        if (mobileCards) {
+            mobileCards.innerHTML = `
+                <div class="empty-state-card text-center p-8 bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200 text-slate-400 italic">
+                    <i class="fa-solid fa-box-open block text-3xl mb-3 opacity-20"></i>
+                    No assets added to batch yet.
+                </div>
+            `;
+        }
         return;
     }
 
+    // ======================================== */
+    // RENDER TABLE (Desktop/Tablet)
+    // ======================================== */
     body.innerHTML = window.transferBatch.map((asset, index) => {
         const sourceLoc = asset.location || 'Unknown';
+        const desc = asset.description || 'N/A';
+
         return `
-            <tr class="hover:bg-indigo-50/20 transition-colors animate-fade-in">
-                <td class="px-4 py-3 font-mono font-bold text-indigo-600">${asset.barcode}</td>
-                <td class="px-4 py-3 font-medium text-slate-700 truncate max-w-[200px]">${asset.description || 'N/A'}</td>
-                <td class="px-4 py-3 text-slate-500 font-semibold uppercase text-[9px]">${sourceLoc}</td>
-                <td class="px-4 py-3 text-center">
-                    <div class="flex items-center justify-center gap-2">
-                        <button type="button" onclick="window.openAssetDetailsModal(${index})"
-                                class="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center hover:bg-indigo-600 hover:text-white transition-all shadow-sm">
+            <tr class="animate-fade-in">
+                <td class="barcode-cell">${asset.barcode}</td>
+                <td class="description-cell truncate max-w-[200px]" title="${desc}">${desc}</td>
+                <td class="location-cell truncate max-w-[150px]" title="${sourceLoc}">${sourceLoc}</td>
+                <td>
+                    <div class="action-buttons">
+                        <button type="button"
+                                onclick="window.openAssetDetailsModal(${index})"
+                                class="action-btn view-btn"
+                                aria-label="View asset details">
                             <i class="fa-solid fa-eye text-xs"></i>
                         </button>
-                        <button type="button" onclick="window.removeAssetFromBatch(${index})"
-                                class="w-8 h-8 rounded-lg bg-rose-50 text-rose-600 flex items-center justify-center hover:bg-rose-600 hover:text-white transition-all shadow-sm">
+                        <button type="button"
+                                onclick="window.removeAssetFromBatch(${index})"
+                                class="action-btn delete-btn"
+                                aria-label="Remove asset from batch">
                             <i class="fa-solid fa-trash-can text-xs"></i>
                         </button>
                     </div>
@@ -250,11 +276,67 @@ window.renderBatchTable = () => {
             </tr>
         `;
     }).join('');
+
+    // ======================================== */
+    // RENDER MOBILE CARDS
+    // ======================================== */
+    if (mobileCards) {
+        mobileCards.innerHTML = window.transferBatch.map((asset, index) => {
+            const sourceLoc = asset.location || 'Unknown';
+            const desc = asset.description || 'N/A';
+
+            return `
+                <div class="batch-card animate-fade-in" data-index="${index}">
+                    <div class="card-row">
+                        <span class="card-label">Barcode</span>
+                        <span class="card-value barcode-cell">${asset.barcode}</span>
+                    </div>
+                    <div class="card-row">
+                        <span class="card-label">Description</span>
+                        <span class="card-value font-bold">${desc}</span>
+                    </div>
+                    <div class="card-row">
+                        <span class="card-label">Location</span>
+                        <span class="card-value text-[10px] font-black text-slate-500 uppercase">${sourceLoc}</span>
+                    </div>
+                    <div class="card-actions">
+                        <button type="button"
+                                onclick="window.openAssetDetailsModal(${index})"
+                                class="view-card-btn flex items-center gap-2 px-4 py-2 rounded-xl bg-indigo-50 text-indigo-600 font-bold text-[10px] uppercase">
+                            <i class="fa-regular fa-eye"></i> View
+                        </button>
+                        <button type="button"
+                                onclick="window.removeAssetFromBatch(${index})"
+                                class="delete-card-btn flex items-center gap-2 px-4 py-2 rounded-xl bg-rose-50 text-rose-600 font-bold text-[10px] uppercase">
+                            <i class="fa-regular fa-trash-can"></i> Remove
+                        </button>
+                    </div>
+                </div>
+            `;
+        }).join('');
+    }
 };
 
+// ======================================== */
+// HANDLE WINDOW RESIZE
+// ======================================== */
+let resizeTimeout;
+
+window.addEventListener('resize', () => {
+    clearTimeout(resizeTimeout);
+    resizeTimeout = setTimeout(() => {
+        // Re-render only if batch exists
+        if (window.transferBatch && window.transferBatch.length > 0) {
+            window.renderBatchTable();
+        }
+    }, 250);
+});
+
 window.removeAssetFromBatch = (index) => {
-    window.transferBatch.splice(index, 1);
-    window.renderBatchTable();
+    if (confirm(`Remove asset from batch?`)) {
+        window.transferBatch.splice(index, 1);
+        window.renderBatchTable();
+    }
 };
 
 window.openAssetDetailsModal = (index) => {

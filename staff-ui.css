@@ -434,3 +434,320 @@ body {
         padding-right: max(0px, env(safe-area-inset-right)) !important;
     }
 }
+
+/* ======================================== */
+/* ASSET BATCH DETAILS - MOBILE RESPONSIVE (v3.5.4) */
+/* ======================================== */
+
+.asset-batch-container {
+    background: var(--white);
+    padding: 20px;
+    border-radius: 24px;
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+}
+
+.batch-input-row {
+    display: flex !important;
+    flex-direction: row;
+    flex-wrap: nowrap !important;
+    gap: 10px !important;
+    align-items: stretch !important;
+    width: 100% !important;
+    margin-top: 8px;
+}
+
+.input-with-camera {
+    position: relative !important;
+    flex: 1 1 auto !important;
+    display: flex !important;
+    align-items: stretch;
+    min-width: 0 !important;
+}
+
+.input-icon {
+    position: absolute;
+    left: 14px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #A5B4FC;
+    z-index: 2;
+    pointer-events: none;
+    display: flex;
+    align-items: center;
+}
+
+.batch-input-field {
+    flex: 1 !important;
+    min-width: 0 !important;
+    width: 100% !important;
+    padding: 14px 56px 14px 46px !important;
+    background: #F8FAFC;
+    border: 2px solid #E2E8F0 !important;
+    border-radius: 16px !important;
+    font-size: 14px !important;
+    font-weight: 700 !important;
+    color: #1E293B !important;
+    outline: none !important;
+    transition: all 0.2s ease;
+    height: 56px !important;
+}
+
+.batch-input-field:focus {
+    border-color: #6366F1 !important;
+    background: #FFFFFF !important;
+    box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.1) !important;
+}
+
+.camera-button {
+    position: absolute !important;
+    right: 6px !important;
+    top: 50% !important;
+    transform: translateY(-50%) !important;
+    width: 44px !important;
+    height: 44px !important;
+    background: #6366F1 !important;
+    color: #FFFFFF !important;
+    border: none !important;
+    border-radius: 12px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3) !important;
+    z-index: 2;
+    flex-shrink: 0 !important;
+}
+
+.add-asset-button {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 8px !important;
+    padding: 0 20px !important;
+    min-height: 56px !important;
+    background: #4F46E5 !important;
+    color: #FFFFFF !important;
+    border: none !important;
+    border-radius: 16px !important;
+    font-weight: 900 !important;
+    font-size: 11px !important;
+    text-transform: uppercase !important;
+    letter-spacing: 1px !important;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3) !important;
+    white-space: nowrap !important;
+    flex-shrink: 0 !important;
+}
+
+.table-responsive-wrapper {
+    width: 100%;
+    margin-top: 12px;
+    border-radius: 16px;
+    border: 1px solid #E0E7FF;
+    background: #F8FAFC;
+    overflow: hidden;
+}
+
+.table-scroll-container {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+.batch-table {
+    width: 100%;
+    min-width: 600px;
+    border-collapse: collapse;
+    font-size: 11px;
+}
+
+.batch-table thead {
+    background: #EEF2FF;
+    border-bottom: 2px solid #E0E7FF;
+}
+
+.batch-table thead th {
+    padding: 12px 16px;
+    font-weight: 900;
+    color: #312E81;
+    text-transform: uppercase;
+    font-size: 10px;
+    text-align: left;
+}
+
+.batch-table tbody td {
+    padding: 12px 16px;
+    border-bottom: 1px solid rgba(224, 231, 255, 0.3);
+    vertical-align: middle;
+}
+
+.batch-table .barcode-cell {
+    font-family: 'Courier New', monospace;
+    font-weight: 700;
+    color: #4F46E5;
+}
+
+.batch-table .action-buttons {
+    display: flex;
+    gap: 6px;
+    justify-content: center;
+}
+
+.batch-table .action-btn {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    cursor: pointer;
+}
+
+.batch-table .view-btn { background: #EEF2FF; color: #4F46E5; }
+.batch-table .delete-btn { background: #FEF2F2; color: #EF4444; }
+
+.batch-mobile-cards {
+    display: none;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.batch-card {
+    background: white;
+    border: 1px solid #E0E7FF;
+    border-radius: 16px;
+    padding: 16px;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
+.batch-card .card-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 6px 0;
+    border-bottom: 1px solid #F1F5F9;
+}
+
+.batch-card .card-label { font-size: 9px; font-weight: 700; color: #818CF8; text-transform: uppercase; }
+.batch-card .card-value { font-size: 12px; font-weight: 600; color: #334155; }
+
+.batch-card .card-actions {
+    display: flex;
+    gap: 8px;
+    justify-content: flex-end;
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid #F1F5F9;
+}
+
+.batch-card .card-actions button {
+    padding: 8px 16px;
+    border-radius: 8px;
+    border: none;
+    font-weight: 600;
+    font-size: 11px;
+}
+
+.view-card-btn { background: #EEF2FF; color: #4F46E5; }
+.delete-card-btn { background: #FEF2F2; color: #EF4444; }
+
+@media (max-width: 640px) {
+    .batch-input-row {
+        flex-direction: column !important;
+        flex-wrap: wrap !important;
+    }
+
+    .input-with-camera {
+        width: 100% !important;
+        flex: 1 1 100% !important;
+    }
+
+    .batch-input-field {
+        height: 50px !important;
+        padding-right: 52px !important;
+        padding-left: 42px !important;
+        font-size: 16px !important;
+    }
+
+    .camera-button {
+        width: 38px !important;
+        height: 38px !important;
+        right: 4px !important;
+    }
+
+    .add-asset-button {
+        width: 100% !important;
+        flex: 1 1 100% !important;
+        min-height: 48px !important;
+    }
+
+    .table-responsive-wrapper { display: none; }
+    .batch-mobile-cards { display: flex; }
+}
+
+/* ======================================== */
+/* EMERGENCY OVERLAP FIXES */
+/* ======================================== */
+
+/* Ensure no overlap on any screen */
+.batch-input-row {
+    display: flex !important;
+    flex-wrap: nowrap !important;
+    gap: 10px !important;
+    align-items: stretch !important;
+    width: 100% !important;
+}
+
+.input-with-camera {
+    flex: 1 1 auto !important;
+    min-width: 0 !important;
+    position: relative !important;
+    display: flex !important;
+}
+
+.batch-input-field {
+    flex: 1 !important;
+    min-width: 0 !important;
+    width: 100% !important;
+}
+
+.camera-button {
+    flex-shrink: 0 !important;
+    position: absolute !important;
+    right: 6px !important;
+    top: 50% !important;
+    transform: translateY(-50%) !important;
+}
+
+/* Mobile Overlap Prevention */
+@media (max-width: 640px) {
+    .batch-input-row {
+        flex-direction: column !important;
+        flex-wrap: wrap !important;
+    }
+
+    .input-with-camera {
+        width: 100% !important;
+        flex: 1 1 100% !important;
+    }
+
+    .add-asset-button {
+        width: 100% !important;
+        flex: 1 1 100% !important;
+        margin-top: 0 !important;
+    }
+
+    /* Prevent any overlap */
+    .batch-input-field {
+        padding-right: 52px !important;
+        padding-left: 42px !important;
+        height: 50px !important;
+    }
+
+    .camera-button {
+        width: 38px !important;
+        height: 38px !important;
+        right: 4px !important;
+    }
+}
