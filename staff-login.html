@@ -488,24 +488,23 @@
                         <!-- ======================================== -->
                         <!-- ASSET BATCH DETAILS - MOBILE RESPONSIVE -->
                         <!-- ======================================== -->
+                        <!-- ASSET BATCH DETAILS - FIXED -->
+                        <!-- ======================================== -->
                         <div class="asset-batch-container space-y-4">
                             <!-- Section Header -->
                             <div class="flex items-center gap-2 border-b-2 border-indigo-100/60 pb-2">
                                 <div class="w-6 h-6 bg-indigo-600 text-white rounded-lg flex items-center justify-center text-[10px] font-black">2</div>
                                 <h3 class="text-sm font-black text-indigo-600 uppercase tracking-wider">Asset Batch Details</h3>
+                                <span id="batch-counter" class="ml-auto text-[10px] font-black text-indigo-400 bg-indigo-50 px-3 py-1 rounded-full">0 items</span>
                             </div>
 
-                            <!-- ======================================== -->
-                            <!-- INPUT ROW - FIXED OVERLAP ISSUE -->
-                            <!-- ======================================== -->
+                            <!-- Input Row -->
                             <div class="form-group">
                                 <label class="text-[10px] font-black text-indigo-400 uppercase tracking-wider flex items-center gap-2">
                                     <i class="fa-solid fa-qrcode"></i> Scan/Enter Barcode *
                                 </label>
 
-                                <!-- Mobile-First Flex Layout -->
                                 <div class="batch-input-row">
-                                    <!-- Input with Camera Button -->
                                     <div class="input-with-camera">
                                         <div class="input-icon">
                                             <i class="fa-solid fa-barcode text-lg"></i>
@@ -530,8 +529,6 @@
                                             <i class="fa-solid fa-camera text-lg"></i>
                                         </button>
                                     </div>
-
-                                    <!-- Add Asset Button -->
                                     <button
                                         type="button"
                                         onclick="window.addAssetToBatch()"
@@ -545,7 +542,7 @@
                             </div>
 
                             <!-- ======================================== -->
-                            <!-- TABLE WITH HORIZONTAL SCROLL -->
+                            <!-- DESKTOP TABLE VIEW -->
                             <!-- ======================================== -->
                             <div class="table-responsive-wrapper">
                                 <div class="table-scroll-container">
@@ -559,7 +556,6 @@
                                             </tr>
                                         </thead>
                                         <tbody id="transfer-batch-body">
-                                            <!-- Dynamic Rows rendered by JS -->
                                             <tr id="empty-batch-row">
                                                 <td colspan="4" class="empty-state">
                                                     <i class="fa-solid fa-box-open block text-2xl mb-2 opacity-20"></i>
@@ -572,10 +568,10 @@
                             </div>
 
                             <!-- ======================================== -->
-                            <!-- MOBILE CARD VIEW (Alternative Layout) -->
+                            <!-- MOBILE CARDS VIEW - FIXED EYE ICON -->
                             <!-- ======================================== -->
-                            <div id="batch-mobile-cards" class="batch-mobile-cards" style="display: none;">
-                                <!-- Cards rendered by JS for mobile -->
+                            <div id="batch-mobile-cards" class="batch-mobile-cards">
+                                <!-- Cards rendered by JS with VISIBLE EYE ICON -->
                             </div>
                         </div>
                         <div class="space-y-4"><div class="flex items-center gap-2 border-b-2 border-indigo-100/60 pb-2"><div class="w-6 h-6 bg-indigo-600 text-white rounded-lg flex items-center justify-center text-[10px] font-black">3</div><h3 class="text-sm font-black text-indigo-600 uppercase tracking-wider">Authorization</h3></div>
@@ -760,29 +756,38 @@
         };
     </script>
 
-    <!-- ASSET DETAILS MODAL (v3.5.3) -->
-    <div id="asset-details-modal" class="fixed inset-0 z-[200000] hidden flex items-center justify-center p-4 bg-indigo-950/80 backdrop-blur-md animate-fade-in">
-        <div class="w-full max-w-4xl bg-white/95 rounded-[2.5rem] shadow-2xl border-4 border-white/40 overflow-hidden animate-slide-up flex flex-col max-h-[90vh]">
+    <!-- ======================================== -->
+    <!-- ASSET DETAILS MODAL - FIXED -->
+    <!-- ======================================== -->
+    <div id="asset-details-modal" class="asset-details-modal" style="display: none;">
+        <div class="modal-overlay" onclick="window.closeAssetDetailsModal()"></div>
+        <div class="modal-container animate-slide-up">
             <!-- Modal Header -->
-            <div class="px-8 py-6 bg-indigo-600 text-white flex items-center justify-between">
+            <div class="modal-header">
                 <div>
-                    <h3 class="text-xl font-black uppercase tracking-tight">Detailed Asset Profile</h3>
-                    <p class="text-[10px] font-bold text-indigo-200 uppercase tracking-widest">Complete Master Register Info</p>
+                    <h3 class="modal-title">
+                        <i class="fa-solid fa-circle-info mr-2"></i> Detailed Asset Profile
+                    </h3>
+                    <p class="modal-subtitle">Complete Master Register Info - 16 Fields</p>
                 </div>
-                <button onclick="window.closeAssetDetailsModal()" class="w-12 h-12 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-all">
+                <button onclick="window.closeAssetDetailsModal()" class="modal-close-btn">
                     <i class="fa-solid fa-xmark text-xl"></i>
                 </button>
             </div>
 
-            <!-- Modal Body (Dynamic Preview) -->
-            <div id="modal-preview-container" class="flex-1 overflow-y-auto p-6 md:p-8">
-                <!-- Smart Preview Grid will render here -->
+            <!-- Modal Body - 16 Fields -->
+            <div id="modal-preview-container" class="modal-body">
+                <!-- Content rendered by JavaScript -->
+                <div class="modal-loading">
+                    <i class="fa-solid fa-spinner fa-spin text-2xl"></i>
+                    <span>Loading asset details...</span>
+                </div>
             </div>
 
             <!-- Modal Footer -->
-            <div class="p-6 bg-slate-50 border-t border-slate-100 flex justify-end">
-                <button onclick="window.closeAssetDetailsModal()" class="px-8 py-3 bg-indigo-600 text-white rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl active:scale-95 transition-all">
-                    Close Details
+            <div class="modal-footer">
+                <button onclick="window.closeAssetDetailsModal()" class="modal-close-btn-bottom">
+                    <i class="fa-regular fa-circle-xmark mr-2"></i> Close Details
                 </button>
             </div>
         </div>
