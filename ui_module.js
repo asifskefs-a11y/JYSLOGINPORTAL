@@ -663,55 +663,92 @@ window.triggerSuccessPopup = (message, duration = 3000) => {
     }, duration);
 };
 
-// --- SIGNATURE & CANVAS UTILITIES (FIXED v3.5.1) ---
+// --- SIGNATURE & CANVAS UTILITIES (ENHANCED v3.5.2) ---
 window.initCanvasDrawing = (canvasId) => {
     const canvas = document.getElementById(canvasId);
     if (!canvas) return;
 
-    // Ensure styles for drawing
+    // Prevent scrolling when touching the canvas
     canvas.style.touchAction = 'none';
-    canvas.style.pointerEvents = 'auto';
+    canvas.style.userSelect = 'none';
+    canvas.style.webkitUserSelect = 'none';
 
     const ctx = canvas.getContext('2d');
     const ratio = window.devicePixelRatio || 1;
-    canvas.width = canvas.offsetWidth * ratio;
-    canvas.height = canvas.offsetHeight * ratio;
-    ctx.scale(ratio, ratio);
 
-    ctx.lineWidth = 3;
-    ctx.lineCap = 'round';
-    ctx.strokeStyle = '#1E1B4B';
+    // Only set size if it hasn't been set or if the element size changed
+    const targetWidth = canvas.offsetWidth * ratio;
+    const targetHeight = canvas.offsetHeight * ratio;
+
+    if (canvas.width !== targetWidth || canvas.height !== targetHeight) {
+        canvas.width = targetWidth;
+        canvas.height = targetHeight;
+        ctx.scale(ratio, ratio);
+
+        // Reset context properties after size change
+        ctx.lineWidth = 3;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        ctx.strokeStyle = '#1E1B4B';
+    }
 
     let drawing = false;
+    let lastPos = { x: 0, y: 0 };
 
     const getPos = (e) => {
         const rect = canvas.getBoundingClientRect();
-        const clientX = (e.clientX || (e.touches && e.touches[0].clientX));
-        const clientY = (e.clientY || (e.touches && e.touches[0].clientY));
-        return { x: clientX - rect.left, y: clientY - rect.top };
+        // Support for TouchEvents and PointerEvents
+        const clientX = e.clientX || (e.touches && e.touches[0] ? e.touches[0].clientX : 0);
+        const clientY = e.clientY || (e.touches && e.touches[0] ? e.touches[0].clientY : 0);
+        return {
+            x: clientX - rect.left,
+            y: clientY - rect.top
+        };
     };
 
     const start = (e) => {
         drawing = true;
+        lastPos = getPos(e);
         ctx.beginPath();
-        const p = getPos(e);
-        ctx.moveTo(p.x, p.y);
+        ctx.moveTo(lastPos.x, lastPos.y);
+        // Important: don't call preventDefault if it's not needed to avoid console warnings
         if (e.cancelable) e.preventDefault();
     };
 
-    const move = (e) => {
+    const draw = (e) => {
         if (!drawing) return;
-        const p = getPos(e);
-        ctx.lineTo(p.x, p.y);
+        const currentPos = getPos(e);
+
+        ctx.beginPath();
+        ctx.moveTo(lastPos.x, lastPos.y);
+        ctx.lineTo(currentPos.x, currentPos.y);
         ctx.stroke();
+
+        lastPos = currentPos;
         if (e.cancelable) e.preventDefault();
     };
 
-    const stop = () => { drawing = false; ctx.closePath(); };
+    const stop = () => {
+        if (drawing) {
+            drawing = false;
+            ctx.closePath();
+        }
+    };
 
-    canvas.onmousedown = canvas.ontouchstart = start;
-    canvas.onmousemove = canvas.ontouchmove = move;
-    window.onmouseup = window.ontouchend = stop;
+    // Remove old listeners to avoid duplicates
+    canvas.onmousedown = canvas.ontouchstart = null;
+    canvas.onmousemove = canvas.ontouchmove = null;
+
+    // Use standard event listeners for better reliability
+    canvas.addEventListener('mousedown', start, { passive: false });
+    canvas.addEventListener('touchstart', start, { passive: false });
+
+    canvas.addEventListener('mousemove', draw, { passive: false });
+    canvas.addEventListener('touchmove', draw, { passive: false });
+
+    window.addEventListener('mouseup', stop);
+    window.addEventListener('touchend', stop);
+    canvas.addEventListener('mouseleave', stop);
 };
 
 window.getCanvasBase64 = (canvasId) => {
