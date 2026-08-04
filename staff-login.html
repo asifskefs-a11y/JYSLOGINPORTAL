@@ -485,30 +485,24 @@
                             <div class="space-y-1.5"><label class="text-[9px] font-black text-slate-400 uppercase tracking-wider flex items-center gap-1.5">Collector Name *</label><input type="text" id="t_collector_name" placeholder="Full Name" required class="w-full px-4 py-3.5 bg-slate-50 border-2 border-slate-200 rounded-xl focus:border-indigo-500 focus:bg-white outline-none transition-all text-sm font-medium"></div>
                             <div class="space-y-1.5"><label class="text-[9px] font-black text-slate-400 uppercase tracking-wider flex items-center gap-1.5">Company Name *</label><input type="text" id="t_company_name" placeholder="Company Name" required class="w-full px-4 py-3.5 bg-slate-50 border-2 border-slate-200 rounded-xl focus:border-indigo-500 focus:bg-white outline-none transition-all text-sm font-medium"></div>
                         </div></div>
-                        <!-- ======================================== -->
-                        <!-- ASSET BATCH DETAILS - MOBILE RESPONSIVE -->
                         <!-- ================================================================ -->
-                        <!-- ASSET BATCH DETAILS - FORCED LIGHT THEME                        -->
+                        <!-- SECTION 2: ASSET BATCH DETAILS - RESPONSIVE                      -->
                         <!-- ================================================================ -->
                         <div id="asset-batch-container" class="asset-batch-container">
                             <!-- Section Header -->
-                            <div class="flex items-center gap-2 border-b-2 border-indigo-100/60 pb-2">
-                                <div class="w-6 h-6 bg-indigo-600 text-white rounded-lg flex items-center justify-center text-[10px] font-black">2</div>
-                                <h3 class="section-heading text-sm font-black text-indigo-600 uppercase tracking-wider">
-                                    Asset Batch Details
-                                </h3>
-                                <span id="batch-counter" class="ml-auto text-[10px] font-black text-indigo-400 bg-indigo-50 px-3 py-1 rounded-full">
-                                    0 items
-                                </span>
+                            <div class="batch-header">
+                                <div class="batch-header-left">
+                                    <div class="batch-number">2</div>
+                                    <h3 class="batch-title">Asset Batch Details</h3>
+                                </div>
+                                <span id="batch-counter" class="batch-counter">0 items</span>
                             </div>
 
-                            <!-- Form Label -->
-                            <div class="form-group mt-3">
-                                <label class="form-label text-[10px] font-black text-indigo-400 uppercase tracking-wider flex items-center gap-2">
+                            <!-- Input Area -->
+                            <div class="batch-input-group">
+                                <label class="batch-label">
                                     <i class="fa-solid fa-qrcode"></i> Scan/Enter Barcode *
                                 </label>
-
-                                <!-- Input Row -->
                                 <div class="batch-input-row">
                                     <div class="input-with-camera">
                                         <div class="input-icon">
@@ -535,9 +529,39 @@
                                 </div>
                             </div>
 
-                            <!-- Mobile Cards Container -->
-                            <div id="batch-mobile-cards" class="batch-mobile-cards">
-                                <!-- Cards rendered by JavaScript -->
+                            <!-- DESKTOP VIEW: TABLE -->
+                            <div class="batch-desktop-view">
+                                <div class="table-responsive-wrapper">
+                                    <div class="table-scroll-container">
+                                        <table class="batch-table" id="batch-table">
+                                            <thead>
+                                                <tr>
+                                                    <th class="col-barcode">Barcode</th>
+                                                    <th class="col-category">Category</th>
+                                                    <th class="col-description">Asset Description</th>
+                                                    <th class="col-location">Source Location</th>
+                                                    <th class="col-actions">Actions</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="transfer-batch-body">
+                                                <tr id="empty-batch-row">
+                                                    <td colspan="5" class="empty-state">
+                                                        <i class="fa-solid fa-box-open"></i>
+                                                        <span>No assets added to batch yet.</span>
+                                                    </td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- MOBILE VIEW: CARDS -->
+                            <div id="batch-mobile-cards" class="batch-mobile-view">
+                                <div class="empty-state-card">
+                                    <i class="fa-solid fa-box-open"></i>
+                                    <span>No assets added to batch yet.</span>
+                                </div>
                             </div>
                         </div>
                         <div class="space-y-4"><div class="flex items-center gap-2 border-b-2 border-indigo-100/60 pb-2"><div class="w-6 h-6 bg-indigo-600 text-white rounded-lg flex items-center justify-center text-[10px] font-black">3</div><h3 class="text-sm font-black text-indigo-600 uppercase tracking-wider">Authorization</h3></div>
@@ -723,35 +747,35 @@
     </script>
 
     <!-- ================================================================ -->
-    <!-- 16-FIELD DETAILS MODAL - FORCED LIGHT THEME                      -->
+    <!-- 16-FIELD ASSET DETAILS MODAL - RESPONSIVE                        -->
     <!-- ================================================================ -->
     <div id="asset-details-modal" class="asset-details-modal" style="display: none;">
         <div class="modal-overlay" onclick="window.closeAssetDetailsModal()"></div>
-        <div class="modal-container animate-slide-up">
+        <div class="modal-container">
             <!-- Modal Header -->
             <div class="modal-header">
                 <div>
                     <h3 class="modal-title">
-                        <i class="fa-solid fa-circle-info mr-2"></i> Detailed Asset Profile
+                        <i class="fa-regular fa-rectangle-list mr-2"></i> Detailed Asset Profile
                     </h3>
                     <p class="modal-subtitle">Complete Master Register Info - 16 Fields</p>
                 </div>
-                <button onclick="window.closeAssetDetailsModal()" class="modal-close-btn">
+                <button type="button" onclick="window.closeAssetDetailsModal()" class="modal-close-btn">
                     <i class="fa-solid fa-xmark text-xl"></i>
                 </button>
             </div>
 
-            <!-- Modal Body -->
+            <!-- Modal Body - 16 Fields Grid -->
             <div id="modal-preview-container" class="modal-body">
                 <div class="modal-loading">
-                    <i class="fa-solid fa-spinner fa-spin text-2xl"></i>
+                    <i class="fa-solid fa-spinner fa-spin"></i>
                     <span>Loading asset details...</span>
                 </div>
             </div>
 
             <!-- Modal Footer -->
             <div class="modal-footer">
-                <button onclick="window.closeAssetDetailsModal()" class="modal-close-btn-bottom">
+                <button type="button" onclick="window.closeAssetDetailsModal()" class="modal-close-btn-bottom">
                     <i class="fa-regular fa-circle-xmark mr-2"></i> Close Details
                 </button>
             </div>

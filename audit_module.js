@@ -157,13 +157,10 @@ window.submitAssetDisposal = async () => {
     }
 };
 
-// ======================================== */
-// ASSET BATCH MANAGEMENT - FIXED
-// ======================================== */
+// ================================================================ */
+// ASSET BATCH MANAGEMENT - RESPONSIVE                              */
+// ================================================================ */
 
-// ======================================== */
-// ADD ASSET TO BATCH
-// ======================================== */
 window.addAssetToBatch = async () => {
     const barcodeInput = document.getElementById('t_asset_barcode');
     if (!barcodeInput) return;
@@ -179,8 +176,8 @@ window.addAssetToBatch = async () => {
         return;
     }
 
-    const btn = document.querySelector('button[onclick="window.addAssetToBatch()"]');
-    const originalContent = btn ? btn.innerHTML : '+ ADD ASSET';
+    const btn = document.querySelector('.add-asset-button');
+    const originalContent = btn ? btn.innerHTML : 'Add Asset';
     if (btn) {
         btn.disabled = true;
         btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
@@ -195,9 +192,7 @@ window.addAssetToBatch = async () => {
             const asset = normalizer.createAsset(mappedData, barcode);
 
             window.transferBatch.push(asset);
-            window.renderBatchTable();
-            window.renderMobileCards();
-            window.updateBatchCounter();
+            window.renderBatchUI();
 
             barcodeInput.value = '';
             barcodeInput.focus();
@@ -216,99 +211,125 @@ window.addAssetToBatch = async () => {
     }
 };
 
-// ======================================== */
-// REMOVE ASSET FROM BATCH
-// ======================================== */
 window.removeAssetFromBatch = (index) => {
     if (!window.transferBatch || index >= window.transferBatch.length) return;
-
-    if (confirm(`❌ Remove ${window.transferBatch[index].barcode} from batch?`)) {
+    const asset = window.transferBatch[index];
+    if (confirm(`❌ Remove ${asset.barcode} from batch?`)) {
         window.transferBatch.splice(index, 1);
-        window.renderBatchTable();
-        window.renderMobileCards();
-        window.updateBatchCounter();
+        window.renderBatchUI();
         if (navigator.vibrate) navigator.vibrate(30);
     }
 };
 
-// ======================================== */
-// RENDER DESKTOP TABLE
-// ======================================== */
+window.renderBatchUI = () => {
+    window.renderBatchTable();
+    window.renderMobileCards();
+    window.updateBatchCounter();
+};
+
 window.renderBatchTable = () => {
     const body = document.getElementById('transfer-batch-body');
     if (!body) return;
 
     if (!window.transferBatch || window.transferBatch.length === 0) {
-        body.innerHTML = `<tr id="empty-batch-row"><td colspan="4" class="empty-state text-center p-8 text-slate-400 italic"><i class="fa-solid fa-box-open block text-2xl mb-2 opacity-20"></i>No assets added yet.</td></tr>`;
+        body.innerHTML = `
+            <tr id="empty-batch-row">
+                <td colspan="5" class="empty-state">
+                    <i class="fa-solid fa-box-open"></i>
+                    <span>No assets added to batch yet.</span>
+                </td>
+            </tr>
+        `;
         return;
     }
 
-    body.innerHTML = window.transferBatch.map((asset, index) => `
-        <tr class="animate-fade-in border-b border-slate-100 hover:bg-slate-50">
-            <td class="px-4 py-3 font-mono font-bold text-indigo-600">${asset.barcode}</td>
-            <td class="px-4 py-3 font-medium text-slate-700 truncate max-w-[200px]">${asset.description || 'N/A'}</td>
-            <td class="px-4 py-3 text-slate-500 font-semibold text-[9px] uppercase">${asset.location || 'Unknown'}</td>
-            <td class="px-4 py-3 text-center">
-                <div class="flex items-center justify-center gap-2">
-                    <button type="button" onclick="window.openAssetDetailsModal(${index})" class="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center"><i class="fa-solid fa-eye text-xs"></i></button>
-                    <button type="button" onclick="window.removeAssetFromBatch(${index})" class="w-8 h-8 rounded-lg bg-rose-50 text-rose-500 flex items-center justify-center"><i class="fa-solid fa-trash-can text-xs"></i></button>
-                </div>
-            </td>
-        </tr>
-    `).join('');
+    body.innerHTML = window.transferBatch.map((asset, index) => {
+        const desc = asset.description || 'N/A';
+        const loc = asset.location || 'Unknown';
+        const cat = asset.category || 'N/A';
+
+        return `
+            <tr>
+                <td class="barcode-cell">${asset.barcode}</td>
+                <td class="category-cell">${cat}</td>
+                <td class="description-cell" title="${desc}">${desc}</td>
+                <td class="location-cell" title="${loc}">${loc}</td>
+                <td>
+                    <div class="action-buttons">
+                        <button type="button"
+                                onclick="window.openAssetDetailsModal(${index})"
+                                class="action-btn view-btn">
+                            <i class="fa-solid fa-eye"></i>
+                        </button>
+                        <button type="button"
+                                onclick="window.removeAssetFromBatch(${index})"
+                                class="action-btn delete-btn">
+                            <i class="fa-solid fa-trash-can"></i>
+                        </button>
+                    </div>
+                </td>
+            </tr>
+        `;
+    }).join('');
 };
 
-// ======================================== */
-// RENDER MOBILE CARDS - FIXED EYE ICON 👁️
-// ======================================== */
 window.renderMobileCards = () => {
-    const mobileCards = document.getElementById('batch-mobile-cards');
-    if (!mobileCards) return;
+    const container = document.getElementById('batch-mobile-cards');
+    if (!container) return;
 
     if (!window.transferBatch || window.transferBatch.length === 0) {
-        mobileCards.innerHTML = `<div class="empty-state-card text-center p-8 bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200 text-slate-400 italic"><i class="fa-solid fa-box-open block text-3xl mb-3 opacity-20"></i><p>No assets added yet</p></div>`;
+        container.innerHTML = `
+            <div class="empty-state-card">
+                <i class="fa-solid fa-box-open"></i>
+                <span>No assets added to batch yet.</span>
+            </div>
+        `;
         return;
     }
 
-    mobileCards.innerHTML = window.transferBatch.map((asset, index) => `
-        <div class="batch-card animate-fade-in flex items-center justify-between p-4 bg-[#f8fafc] border border-[#cbd5e1] rounded-2xl shadow-sm mb-3">
-            <div class="card-content flex-1 min-w-0 pr-4">
-                <div class="card-header flex items-center gap-2 mb-1">
-                    <span class="card-barcode font-mono font-black text-[#3730a3] bg-[#e0e7ff] px-2 py-0.5 rounded-md text-[10px]">${asset.barcode}</span>
-                    <span class="card-category text-[8px] font-black text-[#3730a3] uppercase tracking-tighter truncate bg-[#e0e7ff] px-2 py-0.5 rounded-md">${asset.category || 'N/A'}</span>
+    container.innerHTML = window.transferBatch.map((asset, index) => {
+        const desc = asset.description || 'N/A';
+        const loc = asset.location || 'Unknown';
+        const cat = asset.category || 'N/A';
+
+        return `
+            <div class="batch-card">
+                <div class="card-content">
+                    <div class="card-header">
+                        <span class="card-barcode">${asset.barcode}</span>
+                        <span class="card-category">${cat}</span>
+                    </div>
+                    <div class="card-description" title="${desc}">${desc}</div>
+                    <div class="card-location">
+                        <i class="fa-solid fa-location-dot"></i> ${loc}
+                    </div>
                 </div>
-                <div class="card-description font-bold text-[#0f172a] text-[12px] truncate">${asset.description || 'N/A'}</div>
-                <div class="card-location text-[9px] font-medium text-slate-400 flex items-center gap-1 mt-0.5 uppercase font-black">
-                    <i class="fa-solid fa-location-dot text-indigo-300"></i> ${asset.location || 'Unknown'}
+                <div class="card-actions">
+                    <button type="button"
+                            onclick="window.openAssetDetailsModal(${index})"
+                            class="card-btn eye-btn">
+                        <i class="fa-solid fa-eye"></i>
+                    </button>
+                    <button type="button"
+                            onclick="window.removeAssetFromBatch(${index})"
+                            class="card-btn delete-btn">
+                        <i class="fa-solid fa-trash-can"></i>
+                    </button>
                 </div>
             </div>
-            <div class="card-actions flex items-center gap-2">
-                <button type="button" onclick="window.openAssetDetailsModal(${index})" class="eye-icon-btn" style="display: inline-flex !important; visibility: visible !important; min-width: 44px !important; min-height: 44px !important; width: 44px !important; height: 44px !important; align-items: center !important; justify-content: center !important; background: #e0e7ff !important; color: #3730a3 !important; border: 2px solid #c7d2fe !important; border-radius: 14px !important; cursor: pointer !important; box-shadow: 0 2px 8px rgba(99, 102, 241, 0.1) !important; z-index: 5 !important;">
-                    <i class="fa-solid fa-eye" style="font-size: 18px !important; display: inline-block !important; visibility: visible !important; pointer-events: none !important;"></i>
-                </button>
-                <button type="button" onclick="window.removeAssetFromBatch(${index})" class="delete-btn" style="display: inline-flex !important; visibility: visible !important; min-width: 44px !important; min-height: 44px !important; width: 44px !important; height: 44px !important; align-items: center !important; justify-content: center !important; background: #fee2e2 !important; color: #ef4444 !important; border: 2px solid #fecaca !important; border-radius: 14px !important; cursor: pointer !important; z-index: 5 !important;">
-                    <i class="fa-solid fa-trash-can" style="font-size: 16px !important; display: inline-block !important; visibility: visible !important; pointer-events: none !important;"></i>
-                </button>
-            </div>
-        </div>
-    `).join('');
+        `;
+    }).join('');
 };
 
-// ======================================== */
-// UPDATE BATCH COUNTER
-// ======================================== */
 window.updateBatchCounter = () => {
     const counter = document.getElementById('batch-counter');
     if (!counter) return;
     const count = window.transferBatch.length;
     counter.textContent = `${count} item${count !== 1 ? 's' : ''}`;
-    counter.style.background = count > 0 ? '#EEF2FF' : '#F1F5F9';
-    counter.style.color = count > 0 ? '#4F46E5' : '#94A3B8';
+    if (count > 0) counter.classList.add('has-items');
+    else counter.classList.remove('has-items');
 };
 
-// ======================================== */
-// OPEN ASSET DETAILS MODAL - 16 FIELDS
-// ======================================== */
 window.openAssetDetailsModal = (index) => {
     if (!window.transferBatch || !window.transferBatch[index]) return;
     const asset = window.transferBatch[index];
@@ -322,82 +343,57 @@ window.openAssetDetailsModal = (index) => {
 
     const photoUrl = window.getDirectDriveImageUrl(asset.photo);
     const photoHtml = (asset.photo && asset.photo !== 'N/A') ?
-        `<img src="${photoUrl}" alt="Asset Photo" style="max-width:100%; max-height:200px; border-radius:12px; border:1px solid #e2e8f0; object-fit:cover;">` :
-        '<span style="color:#94a3b8; font-size:12px; font-style:italic;">No photo available</span>';
+        `<img src="${photoUrl}" alt="Asset Photo" onerror="this.style.display='none'">` :
+        '<span style="color: #94a3b8; font-size: 13px;">No photo available</span>';
 
-    container.innerHTML = `
-        <div class="detail-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
-            <div class="detail-item" style="background:#ffffff; padding:14px; border-radius:12px; border:1px solid #e2e8f0; box-shadow:0 1px 2px rgba(0,0,0,0.05);">
-                <span class="detail-label" style="color:#64748b; font-size:0.75rem; font-weight:600; display:block; margin-bottom:4px; text-transform:uppercase; letter-spacing:0.025em;">Barcode</span>
-                <span class="detail-value" style="color:#0f172a; font-size:0.95rem; font-weight:600; font-family:monospace;">${asset.barcode}</span>
-            </div>
-            <div class="detail-item" style="background:#ffffff; padding:14px; border-radius:12px; border:1px solid #e2e8f0; box-shadow:0 1px 2px rgba(0,0,0,0.05);">
-                <span class="detail-label" style="color:#64748b; font-size:0.75rem; font-weight:600; display:block; margin-bottom:4px; text-transform:uppercase; letter-spacing:0.025em;">Category</span>
-                <span class="detail-value" style="color:#0f172a; font-size:0.95rem; font-weight:600;">${asset.category || 'N/A'}</span>
-            </div>
-            <div class="detail-item" style="background:#ffffff; padding:14px; border-radius:12px; border:1px solid #e2e8f0; box-shadow:0 1px 2px rgba(0,0,0,0.05); grid-column: 1 / -1;">
-                <span class="detail-label" style="color:#64748b; font-size:0.75rem; font-weight:600; display:block; margin-bottom:4px; text-transform:uppercase; letter-spacing:0.025em;">Description</span>
-                <span class="detail-value" style="color:#0f172a; font-size:0.95rem; font-weight:600;">${asset.description || 'N/A'}</span>
-            </div>
-            <div class="detail-item" style="background:#ffffff; padding:14px; border-radius:12px; border:1px solid #e2e8f0; box-shadow:0 1px 2px rgba(0,0,0,0.05);">
-                <span class="detail-label" style="color:#64748b; font-size:0.75rem; font-weight:600; display:block; margin-bottom:4px; text-transform:uppercase; letter-spacing:0.025em;">Location</span>
-                <span class="detail-value" style="color:#0f172a; font-size:0.95rem; font-weight:600;">${asset.location || 'N/A'}</span>
-            </div>
-            <div class="detail-item" style="background:#ffffff; padding:14px; border-radius:12px; border:1px solid #e2e8f0; box-shadow:0 1px 2px rgba(0,0,0,0.05);">
-                <span class="detail-label" style="color:#64748b; font-size:0.75rem; font-weight:600; display:block; margin-bottom:4px; text-transform:uppercase; letter-spacing:0.025em;">Building</span>
-                <span class="detail-value" style="color:#0f172a; font-size:0.95rem; font-weight:600;">${asset.building || 'N/A'}</span>
-            </div>
-            <div class="detail-item" style="background:#ffffff; padding:14px; border-radius:12px; border:1px solid #e2e8f0; box-shadow:0 1px 2px rgba(0,0,0,0.05);">
-                <span class="detail-label" style="color:#64748b; font-size:0.75rem; font-weight:600; display:block; margin-bottom:4px; text-transform:uppercase; letter-spacing:0.025em;">Floor</span>
-                <span class="detail-value" style="color:#0f172a; font-size:0.95rem; font-weight:600;">${asset.floor || 'N/A'}</span>
-            </div>
-            <div class="detail-item" style="background:#ffffff; padding:14px; border-radius:12px; border:1px solid #e2e8f0; box-shadow:0 1px 2px rgba(0,0,0,0.05);">
-                <span class="detail-label" style="color:#64748b; font-size:0.75rem; font-weight:600; display:block; margin-bottom:4px; text-transform:uppercase; letter-spacing:0.025em;">Room</span>
-                <span class="detail-value" style="color:#0f172a; font-size:0.95rem; font-weight:600;">${asset.room || 'N/A'}</span>
-            </div>
-            <div class="detail-item" style="background:#ffffff; padding:14px; border-radius:12px; border:1px solid #e2e8f0; box-shadow:0 1px 2px rgba(0,0,0,0.05);">
-                <span class="detail-label" style="color:#64748b; font-size:0.75rem; font-weight:600; display:block; margin-bottom:4px; text-transform:uppercase; letter-spacing:0.025em;">Serial No</span>
-                <span class="detail-value" style="color:#0f172a; font-size:0.95rem; font-weight:600; font-family:monospace;">${asset.serialNumber || 'N/A'}</span>
-            </div>
-            <div class="detail-item" style="background:#ffffff; padding:14px; border-radius:12px; border:1px solid #e2e8f0; box-shadow:0 1px 2px rgba(0,0,0,0.05);">
-                <span class="detail-label" style="color:#64748b; font-size:0.75rem; font-weight:600; display:block; margin-bottom:4px; text-transform:uppercase; letter-spacing:0.025em;">Vendor</span>
-                <span class="detail-value" style="color:#0f172a; font-size:0.95rem; font-weight:600;">${asset.vendor || 'N/A'}</span>
-            </div>
-            <div class="detail-item" style="background:#ffffff; padding:14px; border-radius:12px; border:1px solid #e2e8f0; box-shadow:0 1px 2px rgba(0,0,0,0.05);">
-                <span class="detail-label" style="color:#64748b; font-size:0.75rem; font-weight:600; display:block; margin-bottom:4px; text-transform:uppercase; letter-spacing:0.025em;">Manufacturer</span>
-                <span class="detail-value" style="color:#0f172a; font-size:0.95rem; font-weight:600;">${asset.manufacturer || 'N/A'}</span>
-            </div>
-            <div class="detail-item" style="background:#ffffff; padding:14px; border-radius:12px; border:1px solid #e2e8f0; box-shadow:0 1px 2px rgba(0,0,0,0.05);">
-                <span class="detail-label" style="color:#64748b; font-size:0.75rem; font-weight:600; display:block; margin-bottom:4px; text-transform:uppercase; letter-spacing:0.025em;">Model</span>
-                <span class="detail-value" style="color:#0f172a; font-size:0.95rem; font-weight:600;">${asset.model || 'N/A'}</span>
-            </div>
-            <div class="detail-item" style="background:#ffffff; padding:14px; border-radius:12px; border:1px solid #e2e8f0; box-shadow:0 1px 2px rgba(0,0,0,0.05);">
-                <span class="detail-label" style="color:#64748b; font-size:0.75rem; font-weight:600; display:block; margin-bottom:4px; text-transform:uppercase; letter-spacing:0.025em;">Service Date</span>
-                <span class="detail-value" style="color:#0f172a; font-size:0.95rem; font-weight:600;">${asset.serviceDate || 'N/A'}</span>
-            </div>
-            <div class="detail-item" style="background:#ffffff; padding:14px; border-radius:12px; border:1px solid #e2e8f0; box-shadow:0 1px 2px rgba(0,0,0,0.05);">
-                <span class="detail-label" style="color:#64748b; font-size:0.75rem; font-weight:600; display:block; margin-bottom:4px; text-transform:uppercase; letter-spacing:0.025em;">Room BC</span>
-                <span class="detail-value" style="color:#0f172a; font-size:0.95rem; font-weight:600; font-family:monospace;">${asset.roomBC || 'N/A'}</span>
-            </div>
-            <div class="detail-item" style="background:#ffffff; padding:14px; border-radius:12px; border:1px solid #e2e8f0; box-shadow:0 1px 2px rgba(0,0,0,0.05); grid-column: 1 / -1;">
-                <span class="detail-label" style="color:#64748b; font-size:0.75rem; font-weight:600; display:block; margin-bottom:4px; text-transform:uppercase; letter-spacing:0.025em;">Floor Description</span>
-                <span class="detail-value" style="color:#0f172a; font-size:0.95rem; font-weight:600;">${asset.floorDesc || 'N/A'}</span>
-            </div>
-            <div class="detail-item" style="background:#ffffff; padding:14px; border-radius:12px; border:1px solid #e2e8f0; box-shadow:0 1px 2px rgba(0,0,0,0.05); grid-column: 1 / -1;">
-                <span class="detail-label" style="color:#64748b; font-size:0.75rem; font-weight:600; display:block; margin-bottom:4px; text-transform:uppercase; letter-spacing:0.025em;">Asset Photo</span>
-                <div style="margin-top:8px; text-align:center;">${photoHtml}</div>
-            </div>
+    const fields = [
+        { label: 'Barcode', value: asset.barcode, icon: 'fa-regular fa-qrcode', full: false },
+        { label: 'Serial Number', value: asset.serialNumber || 'N/A', icon: 'fa-regular fa-hashtag', full: false },
+        { label: 'Asset Description', value: asset.description || 'N/A', icon: 'fa-regular fa-file-lines', full: true },
+        { label: 'Category', value: asset.category || 'N/A', icon: 'fa-regular fa-tags', full: false },
+        { label: 'Manufacturer', value: asset.manufacturer || 'N/A', icon: 'fa-regular fa-industry', full: false },
+        { label: 'Model', value: asset.model || 'N/A', icon: 'fa-regular fa-cube', full: false },
+        { label: 'Vendor', value: asset.vendor || 'N/A', icon: 'fa-regular fa-building', full: false },
+        { label: 'Service Date', value: asset.serviceDate || 'N/A', icon: 'fa-regular fa-calendar', full: false },
+        { label: 'Location', value: asset.location || 'N/A', icon: 'fa-regular fa-location-dot', full: false },
+        { label: 'Building', value: asset.building || 'N/A', icon: 'fa-regular fa-building', full: false },
+        { label: 'Floor', value: asset.floor || 'N/A', icon: 'fa-regular fa-layer-group', full: false },
+        { label: 'Room', value: asset.room || 'N/A', icon: 'fa-regular fa-door-open', full: false },
+        { label: 'Floor Description', value: asset.floorDesc || 'N/A', icon: 'fa-regular fa-tag', full: false },
+        { label: 'Room Barcode', value: asset.roomBC || 'N/A', icon: 'fa-regular fa-qrcode', full: false },
+        { label: 'Asset Status', value: asset.assetStatus || 'Active', icon: 'fa-regular fa-circle-check', full: false },
+        { label: 'Asset Photo', value: photoHtml, icon: 'fa-regular fa-image', full: true, isPhoto: true }
+    ];
+
+    container.innerHTML = fields.map(f => `
+        <div class="detail-item ${f.full ? 'full-width' : ''}">
+            <span class="detail-label"><i class="${f.icon}"></i> ${f.label}</span>
+            <span class="detail-value ${f.label === 'Barcode' ? 'barcode-value' : ''} ${f.isPhoto ? 'photo-value' : ''}">${f.value}</span>
         </div>
-    `;
+    `).join('');
 };
 
-// ======================================== */
-// CLOSE ASSET DETAILS MODAL
-// ======================================== */
 window.closeAssetDetailsModal = () => {
     const modal = document.getElementById('asset-details-modal');
     if (modal) { modal.style.display = 'none'; modal.classList.remove('active'); document.body.style.overflow = ''; }
 };
+
+// ================================================================ */
+// UX HELPERS: KEYBOARD & RESIZE
+// ================================================================ */
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') window.closeAssetDetailsModal();
+});
+
+let resizeTimeout;
+window.addEventListener('resize', () => {
+    clearTimeout(resizeTimeout);
+    resizeTimeout = setTimeout(() => {
+        if (window.transferBatch && window.transferBatch.length > 0) {
+            window.renderMobileCards();
+        }
+    }, 250);
+});
 
 // ================================================
 // MASTER ASSET AUDIT SUBMISSION
