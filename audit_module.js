@@ -52,14 +52,15 @@ window.submitAssetTransfer = async (event) => {
     btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> UPLOADING...';
 
     try {
-        // 2. Signature Capture
+        // 2. Capture Signature Data and Photos
         const sigSecurity = window.getCanvasBase64('t_security_sig');
         const sigReceived = window.getCanvasBase64('t_received_sig');
+
         if (!sigSecurity || !sigReceived) throw new Error("Both signatures (Security & Receiver) are required!");
 
         // 3. Parallel Image Upload to Google Drive (Slow Net Optimized)
         const uploadTask = async (img, fileName, type) => {
-            if (!img) return "";
+            if (!img || img.length < 500) return ""; // Ignore empty/invalid base64
             const res = await window.uploadToDrive({ action: "upload", type, fileName, image: img });
             return res.fileUrl || res.signatureUrl || "";
         };
@@ -73,7 +74,7 @@ window.submitAssetTransfer = async (event) => {
         const transferId = "TRF-" + Date.now();
         const asset = window.activeTransferAsset;
 
-        // 4. Extended 26-Column Schema Mapping
+        // 4. Extended 26-Column Schema Mapping (ONLY URLs saved to Firebase)
         const transferData = {
             transferId,
             assetBarcode: barcode,
@@ -111,10 +112,10 @@ window.submitAssetTransfer = async (event) => {
             date: new Date().toLocaleDateString('en-US')
         };
 
-        // 5. Final Save to Firebase
+        // 5. Final Save to Firebase (NO BASE64)
         await set(ref(db, `asset_transfers/${transferId}`), transferData);
 
-        alert("✅ Transfer Success! Record created in Movement Logs.");
+        window.triggerSuccessPopup("Transfer Success! 📦");
 
         // Cleanup UI
         window.closeAssetTransfer();
@@ -199,12 +200,12 @@ window.fetchTransferAssetDetails = async (barcode) => {
         return;
     }
 
-    // 1. Instant UI Feedback (Slow Net Friendly)
+    // 1. Transparent Loading Feedback
     if (previewArea) {
         previewArea.innerHTML = `
-            <div class="flex items-center gap-3 p-3 bg-indigo-50 text-indigo-600 rounded-xl animate-pulse">
-                <i class="fa-solid fa-spinner fa-spin"></i>
-                <span class="text-[10px] font-bold uppercase tracking-widest">Searching Asset Register...</span>
+            <div class="glass-preview-card flex items-center justify-center gap-4 py-8 animate-pulse">
+                <i class="fa-solid fa-compass-drafting fa-spin text-indigo-500 text-2xl"></i>
+                <span class="text-xs font-black uppercase tracking-widest text-indigo-900">Syncing Master Record...</span>
             </div>
         `;
     }
@@ -215,73 +216,67 @@ window.fetchTransferAssetDetails = async (barcode) => {
 
         if (snap.exists()) {
             const a = snap.val();
-            console.log("📦 Raw Asset Data Fetched:", a); // For Debugging
             window.activeTransferAsset = a;
 
-            // Robust Value Helper (Fuzzy Key Mapping)
-            const val = (keys) => {
-                for (let k of keys) { if (a[k] !== undefined && a[k] !== null && a[k] !== "") return a[k]; }
+            // Mapping logic with multi-key support
+            const getVal = (keys) => {
+                for (let k of keys) { if (a[k]) return a[k]; }
                 return "-";
             };
 
-            // Enhanced Mapping with multiple key support
             const data = {
-                desc: val(['assetDescription', 'modelDescription', 'Asset Description', 'description']),
-                vendor: val(['vendorName', 'vendor', 'Vendor', 'f30_vendor']),
-                cat: val(['majorCategory', 'category', 'Category', 'f15_category', 'classification']),
-                loc: val(['locationName', 'location', 'Location', 'f17_location']),
-                building: val(['buildingName', 'schoolBuilding', 'Building', 'f19_school_building']),
-                floor: val(['floorNo', 'Floor No', 'f23_floor_no']),
-                room: val(['roomNo', 'roomNumber', 'Room No', 'f21_room_no']),
-                serial: val(['serialNo', 'serialNumber', 'Serial No', 'f2_serial_no']),
-                manuf: val(['manufacturer', 'Manufacturer', 'f9_manufacturer']),
-                photo: val(['auditPhotoUrl', 'photoUrl', 'initialAuditPhoto', 'audit_photo', 'f40_audit_photo_url'])
+                desc: getVal(['assetDescription', 'modelDescription', 'description', 'Asset Description']),
+                vendor: getVal(['vendorName', 'vendor', 'Vendor']),
+                loc: getVal(['locationName', 'location', 'Location']),
+                build: getVal(['buildingName', 'schoolBuilding', 'Building']),
+                floor: getVal(['floorNo', 'Floor No', 'f23_floor_no']),
+                room: getVal(['roomNo', 'Room No']),
+                cat: getVal(['majorCategory', 'category', 'Category']),
+                photo: getVal(['auditPhotoUrl', 'photoUrl', 'initialAuditPhoto'])
             };
 
-            // Update hidden inputs for submission
-            const inputMap = {
-                't_asset_description': data.desc,
-                't_asset_vendor': data.vendor,
-                't_asset_category': data.cat,
-                't_asset_location': data.loc,
-                't_asset_manufacturer': data.manuf,
-                't_asset_serial_no_display': data.serial,
-                't_asset_building': data.building
-            };
-
-            for (let id in inputMap) {
-                const el = document.getElementById(id);
-                if (el) el.value = inputMap[id];
-            }
-
-            // 2. SUCCESS PREVIEW: Robust rendering
+            // 2. PREMIUM TRANSPARENT GLASS PREVIEW RENDERING
             if (previewArea) {
-                const displayPhoto = window.getDirectDriveImageUrl(data.photo);
+                const photoUrl = window.getDirectDriveImageUrl(data.photo);
                 previewArea.innerHTML = `
-                    <div class="p-5 bg-white rounded-2xl border-2 border-indigo-100 shadow-xl animate-fade-in space-y-4">
-                        <div class="flex items-center gap-4 pb-3 border-b border-indigo-50">
-                            <div class="w-16 h-16 rounded-xl overflow-hidden border-2 border-indigo-50 shadow-sm bg-slate-50 flex items-center justify-center">
-                                ${data.photo !== '-' ? `<img src="${displayPhoto}" class="w-full h-full object-cover">` : `<i class="fa-solid fa-image text-slate-300 text-xl"></i>`}
+                    <div class="glass-preview-card space-y-6">
+                        <div class="flex items-center gap-5 pb-5 border-b border-white/40">
+                            <div class="w-20 h-20 rounded-3xl overflow-hidden shadow-2xl border-2 border-white/60 bg-indigo-50/50 flex items-center justify-center flex-shrink-0">
+                                ${data.photo !== "-" ? `<img src="${photoUrl}" class="w-full h-full object-cover">` : `<div class="text-center p-2"><i class="fa-solid fa-camera-retro text-indigo-200 text-2xl"></i><p class="text-[7px] font-black text-indigo-300 uppercase mt-1">No Image</p></div>`}
                             </div>
-                            <div>
-                                <h4 class="text-sm font-black text-indigo-900 uppercase leading-tight">${data.desc !== '-' ? data.desc : 'ASSET FOUND'}</h4>
-                                <p class="text-[10px] text-indigo-500 font-mono font-bold mt-1">${a.assetBarcode || barcode}</p>
+                            <div class="min-w-0">
+                                <h4 class="text-sm font-black text-indigo-950 uppercase truncate tracking-tight leading-tight">${data.desc}</h4>
+                                <div class="flex items-center gap-2 mt-2">
+                                    <span class="px-2 py-0.5 bg-indigo-600 text-white rounded text-[8px] font-mono font-bold tracking-widest">${barcode}</span>
+                                    <span class="text-[9px] font-black text-indigo-500 uppercase">${data.cat}</span>
+                                </div>
                             </div>
                         </div>
 
-                        <div class="grid grid-cols-2 gap-y-3 gap-x-4 text-[10px]">
-                            <div class="space-y-0.5"><p class="text-slate-400 font-bold uppercase tracking-tighter">Location</p><p class="text-indigo-900 font-black">${data.loc}</p></div>
-                            <div class="space-y-0.5"><p class="text-slate-400 font-bold uppercase tracking-tighter">Building</p><p class="text-indigo-900 font-black">${data.building}</p></div>
-                            <div class="space-y-0.5"><p class="text-slate-400 font-bold uppercase tracking-tighter">Floor / Room</p><p class="text-indigo-900 font-black">F${data.floor} - R${data.room}</p></div>
-                            <div class="space-y-0.5"><p class="text-slate-400 font-bold uppercase tracking-tighter">Serial No</p><p class="text-indigo-900 font-black">${data.serial}</p></div>
-                            <div class="space-y-0.5"><p class="text-slate-400 font-bold uppercase tracking-tighter">Vendor</p><p class="text-indigo-900 font-black">${data.vendor}</p></div>
-                            <div class="space-y-0.5"><p class="text-slate-400 font-bold uppercase tracking-tighter">Category</p><p class="text-indigo-900 font-black">${data.cat}</p></div>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div class="preview-grid-item">
+                                <span class="preview-label">Location / Building</span>
+                                <span class="preview-value">${data.loc} <br><span class="text-[9px] opacity-60">${data.build}</span></span>
+                            </div>
+                            <div class="preview-grid-item">
+                                <span class="preview-label">Floor / Room</span>
+                                <span class="preview-value">F${data.floor} - R${data.room}</span>
+                            </div>
+                            <div class="preview-grid-item">
+                                <span class="preview-label">Asset Vendor</span>
+                                <span class="preview-value">${data.vendor}</span>
+                            </div>
+                            <div class="preview-grid-item">
+                                <span class="preview-label">Status</span>
+                                <span class="flex items-center gap-1.5 text-emerald-600 font-black text-[10px] uppercase">
+                                    <i class="fa-solid fa-shield-check"></i> Registered
+                                </span>
+                            </div>
                         </div>
 
-                        <div class="pt-2">
-                            <span class="inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-50 text-emerald-600 rounded-full text-[9px] font-black uppercase tracking-wider">
-                                <i class="fa-solid fa-check-circle"></i> Ready for Transfer
-                            </span>
+                        <div class="pt-2 flex items-center justify-center gap-2">
+                            <div class="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse"></div>
+                            <p class="text-[10px] font-black text-indigo-900 uppercase tracking-widest">Verify details before signing</p>
                         </div>
                     </div>
                 `;
@@ -289,21 +284,20 @@ window.fetchTransferAssetDetails = async (barcode) => {
             if (submitBtn) submitBtn.disabled = false;
 
         } else {
-            // 3. VALIDATION GUARD: Asset Not Registered
+            // 3. ERROR GLASS VIEW
             if (previewArea) {
                 previewArea.innerHTML = `
-                    <div class="p-4 bg-red-50 text-red-600 rounded-2xl border-2 border-red-100 flex items-center gap-4">
-                        <div class="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center text-red-600">
-                            <i class="fa-solid fa-circle-exclamation text-2xl"></i>
+                    <div class="glass-preview-card asset-not-registered-glass flex flex-col items-center justify-center py-10 text-center space-y-4">
+                        <div class="w-16 h-16 bg-red-500/10 text-red-600 rounded-full flex items-center justify-center border-2 border-red-500/20">
+                            <i class="fa-solid fa-ban text-3xl"></i>
                         </div>
                         <div>
-                            <p class="text-xs font-black uppercase">Asset Not Registered</p>
-                            <p class="text-[9px] font-bold opacity-80 leading-tight">This barcode does not exist in the register. Please audit it first.</p>
+                            <h3 class="text-lg font-black text-red-700 uppercase tracking-tighter">Asset Not Registered</h3>
+                            <p class="text-[10px] text-red-600/70 font-bold uppercase tracking-widest mt-1 px-8">This item must be audited in the Master Register before movement.</p>
                         </div>
                     </div>
                 `;
             }
-            alert("❌ ERROR: Asset Not Registered!");
             window.activeTransferAsset = null;
             if (submitBtn) submitBtn.disabled = true;
         }
@@ -313,16 +307,12 @@ window.fetchTransferAssetDetails = async (barcode) => {
 };
 
 window.initTransferSigPads = () => {
-    ['t_security_sig', 't_received_sig'].forEach(id => {
-        const canvas = document.getElementById(id);
-        if (!canvas) return;
-        const ctx = canvas.getContext('2d');
-        canvas.width = canvas.offsetWidth; canvas.height = canvas.offsetHeight;
-        let drawing = false;
-        canvas.onmousedown = (e) => { drawing = true; ctx.beginPath(); ctx.moveTo(e.offsetX, e.offsetY); };
-        canvas.onmousemove = (e) => { if (drawing) { ctx.lineTo(e.offsetX, e.offsetY); ctx.stroke(); } };
-        canvas.onmouseup = () => { drawing = false; };
-    });
+    window.initCanvasDrawing('t_security_sig');
+    window.initCanvasDrawing('t_received_sig');
+};
+
+window.clearTransferSig = (id) => {
+    window.clearCanvas(id);
 };
 
 // =========================================================

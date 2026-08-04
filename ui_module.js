@@ -622,3 +622,114 @@ window.showView = (viewId) => {
         window.scrollTo(0, 0);
     } catch (e) { console.error(e); }
 };
+
+// --- GLOBAL SUCCESS POPUP (v3.5.1 PREMIUM) ---
+window.triggerSuccessPopup = (message, duration = 3000) => {
+    let popup = document.getElementById('global-success-popup');
+
+    // Inject HTML if not exists
+    if (!popup) {
+        const div = document.createElement('div');
+        div.id = 'global-success-popup';
+        div.innerHTML = `
+            <div class="success-modal-card">
+                <div class="success-icon-box">
+                    <svg class="checkmark" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 52 52">
+                        <circle class="checkmark-circle" cx="26" cy="26" r="25" fill="none"/>
+                        <path class="checkmark-check" fill="none" d="M14.1 27.2l7.1 7.2 16.7-16.8"/>
+                    </svg>
+                </div>
+                <h3>Success!</h3>
+                <p id="success-popup-msg"></p>
+            </div>
+        `;
+        document.body.appendChild(div);
+        popup = div;
+    }
+
+    const msgEl = document.getElementById('success-popup-msg');
+    if (msgEl) msgEl.innerText = message;
+
+    popup.style.display = 'flex';
+
+    // Auto close
+    setTimeout(() => {
+        popup.style.opacity = '0';
+        popup.style.transition = 'opacity 0.5s ease-out';
+        setTimeout(() => {
+            popup.style.display = 'none';
+            popup.style.opacity = '1';
+        }, 500);
+    }, duration);
+};
+
+// --- SIGNATURE & CANVAS UTILITIES (FIXED v3.5.1) ---
+window.initCanvasDrawing = (canvasId) => {
+    const canvas = document.getElementById(canvasId);
+    if (!canvas) return;
+
+    // Ensure styles for drawing
+    canvas.style.touchAction = 'none';
+    canvas.style.pointerEvents = 'auto';
+
+    const ctx = canvas.getContext('2d');
+    const ratio = window.devicePixelRatio || 1;
+    canvas.width = canvas.offsetWidth * ratio;
+    canvas.height = canvas.offsetHeight * ratio;
+    ctx.scale(ratio, ratio);
+
+    ctx.lineWidth = 3;
+    ctx.lineCap = 'round';
+    ctx.strokeStyle = '#1E1B4B';
+
+    let drawing = false;
+
+    const getPos = (e) => {
+        const rect = canvas.getBoundingClientRect();
+        const clientX = (e.clientX || (e.touches && e.touches[0].clientX));
+        const clientY = (e.clientY || (e.touches && e.touches[0].clientY));
+        return { x: clientX - rect.left, y: clientY - rect.top };
+    };
+
+    const start = (e) => {
+        drawing = true;
+        ctx.beginPath();
+        const p = getPos(e);
+        ctx.moveTo(p.x, p.y);
+        if (e.cancelable) e.preventDefault();
+    };
+
+    const move = (e) => {
+        if (!drawing) return;
+        const p = getPos(e);
+        ctx.lineTo(p.x, p.y);
+        ctx.stroke();
+        if (e.cancelable) e.preventDefault();
+    };
+
+    const stop = () => { drawing = false; ctx.closePath(); };
+
+    canvas.onmousedown = canvas.ontouchstart = start;
+    canvas.onmousemove = canvas.ontouchmove = move;
+    window.onmouseup = window.ontouchend = stop;
+};
+
+window.getCanvasBase64 = (canvasId) => {
+    const canvas = document.getElementById(canvasId);
+    if (!canvas) return null;
+    return canvas.toDataURL("image/png");
+};
+
+window.clearCanvas = (canvasId) => {
+    const canvas = document.getElementById(canvasId);
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+};
+
+window.unlockCanvas = (overlay) => {
+    const wrapper = overlay.parentElement;
+    const canvas = wrapper.querySelector('canvas');
+    wrapper.classList.add('unlocked');
+    if (canvas) window.initCanvasDrawing(canvas.id);
+};

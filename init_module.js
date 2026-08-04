@@ -124,24 +124,49 @@ document.addEventListener('DOMContentLoaded', () => {
             visitorForm.onsubmit = async (e) => {
                 e.preventDefault();
                 const btn = e.target.querySelector('button[type="submit"]');
-                btn.disabled = true; btn.innerText = "Processing...";
+                btn.disabled = true; btn.innerText = "UPLOADING...";
                 try {
+                    // 1. Capture Signature from Canvas
+                    const sigBase64 = window.getCanvasBase64('v-sig-pad');
+                    if (!sigBase64 || sigBase64.length < 1000) throw new Error("Please provide a signature.");
+
+                    // 2. Upload to Google Drive (Signature Folder)
                     const res = await window.uploadToDrive({
                         type: 'signature',
                         department: 'Visitor',
                         staffName: document.getElementById('v-name').value,
                         fileName: `Visitor_Sig_${Date.now()}.png`,
-                        image: window.getCompressedSignature(document.getElementById('v-sig-pad'))
+                        image: sigBase64
                     });
-                    if (res.status !== 'success' && !res.signatureUrl) throw new Error(res.message || "Upload failed");
-                    const sig = res.signatureUrl || res.fileUrl;
+
+                    if (res.status !== 'success') throw new Error(res.message || "Upload failed");
+
+                    const driveUrl = res.fileUrl || res.signatureUrl;
                     const now = new Date();
-                    const data = { id: document.getElementById('v-id').value, name: document.getElementById('v-name').value, mobile: document.getElementById('v-mobile').value, company: document.getElementById('v-company').value, purpose: document.getElementById('v-purpose').value, date: now.toLocaleDateString('en-US'), timeIn: now.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', hour12: true}), status: "active", signatureUrl: sig };
+
+                    // 3. Save ONLY the URL to Firebase
+                    const data = {
+                        id: document.getElementById('v-id').value,
+                        name: document.getElementById('v-name').value,
+                        mobile: document.getElementById('v-mobile').value,
+                        company: document.getElementById('v-company').value,
+                        purpose: document.getElementById('v-purpose').value,
+                        date: now.toLocaleDateString('en-US'),
+                        timeIn: now.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', hour12: true}),
+                        status: "active",
+                        signatureUrl: driveUrl
+                    };
+
                     await set(ref(db, 'visitors/' + data.id), data);
                     localStorage.setItem('vActive', JSON.stringify({id: data.id, name: data.name, timeIn: data.timeIn}));
-                    alert("Signed In!"); window.checkVisitorSession();
-                } catch (error) { alert("Error: " + error.message); }
-                finally { btn.disabled = false; btn.innerText = "Confirm Sign-In"; }
+                    window.triggerSuccessPopup("Sign-In Successful! 🏢");
+                    if (typeof window.checkVisitorSession === 'function') window.checkVisitorSession();
+                } catch (error) {
+                    alert("Sign-In Error: " + error.message);
+                } finally {
+                    btn.disabled = false;
+                    btn.innerText = "Confirm Sign-In";
+                }
             };
         }
 

@@ -378,6 +378,55 @@ body {
     .transfer-input-field { font-size: 16px !important; }
 }
 
+/* --- GLASSMORPHISM ASSET PREVIEW (v3.5.1 PREMIUM) --- */
+.glass-preview-card {
+    background: rgba(255, 255, 255, 0.15) !important;
+    backdrop-filter: blur(20px) saturate(180%) !important;
+    -webkit-backdrop-filter: blur(20px) saturate(180%) !important;
+    border: 1px solid rgba(255, 255, 255, 0.3) !important;
+    border-radius: 32px !important;
+    padding: 24px !important;
+    box-shadow: 0 10px 40px rgba(31, 38, 135, 0.1) !important;
+    color: #1e1b4b !important;
+    animation: slideUpFade 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94) both;
+}
+
+@keyframes slideUpFade {
+    from { transform: translateY(20px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+}
+
+.preview-grid-item {
+    padding: 10px;
+    border-radius: 16px;
+    background: rgba(255, 255, 255, 0.4);
+    border: 1px solid rgba(255, 255, 255, 0.5);
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.preview-label {
+    font-size: 8px;
+    font-weight: 800;
+    color: #6366f1;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+}
+
+.preview-value {
+    font-size: 13px;
+    font-weight: 900;
+    color: #1e1b4b;
+    line-height: 1.2;
+}
+
+.asset-not-registered-glass {
+    background: rgba(254, 226, 226, 0.3) !important;
+    border: 1.5px dashed #ef4444 !important;
+    backdrop-filter: blur(10px) !important;
+}
+
 /* RESPONSIVE SAFE AREA */
 @supports (padding: max(0px)) {
     .app-container, .transfer-workflow-container {
