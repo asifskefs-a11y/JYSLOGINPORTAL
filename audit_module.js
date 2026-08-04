@@ -284,31 +284,32 @@ window.renderBatchTable = () => {
         mobileCards.innerHTML = window.transferBatch.map((asset, index) => {
             const sourceLoc = asset.location || 'Unknown';
             const desc = asset.description || 'N/A';
+            const category = asset.category || 'N/A';
 
             return `
-                <div class="batch-card animate-fade-in" data-index="${index}">
-                    <div class="card-row">
-                        <span class="card-label">Barcode</span>
-                        <span class="card-value barcode-cell">${asset.barcode}</span>
+                <div class="batch-card animate-fade-in flex items-center justify-between p-4 bg-white border border-indigo-100 rounded-2xl shadow-sm mb-3" data-index="${index}">
+                    <div class="flex-1 min-w-0 pr-4">
+                        <div class="flex items-center gap-2 mb-1">
+                            <span class="text-[10px] font-mono font-black text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-md">${asset.barcode}</span>
+                            <span class="text-[8px] font-black text-slate-400 uppercase tracking-tighter truncate">${category}</span>
+                        </div>
+                        <h4 class="text-[12px] font-bold text-slate-800 truncate">${desc}</h4>
+                        <p class="text-[9px] font-medium text-slate-400 flex items-center gap-1 mt-0.5">
+                            <i class="fa-solid fa-location-dot text-indigo-300"></i> ${sourceLoc}
+                        </p>
                     </div>
-                    <div class="card-row">
-                        <span class="card-label">Description</span>
-                        <span class="card-value font-bold">${desc}</span>
-                    </div>
-                    <div class="card-row">
-                        <span class="card-label">Location</span>
-                        <span class="card-value text-[10px] font-black text-slate-500 uppercase">${sourceLoc}</span>
-                    </div>
-                    <div class="card-actions">
+                    <div class="flex items-center gap-2">
                         <button type="button"
                                 onclick="window.openAssetDetailsModal(${index})"
-                                class="view-card-btn flex items-center gap-2 px-4 py-2 rounded-xl bg-indigo-50 text-indigo-600 font-bold text-[10px] uppercase">
-                            <i class="fa-regular fa-eye"></i> View
+                                class="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center active:scale-90 transition-all shadow-sm border border-indigo-100/50"
+                                aria-label="View Details">
+                            <i class="fa-solid fa-eye text-lg"></i>
                         </button>
                         <button type="button"
                                 onclick="window.removeAssetFromBatch(${index})"
-                                class="delete-card-btn flex items-center gap-2 px-4 py-2 rounded-xl bg-rose-50 text-rose-600 font-bold text-[10px] uppercase">
-                            <i class="fa-regular fa-trash-can"></i> Remove
+                                class="w-10 h-10 rounded-xl bg-rose-50 text-rose-500 flex items-center justify-center active:scale-90 transition-all shadow-sm border border-rose-100/50"
+                                aria-label="Remove">
+                            <i class="fa-solid fa-trash-can text-lg"></i>
                         </button>
                     </div>
                 </div>
@@ -351,6 +352,7 @@ window.openAssetDetailsModal = (index) => {
         const displayData = normalizer.toDisplayObject(asset);
 
         container.innerHTML = "";
+        // Use colorTheme 'indigo' for Transfer details
         window.renderSmartPreview('modal-preview-container', displayData, asset.barcode, 'indigo');
 
         modal.classList.remove('hidden');

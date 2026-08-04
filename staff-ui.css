@@ -751,3 +751,41 @@ body {
         right: 4px !important;
     }
 }
+
+/* ======================================== */
+/* MOBILE ASSET DETAILS MODAL (v3.5.5) */
+/* ======================================== */
+
+#asset-details-modal {
+    z-index: 99999 !important;
+}
+
+#asset-details-modal .animate-slide-up {
+    animation: slideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes slideUp {
+    from { transform: translateY(100%); }
+    to { transform: translateY(0); }
+}
+
+@media (max-width: 640px) {
+    #asset-details-modal > div {
+        margin: 0;
+        width: 100%;
+        height: 100%;
+        max-height: 100vh;
+        border-radius: 0;
+        border: none;
+    }
+
+    #modal-preview-container {
+        padding: 16px !important;
+    }
+
+    /* Make the grid scrollable on mobile */
+    .glass-preview-card .grid {
+        grid-template-columns: 1fr !important;
+        gap: 12px !important;
+    }
+}
