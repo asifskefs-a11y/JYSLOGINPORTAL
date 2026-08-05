@@ -755,6 +755,14 @@ class SignaturePadEngine {
     }
 
     _bindEvents() {
+        // Pointer Events (Unified for Touch & Mouse)
+        this.canvas.addEventListener('pointerdown', this._startDrawing.bind(this));
+        this.canvas.addEventListener('pointermove', this._draw.bind(this));
+        this.canvas.addEventListener('pointerup', this._stopDrawing.bind(this));
+        this.canvas.addEventListener('pointercancel', this._stopDrawing.bind(this));
+        this.canvas.addEventListener('pointerleave', this._stopDrawing.bind(this));
+
+        // Fallback for older browsers
         this.canvas.addEventListener('touchstart', this._startDrawing.bind(this), { passive: false });
         this.canvas.addEventListener('touchmove', this._draw.bind(this), { passive: false });
         this.canvas.addEventListener('touchend', this._stopDrawing.bind(this));
@@ -763,6 +771,9 @@ class SignaturePadEngine {
         this.canvas.addEventListener('mousemove', this._draw.bind(this));
         this.canvas.addEventListener('mouseup', this._stopDrawing.bind(this));
         this.canvas.addEventListener('mouseleave', this._stopDrawing.bind(this));
+
+        // Prevent scrolling when drawing on touch
+        this.canvas.style.touchAction = 'none';
     }
 
     unlock() {

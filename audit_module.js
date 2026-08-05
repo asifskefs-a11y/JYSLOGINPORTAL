@@ -52,6 +52,16 @@ window.handleDisposalBeforePhoto = (event) => {
     reader.readAsDataURL(file);
 };
 
+window.removeDisposalBeforePhoto = () => {
+    initialAuditPhotoBase64 = "";
+    const input = document.getElementById('disposal-before-photo-input');
+    if (input) input.value = "";
+    const preview = document.getElementById('before-photo-preview');
+    if (preview) preview.classList.add('hidden');
+    const btnText = document.getElementById('before-photo-btn-text');
+    if (btnText) btnText.innerText = "Take Before Photo";
+};
+
 window.handleDisposalPhoto = (event) => {
     const file = event.target.files[0];
     if (!file) return;
@@ -66,6 +76,16 @@ window.handleDisposalPhoto = (event) => {
     reader.readAsDataURL(file);
 };
 
+window.removeDisposalAfterPhoto = () => {
+    damageAuditPhotoBase64 = "";
+    const input = document.getElementById('disposal-photo-input');
+    if (input) input.value = "";
+    const preview = document.getElementById('disposal-photo-preview');
+    if (preview) preview.classList.add('hidden');
+    const btnText = document.getElementById('disposal-photo-btn-text');
+    if (btnText) btnText.innerText = "Take Audit Photo";
+};
+
 window.handleInitialAuditPhoto = (event) => {
     const file = event.target.files[0];
     if (!file) return;
@@ -78,6 +98,16 @@ window.handleInitialAuditPhoto = (event) => {
         if (btnText) btnText.innerText = "Photo Captured ✅";
     };
     reader.readAsDataURL(file);
+};
+
+window.removeAuditPhoto = () => {
+    initialAuditPhotoBase64 = "";
+    const input = document.getElementById('f40_audit_photo_input');
+    if (input) input.value = "";
+    const preview = document.getElementById('audit-photo-preview');
+    if (preview) preview.classList.add('hidden');
+    const btnText = document.getElementById('audit-photo-btn-text');
+    if (btnText) btnText.innerText = "Capture Photo";
 };
 
 // ================================================
@@ -100,15 +130,15 @@ window.submitAssetDisposal = async () => {
     btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> DISPOSING...';
 
     try {
-        const uploadTask = async (img, fileName) => {
+        const uploadTask = async (img, fileName, type = "disposal") => {
             if (!img || img.length < 500) return "";
-            const res = await window.uploadToDrive({ action: "upload", type: "disposal", fileName, image: img });
+            const res = await window.uploadToDrive({ action: "upload", type, fileName, image: img });
             return res.fileUrl || "";
         };
 
         const [urlBefore, urlAfter] = await Promise.all([
-            uploadTask(initialAuditPhotoBase64, `Disp_Before_${barcode}_${Date.now()}.jpg`),
-            uploadTask(damageAuditPhotoBase64, `Disp_After_${barcode}_${Date.now()}.jpg`)
+            uploadTask(initialAuditPhotoBase64, `Disp_Before_${barcode}_${Date.now()}.jpg`, 'active_asset'),
+            uploadTask(damageAuditPhotoBase64, `Disp_After_${barcode}_${Date.now()}.jpg`, 'active_asset')
         ]);
 
         const asset = window.activeDisposalAsset;
@@ -409,7 +439,7 @@ window.submitAssetAudit = async (event) => {
     try {
         let photoUrl = "";
         if (initialAuditPhotoBase64) {
-            const res = await window.uploadToDrive({ action: "upload", type: "audit", fileName: `Audit_${barcode}_${Date.now()}.jpg`, image: initialAuditPhotoBase64 });
+            const res = await window.uploadToDrive({ action: "upload", type: "active_asset", fileName: `Audit_${barcode}_${Date.now()}.jpg`, image: initialAuditPhotoBase64 });
             photoUrl = res.fileUrl || "";
         }
         const assetData = {
@@ -446,13 +476,39 @@ window.submitAssetTransfer = async (event) => {
         if (!sigSecurity || !sigReceived) throw new Error("Both signatures (Security & Receiver) are required!");
         const uploadTask = async (img, fileName, type) => { if (!img || img.length < 500) return ""; const res = await window.uploadToDrive({ action: "upload", type, fileName, image: img }); return res.fileUrl || res.signatureUrl || ""; };
         const batchId = "BATCH-" + Date.now();
-        const [urlSec, urlRec, urlPhoto] = await Promise.all([ uploadTask(sigSecurity, `Sig_Sec_${batchId}.png`, 'signature'), uploadTask(sigReceived, `Sig_Rec_${batchId}.png`, 'signature'), uploadTask(transferPhotoBase64, `Img_Batch_${batchId}.jpg`, 'active_asset') ]);
-        const commonTransferData = { batchId, collectorFullName: document.getElementById('t_collector_name').value.trim(), companyName: document.getElementById('t_company_name').value.trim(), dateOfCollection: document.getElementById('t_collection_date').value, securitySignatureUrl: urlSec, receivedSignatureUrl: urlRec, transferPhotoUrl: urlPhoto, status: 'In-Transit', timestamp: Date.now(), date: new Date().toLocaleDateString('en-US'), assetCount: window.transferBatch.length };
+
+        // ✅ New Naming Convention for Drive Photo
+        const firstAsset = window.transferBatch[0];
+        const photoFileName = `${firstAsset.barcode} Transfer 1st Item ${(firstAsset.description || "ITEM").toUpperCase()}.jpg`;
+
+        const [urlSec, urlRec, urlPhoto] = await Promise.all([
+            uploadTask(sigSecurity, `Sig_Sec_${batchId}.png`, 'signature'),
+            uploadTask(sigReceived, `Sig_Rec_${batchId}.png`, 'signature'),
+            uploadTask(transferPhotoBase64, photoFileName, 'active_asset')
+        ]);
+
+        const commonTransferData = {
+            batchId,
+            collectorFullName: (document.getElementById('t_collector_name')?.value || "").trim(),
+            companyName: (document.getElementById('t_company_name')?.value || "").trim(),
+            dateOfCollection: document.getElementById('t_collection_date')?.value || new Date().toISOString().split('T')[0],
+            securitySignatureUrl: urlSec,
+            receivedSignatureUrl: urlRec,
+            transferPhotoUrl: urlPhoto,
+            status: 'In-Transit',
+            timestamp: Date.now(),
+            date: new Date().toLocaleDateString('en-US'),
+            assetCount: window.transferBatch.length
+        };
+
         const updates = {};
         window.transferBatch.forEach(asset => {
             const transferId = "TRF-" + asset.barcode + "-" + Date.now();
             updates[`asset_transfers/${transferId}`] = { ...commonTransferData, transferId, assetBarcode: asset.barcode, assetDescription: asset.description, category: asset.category, serialNo: asset.serialNumber, sourceLocation: asset.location, sourceBuilding: asset.building };
+            // ✅ Update Master Status to hide from active list
+            updates[`assets/${asset.barcode}/assetStatus`] = 'In-Transit';
         });
+
         await update(ref(db), updates);
         window.triggerSuccessPopup(`${window.transferBatch.length} Assets Transferred! 📦`);
         window.transferBatch = []; window.renderBatchTable(); window.renderMobileCards(); transferPhotoBase64 = "";
@@ -589,7 +645,106 @@ window.clearTransferSig = (id) => {
     pad.lock();
 };
 
-window.handleTransferPhoto = (event) => { const file = event.target.files[0]; if (!file) return; const reader = new FileReader(); reader.onload = (e) => { transferPhotoBase64 = e.target.result; const preview = document.getElementById('t_photo_preview'); const btnText = document.getElementById('t_photo_btn_text'); if (preview) { preview.classList.remove('hidden'); preview.querySelector('img').src = transferPhotoBase64; } if (btnText) btnText.innerText = "Photo Captured ✅"; }; reader.readAsDataURL(file); };
+window.handleTransferPhoto = (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        transferPhotoBase64 = e.target.result;
+        const preview = document.getElementById('t_photo_preview');
+        const btnText = document.getElementById('t_photo_btn_text');
+        if (preview) {
+            preview.classList.remove('hidden');
+            preview.querySelector('img').src = transferPhotoBase64;
+        }
+        if (btnText) btnText.innerText = "Photo Captured ✅";
+    };
+    reader.readAsDataURL(file);
+};
+
+window.removeTransferPhoto = () => {
+    transferPhotoBase64 = "";
+    const input = document.getElementById('t_photo_capture');
+    if (input) input.value = "";
+    const preview = document.getElementById('t_photo_preview');
+    if (preview) preview.classList.add('hidden');
+    const btnText = document.getElementById('t_photo_btn_text');
+    if (btnText) btnText.innerText = "Capture Transfer Photo";
+};
+
+// ================================================
+// NEW: ASSET FETCHING SYSTEM
+// ================================================
+window.fetchAuditAssetDetails = async (barcode) => {
+    if (!barcode || barcode.length < 3) return;
+    try {
+        const snap = await get(child(ref(db), `assets/${barcode}`));
+        if (snap.exists()) {
+            const data = snap.val();
+            const normalizer = window.fieldNormalizer || new FieldNormalizer();
+            const mapped = normalizer.mapFields(data);
+            const display = normalizer.toDisplayObject(mapped);
+            window.renderSmartPreview('audit-asset-preview', display, barcode, 'indigo');
+
+            // Pre-fill form fields if they exist
+            const fieldMap = {
+                'f2_serial_no': mapped.serialNumber,
+                'f3_model_desc': mapped.model,
+                'f7_asset_desc': mapped.description,
+                'f9_manufacturer': mapped.manufacturer,
+                'f20_room_name': mapped.roomName,
+                'f21_room_no': mapped.roomNo,
+                'f22_room_barcode': mapped.roomBC
+            };
+
+            for (const [id, val] of Object.entries(fieldMap)) {
+                const el = document.getElementById(id);
+                if (el && val && val !== 'N/A') el.value = val;
+            }
+        }
+    } catch (e) { console.error("Fetch Audit Error:", e); }
+};
+
+window.fetchDisposalAssetDetails = async (barcode) => {
+    if (!barcode || barcode.length < 3) return;
+    try {
+        const snap = await get(child(ref(db), `assets/${barcode}`));
+        const preview = document.getElementById('disposal-asset-preview');
+        const submitBtn = document.getElementById('submit-disposal-btn');
+
+        if (snap.exists()) {
+            const data = snap.val();
+            window.activeDisposalAsset = data;
+            const normalizer = window.fieldNormalizer || new FieldNormalizer();
+            const mapped = normalizer.mapFields(data);
+            const display = normalizer.toDisplayObject(mapped);
+
+            window.renderSmartPreview('disposal-asset-preview', display, barcode, 'red');
+            if (submitBtn) submitBtn.disabled = false;
+
+            // Fill hidden normalization fields
+            document.getElementById('d_asset_description').value = mapped.description || "";
+            document.getElementById('d_asset_category').value = mapped.category || "";
+            document.getElementById('d_asset_location').value = mapped.location || "";
+            document.getElementById('d_asset_serial_no_display').value = mapped.serialNumber || "";
+
+            // Set metadata
+            const now = new Date();
+            document.getElementById('disposal-date').value = now.toLocaleDateString();
+            document.getElementById('disposal-time').value = now.toLocaleTimeString();
+            document.getElementById('disposed-by-name').value = window.currentStaff?.name || "Unknown";
+
+        } else {
+            if (preview) preview.innerHTML = `<div class="p-4 text-red-500 font-bold">Asset Not Found</div>`;
+            if (submitBtn) submitBtn.disabled = true;
+            window.activeDisposalAsset = null;
+        }
+    } catch (e) { console.error("Fetch Disposal Error:", e); }
+};
+
+window.checkDuplicateBarcode = async (barcode) => {
+    // Optional utility to check if barcode already exists for new entries
+};
 
 // =========================================================
 // ROLE-BASED ACCESS

@@ -357,6 +357,7 @@ window.renderAdminAssetTable = (data, targetTable = 'both') => {
 
         pageData.forEach((a, index) => {
             const isDisposed = a.assetStatus === 'Disposed' || a.disposalReason;
+            const isTransferred = ['Transferred', 'In-Transit', 'Completed'].includes(a.assetStatus);
             const barcode = a.assetBarcode || a['Asset Barcode'] || a.barcode || `ASSET-${index}`;
             const initialPhoto = window.getDirectDriveImageUrl(a.auditPhotoUrl || a.audit_photo || a.beforePhotoUrl || a.photoUrl || a.initialAuditPhoto);
             const damagePhoto = window.getDirectDriveImageUrl(a.disposalPhotoUrl || a.afterPhotoUrl || a.disposalDamagedPhoto);
@@ -395,7 +396,7 @@ window.renderAdminAssetTable = (data, targetTable = 'both') => {
                 `;
                 disposalBody.appendChild(tr);
             }
-            else if (!isDisposed && body && (targetTable === 'both' || targetTable === 'assets')) {
+            else if (!isDisposed && !isTransferred && body && (targetTable === 'both' || targetTable === 'assets')) {
                 const tr = document.createElement('tr');
                 tr.className = "hover:bg-indigo-50 border-b text-[11px]";
                 let rowHtml = `<td class="p-3 text-center"><input type="checkbox" class="asset-checkbox" value="${barcode}"></td>`;
@@ -599,8 +600,8 @@ window.filterAssetTable = () => {
     debounceSearch(() => {
         const q = document.getElementById('asset-search')?.value?.toLowerCase() || '';
         const filtered = window.appCache.assets.filter(a => {
-            const isDisposed = a.assetStatus === 'Disposed' || a.disposalReason;
-            if (isDisposed) return false;
+            const isHidden = ['Disposed', 'Transferred', 'In-Transit', 'Completed'].includes(a.assetStatus) || a.disposalReason;
+            if (isHidden) return false;
             return (
                 a.assetBarcode?.toLowerCase().includes(q) ||
                 a['Asset Barcode']?.toLowerCase().includes(q) ||

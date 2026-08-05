@@ -321,7 +321,10 @@
                                     <label class="block text-[9px] font-black text-indigo-400 mb-2 ml-2 uppercase">Asset Photo</label>
                                     <input type="file" id="f40_audit_photo_input" accept="image/*" capture="environment" class="hidden" onchange="handleInitialAuditPhoto(event)">
                                     <button type="button" onclick="document.getElementById('f40_audit_photo_input').click()" class="w-full py-4 border-2 border-dashed border-indigo-200 rounded-2xl text-indigo-600 font-bold flex items-center justify-center gap-3 hover:bg-indigo-50"><i class="fa-solid fa-camera text-xl"></i> <span id="audit-photo-btn-text">Capture Photo</span></button>
-                                    <div id="audit-photo-preview" class="hidden mt-3 h-40 rounded-2xl overflow-hidden border-2 border-indigo-100 shadow-sm"><img src="" class="w-full h-full object-cover"></div>
+                                    <div id="audit-photo-preview" class="hidden mt-3 h-40 rounded-2xl overflow-hidden border-2 border-indigo-100 shadow-sm relative">
+                                        <img src="" class="w-full h-full object-cover">
+                                        <button type="button" onclick="window.removeAuditPhoto()" class="absolute top-2 right-2 bg-red-500 text-white w-8 h-8 rounded-full shadow-lg flex items-center justify-center active:scale-90 transition-transform"><i class="fa-solid fa-trash-can text-xs"></i></button>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -431,14 +434,20 @@
                             <div class="space-y-2">
                                 <label class="text-[10px] font-black text-red-500 uppercase tracking-wider flex items-center gap-2"><i class="fa-regular fa-image"></i> Before Photo *</label>
                                 <input type="file" id="disposal-before-photo-input" accept="image/*" capture="environment" class="hidden" onchange="window.handleDisposalBeforePhoto(event)">
-                                <button onclick="document.getElementById('disposal-before-photo-input').click()" class="w-full py-3 border-2 border-dashed border-red-200 rounded-xl text-red-500 font-bold flex items-center justify-center gap-2 text-[10px]"><i class="fa-solid fa-camera"></i> <span id="before-photo-btn-text">Take Before Photo</span></button>
-                                <div id="before-photo-preview" class="hidden mt-2 h-32 rounded-xl overflow-hidden border border-red-100"><img src="" class="w-full h-full object-cover"></div>
+                                <button type="button" onclick="document.getElementById('disposal-before-photo-input').click()" class="w-full py-3 border-2 border-dashed border-red-200 rounded-xl text-red-500 font-bold flex items-center justify-center gap-2 text-[10px]"><i class="fa-solid fa-camera"></i> <span id="before-photo-btn-text">Take Before Photo</span></button>
+                                <div id="before-photo-preview" class="hidden mt-2 h-32 rounded-xl overflow-hidden border border-red-100 relative">
+                                    <img src="" class="w-full h-full object-cover">
+                                    <button type="button" onclick="window.removeDisposalBeforePhoto()" class="absolute top-2 right-2 bg-red-500 text-white w-7 h-7 rounded-full shadow-lg flex items-center justify-center active:scale-90 transition-transform"><i class="fa-solid fa-trash-can text-[10px]"></i></button>
+                                </div>
                             </div>
                             <div class="space-y-2">
                                 <label class="text-[10px] font-black text-red-500 uppercase tracking-wider flex items-center gap-2"><i class="fa-regular fa-image"></i> Audit Photo (After) *</label>
                                 <input type="file" id="disposal-photo-input" accept="image/*" capture="environment" class="hidden" onchange="handleDisposalPhoto(event)">
-                                <button onclick="document.getElementById('disposal-photo-input').click()" class="w-full py-3 border-2 border-dashed border-red-200 rounded-xl text-red-500 font-bold flex items-center justify-center gap-2 text-[10px]"><i class="fa-solid fa-camera"></i> <span id="disposal-photo-btn-text">Take Audit Photo</span></button>
-                                <div id="disposal-photo-preview" class="hidden mt-2 h-32 rounded-xl overflow-hidden border border-red-100 relative"><img src="" class="w-full h-full object-cover"></div>
+                                <button type="button" onclick="document.getElementById('disposal-photo-input').click()" class="w-full py-3 border-2 border-dashed border-red-200 rounded-xl text-red-500 font-bold flex items-center justify-center gap-2 text-[10px]"><i class="fa-solid fa-camera"></i> <span id="disposal-photo-btn-text">Take Audit Photo</span></button>
+                                <div id="disposal-photo-preview" class="hidden mt-2 h-32 rounded-xl overflow-hidden border border-red-100 relative">
+                                    <img src="" class="w-full h-full object-cover">
+                                    <button type="button" onclick="window.removeDisposalAfterPhoto()" class="absolute top-2 right-2 bg-red-500 text-white w-7 h-7 rounded-full shadow-lg flex items-center justify-center active:scale-90 transition-transform"><i class="fa-solid fa-trash-can text-[10px]"></i></button>
+                                </div>
                             </div>
                         </div>
                         <div class="grid grid-cols-2 gap-3">
@@ -484,7 +493,9 @@
                         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div class="space-y-1.5"><label class="text-[9px] font-black text-slate-400 uppercase tracking-wider flex items-center gap-1.5">Collector Name *</label><input type="text" id="t_collector_name" placeholder="Full Name" required class="w-full px-4 py-3.5 bg-slate-50 border-2 border-slate-200 rounded-xl focus:border-indigo-500 focus:bg-white outline-none transition-all text-sm font-medium"></div>
                             <div class="space-y-1.5"><label class="text-[9px] font-black text-slate-400 uppercase tracking-wider flex items-center gap-1.5">Company Name *</label><input type="text" id="t_company_name" placeholder="Company Name" required class="w-full px-4 py-3.5 bg-slate-50 border-2 border-slate-200 rounded-xl focus:border-indigo-500 focus:bg-white outline-none transition-all text-sm font-medium"></div>
-                        </div></div>
+                        </div>
+                        <div class="space-y-1.5"><label class="text-[9px] font-black text-slate-400 uppercase tracking-wider flex items-center gap-1.5">Collection Date *</label><input type="date" id="t_collection_date" required class="w-full px-4 py-3.5 bg-slate-50 border-2 border-slate-200 rounded-xl focus:border-indigo-500 focus:bg-white outline-none transition-all text-sm font-medium"></div>
+                        </div>
                         <!-- ================================================================ -->
                         <!-- SECTION 2: ASSET BATCH DETAILS - RESPONSIVE                      -->
                         <!-- ================================================================ -->
@@ -599,7 +610,15 @@
                                 </div>
                             </div>
                         </div>
-                        <div class="space-y-3"><label class="text-[10px] font-black text-indigo-500 uppercase tracking-wider flex items-center gap-2"><i class="fa-regular fa-image"></i> Transfer Photo Capture</label><input type="file" id="t_photo_capture" accept="image/*" capture="environment" class="hidden" onchange="window.handleTransferPhoto(event)"><button type="button" onclick="document.getElementById('t_photo_capture').click()" class="w-full py-4 border-2 border-dashed border-indigo-200 rounded-2xl text-indigo-600 font-bold flex items-center justify-center gap-2 hover:bg-indigo-50 transition-all"><i class="fa-solid fa-camera text-xl"></i> <span id="t_photo_btn_text">Capture Transfer Photo</span></button><div id="t_photo_preview" class="hidden mt-2 h-40 rounded-2xl overflow-hidden border-2 border-indigo-100 shadow-sm"><img src="" class="w-full h-full object-cover"></div></div></div>
+                        <div class="space-y-3">
+                            <label class="text-[10px] font-black text-indigo-500 uppercase tracking-wider flex items-center gap-2"><i class="fa-regular fa-image"></i> Transfer Photo Capture</label>
+                            <input type="file" id="t_photo_capture" accept="image/*" capture="environment" class="hidden" onchange="window.handleTransferPhoto(event)">
+                            <button type="button" onclick="document.getElementById('t_photo_capture').click()" class="w-full py-4 border-2 border-dashed border-indigo-200 rounded-2xl text-indigo-600 font-bold flex items-center justify-center gap-2 hover:bg-indigo-50 transition-all"><i class="fa-solid fa-camera text-xl"></i> <span id="t_photo_btn_text">Capture Transfer Photo</span></button>
+                            <div id="t_photo_preview" class="hidden mt-2 h-40 rounded-2xl overflow-hidden border-2 border-indigo-100 shadow-sm relative">
+                                <img src="" class="w-full h-full object-cover">
+                                <button type="button" onclick="window.removeTransferPhoto()" class="absolute top-2 right-2 bg-red-500 text-white w-8 h-8 rounded-full shadow-lg flex items-center justify-center active:scale-90 transition-transform"><i class="fa-solid fa-trash-can text-xs"></i></button>
+                            </div>
+                        </div></div>
                         <button type="submit" id="submit-transfer-btn" class="w-full py-5 bg-gradient-to-r from-indigo-600 to-indigo-800 text-white rounded-2xl font-black text-lg shadow-xl shadow-indigo-500/30 active:scale-[0.98] transition-all uppercase tracking-widest flex items-center justify-center gap-3">CONFIRM TRANSFER <span class="text-xs opacity-60">→</span></button>
 
                         <!-- Core 16 Hidden Normalization Fields -->
