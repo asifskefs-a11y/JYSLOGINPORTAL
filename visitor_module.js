@@ -28,11 +28,13 @@ function getCompressedSignature(canvas) {
 window.getCompressedSignature = getCompressedSignature;
 // --- INITIALIZATION: Signature Pad for Visitors ---
 window.initVisitorCanvas = () => {
-    window.initCanvasDrawing('v-sig-pad');
+    window.sigPadManager.getPad('v-sig-pad');
 };
 
 window.clearVisitorSig = () => {
-    window.clearCanvas('v-sig-pad');
+    const pad = window.sigPadManager.getPad('v-sig-pad');
+    pad.clear();
+    pad.lock();
 };
 
 window.checkVisitorSession = () => {

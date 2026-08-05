@@ -578,9 +578,16 @@ window.renderSmartPreview = (areaId, data, barcode, colorTheme = 'indigo') => {
 
 window.renderTransparentPreview = (data, barcode) => { window.renderSmartPreview('transfer-asset-preview', data, barcode, 'indigo'); };
 
-window.initTransferSigPads = () => { if (typeof window.initCanvasDrawing === 'function') { window.initCanvasDrawing('t_security_sig'); window.initCanvasDrawing('t_received_sig'); } };
+window.initTransferSigPads = () => {
+    window.sigPadManager.getPad('t_security_sig');
+    window.sigPadManager.getPad('t_received_sig');
+};
 
-window.clearTransferSig = (id) => { const canvas = document.getElementById(id); if (canvas) { const ctx = canvas.getContext('2d'); ctx.clearRect(0, 0, canvas.width, canvas.height); window.initCanvasDrawing(id); } };
+window.clearTransferSig = (id) => {
+    const pad = window.sigPadManager.getPad(id);
+    pad.clear();
+    pad.lock();
+};
 
 window.handleTransferPhoto = (event) => { const file = event.target.files[0]; if (!file) return; const reader = new FileReader(); reader.onload = (e) => { transferPhotoBase64 = e.target.result; const preview = document.getElementById('t_photo_preview'); const btnText = document.getElementById('t_photo_btn_text'); if (preview) { preview.classList.remove('hidden'); preview.querySelector('img').src = transferPhotoBase64; } if (btnText) btnText.innerText = "Photo Captured ✅"; }; reader.readAsDataURL(file); };
 

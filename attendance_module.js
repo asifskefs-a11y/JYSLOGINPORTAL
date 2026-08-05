@@ -99,42 +99,40 @@ window.openSignatureModal = (title, callback) => {
     const modalEl = document.getElementById('signature-modal');
     if (titleEl) titleEl.innerText = title;
     if (modalEl) {
-        modalEl.classList.remove('hidden');
+        modalEl.classList.add('active');
         modalEl.style.display = 'flex';
     }
     sigCallback = callback;
+    document.body.style.overflow = 'hidden';
 
     setTimeout(() => {
-        window.initSigPad();
-        if (!sigCanvas) return;
-        // Correctly set internal resolution to match display size
-        sigCanvas.width = sigCanvas.offsetWidth;
-        sigCanvas.height = sigCanvas.offsetHeight;
-
-        // Re-initialize context styles after resize
-        sigCtx = sigCanvas.getContext('2d');
-        sigCtx.lineWidth = 3;
-        sigCtx.lineCap = 'round';
-        sigCtx.lineJoin = 'round';
-        sigCtx.strokeStyle = '#4f46e5';
-        sigCtx.clearRect(0, 0, sigCanvas.width, sigCanvas.height);
-    }, 200);
+        // Initialize and unlock for better UX
+        window.sigPadManager.getPad('sig-canvas').unlock();
+    }, 300);
 };
 
 window.closeSignatureModal = () => {
     const modal = document.getElementById('signature-modal');
-    if (modal) modal.classList.add('hidden');
+    if (modal) {
+        modal.classList.remove('active');
+        modal.style.display = 'none';
+    }
+    document.body.style.overflow = '';
+    sigCallback = null;
 };
 
 window.clearSigCanvas = () => {
-    if (sigCtx) sigCtx.clearRect(0, 0, sigCanvas.width, sigCanvas.height);
+    window.sigPadManager.getPad('sig-canvas').clear();
 };
 
 const sigConfirmBtn = document.getElementById('sig-confirm-btn');
 if (sigConfirmBtn) {
     sigConfirmBtn.onclick = () => {
-        const data = window.getCompressedSignature(sigCanvas);
-        if (sigCallback) sigCallback(data); closeSignatureModal();
+        const pad = window.sigPadManager.getPad('sig-canvas');
+        // Use existing getCompressedSignature logic or pad's internal toDataURL
+        const data = window.getCompressedSignature(pad.canvas);
+        if (sigCallback) sigCallback(data);
+        closeSignatureModal();
     };
 }
 

@@ -664,109 +664,166 @@ window.triggerSuccessPopup = (message, duration = 3000) => {
 };
 
 // --- SIGNATURE & CANVAS UTILITIES (ENHANCED v3.5.2) ---
-window.initCanvasDrawing = (canvasId) => {
-    const canvas = document.getElementById(canvasId);
-    if (!canvas) return;
+// --- SIGNATURE PAD ENGINE (PREMIUM v3.5.5) ---
+// Isolated Instance Per Canvas Support - Touch, Mouse, Stylus
+class SignaturePadEngine {
+    constructor(canvasId, options = {}) {
+        this.canvas = document.getElementById(canvasId);
+        if (!this.canvas) {
+            console.error(`❌ Canvas "${canvasId}" not found`);
+            return;
+        }
 
-    // Prevent scrolling when touching the canvas
-    canvas.style.touchAction = 'none';
-    canvas.style.userSelect = 'none';
-    canvas.style.webkitUserSelect = 'none';
+        this.canvasId = canvasId;
+        this.isDrawing = false;
+        this.isLocked = true;
+        this.ctx = this.canvas.getContext('2d');
 
-    const ctx = canvas.getContext('2d');
-    const ratio = window.devicePixelRatio || 1;
+        // Options
+        this.options = {
+            lineWidth: 3,
+            strokeColor: '#1E1B4B',
+            backgroundColor: '#FFFFFF',
+            ...options
+        };
 
-    // Only set size if it hasn't been set or if the element size changed
-    const targetWidth = canvas.offsetWidth * ratio;
-    const targetHeight = canvas.offsetHeight * ratio;
-
-    if (canvas.width !== targetWidth || canvas.height !== targetHeight) {
-        canvas.width = targetWidth;
-        canvas.height = targetHeight;
-        ctx.scale(ratio, ratio);
-
-        // Reset context properties after size change
-        ctx.lineWidth = 3;
-        ctx.lineCap = 'round';
-        ctx.lineJoin = 'round';
-        ctx.strokeStyle = '#1E1B4B';
+        this._setupCanvas();
+        this._bindEvents();
     }
 
-    let drawing = false;
-    let lastPos = { x: 0, y: 0 };
+    _setupCanvas() {
+        const rect = this.canvas.getBoundingClientRect();
+        const ratio = window.devicePixelRatio || 1;
 
-    const getPos = (e) => {
-        const rect = canvas.getBoundingClientRect();
-        // Support for TouchEvents and PointerEvents
-        const clientX = e.clientX || (e.touches && e.touches[0] ? e.touches[0].clientX : 0);
-        const clientY = e.clientY || (e.touches && e.touches[0] ? e.touches[0].clientY : 0);
+        // High-DPI Scaling Fix
+        this.canvas.width = rect.width * ratio;
+        this.canvas.height = rect.height * ratio;
+        this.ctx.scale(ratio, ratio);
+
+        this.ctx.lineWidth = this.options.lineWidth;
+        this.ctx.lineCap = 'round';
+        this.ctx.lineJoin = 'round';
+        this.ctx.strokeStyle = this.options.strokeColor;
+
+        // Background initialization
+        this.ctx.fillStyle = this.options.backgroundColor;
+        this.ctx.fillRect(0, 0, rect.width, rect.height);
+    }
+
+    _getPosition(e) {
+        const rect = this.canvas.getBoundingClientRect();
+        let clientX, clientY;
+
+        if (e.touches && e.touches.length > 0) {
+            clientX = e.touches[0].clientX;
+            clientY = e.touches[0].clientY;
+        } else {
+            clientX = e.clientX;
+            clientY = e.clientY;
+        }
+
         return {
             x: clientX - rect.left,
             y: clientY - rect.top
         };
-    };
+    }
 
-    const start = (e) => {
-        drawing = true;
-        lastPos = getPos(e);
-        ctx.beginPath();
-        ctx.moveTo(lastPos.x, lastPos.y);
-        // Important: don't call preventDefault if it's not needed to avoid console warnings
+    _startDrawing(e) {
+        if (this.isLocked) return;
         if (e.cancelable) e.preventDefault();
-    };
 
-    const draw = (e) => {
-        if (!drawing) return;
-        const currentPos = getPos(e);
+        const pos = this._getPosition(e);
+        this.isDrawing = true;
+        this.ctx.beginPath();
+        this.ctx.moveTo(pos.x, pos.y);
+    }
 
-        ctx.beginPath();
-        ctx.moveTo(lastPos.x, lastPos.y);
-        ctx.lineTo(currentPos.x, currentPos.y);
-        ctx.stroke();
-
-        lastPos = currentPos;
+    _draw(e) {
+        if (!this.isDrawing || this.isLocked) return;
         if (e.cancelable) e.preventDefault();
-    };
 
-    const stop = () => {
-        if (drawing) {
-            drawing = false;
-            ctx.closePath();
+        const pos = this._getPosition(e);
+        this.ctx.lineTo(pos.x, pos.y);
+        this.ctx.stroke();
+    }
+
+    _stopDrawing() {
+        if (this.isDrawing) {
+            this.isDrawing = false;
+            this.ctx.closePath();
         }
-    };
+    }
 
-    // Remove old listeners to avoid duplicates
-    canvas.onmousedown = canvas.ontouchstart = null;
-    canvas.onmousemove = canvas.ontouchmove = null;
+    _bindEvents() {
+        this.canvas.addEventListener('touchstart', this._startDrawing.bind(this), { passive: false });
+        this.canvas.addEventListener('touchmove', this._draw.bind(this), { passive: false });
+        this.canvas.addEventListener('touchend', this._stopDrawing.bind(this));
 
-    // Use standard event listeners for better reliability
-    canvas.addEventListener('mousedown', start, { passive: false });
-    canvas.addEventListener('touchstart', start, { passive: false });
+        this.canvas.addEventListener('mousedown', this._startDrawing.bind(this));
+        this.canvas.addEventListener('mousemove', this._draw.bind(this));
+        this.canvas.addEventListener('mouseup', this._stopDrawing.bind(this));
+        this.canvas.addEventListener('mouseleave', this._stopDrawing.bind(this));
+    }
 
-    canvas.addEventListener('mousemove', draw, { passive: false });
-    canvas.addEventListener('touchmove', draw, { passive: false });
+    unlock() {
+        this.isLocked = false;
+        const wrapper = this.canvas.closest('.canvas-wrapper');
+        if (wrapper) wrapper.classList.add('unlocked');
+        this.canvas.style.cursor = 'crosshair';
+        return this;
+    }
 
-    window.addEventListener('mouseup', stop);
-    window.addEventListener('touchend', stop);
-    canvas.addEventListener('mouseleave', stop);
+    lock() {
+        this.isLocked = true;
+        const wrapper = this.canvas.closest('.canvas-wrapper');
+        if (wrapper) wrapper.classList.remove('unlocked');
+        this.canvas.style.cursor = 'default';
+        return this;
+    }
+
+    clear() {
+        const rect = this.canvas.getBoundingClientRect();
+        this.ctx.fillStyle = this.options.backgroundColor;
+        this.ctx.fillRect(0, 0, rect.width, rect.height);
+        return this;
+    }
+
+    toDataURL() {
+        return this.canvas.toDataURL("image/png");
+    }
+}
+
+class SignaturePadManager {
+    constructor() {
+        this.pads = new Map();
+    }
+
+    getPad(id) {
+        if (!this.pads.has(id)) {
+            this.pads.set(id, new SignaturePadEngine(id));
+        }
+        return this.pads.get(id);
+    }
+}
+
+window.sigPadManager = new SignaturePadManager();
+
+// --- BACKWARD COMPATIBILITY LAYER (DO NOT REMOVE) ---
+window.unlockCanvas = (element) => {
+    const wrapper = element.closest('.canvas-wrapper');
+    const canvas = wrapper?.querySelector('canvas');
+    if (canvas) {
+        window.sigPadManager.getPad(canvas.id).unlock();
+    }
 };
 
-window.getCanvasBase64 = (canvasId) => {
-    const canvas = document.getElementById(canvasId);
-    if (!canvas) return null;
-    return canvas.toDataURL("image/png");
-};
-
-window.clearCanvas = (canvasId) => {
-    const canvas = document.getElementById(canvasId);
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-};
-
-window.unlockCanvas = (overlay) => {
-    const wrapper = overlay.parentElement;
-    const canvas = wrapper.querySelector('canvas');
-    wrapper.classList.add('unlocked');
-    if (canvas) window.initCanvasDrawing(canvas.id);
+window.initCanvasDrawing = (id) => window.sigPadManager.getPad(id);
+window.initSigPad = () => window.sigPadManager.getPad('sig-canvas');
+window.initVisitorCanvas = () => window.sigPadManager.getPad('v-sig-pad');
+window.getCanvasBase64 = (id) => window.sigPadManager.getPad(id).toDataURL();
+window.clearCanvas = (id) => window.sigPadManager.getPad(id).clear();
+window.clearSignaturePad = (id) => {
+    const pad = window.sigPadManager.getPad(id);
+    pad.clear();
+    pad.lock();
 };

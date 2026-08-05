@@ -605,6 +605,182 @@ body {
     transform: translateY(-50%) scale(0.92) !important;
 }
 
+/* ================================================================ */
+/* SIGNATURE PADS - COMPLETE FIX                                    */
+/* ================================================================ */
+
+.signature-pads-grid {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr !important;
+    gap: 24px !important;
+    margin: 16px 0 !important;
+}
+
+.signature-pad-group {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 8px !important;
+}
+
+.signature-label {
+    font-size: 10px !important;
+    font-weight: 900 !important;
+    color: #64748b !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.5px !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 6px !important;
+}
+
+.signature-input {
+    width: 100% !important;
+    padding: 12px 16px !important;
+    border: 1.5px solid #e2e8f0 !important;
+    border-radius: 12px !important;
+    font-size: 14px !important;
+    font-weight: 600 !important;
+    color: #0f172a !important;
+    background: #ffffff !important;
+    outline: none !important;
+    transition: all 0.2s ease !important;
+}
+
+/* ================================================================ */
+/* CANVAS WRAPPER - CRITICAL FIXES                                  */
+/* ================================================================ */
+
+.canvas-wrapper {
+    position: relative !important;
+    width: 100% !important;
+    height: 200px !important;
+    background: #ffffff !important;
+    border: 2px solid #e2e8f0 !important;
+    border-radius: 16px !important;
+    overflow: hidden !important;
+    touch-action: none !important;
+    user-select: none !important;
+    -webkit-user-select: none !important;
+}
+
+.signature-canvas {
+    position: absolute !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    display: block !important;
+    touch-action: none !important;
+    cursor: crosshair !important;
+    background: #ffffff !important;
+    z-index: 1 !important;
+}
+
+.sig-lock-overlay {
+    position: absolute !important;
+    inset: 0 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+    background: rgba(248, 250, 252, 0.95) !important;
+    backdrop-filter: blur(4px) !important;
+    -webkit-backdrop-filter: blur(4px) !important;
+    cursor: pointer !important;
+    z-index: 10 !important;
+    transition: all 0.3s ease !important;
+    border-radius: inherit !important;
+    pointer-events: auto !important;
+}
+
+.sig-lock-overlay i {
+    font-size: 2.5rem !important;
+    color: #818cf8 !important;
+    margin-bottom: 8px !important;
+}
+
+.sig-lock-overlay span {
+    font-size: 11px !important;
+    font-weight: 700 !important;
+    color: #4f46e5 !important;
+    text-transform: uppercase !important;
+    letter-spacing: 1px !important;
+}
+
+.canvas-wrapper.unlocked .sig-lock-overlay {
+    opacity: 0 !important;
+    pointer-events: none !important;
+    transform: scale(1.05) !important;
+    visibility: hidden !important;
+}
+
+.canvas-wrapper.unlocked .signature-canvas {
+    cursor: crosshair !important;
+    z-index: 2 !important;
+}
+
+.sig-clear-btn {
+    padding: 8px 16px !important;
+    background: #fee2e2 !important;
+    color: #dc2626 !important;
+    border: none !important;
+    border-radius: 10px !important;
+    font-size: 10px !important;
+    font-weight: 700 !important;
+    text-transform: uppercase !important;
+    cursor: pointer !important;
+    transition: all 0.2s ease !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 6px !important;
+}
+
+/* ================================================================ */
+/* MODAL SIGNATURE PAD                                              */
+/* ================================================================ */
+
+.signature-modal {
+    position: fixed !important;
+    inset: 0 !important;
+    z-index: 999999 !important;
+    display: none !important;
+    align-items: center !important;
+    justify-content: center !important;
+    padding: 20px !important;
+    background: rgba(15, 23, 42, 0.6) !important;
+    backdrop-filter: blur(8px) !important;
+}
+
+.signature-modal.active {
+    display: flex !important;
+}
+
+.signature-modal .modal-content {
+    position: relative !important;
+    z-index: 2 !important;
+    background: #ffffff !important;
+    border-radius: 24px !important;
+    max-width: 500px !important;
+    width: 100% !important;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25) !important;
+    overflow: hidden !important;
+    animation: slideUp 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
+}
+
+@media (max-width: 768px) {
+    .signature-pads-grid { grid-template-columns: 1fr !important; }
+    .canvas-wrapper { height: 160px !important; }
+    .signature-modal { padding: 0 !important; align-items: flex-end !important; }
+    .signature-modal .modal-content { border-radius: 24px 24px 0 0 !important; max-width: 100% !important; }
+}
+
+@media (prefers-color-scheme: dark) {
+    .asset-batch-container, .batch-card, .asset-details-modal .modal-container, .asset-details-modal .modal-body, .detail-item {
+        background-color: white !important;
+        color: #0f172a !important;
+    }
+}
+
 .add-asset-button {
     display: flex !important;
     align-items: center !important;
@@ -1483,4 +1659,156 @@ body {
         background-color: white !important;
         color: #0f172a !important;
     }
+}
+
+/* ================================================================ */
+/* SIGNATURE PADS - COMPLETE FIX                                    */
+/* ================================================================ */
+
+.signature-pads-grid {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr !important;
+    gap: 24px !important;
+    margin: 16px 0 !important;
+}
+
+.signature-pad-group,
+.visitor-signature-group {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 8px !important;
+}
+
+.signature-label {
+    font-size: 10px !important;
+    font-weight: 900 !important;
+    color: #64748b !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.5px !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 6px !important;
+}
+
+.signature-label i {
+    color: #818cf8 !important;
+}
+
+.signature-input {
+    width: 100% !important;
+    padding: 12px 16px !important;
+    border: 1.5px solid #e2e8f0 !important;
+    border-radius: 12px !important;
+    font-size: 14px !important;
+    font-weight: 600 !important;
+    color: #0f172a !important;
+    background: #ffffff !important;
+    outline: none !important;
+    transition: all 0.2s ease !important;
+}
+
+.canvas-wrapper {
+    position: relative !important;
+    width: 100% !important;
+    height: 200px !important;
+    background: #ffffff !important;
+    border: 2px solid #e2e8f0 !important;
+    border-radius: 16px !important;
+    overflow: hidden !important;
+    touch-action: none !important;
+}
+
+.signature-canvas {
+    position: absolute !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    display: block !important;
+    touch-action: none !important;
+    cursor: crosshair !important;
+    background: #ffffff !important;
+    z-index: 1 !important;
+}
+
+.sig-lock-overlay {
+    position: absolute !important;
+    inset: 0 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+    background: rgba(248, 250, 252, 0.95) !important;
+    backdrop-filter: blur(4px) !important;
+    cursor: pointer !important;
+    z-index: 10 !important;
+    transition: all 0.3s ease !important;
+}
+
+.canvas-wrapper.unlocked .sig-lock-overlay {
+    opacity: 0 !important;
+    pointer-events: none !important;
+    transform: scale(1.05) !important;
+    visibility: hidden !important;
+}
+
+.sig-clear-btn {
+    padding: 8px 16px !important;
+    background: #fee2e2 !important;
+    color: #dc2626 !important;
+    border: none !important;
+    border-radius: 10px !important;
+    font-size: 10px !important;
+    font-weight: 700 !important;
+    text-transform: uppercase !important;
+    cursor: pointer !important;
+    transition: all 0.2s ease !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 6px !important;
+}
+
+.signature-modal {
+    position: fixed !important;
+    inset: 0 !important;
+    z-index: 999999 !important;
+    display: none !important;
+    align-items: center !important;
+    justify-content: center !important;
+    padding: 20px !important;
+    background: rgba(15, 23, 42, 0.6) !important;
+    backdrop-filter: blur(8px) !important;
+}
+
+.signature-modal.active {
+    display: flex !important;
+}
+
+.signature-modal .modal-content {
+    position: relative !important;
+    z-index: 2 !important;
+    background: #ffffff !important;
+    border-radius: 24px !important;
+    max-width: 500px !important;
+    width: 100% !important;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25) !important;
+    overflow: hidden !important;
+    animation: slideUp 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
+}
+
+.signature-modal .sig-confirm-btn {
+    background: #4f46e5 !important;
+    color: #ffffff !important;
+    border: none !important;
+    border-radius: 12px !important;
+    padding: 14px !important;
+    font-weight: 700 !important;
+    font-size: 13px !important;
+}
+
+@media (max-width: 768px) {
+    .signature-pads-grid { grid-template-columns: 1fr !important; }
+    .canvas-wrapper { height: 160px !important; }
+    .signature-modal { padding: 0 !important; align-items: flex-end !important; }
+    .signature-modal .modal-content { border-radius: 24px 24px 0 0 !important; max-width: 100% !important; }
 }

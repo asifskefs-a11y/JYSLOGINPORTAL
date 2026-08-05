@@ -92,17 +92,19 @@
                             </div>
 
                             <!-- SIGNATURE -->
-                            <div class="pt-2">
-                                <div class="flex justify-between items-center mb-3 px-1 text-gray-800">
-                                    <label class="visitor-label !m-0">Signature Required</label>
-                                    <button type="button" onclick="clearVisitorSig(); document.getElementById('visitor-sig-wrapper').classList.remove('unlocked')" class="text-[10px] text-red-500 font-bold uppercase underline">Clear</button>
-                                </div>
-                                <div class="canvas-wrapper relative !h-56 shadow-lg rounded-2xl overflow-hidden border-2 border-indigo-100/60" id="visitor-sig-wrapper">
-                                    <div class="sig-lock-overlay absolute inset-0 flex flex-col items-center justify-center z-10 cursor-pointer" onclick="window.unlockVisitorCanvas(this)">
+                            <div class="visitor-signature-group pt-2">
+                                <label class="signature-label"><i class="fa-solid fa-user"></i> Visitor Signature Required *</label>
+                                <div class="canvas-wrapper">
+                                    <div class="sig-lock-overlay" onclick="window.unlockCanvas(this)">
                                         <i class="fa-solid fa-lock text-3xl text-indigo-500 mb-2"></i>
-                                        <span class="text-sm font-bold text-indigo-500 uppercase tracking-wider">Tap here to sign</span>
+                                        <span>Tap here to sign</span>
                                     </div>
-                                    <canvas id="v-sig-pad" class="w-full h-full bg-white"></canvas>
+                                    <canvas id="v-sig-pad" class="signature-canvas"></canvas>
+                                </div>
+                                <div class="signature-actions">
+                                    <button type="button" onclick="window.clearSignaturePad('v-sig-pad')" class="sig-clear-btn">
+                                        <i class="fa-regular fa-trash-can"></i> Clear Signature
+                                    </button>
                                 </div>
                             </div>
 
@@ -140,11 +142,6 @@
     </div>
 
     <script>
-        window.unlockVisitorCanvas = function(overlay) {
-            overlay.parentElement.classList.add('unlocked');
-            if (typeof window.initVisitorCanvas === 'function') window.initVisitorCanvas();
-        };
-
         // Live Clock (v3.4.9)
         function updateLiveClock() {
             const el = document.getElementById('v-live-clock');
