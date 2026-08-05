@@ -1,840 +1,203 @@
-import { db, SHEETS_URL } from './firebase_config.js';
-import { ref, update, push, onValue, get, child } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+import { db, UPLOAD_CONFIG } from './firebase_config.js';
+import { ref, update, get } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
-// --- NATIVE WEB PUSH VAPID KEY ---
-const VAPID_PUBLIC_KEY = "BD-Nf6v276v47v8y5-v3p-7-v-7-v-7-v-7-v-7-v-7-v-7-v-7-v-7-v-7-v-7-v-7-v-7-v-7-v-7-v-7-v-7";
-
-// --- GLOBAL UTILITIES ---
-window.getDirectDriveImageUrl = (driveUrl) => {
-    if (!driveUrl) return 'https://placehold.co/400x300?text=No+Photo';
-
-    // Agar already valid image URL hai toh wapas karo
-    if (driveUrl.startsWith('data:image')) return driveUrl;
-    if (driveUrl.startsWith('http') && (
-        driveUrl.includes('.jpg') ||
-        driveUrl.includes('.png') ||
-        driveUrl.includes('.jpeg') ||
-        driveUrl.includes('.gif') ||
-        driveUrl.includes('lh3.googleusercontent.com') ||
-        driveUrl.includes('drive.google.com')
-    )) return driveUrl;
-
-    try {
-        // ✅ MULTIPLE PATTERNS FOR GOOGLE DRIVE
-        let fileId = null;
-
-        // Pattern 1: /file/d/{ID}/
-        const match1 = driveUrl.match(/\/file\/d\/([^\/]+)/);
-        if (match1) fileId = match1[1];
-
-        // Pattern 2: ?id={ID}
-        if (!fileId) {
-            const match2 = driveUrl.match(/[?&]id=([^&]+)/);
-            if (match2) fileId = match2[1];
-        }
-
-        // Pattern 3: Direct ID (alphanumeric with hyphens/underscores)
-        if (!fileId) {
-            const match3 = driveUrl.match(/([a-zA-Z0-9_-]{25,})/);
-            if (match3) fileId = match3[1];
-        }
-
-        // Pattern 4: /open?id={ID}
-        if (!fileId) {
-            const match4 = driveUrl.match(/\/open\?id=([^&]+)/);
-            if (match4) fileId = match4[1];
-        }
-
-        if (fileId) {
-            // ✅ USE BOTH URL FORMATS (Google Drive & lh3)
-            // Primary: lh3 for direct image access
-            // Fallback: drive.google.com for preview
-            const directUrl = `https://lh3.googleusercontent.com/d/${fileId}`;
-            const previewUrl = `https://drive.google.com/uc?export=view&id=${fileId}`;
-
-            // Try lh3 first, if it fails browser will use fallback
-            return directUrl;
-        }
-
-        console.warn("⚠️ Could not extract file ID from:", driveUrl);
-        return 'https://placehold.co/400x300?text=No+Photo';
-    } catch (e) {
-        console.error("❌ URL Format Error:", e);
-        return 'https://placehold.co/400x300?text=Error';
-    }
-};
-
-// Alias for backward compatibility
-window.formatDriveImageUrl = window.getDirectDriveImageUrl;
-
-window.handleProfilePhotoUpload = async (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-    const avatar = document.getElementById('userAvatar');
-    const originalContent = avatar.innerHTML;
-    avatar.innerHTML = '<i class="fa-solid fa-spinner fa-spin text-white"></i>';
-    try {
-        const base64 = await window.compressImageFile(file, 500, 500, 0.7);
-        const staff = window.currentStaff;
-        const payload = { type: 'active_asset', folderType: 'Staff_Profile_Photos', fileName: `Profile_${staff.mobile}.jpg`, image: base64 };
-        const res = await window.uploadToDrive(payload);
-        if (res.status === 'success') {
-            const updates = { profilePicUrl: res.fileUrl || res.signatureUrl };
-            await update(ref(db, 'staff/' + staff.mobile), updates);
-            await update(ref(db, 'users/' + staff.mobile), updates);
-            location.reload();
-        }
-    } catch (err) { alert(err.message); avatar.innerHTML = originalContent; }
-};
+// ================================================================ */
+// DYNAMIC GOOGLE DRIVE SYNC ENGINE                                 */
+// ================================================================ */
 
 window.uploadToDrive = async (payload) => {
     try {
-        console.log("📤 Uploading to Drive:", payload.fileName);
+        const config = await window.driveConfigCache.getConfig();
+        if (!config || !config.url) throw new Error('Drive URL not configured.');
 
-        const response = await fetch(SHEETS_URL, {
+        // Construct EXACT JSON Payload as requested
+        const uploadPayload = {
+            image: payload.image,
+            folderCategory: payload.category || payload.folderCategory || 'DEFAULT',
+            filename: payload.fileName || payload.filename || `upload_${Date.now()}.png`,
+            action: 'upload',
+            timestamp: Date.now(),
+            ...payload.metadata
+        };
+
+        const response = await fetch(config.url, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(payload),
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(uploadPayload),
             mode: 'cors'
         });
 
-        if (!response.ok) {
-            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-        }
-
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
         const result = await response.json();
-        console.log("📥 Upload Response:", result);
 
-        // ✅ MULTIPLE RESPONSE FORMATS SUPPORT
-        // Google Apps Script returns various formats
-        const fileUrl = result.fileUrl || result.signatureUrl || result.url || result.downloadUrl || result.fileLink || null;
-        const fileId = result.fileId || result.id || null;
+        const fileUrl = result.fileUrl || result.url || result.signatureUrl || null;
+        if (fileUrl) return { status: 'success', fileUrl };
 
-        if (fileUrl) {
-            return {
-                status: 'success',
-                fileUrl: fileUrl,
-                fileId: fileId,
-                signatureUrl: fileUrl,
-                message: result.message || "Upload successful"
-            };
-        } else {
-            // If no URL in response, try to construct from fileId
-            if (fileId) {
-                const constructedUrl = `https://lh3.googleusercontent.com/d/${fileId}`;
-                return {
-                    status: 'success',
-                    fileUrl: constructedUrl,
-                    fileId: fileId,
-                    signatureUrl: constructedUrl,
-                    message: "Upload successful (URL constructed from ID)"
-                };
-            }
-
-            console.error("❌ No file URL in response:", result);
-            return {
-                status: 'error',
-                message: result.message || "No file URL returned from server",
-                rawResponse: result
-            };
+        if (result.fileId || result.id) {
+            return { status: 'success', fileUrl: `https://lh3.googleusercontent.com/d/${result.fileId || result.id}` };
         }
-    } catch (e) {
-        console.error("❌ Upload Error:", e);
-        return {
-            status: 'error',
-            message: e.message || "Network error during upload"
-        };
+
+        throw new Error(result.message || 'No URL returned from Drive Sync');
+    } catch (error) {
+        console.error('❌ Sync Error:', error);
+        return { status: 'error', message: error.message };
     }
 };
 
-window.compressImageFile = async (file, maxWidth = 1200, maxHeight = 1200, quality = 0.7) => {
-    return new Promise((resolve, reject) => {
-        try {
-            const reader = new FileReader();
-            reader.onload = (e) => {
-                const img = new Image();
-                img.onload = () => {
-                    const canvas = document.createElement('canvas');
-                    let w = img.width, h = img.height;
-
-                    // Maintain aspect ratio
-                    if (w > h) {
-                        if (w > maxWidth) {
-                            h = (h * maxWidth) / w;
-                            w = maxWidth;
-                        }
-                    } else {
-                        if (h > maxHeight) {
-                            w = (w * maxHeight) / h;
-                            h = maxHeight;
-                        }
-                    }
-
-                    canvas.width = w;
-                    canvas.height = h;
-                    const ctx = canvas.getContext('2d');
-                    ctx.drawImage(img, 0, 0, w, h);
-
-                    // ✅ For Drive: Use JPEG with better quality
-                    resolve(canvas.toDataURL("image/jpeg", quality));
-                };
-                img.onerror = () => reject(new Error("Failed to load image"));
-                img.src = e.target.result;
-            };
-            reader.onerror = () => reject(new Error("Failed to read file"));
-            reader.readAsDataURL(file);
-        } catch (e) {
-            reject(e);
-        }
-    });
-};
-
-window.openImageZoom = (url) => { if(!url || url.includes('placeholder')) return; window.open(url, '_blank'); };
-
-// --- APP LAUNCH VIDEO LOGIC (NON-BLOCKING) ---
-window.handleLaunchVideo = () => {
-    const overlay = document.getElementById('launchVideoOverlay');
-    const video = document.getElementById('appLaunchVideo');
-    const skipBtn = document.getElementById('skipVideoBtn');
-
-    if (!overlay || !video) return;
-
-    if (sessionStorage.getItem('videoPlayedThisSession') === 'true') {
-        overlay.remove();
-        return;
+window.uploadToDriveWithRetry = async (payload, retries = 3) => {
+    for (let i = 0; i < retries; i++) {
+        const res = await window.uploadToDrive(payload);
+        if (res.status === 'success') return res;
+        await new Promise(r => setTimeout(r, 1000 * (i + 1)));
     }
-
-    overlay.classList.remove('hidden');
-    overlay.classList.add('flex');
-
-    const hideOverlay = () => {
-        sessionStorage.setItem('videoPlayedThisSession', 'true');
-        overlay.classList.add('opacity-0');
-        setTimeout(() => overlay.remove(), 1000);
-    };
-
-    video.onended = hideOverlay;
-    if (skipBtn) skipBtn.onclick = hideOverlay;
-
-    video.play().catch(() => hideOverlay());
+    return { status: 'error', message: 'All retry attempts failed' };
 };
 
-// --- NATIVE WEB PUSH INITIALIZATION (CROSS-PLATFORM) ---
-let swRegistration = null;
-
-const urlBase64ToUint8Array = (base64String) => {
-    const cleaned = base64String.trim().replace(/\s/g, '');
-    const padding = '='.repeat((4 - cleaned.length % 4) % 4);
-    const base64 = (cleaned + padding).replace(/\-/g, '+').replace(/_/g, '/');
-    const rawData = window.atob(base64);
-    const outputArray = new Uint8Array(rawData.length);
-    for (let i = 0; i < rawData.length; ++i) { outputArray[i] = rawData.charCodeAt(i); }
-    return outputArray;
-};
-
-async function initPushInfrastructure() {
-    if (!('serviceWorker' in navigator)) return;
-    try {
-        const regs = await navigator.serviceWorker.getRegistrations();
-        for (let r of regs) {
-            if (r.active && (r.active.scriptURL.includes('OneSignal') || !r.scope.includes('/JYSLOGINPORTAL/'))) {
-                await r.unregister();
-            }
-        }
-        swRegistration = await navigator.serviceWorker.register('./sw.js', { scope: './' });
-
-        const diagSW = document.getElementById('diag-sw-status');
-        if (diagSW) diagSW.innerText = "Active (sw.js Registered)";
-    } catch (e) { console.warn("Push Init Fail:", e); }
-}
-
-// --- POST-LOGIN SUBSCRIPTION FLOW (CRITICAL) ---
-window.checkAndSubscribePush = async () => {
-    if (!window.currentStaff) return;
-    const staff = window.currentStaff;
-    const adekId = staff.adekPass || staff.adcPassNumber;
-    if (!adekId) return;
-
-    try {
-        const currentPerm = Notification.permission;
-
-        // 2. Check Firebase for existing token (Task 2)
-        const userRef = ref(db, `users/${staff.mobile}`);
-        const snap = await get(userRef);
-        const userData = snap.exists() ? snap.val() : {};
-        const hasStoredSub = userData.pushSubscription && userData.pushSubscription !== "";
-
-        // SKIP PROMPT IF: Already granted OR already stored in DB (Constraint 2)
-        if (currentPerm === 'granted' && hasStoredSub) {
-            console.log("Push Flow: User already active. Skipping prompt.");
-            const subObj = JSON.parse(userData.pushSubscription);
-            window.syncSubscriptionToDB(subObj);
-            return;
-        }
-
-        // 3. Logic for New Logins / Missing Tokens (Constraint 3)
-        const diagId = document.getElementById('diag-push-id');
-        const notifModal = document.getElementById('notification-modal');
-
-        if (currentPerm === 'default' && !hasStoredSub) {
-            if (notifModal) {
-                notifModal.classList.remove('hidden');
-                notifModal.style.display = 'flex';
-            }
-        } else if (currentPerm === 'granted' && !hasStoredSub) {
-            console.log("Push Flow: Permission OK, syncing missing DB record...");
-            await window.subscribeUserToPush();
-        }
-
-    } catch (e) { console.error("Post-Login Push Check Failed:", e); }
-};
-
-window.syncSubscriptionToDB = async (sub) => {
-    if (!sub || !window.currentStaff) return;
-    try {
-        const staff = window.currentStaff;
-        const adekId = staff.adekPass || staff.adcPassNumber;
-        if (!adekId) return;
-
-        const updates = {};
-        // TASK 4: Prevent duplication, update timestamp/endpoint (Constraint 4)
-        updates[`users/${staff.mobile}/pushSubscription`] = JSON.stringify(sub);
-        updates[`users/${staff.mobile}/adekPassId`] = adekId;
-        updates[`users/${staff.mobile}/schoolName`] = staff.branch || "";
-        updates[`users/${staff.mobile}/role`] = staff.role || "";
-        updates[`users/${staff.mobile}/lastSubSync`] = Date.now();
-
-        await update(ref(db), updates);
-        console.log("Subscription synced for ADEK ID:", adekId);
-    } catch (e) { console.error("DB Sync Error:", e); }
-};
-
-window.subscribeUserToPush = async () => {
-    const diagId = document.getElementById('diag-push-id');
-    const notifModal = document.getElementById('notification-modal');
-
-    // --- CROSS-PLATFORM COMPATIBILITY CHECKS ---
-    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
-    const isStandalone = window.navigator.standalone || window.matchMedia('(display-mode: standalone)').matches;
-
-    try {
-        // 1. iOS SAFARI GUARD: Must be in PWA Mode
-        if (isIOS && !isStandalone) {
-            if (diagId) diagId.innerText = "iOS ACTION REQUIRED: ADD TO HOME SCREEN";
-            window.showNotificationDebug(`
-                <div class="text-left space-y-2 py-2">
-                    <p class="font-black text-indigo-900 text-xs uppercase text-center mb-1">iOS Setup Required</p>
-                    <p class="text-[9px] text-indigo-700 leading-tight text-center">Apple requires this app to be installed to your Home Screen before alerts can be enabled.</p>
-                    <div class="bg-white/50 p-2 rounded-xl border border-indigo-100">
-                        <p class="text-[9px] font-bold text-indigo-600 mb-1">How to Install:</p>
-                        <div class="space-y-1 text-[9px] text-indigo-500">
-                            <div class="flex gap-2"><span>1.</span><span>Tap the <b>Share</b> button <i class="fa-solid fa-arrow-up-from-bracket"></i> (bottom center).</span></div>
-                            <div class="flex gap-2"><span>2.</span><span>Scroll down and tap <b>'Add to Home Screen'</b>.</span></div>
-                            <div class="flex gap-2"><span>3.</span><span>Open the app from your Home Screen icon to finish.</span></div>
-                        </div>
-                    </div>
-                </div>
-            `);
-            return;
-        }
-
-        if (diagId) diagId.innerText = "REQUESTING PERMISSION...";
-
-        const perm = await Notification.requestPermission();
-        if (perm !== 'granted') throw new Error("Permission denied by user");
-
-        if (!swRegistration) throw new Error("Push registration (Service Worker) not found.");
-
-        if (diagId) diagId.innerText = "Generating Native Subscription...";
-
-        const sub = await swRegistration.pushManager.subscribe({
-            userVisibleOnly: true,
-            applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
-        });
-
-        if (diagId) {
-            diagId.innerText = JSON.stringify(sub);
-            diagId.style.fontSize = "7px";
-            diagId.style.wordBreak = "break-all";
-            diagId.style.color = "#4f46e5";
-        }
-
-        await window.syncSubscriptionToDB(sub);
-
-        localStorage.setItem('notification_status', 'enabled');
-        localStorage.setItem('notification_prompt_completed', 'true');
-        if (notifModal) notifModal.remove();
-
-        if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.ready.then(reg => {
-                reg.showNotification("Jern Yafoor School", {
-                    body: "Native Notifications Enabled!",
-                    icon: "jys_Icon.png",
-                    badge: "jys_Icon.png",
-                    tag: "confirmation"
-                });
-            }).catch(err => console.warn("Confirm Notif Fail:", err));
-        }
-    } catch (e) {
-        if (diagId) {
-            diagId.innerText = "VAPID SUBSCRIPTION ERR: " + e.message;
-            diagId.style.color = "red";
-        }
-    }
-};
-
-// --- MULTI-ROLE PUSH ENGINE & BELL UI ---
-window.triggerMultiRoleNotification = async (notifData) => {
-    try {
-        const { title, body, school, role, roles, adekId, image, tag, icon, url } = notifData;
-        const now = Date.now();
-        const payload = { title, body, timestamp: now, image, tag, icon, url: url || "/JYSLOGINPORTAL/index.html", read: false };
-
-        // 1. Target by ADEK ID (Direct Confirmation)
-        if (adekId) {
-            await push(ref(db, `user_alerts/${adekId}`), payload);
-        }
-
-        // 2. Target by Role(s) and School (Multicast)
-        const rolesToNotify = roles || (role ? [role] : []);
-        if (rolesToNotify.length > 0) {
-            const usersSnap = await get(ref(db, 'users'));
-            if (usersSnap.exists()) {
-                const users = usersSnap.val();
-                const updates = {};
-                for (const mobile in users) {
-                    const user = users[mobile];
-                    const userRole = (user.role || "").trim();
-                    const userSchool = (user.schoolName || user.branch || "").trim();
-
-                    const roleMatch = rolesToNotify.some(r => userRole.toLowerCase() === r.toLowerCase());
-                    const schoolMatch = !school || userSchool.toLowerCase() === school.toLowerCase();
-
-                    if (roleMatch && schoolMatch && user.adekPassId) {
-                        const alertId = push(ref(db, `user_alerts/${user.adekPassId}`)).key;
-                        updates[`user_alerts/${user.adekPassId}/${alertId}`] = payload;
-                    }
-                }
-                if (Object.keys(updates).length > 0) await update(ref(db), updates);
-            }
-        }
-
-        // 3. Backend Dispatch Link (Push to central queue for Node.js web-push worker)
-        await push(ref(db, 'notification_queue'), {
-            ...payload,
-            targetRoles: rolesToNotify,
-            targetSchool: school || null,
-            targetAdekId: adekId || null,
-            status: 'pending'
-        });
-
-        // 4. Trigger Local Device Vibration/Banner (Only if current user is intended target)
-        const currentAdek = window.currentStaff ? (window.currentStaff.adekPass || window.currentStaff.adcPassNumber) : null;
-        const isSelfTarget = (adekId && adekId === currentAdek) ||
-                            (rolesToNotify.some(r => window.currentStaff && window.currentStaff.role === r) && (!school || window.currentStaff.branch === school));
-
-        if (isSelfTarget && 'serviceWorker' in navigator) {
-            const reg = await navigator.serviceWorker.ready;
-            reg.showNotification(title, { body, icon: "jys_Icon.png", image: window.formatDriveImageUrl(image), tag, data: { url: payload.url } });
-        }
-    } catch (e) { console.error("Multi-Role Notif Fail:", e); }
-};
-
-window.initNotificationBell = () => {
-    // 1. Identify valid headers for bell placement
-    const headers = document.querySelectorAll('nav, .school-header');
-    headers.forEach(header => {
-        // PREVENT DUPLICATES (Constraint 1)
-        if (header.querySelector('.bell-container')) return;
-
-        // 2. Filter for high-level dashboard headers only (Avoid sub-navs)
-        const isAdminHeader = header.closest('#view-admin-dash') && header.tagName === 'NAV';
-        const isStaffHeader = header.classList.contains('school-header');
-
-        if (!isAdminHeader && !isStaffHeader) return;
-
-        const bellContainer = document.createElement('div');
-        bellContainer.className = 'bell-container relative cursor-pointer ml-4';
-
-        // Ensure proper placement in Admin header (Constraint 1)
-        if (isAdminHeader) {
-            const actionMenu = header.querySelector('#admin-action-menu');
-            if (actionMenu) {
-                // Prepend to action menu or append to nav
-                header.querySelector('div:last-child').appendChild(bellContainer);
-            } else {
-                header.appendChild(bellContainer);
-            }
-        } else {
-            header.appendChild(bellContainer);
-        }
-
-        bellContainer.innerHTML = `
-            <div class="relative p-2 rounded-full hover:bg-slate-100 transition-colors">
-                <i class="fa-solid fa-bell text-indigo-900 text-lg"></i>
-                <span id="bell-badge" class="hidden absolute top-0 right-0 bg-red-500 text-white text-[8px] font-black w-4 h-4 rounded-full flex items-center justify-center border-2 border-white">0</span>
-            </div>
-            <div id="bell-dropdown" class="hidden absolute right-0 mt-2 w-72 bg-white rounded-2xl shadow-2xl border border-gray-100 z-[1000] overflow-hidden">
-                <div class="p-4 border-b border-gray-50 flex justify-between items-center bg-indigo-50/30">
-                    <h4 class="text-[10px] font-black text-indigo-900 uppercase tracking-widest">Recent Alerts</h4>
-                    <button id="mark-all-read-btn" class="text-[8px] font-bold text-indigo-400 hover:text-indigo-600 uppercase underline">Mark All Read</button>
-                </div>
-                <div id="bell-list" class="max-h-80 overflow-y-auto divide-y divide-gray-50 custom-scrollbar">
-                    <p class="p-8 text-center text-[10px] text-gray-300 font-bold uppercase">No new notifications</p>
-                </div>
-            </div>
-        `;
-
-        header.appendChild(bellContainer);
-        bellContainer.onclick = (e) => {
-            e.stopPropagation();
-            const dropdown = document.getElementById('bell-dropdown');
-            dropdown.classList.toggle('hidden');
-            if (!dropdown.classList.contains('hidden')) window.renderBellList();
-        };
-
-        const markBtn = bellContainer.querySelector('#mark-all-read-btn');
-        if (markBtn) markBtn.onclick = (e) => { e.stopPropagation(); window.markAllNotifsRead(); };
-    });
-
-    window.onclick = () => {
-        const dropdowns = document.querySelectorAll('#bell-dropdown');
-        dropdowns.forEach(d => d.classList.add('hidden'));
-    };
-
-    window.listenForNewAlerts();
-};
-
-window.listenForNewAlerts = () => {
-    if (!window.currentStaff) return;
-    const adekId = window.currentStaff.adekPass || window.currentStaff.adcPassNumber;
-    if (!adekId) return;
-
-    onValue(ref(db, `user_alerts/${adekId}`), (snap) => {
-        const alerts = snap.val() || {};
-        const unread = Object.values(alerts).filter(a => !a.read).length;
-        const badges = document.querySelectorAll('#bell-badge');
-        badges.forEach(badge => {
-            badge.innerText = unread > 9 ? '9+' : unread;
-            badge.classList.toggle('hidden', unread === 0);
-        });
-        window.allAlerts = alerts;
-    });
-};
-
-window.renderBellList = () => {
-    const lists = document.querySelectorAll('#bell-list');
-    if (!window.allAlerts) return;
-
-    const sorted = Object.entries(window.allAlerts).sort((a, b) => b[1].timestamp - a[1].timestamp).slice(0, 15);
-    const html = sorted.length === 0
-        ? `<p class="p-8 text-center text-[10px] text-gray-300 font-bold uppercase">No new alerts</p>`
-        : sorted.map(([id, alert]) => `
-            <div class="p-4 hover:bg-slate-50 transition-colors ${alert.read ? 'opacity-60' : 'bg-indigo-50/10'}" onclick="window.handleAlertClick('${id}', '${alert.url}')">
-                <div class="flex gap-3">
-                    <div class="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center flex-shrink-0">
-                        <i class="fa-solid ${alert.icon || 'fa-info-circle'} text-indigo-600 text-xs"></i>
-                    </div>
-                    <div class="min-w-0 flex-1">
-                        <p class="text-[10px] font-black text-indigo-900 truncate uppercase">${alert.title}</p>
-                        <p class="text-[9px] text-gray-500 leading-tight mt-0.5">${alert.body}</p>
-                        ${alert.image ? `<img src="${window.formatDriveImageUrl(alert.image)}" class="mt-2 h-16 w-full object-cover rounded-lg border">` : ''}
-                        <p class="text-[7px] text-gray-300 font-bold mt-1 uppercase">${new Date(alert.timestamp).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</p>
-                    </div>
-                </div>
-            </div>
-        `).join('');
-
-    lists.forEach(list => { list.innerHTML = html; });
-};
-
-window.handleAlertClick = async (id, url) => {
-    await window.markNotifRead(id);
-    if (url) window.location.href = url;
-};
-
-window.markNotifRead = async (id) => {
-    if (!window.currentStaff) return;
-    const adekId = window.currentStaff.adekPass || window.currentStaff.adcPassNumber;
-    await update(ref(db, `user_alerts/${adekId}/${id}`), { read: true });
-};
-
-window.markAllNotifsRead = async () => {
-    if (!window.currentStaff || !window.allAlerts) return;
-    const adekId = window.currentStaff.adekPass || window.currentStaff.adcPassNumber;
-    const updates = {};
-    Object.keys(window.allAlerts).forEach(id => {
-        updates[`user_alerts/${adekId}/${id}/read`] = true;
-    });
-    await update(ref(db), updates);
-};
-
-window.showNotificationDebug = (msg) => {
-    const errorArea = document.getElementById('notification-error-area');
-    const errorText = document.getElementById('notification-error-text');
-    const modal = document.getElementById('notification-modal');
-
-    if (errorArea && errorText) {
-        errorArea.classList.remove('hidden');
-        errorText.innerHTML = msg;
-    }
-    if (modal) {
-        modal.classList.remove('hidden');
-        modal.style.display = 'flex';
-    }
-};
-
-window.dismissNotificationModal = () => {
-    localStorage.setItem('notification_status', 'dismissed');
-    localStorage.setItem('notification_prompt_completed', 'true');
-    const modal = document.getElementById('notification-modal');
-    if (modal) modal.remove();
-};
-
-// --- INITIALIZATION GATE ---
-document.addEventListener('DOMContentLoaded', () => {
-    window.handleLaunchVideo();
-    initPushInfrastructure();
-
-    const submitBtn = document.getElementById('notification-submit-btn');
-    if (submitBtn) submitBtn.onclick = window.subscribeUserToPush;
-
-    const diagCard = document.getElementById('push-diagnostic-card');
-    if (diagCard) {
-        diagCard.classList.remove('hidden');
-        diagCard.style.cursor = "pointer";
-        diagCard.onclick = window.subscribeUserToPush;
-    }
-
-    // Modal display logic removed from here and moved to checkAndSubscribePush
-});
-
-// --- GLOBAL NAVIGATION ---
-window.showView = (viewId) => {
-    try {
-        const pageMap = { 'view-landing': 'index.html', 'view-visitor': 'visitor.html', 'view-staff': 'staff-login.html', 'view-admin-auth': 'admin.html', 'view-admin-dash': 'admin.html' };
-        if (pageMap[viewId] && !window.location.pathname.includes(pageMap[viewId])) { window.location.href = pageMap[viewId]; return; }
-        document.querySelectorAll('.view-section').forEach(s => { s.classList.remove('active'); s.classList.add('hidden'); s.style.display = 'none'; });
-        const target = document.getElementById(viewId);
-        if (target) { target.classList.remove('hidden'); target.classList.add('active'); target.style.display = 'flex'; }
-        window.scrollTo(0, 0);
-    } catch (e) { console.error(e); }
-};
-
-// --- GLOBAL SUCCESS POPUP (v3.5.1 PREMIUM) ---
-window.triggerSuccessPopup = (message, duration = 3000) => {
-    let popup = document.getElementById('global-success-popup');
-
-    // Inject HTML if not exists
-    if (!popup) {
-        const div = document.createElement('div');
-        div.id = 'global-success-popup';
-        div.innerHTML = `
-            <div class="success-modal-card">
-                <div class="success-icon-box">
-                    <svg class="checkmark" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 52 52">
-                        <circle class="checkmark-circle" cx="26" cy="26" r="25" fill="none"/>
-                        <path class="checkmark-check" fill="none" d="M14.1 27.2l7.1 7.2 16.7-16.8"/>
-                    </svg>
-                </div>
-                <h3>Success!</h3>
-                <p id="success-popup-msg"></p>
-            </div>
-        `;
-        document.body.appendChild(div);
-        popup = div;
-    }
-
-    const msgEl = document.getElementById('success-popup-msg');
-    if (msgEl) msgEl.innerText = message;
-
-    popup.style.display = 'flex';
-
-    // Auto close
-    setTimeout(() => {
-        popup.style.opacity = '0';
-        popup.style.transition = 'opacity 0.5s ease-out';
-        setTimeout(() => {
-            popup.style.display = 'none';
-            popup.style.opacity = '1';
-        }, 500);
-    }, duration);
-};
-
-// --- SIGNATURE & CANVAS UTILITIES (ENHANCED v3.5.2) ---
-// --- SIGNATURE PAD ENGINE (PREMIUM v3.5.5) ---
-// Isolated Instance Per Canvas Support - Touch, Mouse, Stylus
+// ================================================================ */
+// SIGNATURE PAD ENGINE (PREMIUM v3.5.5)                            */
+// ================================================================ */
 class SignaturePadEngine {
     constructor(canvasId, options = {}) {
         this.canvas = document.getElementById(canvasId);
-        if (!this.canvas) {
-            console.error(`❌ Canvas "${canvasId}" not found`);
-            return;
-        }
-
-        this.canvasId = canvasId;
+        if (!this.canvas) return;
+        this.ctx = this.canvas.getContext('2d');
         this.isDrawing = false;
         this.isLocked = true;
-        this.ctx = this.canvas.getContext('2d');
-
-        // Options
-        this.options = {
-            lineWidth: 3,
-            strokeColor: '#1E1B4B',
-            backgroundColor: '#FFFFFF',
-            ...options
-        };
-
+        this.options = { lineWidth: 3, strokeColor: '#1E1B4B', backgroundColor: '#FFFFFF', ...options };
         this._setupCanvas();
         this._bindEvents();
     }
-
     _setupCanvas() {
         const rect = this.canvas.getBoundingClientRect();
         const ratio = window.devicePixelRatio || 1;
-
-        // High-DPI Scaling Fix
         this.canvas.width = rect.width * ratio;
         this.canvas.height = rect.height * ratio;
         this.ctx.scale(ratio, ratio);
-
         this.ctx.lineWidth = this.options.lineWidth;
         this.ctx.lineCap = 'round';
         this.ctx.lineJoin = 'round';
         this.ctx.strokeStyle = this.options.strokeColor;
-
-        // Background initialization
         this.ctx.fillStyle = this.options.backgroundColor;
         this.ctx.fillRect(0, 0, rect.width, rect.height);
     }
-
     _getPosition(e) {
         const rect = this.canvas.getBoundingClientRect();
-        let clientX, clientY;
-
-        if (e.touches && e.touches.length > 0) {
-            clientX = e.touches[0].clientX;
-            clientY = e.touches[0].clientY;
-        } else {
-            clientX = e.clientX;
-            clientY = e.clientY;
-        }
-
-        return {
-            x: clientX - rect.left,
-            y: clientY - rect.top
-        };
+        const clientX = (e.touches && e.touches.length > 0) ? e.touches[0].clientX : e.clientX;
+        const clientY = (e.touches && e.touches.length > 0) ? e.touches[0].clientY : e.clientY;
+        return { x: clientX - rect.left, y: clientY - rect.top };
     }
-
     _startDrawing(e) {
         if (this.isLocked) return;
         if (e.cancelable) e.preventDefault();
-
         const pos = this._getPosition(e);
         this.isDrawing = true;
         this.ctx.beginPath();
         this.ctx.moveTo(pos.x, pos.y);
     }
-
     _draw(e) {
         if (!this.isDrawing || this.isLocked) return;
         if (e.cancelable) e.preventDefault();
-
         const pos = this._getPosition(e);
         this.ctx.lineTo(pos.x, pos.y);
         this.ctx.stroke();
     }
-
-    _stopDrawing() {
-        if (this.isDrawing) {
-            this.isDrawing = false;
-            this.ctx.closePath();
-        }
-    }
-
+    _stopDrawing() { if (this.isDrawing) { this.isDrawing = false; this.ctx.closePath(); } }
     _bindEvents() {
-        // Pointer Events (Unified for Touch & Mouse)
         this.canvas.addEventListener('pointerdown', this._startDrawing.bind(this));
         this.canvas.addEventListener('pointermove', this._draw.bind(this));
         this.canvas.addEventListener('pointerup', this._stopDrawing.bind(this));
-        this.canvas.addEventListener('pointercancel', this._stopDrawing.bind(this));
         this.canvas.addEventListener('pointerleave', this._stopDrawing.bind(this));
-
-        // Fallback for older browsers
-        this.canvas.addEventListener('touchstart', this._startDrawing.bind(this), { passive: false });
-        this.canvas.addEventListener('touchmove', this._draw.bind(this), { passive: false });
-        this.canvas.addEventListener('touchend', this._stopDrawing.bind(this));
-
-        this.canvas.addEventListener('mousedown', this._startDrawing.bind(this));
-        this.canvas.addEventListener('mousemove', this._draw.bind(this));
-        this.canvas.addEventListener('mouseup', this._stopDrawing.bind(this));
-        this.canvas.addEventListener('mouseleave', this._stopDrawing.bind(this));
-
-        // Prevent scrolling when drawing on touch
         this.canvas.style.touchAction = 'none';
     }
-
-    unlock() {
-        this.isLocked = false;
-        const wrapper = this.canvas.closest('.canvas-wrapper');
-        if (wrapper) wrapper.classList.add('unlocked');
-        this.canvas.style.cursor = 'crosshair';
-        return this;
-    }
-
-    lock() {
-        this.isLocked = true;
-        const wrapper = this.canvas.closest('.canvas-wrapper');
-        if (wrapper) wrapper.classList.remove('unlocked');
-        this.canvas.style.cursor = 'default';
-        return this;
-    }
-
+    unlock() { this.isLocked = false; return this; }
+    lock() { this.isLocked = true; return this; }
     clear() {
         const rect = this.canvas.getBoundingClientRect();
         this.ctx.fillStyle = this.options.backgroundColor;
         this.ctx.fillRect(0, 0, rect.width, rect.height);
-        return this;
     }
-
-    toDataURL() {
-        return this.canvas.toDataURL("image/png");
-    }
+    toDataURL() { return this.canvas.toDataURL("image/png"); }
 }
 
 class SignaturePadManager {
-    constructor() {
-        this.pads = new Map();
-    }
-
+    constructor() { this.pads = new Map(); }
     getPad(id) {
-        if (!this.pads.has(id)) {
-            this.pads.set(id, new SignaturePadEngine(id));
-        }
+        if (!this.pads.has(id)) this.pads.set(id, new SignaturePadEngine(id));
         return this.pads.get(id);
     }
 }
-
 window.sigPadManager = new SignaturePadManager();
-
-// --- BACKWARD COMPATIBILITY LAYER (DO NOT REMOVE) ---
-window.unlockCanvas = (element) => {
-    const wrapper = element.closest('.canvas-wrapper');
-    const canvas = wrapper?.querySelector('canvas');
-    if (canvas) {
-        window.sigPadManager.getPad(canvas.id).unlock();
-    }
-};
-
-window.initCanvasDrawing = (id) => window.sigPadManager.getPad(id);
-window.initSigPad = () => window.sigPadManager.getPad('sig-canvas');
-window.initVisitorCanvas = () => window.sigPadManager.getPad('v-sig-pad');
 window.getCanvasBase64 = (id) => window.sigPadManager.getPad(id).toDataURL();
-window.clearCanvas = (id) => window.sigPadManager.getPad(id).clear();
-window.clearSignaturePad = (id) => {
-    const pad = window.sigPadManager.getPad(id);
-    pad.clear();
-    pad.lock();
+window.clearSignaturePad = (id) => { const pad = window.sigPadManager.getPad(id); pad.clear(); pad.lock(); };
+window.unlockCanvas = (el) => { const canvas = el.closest('.canvas-wrapper').querySelector('canvas'); window.sigPadManager.getPad(canvas.id).unlock(); el.style.display = 'none'; };
+window.initVisitorCanvas = () => window.sigPadManager.getPad('v-sig-pad');
+
+// ================================================================ */
+// MEDIA RENDERING & FALLBACKS                                      */
+// ================================================================ */
+
+window.getDirectDriveImageUrl = (driveUrl) => {
+    if (!driveUrl || driveUrl === 'N/A' || driveUrl === '-') return 'https://placehold.co/400x300/e2e8f0/64748b?text=No+Photo';
+    if (driveUrl.startsWith('data:image')) return driveUrl;
+    let fileId = null;
+    const match = driveUrl.match(/\/file\/d\/([^\/]+)/) || driveUrl.match(/[?&]id=([^&]+)/) || driveUrl.match(/([a-zA-Z0-9_-]{25,})/);
+    if (match) fileId = match[1];
+    return fileId ? `https://lh3.googleusercontent.com/d/${fileId}` : driveUrl;
 };
+
+window.formatDriveImageUrl = window.getDirectDriveImageUrl;
+window.openImageZoom = (url) => { if(!url || url.includes('placeholder')) return; window.open(url, '_blank'); };
+
+// ================================================================ */
+// COMPRESSION & IMAGE HELPERS                                      */
+// ================================================================ */
+
+window.compressImageFile = async (file, maxWidth = 1000, maxHeight = 1000, quality = 0.7) => {
+    return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const img = new Image();
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                let w = img.width, h = img.height;
+                if (w > h) { if (w > maxWidth) { h *= maxWidth / w; w = maxWidth; } }
+                else { if (h > maxHeight) { w *= maxHeight / h; h = maxHeight; } }
+                canvas.width = w; canvas.height = h;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, w, h);
+                resolve(canvas.toDataURL("image/jpeg", quality));
+            };
+            img.src = e.target.result;
+        };
+        reader.readAsDataURL(file);
+    });
+};
+
+// ================================================================ */
+// APP LAUNCH VIDEO LOGIC                                           */
+// ================================================================ */
+window.handleLaunchVideo = () => {
+    const overlay = document.getElementById('launchVideoOverlay');
+    const video = document.getElementById('appLaunchVideo');
+    const skipBtn = document.getElementById('skipVideoBtn');
+    if (!overlay || !video) return;
+    if (sessionStorage.getItem('videoPlayedThisSession') === 'true') { overlay.remove(); return; }
+    overlay.classList.remove('hidden');
+    overlay.style.display = 'flex';
+    let hasHidden = false;
+    const hideOverlay = () => {
+        if (hasHidden) return;
+        hasHidden = true;
+        sessionStorage.setItem('videoPlayedThisSession', 'true');
+        overlay.style.transition = 'opacity 0.8s ease-out';
+        overlay.style.opacity = '0';
+        setTimeout(() => overlay.remove(), 800);
+    };
+    const safetyTimeout = setTimeout(hideOverlay, 4500);
+    video.onended = hideOverlay;
+    if (skipBtn) skipBtn.onclick = hideOverlay;
+    video.play().catch(hideOverlay);
+};
+
+document.addEventListener('DOMContentLoaded', window.handleLaunchVideo);
+window.addEventListener('load', () => { setTimeout(() => { const o = document.getElementById('launchVideoOverlay'); if(o) o.remove(); }, 5000); });

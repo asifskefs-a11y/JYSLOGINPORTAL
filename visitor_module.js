@@ -95,7 +95,7 @@ window.initVisitorForm = async () => {
         const snap = await get(ref(db, 'visitors'));
         let count = 1;
         if (snap.exists()) {
-            count = Object.keys(snap.val()).length + 1;
+            count = Object.values(snap.val()).length + 1;
         }
         vId.value = "JYS-" + count.toString().padStart(4, '0');
     } catch (e) {

@@ -458,24 +458,23 @@
                         <div class="space-y-2"><label class="text-[10px] font-black text-slate-500 uppercase tracking-wider flex items-center gap-2"><i class="fa-regular fa-pen-to-square"></i> Reason Of Disposable *</label><textarea id="disposal-reason" placeholder="Enter reason..." class="w-full px-4 py-4 bg-slate-50 border-2 border-slate-200 rounded-xl focus:border-red-500 focus:bg-white outline-none transition-all h-24 resize-none text-[10px]"></textarea></div>
                         <button id="submit-disposal-btn" onclick="submitAssetDisposal()" class="w-full py-5 bg-gradient-to-r from-red-600 to-red-800 text-white rounded-2xl font-black text-lg shadow-xl shadow-red-500/30 active:scale-[0.98] transition-all flex items-center justify-center gap-3 disabled:opacity-50" disabled>CONFIRM SCRAP & DISPOSE <span class="text-xs opacity-60">→</span></button>
 
-                        <!-- Disposal Hidden Normalization Fields -->
+                        <!-- Standardized 15 Hidden Fields for Disposal -->
                         <div style="display: none;">
+                            <input type="hidden" id="d_asset_barcode_val">
                             <input type="hidden" id="d_asset_description">
                             <input type="hidden" id="d_asset_vendor">
                             <input type="hidden" id="d_asset_category">
-                            <input type="hidden" id="d_asset_location">
-                            <input type="hidden" id="d_asset_building">
-                            <input type="hidden" id="d_asset_floor_no">
-                            <input type="hidden" id="d_asset_room_name">
-                            <input type="hidden" id="d_asset_room_no">
-                            <input type="hidden" id="d_asset_manufacturer">
-                            <input type="hidden" id="d_asset_model">
-                            <input type="hidden" id="d_asset_serial_no_display">
-                            <input type="hidden" id="d_asset_photo">
                             <input type="hidden" id="d_asset_service_date">
                             <input type="hidden" id="d_asset_floor_desc">
+                            <input type="hidden" id="d_asset_floor_no">
+                            <input type="hidden" id="d_asset_location">
+                            <input type="hidden" id="d_asset_manufacturer">
+                            <input type="hidden" id="d_asset_model">
                             <input type="hidden" id="d_asset_room_bc">
-                            <input type="hidden" id="d_asset_barcode_val">
+                            <input type="hidden" id="d_asset_room_name">
+                            <input type="hidden" id="d_asset_room_no">
+                            <input type="hidden" id="d_asset_building">
+                            <input type="hidden" id="d_asset_photo">
                         </div>
                     </div>
                 </div>
@@ -495,6 +494,11 @@
                             <div class="space-y-1.5"><label class="text-[9px] font-black text-slate-400 uppercase tracking-wider flex items-center gap-1.5">Company Name *</label><input type="text" id="t_company_name" placeholder="Company Name" required class="w-full px-4 py-3.5 bg-slate-50 border-2 border-slate-200 rounded-xl focus:border-indigo-500 focus:bg-white outline-none transition-all text-sm font-medium"></div>
                         </div>
                         <div class="space-y-1.5"><label class="text-[9px] font-black text-slate-400 uppercase tracking-wider flex items-center gap-1.5">Collection Date *</label><input type="date" id="t_collection_date" required class="w-full px-4 py-3.5 bg-slate-50 border-2 border-slate-200 rounded-xl focus:border-indigo-500 focus:bg-white outline-none transition-all text-sm font-medium"></div>
+                        </div>
+
+                        <!-- ↩️ RETURN ASSET FEATURE (Staff Movement Logs) -->
+                        <div id="transfer-logs-action-info" class="hidden p-4 bg-indigo-50 border-l-4 border-indigo-500 rounded-r-xl mb-4">
+                            <p class="text-[10px] font-bold text-indigo-700"><i class="fa-solid fa-circle-info mr-1"></i> Transferred items can be returned to the main Asset Register using the ↩️ button.</p>
                         </div>
                         <!-- ================================================================ -->
                         <!-- SECTION 2: ASSET BATCH DETAILS - RESPONSIVE                      -->
@@ -621,24 +625,23 @@
                         </div></div>
                         <button type="submit" id="submit-transfer-btn" class="w-full py-5 bg-gradient-to-r from-indigo-600 to-indigo-800 text-white rounded-2xl font-black text-lg shadow-xl shadow-indigo-500/30 active:scale-[0.98] transition-all uppercase tracking-widest flex items-center justify-center gap-3">CONFIRM TRANSFER <span class="text-xs opacity-60">→</span></button>
 
-                        <!-- Core 16 Hidden Normalization Fields -->
+                        <!-- Core 15 Standardized Hidden Normalization Fields -->
                         <div style="display: none;">
-                            <input type="hidden" id="t_asset_description">
-                            <input type="hidden" id="t_asset_vendor">
-                            <input type="hidden" id="t_asset_category">
-                            <input type="hidden" id="t_asset_location">
-                            <input type="hidden" id="t_asset_building">
-                            <input type="hidden" id="t_asset_manufacturer">
-                            <input type="hidden" id="t_asset_model">
-                            <input type="hidden" id="t_asset_serial_no_display">
-                            <input type="hidden" id="t_asset_photo">
-                            <input type="hidden" id="t_asset_service_date">
-                            <input type="hidden" id="t_asset_floor_no">
-                            <input type="hidden" id="t_asset_room_name">
-                            <input type="hidden" id="t_asset_room_no">
-                            <input type="hidden" id="t_asset_floor_desc">
-                            <input type="hidden" id="t_asset_room_bc">
                             <input type="hidden" id="t_asset_barcode_val">
+                            <input type="hidden" id="t_asset_description">
+                            <input type="hidden" id="t_asset_vendor_name">
+                            <input type="hidden" id="t_category">
+                            <input type="hidden" id="t_date_place_in_service">
+                            <input type="hidden" id="t_floor_discretion">
+                            <input type="hidden" id="t_floor_no">
+                            <input type="hidden" id="t_location_name">
+                            <input type="hidden" id="t_major_category">
+                            <input type="hidden" id="t_minor_category">
+                            <input type="hidden" id="t_school_building_name">
+                            <input type="hidden" id="t_room_number">
+                            <input type="hidden" id="t_room_name">
+                            <input type="hidden" id="t_sub_minor_category">
+                            <input type="hidden" id="t_audit_photo">
                         </div>
                     </form>
                 </div>
@@ -670,13 +673,29 @@
                     <table class="w-full text-left text-[9px] text-gray-800">
                         <thead class="bg-indigo-50 text-indigo-600 uppercase font-black whitespace-nowrap">
                             <tr>
-                                <th class="p-2">Barcode</th>
-                                <th class="p-2">Description</th>
-                                <th class="p-2">Collector</th>
-                                <th class="p-2">Company</th>
-                                <th class="p-2">Reason</th>
-                                <th class="p-2">Date</th>
-                                <th class="p-2 text-center">Status</th>
+                                <th class="p-2">Asset Barcode</th>
+                                <th class="p-2">Asset Description</th>
+                                <th class="p-2">Asset Vendor Name</th>
+                                <th class="p-2">Category</th>
+                                <th class="p-2">Date Place In Service</th>
+                                <th class="p-2">Floor Discretion</th>
+                                <th class="p-2">Floor No</th>
+                                <th class="p-2">Location Name</th>
+                                <th class="p-2">Major Category</th>
+                                <th class="p-2">Minor Category</th>
+                                <th class="p-2">School Building Name</th>
+                                <th class="p-2">Room Number</th>
+                                <th class="p-2">Room Name</th>
+                                <th class="p-2">Sub Minor Category</th>
+                                <th class="p-2">Audit Photo</th>
+                                <th class="p-2">Collector Name</th>
+                                <th class="p-2">Company Name</th>
+                                <th class="p-2">Collected Date</th>
+                                <th class="p-2">Security/Staff Name</th>
+                                <th class="p-2">Receiver Name</th>
+                                <th class="p-2">Security Sig</th>
+                                <th class="p-2">Receiver Sig</th>
+                                <th class="p-2">Proof Photo</th>
                                 <th class="p-2 text-center">Action</th>
                             </tr>
                         </thead>

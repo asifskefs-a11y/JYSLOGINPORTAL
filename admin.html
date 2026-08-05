@@ -294,7 +294,7 @@
             </div>
 
             <!-- QUICK ACTIONS GRID -->
-            <div class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3 mb-8">
+            <div class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-9 gap-3 mb-8">
                 <button onclick="window.showAdminTab('tab-visitor-logs')" class="quick-action-btn flex flex-col items-center gap-2 p-4 bg-white rounded-2xl shadow-sm hover:border-indigo-200 transition-all active:scale-95 group">
                     <div class="w-10 h-10 bg-indigo-50 rounded-xl flex items-center justify-center text-indigo-600 group-hover:bg-indigo-600 group-hover:text-white transition-colors"><i class="fa-solid fa-id-card-clip"></i></div>
                     <span class="text-[8px] font-black uppercase text-slate-500 group-hover:text-indigo-600">Visitors</span>
@@ -326,6 +326,10 @@
                 <button onclick="window.showAdminTab('tab-transfers')" class="quick-action-btn flex flex-col items-center gap-2 p-4 bg-white rounded-2xl shadow-sm hover:border-indigo-200 transition-all active:scale-95 group">
                     <div class="w-10 h-10 bg-indigo-50 rounded-xl flex items-center justify-center text-indigo-600 group-hover:bg-indigo-600 group-hover:text-white transition-colors"><i class="fa-solid fa-truck-ramp-box"></i></div>
                     <span class="text-[8px] font-black uppercase text-slate-500 group-hover:text-indigo-600">Transfers</span>
+                </button>
+                <button onclick="window.showAdminTab('tab-settings')" class="quick-action-btn flex flex-col items-center gap-2 p-4 bg-white rounded-2xl shadow-sm hover:border-slate-300 transition-all active:scale-95 group">
+                    <div class="w-10 h-10 bg-slate-50 rounded-xl flex items-center justify-center text-slate-600 group-hover:bg-slate-600 group-hover:text-white transition-colors"><i class="fa-solid fa-gears"></i></div>
+                    <span class="text-[8px] font-black uppercase text-slate-500 group-hover:text-slate-600">Settings</span>
                 </button>
             </div>
 
@@ -495,23 +499,21 @@
                             <table class="w-full text-left" id="asset-disposal-table">
                                 <thead class="bg-red-50 uppercase text-red-900 font-black text-[9px]">
                                     <tr>
-                                        <th class="p-3">Barcode</th>
-                                        <th class="p-3">Description</th>
-                                        <th class="p-3">Vendor</th>
+                                        <th class="p-3">Asset Barcode</th>
+                                        <th class="p-3">Asset Description</th>
+                                        <th class="p-3">Asset Vendor Name</th>
                                         <th class="p-3">Category</th>
-                                        <th class="p-3">Service Date</th>
-                                        <th class="p-3">Floor Desc</th>
+                                        <th class="p-3">Date Place In Service</th>
+                                        <th class="p-3">Floor Discretion</th>
                                         <th class="p-3">Floor No</th>
-                                        <th class="p-3">Location</th>
-                                        <th class="p-3">Manufacturer</th>
-                                        <th class="p-3">Model</th>
-                                        <th class="p-3">Room BC</th>
+                                        <th class="p-3">Location Name</th>
+                                        <th class="p-3">Major Category</th>
+                                        <th class="p-3">Minor Category</th>
+                                        <th class="p-3">School Building Name</th>
+                                        <th class="p-3">Room Number</th>
                                         <th class="p-3">Room Name</th>
-                                        <th class="p-3">Room No</th>
-                                        <th class="p-3">Building</th>
-                                        <th class="p-3">Reason</th>
-                                        <th class="p-3">Disposed By</th>
-                                        <th class="p-3 text-center">Photos</th>
+                                        <th class="p-3">Sub Minor Category</th>
+                                        <th class="p-3">Audit Photo</th>
                                         <th class="p-3 text-center">Action</th>
                                     </tr>
                                 </thead>
@@ -549,38 +551,80 @@
                             <table class="w-full text-left text-[9px]" id="transfer-master-table">
                                 <thead class="bg-indigo-50 uppercase text-indigo-600 font-black sticky top-0 z-10 shadow-sm whitespace-nowrap">
                                     <tr>
-                                        <th class="p-2 min-w-[80px]">Barcode</th>
-                                        <th class="p-2 min-w-[120px]">Asset Description</th>
-                                        <th class="p-2 min-w-[100px]">Vendor</th>
+                                        <th class="p-2 min-w-[100px]">Asset Barcode</th>
+                                        <th class="p-2 min-w-[150px]">Asset Description</th>
+                                        <th class="p-2 min-w-[120px]">Asset Vendor Name</th>
                                         <th class="p-2 min-w-[100px]">Category</th>
-                                        <th class="p-2 min-w-[90px]">Service Date</th>
-                                        <th class="p-2 min-w-[100px]">Floor Desc</th>
+                                        <th class="p-2 min-w-[100px]">Date Place In Service</th>
+                                        <th class="p-2 min-w-[120px]">Floor Discretion</th>
                                         <th class="p-2 min-w-[60px]">Floor No</th>
-                                        <th class="p-2 min-w-[100px]">Location</th>
-                                        <th class="p-2 min-w-[100px]">Manufacturer</th>
-                                        <th class="p-2 min-w-[100px]">Model</th>
-                                        <th class="p-2 min-w-[90px]">Room BC</th>
-                                        <th class="p-2 min-w-[100px]">Room Name</th>
-                                        <th class="p-2 min-w-[70px]">Room No</th>
-                                        <th class="p-2 min-w-[120px]">Building</th>
+                                        <th class="p-2 min-w-[120px]">Location Name</th>
+                                        <th class="p-2 min-w-[120px]">Major Category</th>
+                                        <th class="p-2 min-w-[120px]">Minor Category</th>
+                                        <th class="p-2 min-w-[150px]">School Building Name</th>
+                                        <th class="p-2 min-w-[80px]">Room Number</th>
+                                        <th class="p-2 min-w-[120px]">Room Name</th>
+                                        <th class="p-2 min-w-[120px]">Sub Minor Category</th>
                                         <th class="p-2 min-w-[80px] text-center">Audit Photo</th>
                                         <th class="p-2 min-w-[120px]">Collector Name</th>
-                                        <th class="p-2 min-w-[120px]">Company</th>
-                                        <th class="p-2 min-w-[120px]">Collection Reason</th>
-                                        <th class="p-2 min-w-[100px]">Collection Date</th>
-                                        <th class="p-2 min-w-[100px]">Landline</th>
-                                        <th class="p-2 min-w-[100px]">Serial No</th>
-                                        <th class="p-2 min-w-[120px]">Transfer Reason</th>
+                                        <th class="p-2 min-w-[120px]">Company Name</th>
+                                        <th class="p-2 min-w-[100px]">Collected Date</th>
+                                        <th class="p-2 min-w-[120px]">Security/Staff Name</th>
+                                        <th class="p-2 min-w-[120px]">Receiver Name</th>
                                         <th class="p-2 min-w-[80px] text-center">Security Sig</th>
                                         <th class="p-2 min-w-[80px] text-center">Receiver Sig</th>
                                         <th class="p-2 min-w-[80px] text-center">Proof Photo</th>
-                                        <th class="p-2 min-w-[80px] text-center">Action</th>
+                                        <th class="p-2 min-w-[100px] text-center">Action</th>
                                     </tr>
                                 </thead>
                                 <tbody id="transfer-logs-body" class="divide-y divide-slate-50"></tbody>
                             </table>
                         </div>
                         <div id="transfer-pagination" class="pagination-container"></div>
+                    </div>
+
+                    <!-- SETTINGS TAB -->
+                    <div id="tab-settings" class="tab-section space-y-6">
+                        <div class="flex items-center justify-between mb-4 px-2">
+                            <h3 class="text-slate-900 font-black text-lg uppercase flex items-center gap-2">
+                                <i class="fa-solid fa-gears text-slate-500"></i> System Configuration
+                            </h3>
+                        </div>
+
+                        <!-- Google Drive Settings Card -->
+                        <div class="bg-white rounded-3xl p-6 border border-slate-100 shadow-sm space-y-4">
+                            <div class="flex items-center gap-3 pb-4 border-b border-slate-50">
+                                <div class="w-10 h-10 bg-indigo-50 rounded-xl flex items-center justify-center text-indigo-600">
+                                    <i class="fa-brands fa-google-drive text-xl"></i>
+                                </div>
+                                <div>
+                                    <h4 class="font-black text-indigo-900 uppercase text-sm">Google Drive Sync Settings</h4>
+                                    <p class="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Direct Media Pipeline Configuration</p>
+                                </div>
+                            </div>
+
+                            <div class="space-y-2">
+                                <label class="text-[10px] font-black text-slate-400 uppercase ml-1">Apps Script Web App URL</label>
+                                <div class="relative group">
+                                    <div class="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300">
+                                        <i class="fa-solid fa-link"></i>
+                                    </div>
+                                    <input type="url" id="driveUrlInput" placeholder="https://script.google.com/macros/s/.../exec"
+                                           class="w-full pl-10 pr-4 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-indigo-500 focus:bg-white outline-none transition-all font-mono text-xs">
+                                </div>
+                            </div>
+
+                            <div class="flex flex-col sm:flex-row items-center justify-between gap-4 pt-2">
+                                <div class="flex items-center gap-2 px-3 py-2 bg-slate-50 rounded-xl border border-slate-100">
+                                    <span class="w-2 h-2 rounded-full bg-slate-300" id="driveStatusDot"></span>
+                                    <span class="text-[10px] font-bold text-slate-500 uppercase tracking-tighter" id="driveStatusText">Status: Checking...</span>
+                                </div>
+                                <button id="saveDriveUrlBtn" onclick="window.saveGoogleDriveConfig()"
+                                        class="w-full sm:w-auto px-8 py-4 bg-indigo-600 text-white rounded-2xl font-black text-xs uppercase tracking-widest shadow-lg shadow-indigo-500/20 active:scale-95 transition-all flex items-center justify-center gap-2">
+                                    <i class="fa-solid fa-cloud-arrow-up"></i> Save & Connect Drive
+                                </button>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>

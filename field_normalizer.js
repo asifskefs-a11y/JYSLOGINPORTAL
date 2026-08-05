@@ -10,87 +10,85 @@
 
 class FieldNormalizer {
     constructor() {
-        // Define all 16 target fields with their possible variations
+        // Define EXACT headers and sequence (15 Fields)
         this.fieldMap = {
             'barcode': {
-                variations: ['barcode', 'bar code', 'barcodeid', 'assetbarcode', 'assetcode', 'code', 'scancode'],
+                label: 'ASSET BARCODE',
+                variations: ['barcode', 'assetbarcode', 'asset barcode', 'code'],
                 default: 'N/A'
             },
             'description': {
-                variations: ['description', 'asset description', 'assetdesc', 'asset_desc', 'modeldescription',
-                           'model_desc', 'itemdescription', 'item_desc', 'name', 'asset name', 'assetname'],
+                label: 'ASSET DESCRIPTION',
+                variations: ['description', 'asset description', 'assetdesc', 'modeldescription', 'model_desc'],
                 default: 'N/A'
             },
             'vendor': {
-                variations: ['vendor', 'vendor name', 'vendorname', 'vendor_name', 'supplier', 'supplier name',
-                           'manufacturer', 'brand', 'provider'],
+                label: 'ASSET VENDOR NAME',
+                variations: ['vendor', 'vendor name', 'vendorname', 'supplier'],
                 default: 'N/A'
             },
             'category': {
-                variations: ['category', 'cat', 'majorcategory', 'categoryname', 'classification', 'type',
-                           'assetcategory', 'asset type', 'group', 'class', 'category badge'],
+                label: 'CATEGORY',
+                variations: ['category', 'cat', 'categoryname', 'type'],
                 default: 'N/A'
             },
             'serviceDate': {
-                variations: ['servicedate', 'service date', 'service_date', 'lastservicedate', 'service dt',
-                           'maintenance date', 'last_maintenance', 'serviced on', 'dateinservice'],
+                label: 'DATE PLACE IN SERVICE',
+                variations: ['servicedate', 'service date', 'dateinservice', 'date in service', 'f8_service_date', 'lastservicedate', 'service_dt'],
                 default: 'N/A'
             },
             'floorDesc': {
-                variations: ['floordesc', 'floor description', 'floor_desc', 'floor description desc',
-                           'floorlevel', 'floor name', 'level', 'floor_text'],
+                label: 'FLOOR DISCRETION',
+                variations: ['floordesc', 'floor description', 'floor_desc', 'floor discretion'],
                 default: 'N/A'
             },
             'floorNo': {
-                variations: ['floorno', 'floor no', 'floor_no', 'floor number', 'floornumber', 'floor#',
-                           'floor', 'level number'],
+                label: 'FLOOR NO',
+                variations: ['floorno', 'floor no', 'floor_no', 'floor'],
                 default: 'N/A'
             },
             'location': {
-                variations: ['location', 'location name', 'locationname', 'location_name', 'loc', 'site',
-                           'area', 'zone', 'placement'],
+                label: 'LOCATION NAME',
+                variations: ['location', 'location name', 'locationname', 'loc'],
                 default: 'N/A'
             },
-            'manufacturer': {
-                variations: ['manufacturer', 'manufacturername', 'manufacturer_name', 'maker', 'company',
-                           'producer', 'creator', 'brand', 'make'],
+            'majorCategory': {
+                label: 'MAJOR CATEGORY',
+                variations: ['majorcategory', 'major category', 'major_category'],
                 default: 'N/A'
             },
-            'model': {
-                variations: ['model', 'model name', 'modelname', 'model_no', 'modelno', 'model number',
-                           'version', 'type'],
-                default: 'N/A'
-            },
-            'roomBC': {
-                variations: ['roombc', 'room bc', 'room_bc', 'roombarcode', 'room barcode', 'room code'],
-                default: 'N/A'
-            },
-            'roomName': {
-                variations: ['roomname', 'room name', 'room_name', 'room', 'location room', 'room description'],
-                default: 'N/A'
-            },
-            'roomNo': {
-                variations: ['roomno', 'room no', 'room_no', 'room number', 'room#', 'roomnumber'],
+            'minorCategory': {
+                label: 'MINOR CATEGORY',
+                variations: ['minorcategory', 'minor category', 'minor_category', 'classification', 'class'],
                 default: 'N/A'
             },
             'building': {
-                variations: ['building', 'building name', 'buildingname', 'building_name', 'schoolbuilding',
-                           'block', 'tower', 'campus', 'site building'],
+                label: 'SCHOOL BUILDING NAME',
+                variations: ['building', 'building name', 'buildingname', 'schoolbuilding', 'school building name'],
+                default: 'N/A'
+            },
+            'roomNo': {
+                label: 'ROOM NUMBER',
+                variations: ['roomno', 'room no', 'room_no', 'room number', 'roomnumber'],
+                default: 'N/A'
+            },
+            'roomName': {
+                label: 'ROOM NAME',
+                variations: ['roomname', 'room name', 'room_name'],
+                default: 'N/A'
+            },
+            'subMinorCategory': {
+                label: 'SUB MINOR CATEGORY',
+                variations: ['subminorcategory', 'sub minor category', 'sub_minor_category'],
                 default: 'N/A'
             },
             'photo': {
-                variations: ['auditphotourl', 'auditphoto', 'photourl', 'photo', 'imageurl', 'image',
-                           'beforephoto', 'before_photo', 'assetphoto', 'assetimage', 'img'],
-                default: 'N/A'
-            },
-            'serialNumber': {
-                variations: ['serialnumber', 'serial no', 'serial_no', 'serialno', 'sno', 'serial',
-                           'sn', 'assetid', 'deviceid', 'identity', 's_no'],
+                label: 'AUDIT PHOTO',
+                variations: ['auditphoto', 'auditphotourl', 'photo', 'photourl', 'image'],
                 default: 'N/A'
             }
         };
 
-        // Cache for normalized keys
         this.normalizationCache = new Map();
         this.fuzzyMatchCache = new Map();
     }
@@ -320,14 +318,13 @@ class FieldNormalizer {
             floorDesc: mappedData.floorDesc || 'N/A',
             floorNo: mappedData.floorNo || 'N/A',
             location: mappedData.location || 'N/A',
-            manufacturer: mappedData.manufacturer || 'N/A',
-            model: mappedData.model || 'N/A',
-            roomBC: mappedData.roomBC || 'N/A',
-            roomName: mappedData.roomName || 'N/A',
-            roomNo: mappedData.roomNo || 'N/A',
+            majorCategory: mappedData.majorCategory || 'N/A',
+            minorCategory: mappedData.minorCategory || 'N/A',
             building: mappedData.building || 'N/A',
+            roomNo: mappedData.roomNo || 'N/A',
+            roomName: mappedData.roomName || 'N/A',
+            subMinorCategory: mappedData.subMinorCategory || 'N/A',
             photo: mappedData.photo || 'N/A',
-            serialNumber: mappedData.serialNumber || 'N/A',
             raw: mappedData,
             timestamp: Date.now()
         };
@@ -342,29 +339,26 @@ class FieldNormalizer {
             desc: 'N/A', vendor: 'N/A', category: 'N/A', location: 'N/A', building: 'N/A',
             floor: 'N/A', room: 'N/A', serial: 'N/A', manufacturer: 'N/A', photo: 'N/A',
             barcode: 'N/A', model: 'N/A', serviceDate: 'N/A', floorDesc: 'N/A', roomBC: 'N/A',
-            majorCategory: 'N/A', classification: 'N/A', assetStatus: 'Registered'
+            majorCategory: 'N/A', classification: 'N/A', assetStatus: 'Registered',
+            minorCategory: 'N/A', subMinorCategory: 'N/A'
         };
 
         return {
+            barcode: asset.barcode || 'N/A',
             desc: asset.description || 'N/A',
             vendor: asset.vendor || 'N/A',
             category: asset.category || 'N/A',
-            location: asset.location || 'N/A',
-            building: asset.building || 'N/A',
-            floor: asset.floorNo || 'N/A',
-            room: asset.roomNo || asset.roomName || 'N/A',
-            roomName: asset.roomName || 'N/A',
-            roomNo: asset.roomNo || 'N/A',
-            serial: asset.serialNumber || 'N/A',
-            manufacturer: asset.manufacturer || 'N/A',
-            photo: asset.photo || 'N/A',
-            barcode: asset.barcode || 'N/A',
-            model: asset.model || 'N/A',
             serviceDate: asset.serviceDate || 'N/A',
             floorDesc: asset.floorDesc || 'N/A',
-            roomBC: asset.roomBC || 'N/A',
-            majorCategory: asset.raw?.majorCategory || asset.raw?.major_category || 'N/A',
-            classification: asset.raw?.classification || asset.raw?.class || 'N/A',
+            floor: asset.floorNo || 'N/A',
+            location: asset.location || 'N/A',
+            majorCategory: asset.majorCategory || 'N/A',
+            minorCategory: asset.minorCategory || 'N/A',
+            building: asset.building || 'N/A',
+            roomNo: asset.roomNo || 'N/A',
+            roomName: asset.roomName || 'N/A',
+            subMinorCategory: asset.subMinorCategory || 'N/A',
+            photo: asset.photo || 'N/A',
             assetStatus: asset.raw?.assetStatus || asset.raw?.status || 'Registered'
         };
     }
