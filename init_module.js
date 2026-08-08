@@ -115,9 +115,15 @@ document.addEventListener('DOMContentLoaded', () => {
             const dashSec = document.getElementById('view-admin-dash');
 
             if (isAdmin) {
-                if (authSec) authSec.classList.add('hidden');
+                console.log("🔓 Admin detected, showing dashboard");
+                if (authSec) {
+                    authSec.classList.add('hidden');
+                    authSec.classList.remove('active');
+                    authSec.style.display = 'none';
+                }
                 if (dashSec) {
                     dashSec.classList.remove('hidden');
+                    dashSec.classList.add('active');
                     dashSec.style.display = 'block';
                 }
                 if (window.loadAdminDashboard) {
@@ -126,11 +132,17 @@ document.addEventListener('DOMContentLoaded', () => {
                     setTimeout(() => { if (window.loadAdminDashboard) window.loadAdminDashboard(); }, 500);
                 }
             } else {
+                console.log("🔒 Admin not logged in, showing auth screen");
                 if (authSec) {
                     authSec.classList.remove('hidden');
+                    authSec.classList.add('active');
                     authSec.style.display = 'flex';
                 }
-                if (dashSec) dashSec.classList.add('hidden');
+                if (dashSec) {
+                    dashSec.classList.add('hidden');
+                    dashSec.classList.remove('active');
+                    dashSec.style.display = 'none';
+                }
             }
         }
 
@@ -147,14 +159,38 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         // --- 5. LOGOUT HANDLING ---
+        window.logoutStaff = () => {
+            console.log("Global Logout Triggered");
+            try {
+                localStorage.clear();
+                sessionStorage.clear();
+                console.log("Storage cleared, redirecting...");
+                window.location.href = 'staff-login.html';
+            } catch (e) { console.error("Logout Error:", e); }
+        };
+
+        window.handleUserLogout = () => {
+            window.logoutStaff();
+        };
+
+        window.checkStaffAuth = () => {
+            try {
+                const saved = localStorage.getItem('loggedStaff');
+                if (saved && document.getElementById('staff-dash-area')) {
+                    if (window.renderDashboard) window.renderDashboard(JSON.parse(saved));
+                } else if (document.getElementById('staff-auth-area')) {
+                    document.getElementById('staff-auth-area').classList.remove('hidden');
+                    document.getElementById('staff-dash-area').classList.add('hidden');
+                }
+            } catch (e) { console.error("Auth Check Error:", e); }
+        };
+
         const bindLogout = (id) => {
             const btn = document.getElementById(id);
             if (btn) {
                 btn.onclick = (e) => {
                     e.preventDefault();
-                    localStorage.removeItem('isAdminLoggedIn');
-                    localStorage.removeItem('loggedStaff');
-                    window.location.href = 'index.html';
+                    window.logoutStaff();
                 };
             }
         };

@@ -7,7 +7,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="theme-color" content="#1E1B4B">
-    <title>Admin Portal - JYS Portal v3.5.1</title>
+    <title>Admin Portal - JYS Portal v3.6.8</title>
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -19,16 +19,20 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
-    <link rel="manifest" href="manifest.json?v=3.5.1">
-    <link rel="apple-touch-icon" href="jys_Icon.png?v=3.5.1">
-    <link rel="stylesheet" href="style.css?v=3.5.1">
+    <link rel="manifest" href="manifest.json?v=3.6.8">
+    <link rel="apple-touch-icon" href="jys_Icon.png?v=3.6.8">
+    <link rel="stylesheet" href="style.css?v=3.6.8">
 
     <style>
+        /* ================================================================ */
+        /* PROFESSIONAL SCHOOL DESIGN - COMPLETE v3.6.8                     */
+        /* ================================================================ */
+
         * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 
         body {
             font-family: 'Plus Jakarta Sans', sans-serif !important;
-            background: #f8fafc;
+            background: #f0f4f8;
             min-height: 100vh;
             -webkit-font-smoothing: antialiased;
             overflow-x: hidden;
@@ -36,42 +40,289 @@
 
         .safe-area { padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); }
 
+        /* ================================================================ */
+        /* GLASS EFFECTS                                                    */
+        /* ================================================================ */
+
         .glass-effect {
             background: rgba(255, 255, 255, 0.85);
-            backdrop-filter: blur(12px) saturate(180%);
-            -webkit-backdrop-filter: blur(12px) saturate(180%);
-            border: 1px solid rgba(255, 255, 255, 0.5);
+            backdrop-filter: blur(20px) saturate(180%);
+            -webkit-backdrop-filter: blur(20px) saturate(180%);
+            border: 1px solid rgba(255, 255, 255, 0.4);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.06);
         }
 
-        .stat-card {
+        .glass-dark {
+            background: rgba(30, 27, 75, 0.92);
+            backdrop-filter: blur(20px) saturate(180%);
+            -webkit-backdrop-filter: blur(20px) saturate(180%);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .glass-card {
+            background: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(16px) saturate(180%);
+            -webkit-backdrop-filter: blur(16px) saturate(180%);
+            border: 1px solid rgba(255, 255, 255, 0.5);
+            box-shadow: 0 4px 24px rgba(0, 0, 0, 0.04);
+            transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        .glass-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.08);
+        }
+
+        /* ================================================================ */
+        /* STAT CARDS - PREMIUM                                            */
+        /* ================================================================ */
+
+        .stat-card-premium {
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.5);
+            border-radius: 20px;
+            padding: 20px 24px;
             transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
             cursor: pointer;
-            border: 1px solid #f1f5f9;
+            position: relative;
+            overflow: hidden;
         }
-        .stat-card:hover { transform: translateY(-4px); box-shadow: 0 12px 30px rgba(79, 70, 229, 0.1); }
 
-        .quick-action-btn { transition: all 0.2s ease; border: 1px solid #f1f5f9; min-height: 44px; }
-        .quick-action-btn:active { transform: scale(0.95); }
-
-        .table-wrapper {
-            overflow-x: auto;
-            -webkit-overflow-scrolling: touch;
-            max-height: 600px;
-            overflow-y: auto;
-        }
-        .table-wrapper thead th {
-            position: sticky;
+        .stat-card-premium::before {
+            content: '';
+            position: absolute;
             top: 0;
-            background: #f8fafc;
-            z-index: 10;
+            left: 0;
+            right: 0;
+            height: 3px;
+            border-radius: 20px 20px 0 0;
         }
 
-        .status-badge { display: inline-flex; align-items: center; gap: 4px; padding: 3px 12px; border-radius: 8px; font-weight: 700; font-size: 9px; text-transform: uppercase; letter-spacing: 0.5px; }
-        .status-badge.open { background: #fef3c7; color: #d97706; }
-        .status-badge.closed { background: #d1fae5; color: #059669; }
-        .status-badge.rejected { background: #fee2e2; color: #dc2626; }
+        .stat-card-premium:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 16px 48px rgba(0, 0, 0, 0.08);
+        }
 
-        .progress-bar { transition: width 1.2s cubic-bezier(0.34, 1.56, 0.64, 1); }
+        .stat-card-premium .stat-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            transition: all 0.3s ease;
+        }
+
+        .stat-card-premium:hover .stat-icon {
+            transform: scale(1.05) rotate(-3deg);
+        }
+
+        .stat-card-premium .stat-number {
+            font-size: 28px;
+            font-weight: 900;
+            letter-spacing: -0.5px;
+            line-height: 1;
+        }
+
+        .stat-card-premium .stat-label {
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #94a3b8;
+            margin-top: 2px;
+        }
+
+        .stat-card-premium .stat-bar {
+            height: 3px;
+            border-radius: 10px;
+            background: #f1f5f9;
+            margin-top: 12px;
+            overflow: hidden;
+        }
+
+        .stat-card-premium .stat-bar-fill {
+            height: 100%;
+            border-radius: 10px;
+            transition: width 1.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+            width: 0%;
+        }
+
+        /* Stat Colors */
+        .stat-visitors::before { background: linear-gradient(90deg, #4f46e5, #818cf8); }
+        .stat-visitors .stat-icon { background: #eef2ff; color: #4f46e5; }
+        .stat-visitors .stat-number { color: #4f46e5; }
+        .stat-visitors .stat-bar-fill { background: linear-gradient(90deg, #4f46e5, #818cf8); }
+
+        .stat-tasks::before { background: linear-gradient(90deg, #d97706, #fbbf24); }
+        .stat-tasks .stat-icon { background: #fffbeb; color: #d97706; }
+        .stat-tasks .stat-number { color: #d97706; }
+        .stat-tasks .stat-bar-fill { background: linear-gradient(90deg, #d97706, #fbbf24); }
+
+        .stat-staff::before { background: linear-gradient(90deg, #059669, #34d399); }
+        .stat-staff .stat-icon { background: #ecfdf5; color: #059669; }
+        .stat-staff .stat-number { color: #059669; }
+        .stat-staff .stat-bar-fill { background: linear-gradient(90deg, #059669, #34d399); }
+
+        .stat-alerts::before { background: linear-gradient(90deg, #dc2626, #f87171); }
+        .stat-alerts .stat-icon { background: #fef2f2; color: #dc2626; }
+        .stat-alerts .stat-number { color: #dc2626; }
+        .stat-alerts .stat-bar-fill { background: linear-gradient(90deg, #dc2626, #f87171); }
+
+        /* ================================================================ */
+        /* QUICK ACTIONS - FIXED TEXT VISIBILITY                           */
+        /* ================================================================ */
+
+        .quick-actions-grid {
+            display: grid !important;
+            grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)) !important;
+            gap: 12px !important;
+            margin-bottom: 24px !important;
+        }
+
+        .quick-action-card {
+            display: flex !important;
+            align-items: center !important;
+            gap: 12px !important;
+            padding: 16px 18px !important;
+            background: rgba(255, 255, 255, 0.85) !important;
+            backdrop-filter: blur(12px) saturate(180%) !important;
+            -webkit-backdrop-filter: blur(12px) saturate(180%) !important;
+            border-radius: 18px !important;
+            border: 1px solid rgba(255, 255, 255, 0.5) !important;
+            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04) !important;
+            cursor: pointer !important;
+            transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
+            text-align: left !important;
+            width: 100% !important;
+            position: relative !important;
+            overflow: visible !important;
+            min-height: 64px !important;
+            border: none !important;
+            font-family: inherit !important;
+        }
+
+        .quick-action-card::before {
+            content: '' !important;
+            position: absolute !important;
+            inset: 0 !important;
+            border-radius: 18px !important;
+            padding: 1px !important;
+            background: linear-gradient(135deg, rgba(255,255,255,0.8), rgba(255,255,255,0)) !important;
+            -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0) !important;
+            -webkit-mask-composite: xor !important;
+            mask-composite: exclude !important;
+            pointer-events: none !important;
+        }
+
+        .quick-action-card:hover {
+            transform: translateY(-4px) scale(1.02) !important;
+            box-shadow: 0 16px 40px rgba(0, 0, 0, 0.08) !important;
+            border-color: rgba(255, 255, 255, 0.8) !important;
+        }
+
+        .quick-action-card:active {
+            transform: scale(0.96) !important;
+        }
+
+        .quick-action-card .icon-wrapper {
+            width: 44px !important;
+            height: 44px !important;
+            border-radius: 14px !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            font-size: 18px !important;
+            flex-shrink: 0 !important;
+            transition: all 0.3s ease !important;
+            position: relative !important;
+        }
+
+        .quick-action-card:hover .icon-wrapper {
+            transform: scale(1.05) rotate(-3deg) !important;
+        }
+
+        .quick-action-card .card-content {
+            flex: 1 !important;
+            display: flex !important;
+            flex-direction: column !important;
+            gap: 2px !important;
+            min-width: 0 !important;
+        }
+
+        /* ✅ FIXED: Text visibility fix */
+        .quick-action-card .card-title {
+            font-size: 13px !important;
+            font-weight: 800 !important;
+            color: #0f172a !important;
+            letter-spacing: -0.3px !important;
+            line-height: 1.3 !important;
+            white-space: normal !important;
+            word-wrap: break-word !important;
+            overflow: visible !important;
+            text-overflow: clip !important;
+            max-width: 100% !important;
+        }
+
+        .quick-action-card .card-badge {
+            font-size: 8px !important;
+            font-weight: 700 !important;
+            text-transform: uppercase !important;
+            letter-spacing: 0.5px !important;
+            color: #94a3b8 !important;
+            opacity: 0.7 !important;
+            white-space: nowrap !important;
+            overflow: visible !important;
+        }
+
+        .quick-action-card .card-arrow {
+            opacity: 0 !important;
+            transform: translateX(-8px) !important;
+            transition: all 0.3s ease !important;
+            color: #94a3b8 !important;
+            font-size: 12px !important;
+            flex-shrink: 0 !important;
+        }
+
+        .quick-action-card:hover .card-arrow {
+            opacity: 1 !important;
+            transform: translateX(0) !important;
+        }
+
+        /* Card Colors */
+        .card-visitor .icon-wrapper { background: linear-gradient(135deg, #eef2ff, #e0e7ff) !important; color: #4f46e5 !important; }
+        .card-visitor:hover { border-color: #4f46e5 !important; box-shadow: 0 8px 30px rgba(79, 70, 229, 0.12) !important; }
+
+        .card-attendance .icon-wrapper { background: linear-gradient(135deg, #ecfdf5, #d1fae5) !important; color: #10b981 !important; }
+        .card-attendance:hover { border-color: #10b981 !important; box-shadow: 0 8px 30px rgba(16, 185, 129, 0.12) !important; }
+
+        .card-audit .icon-wrapper { background: linear-gradient(135deg, #f5f3ff, #ede9fe) !important; color: #7c3aed !important; }
+        .card-audit:hover { border-color: #7c3aed !important; box-shadow: 0 8px 30px rgba(124, 58, 237, 0.12) !important; }
+
+        .card-raised .icon-wrapper { background: linear-gradient(135deg, #fffbeb, #fef3c7) !important; color: #d97706 !important; }
+        .card-raised:hover { border-color: #d97706 !important; box-shadow: 0 8px 30px rgba(217, 119, 6, 0.12) !important; }
+
+        .card-directory .icon-wrapper { background: linear-gradient(135deg, #f8fafc, #f1f5f9) !important; color: #475569 !important; }
+        .card-directory:hover { border-color: #475569 !important; box-shadow: 0 8px 30px rgba(71, 85, 105, 0.12) !important; }
+
+        .card-assets .icon-wrapper { background: linear-gradient(135deg, #ecfeff, #cffafe) !important; color: #0891b2 !important; }
+        .card-assets:hover { border-color: #0891b2 !important; box-shadow: 0 8px 30px rgba(8, 145, 178, 0.12) !important; }
+
+        .card-disposal .icon-wrapper { background: linear-gradient(135deg, #fef2f2, #fecaca) !important; color: #dc2626 !important; }
+        .card-disposal:hover { border-color: #dc2626 !important; box-shadow: 0 8px 30px rgba(220, 38, 38, 0.12) !important; }
+
+        .card-transfers .icon-wrapper { background: linear-gradient(135deg, #eff6ff, #dbeafe) !important; color: #2563eb !important; }
+        .card-transfers:hover { border-color: #2563eb !important; box-shadow: 0 8px 30px rgba(37, 99, 235, 0.12) !important; }
+
+        .card-settings .icon-wrapper { background: linear-gradient(135deg, #f1f5f9, #e2e8f0) !important; color: #64748b !important; }
+        .card-settings:hover { border-color: #64748b !important; box-shadow: 0 8px 30px rgba(100, 116, 139, 0.12) !important; }
+
+        /* ================================================================ */
+        /* TAB SECTIONS                                                     */
+        /* ================================================================ */
 
         .tab-section {
             display: none !important;
@@ -92,50 +343,85 @@
             overflow: visible !important;
             position: relative !important;
             z-index: 1;
+            animation: tabFadeIn 0.4s ease-out;
         }
 
-        #admin-data-container {
-            position: relative;
-            min-height: 500px;
+        @keyframes tabFadeIn {
+            from { opacity: 0; transform: translateY(12px); }
+            to { opacity: 1; transform: translateY(0); }
         }
 
-        .table-wrapper table tbody tr {
-            transition: all 0.2s ease;
-            color: #1e293b !important;
+        /* ================================================================ */
+        /* TABLE STYLES                                                     */
+        /* ================================================================ */
+
+        .table-wrapper {
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            max-height: 600px;
+            overflow-y: auto;
+            border-radius: 16px;
+            border: 1px solid rgba(226, 232, 240, 0.6);
+            background: white;
         }
 
-        .table-wrapper table tbody tr:hover {
-            background-color: #f1f5f9 !important;
-            color: #0f172a !important;
+        .table-wrapper thead th {
+            position: sticky;
+            top: 0;
+            background: #f8fafc;
+            z-index: 10;
+            padding: 14px 16px;
+            font-size: 9px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            font-weight: 800;
+            color: #475569;
+            border-bottom: 2px solid #e2e8f0;
+            white-space: nowrap;
         }
 
-        .table-wrapper table td {
-            color: #334155 !important;
+        .table-wrapper tbody td {
+            padding: 12px 16px;
+            font-size: 11px;
+            color: #334155;
+            border-bottom: 1px solid #f1f5f9;
+            vertical-align: middle;
         }
 
-        #tab-assets .table-wrapper table tbody tr:hover {
-            background-color: #e0f2fe !important;
+        .table-wrapper tbody tr:hover {
+            background: #f8fafc;
             cursor: pointer;
         }
 
-        #tab-assets .table-wrapper table td {
-            color: #1e293b !important;
-            transition: color 0.2s;
+        .table-wrapper tbody tr:last-child td {
+            border-bottom: none;
         }
 
-        #tab-assets .table-wrapper table tr:hover td {
-            color: #0c4a6e !important;
-            background-color: transparent !important;
+        /* ================================================================ */
+        /* STATUS BADGES                                                    */
+        /* ================================================================ */
+
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 3px 12px;
+            border-radius: 20px;
+            font-weight: 700;
+            font-size: 9px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
         }
 
-        #tab-staff-list .table-wrapper table tbody tr:hover {
-            background-color: #f8fafc !important;
-            cursor: pointer;
-        }
+        .status-badge.open { background: #fef3c7; color: #d97706; }
+        .status-badge.closed { background: #d1fae5; color: #059669; }
+        .status-badge.rejected { background: #fee2e2; color: #dc2626; }
+        .status-badge.active { background: #dbeafe; color: #2563eb; }
+        .status-badge.completed { background: #d1fae5; color: #059669; }
 
-        #tab-staff-list .table-wrapper table td {
-            color: #334155 !important;
-        }
+        /* ================================================================ */
+        /* PAGINATION                                                       */
+        /* ================================================================ */
 
         .pagination-container {
             display: flex;
@@ -146,8 +432,9 @@
             margin-top: 16px;
             background: white;
             border-radius: 16px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            box-shadow: 0 1px 3px rgba(0,0,0,0.06);
             flex-wrap: wrap;
+            border: 1px solid #f1f5f9;
         }
 
         .pagination-btn {
@@ -155,11 +442,11 @@
             border: 1px solid #e2e8f0;
             background: white;
             color: #475569;
-            border-radius: 8px;
+            border-radius: 10px;
             font-size: 12px;
             font-weight: 600;
             cursor: pointer;
-            transition: all 0.2s;
+            transition: all 0.2s ease;
             min-width: 40px;
             text-align: center;
         }
@@ -178,7 +465,7 @@
         }
 
         .pagination-btn:disabled {
-            opacity: 0.5;
+            opacity: 0.4;
             cursor: not-allowed;
         }
 
@@ -189,708 +476,1358 @@
             padding: 0 8px;
         }
 
-        @media (prefers-color-scheme: dark) {
-            body { background: #0f0a2a !important; color: #e0e7ff; }
-            .glass-effect, .stat-card, .quick-action-btn, .admin-main-card { background: rgba(30, 27, 75, 0.9) !important; border-color: rgba(76, 70, 150, 0.3) !important; }
-            .text-indigo-900, .text-slate-800 { color: #e0e7ff !important; }
-            .text-indigo-600 { color: #818cf8 !important; }
-            input, select, textarea { background: rgba(45, 42, 94, 0.8) !important; border-color: rgba(76, 70, 150, 0.5) !important; color: #e0e7ff !important; }
-            .table-wrapper table td { color: #e0e7ff !important; }
-            .table-wrapper table tbody tr:hover { background-color: rgba(99, 102, 241, 0.2) !important; }
-            .pagination-container { background: rgba(30, 27, 75, 0.9); }
-            .pagination-btn { background: rgba(45, 42, 94, 0.8); color: #e0e7ff; border-color: rgba(76, 70, 150, 0.5); }
+        /* ================================================================ */
+        /* STAFF PHOTO - FIXED                                              */
+        /* ================================================================ */
+
+        .staff-photo-container {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            overflow: hidden;
+            flex-shrink: 0;
+            border: 2px solid #e2e8f0;
+            background: #f1f5f9;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto;
         }
 
-        .fade-in { animation: fadeIn 0.5s ease-out; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .staff-photo-container img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .staff-photo-container .initials {
+            font-size: 14px;
+            font-weight: 800;
+            color: #4f46e5;
+            text-transform: uppercase;
+        }
+
+        /* ================================================================ */
+        /* RESPONSIVE - FIXED TEXT VISIBILITY                              */
+        /* ================================================================ */
+
+        @media (max-width: 1024px) {
+            .quick-actions-grid {
+                grid-template-columns: repeat(4, 1fr) !important;
+                gap: 10px !important;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .quick-actions-grid {
+                grid-template-columns: repeat(3, 1fr) !important;
+                gap: 8px !important;
+            }
+
+            .quick-action-card {
+                padding: 12px 10px !important;
+                min-height: 70px !important;
+                border-radius: 14px !important;
+                flex-direction: column !important;
+                align-items: center !important;
+                text-align: center !important;
+                gap: 6px !important;
+                overflow: visible !important;
+            }
+
+            .quick-action-card .icon-wrapper {
+                width: 40px !important;
+                height: 40px !important;
+                font-size: 16px !important;
+                border-radius: 12px !important;
+                flex-shrink: 0 !important;
+            }
+
+            .quick-action-card .card-content {
+                align-items: center !important;
+                gap: 2px !important;
+            }
+
+            .quick-action-card .card-title {
+                font-size: 11px !important;
+                font-weight: 800 !important;
+                white-space: normal !important;
+                word-wrap: break-word !important;
+                text-align: center !important;
+                line-height: 1.3 !important;
+                max-width: 100% !important;
+            }
+
+            .quick-action-card .card-badge {
+                font-size: 7px !important;
+                display: inline-block !important;
+            }
+
+            .quick-action-card .card-arrow {
+                display: none !important;
+            }
+
+            .quick-action-card:hover {
+                transform: translateY(-2px) !important;
+            }
+
+            .stat-card-premium {
+                padding: 16px !important;
+            }
+
+            .stat-card-premium .stat-number {
+                font-size: 22px !important;
+            }
+
+            .stat-card-premium .stat-icon {
+                width: 40px !important;
+                height: 40px !important;
+                font-size: 16px !important;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .quick-actions-grid {
+                grid-template-columns: repeat(3, 1fr) !important;
+                gap: 6px !important;
+            }
+
+            .quick-action-card {
+                padding: 10px 6px !important;
+                min-height: 60px !important;
+                border-radius: 12px !important;
+                gap: 4px !important;
+            }
+
+            .quick-action-card .icon-wrapper {
+                width: 32px !important;
+                height: 32px !important;
+                font-size: 13px !important;
+                border-radius: 10px !important;
+            }
+
+            .quick-action-card .card-title {
+                font-size: 9px !important;
+                line-height: 1.2 !important;
+            }
+
+            .quick-action-card .card-badge {
+                display: none !important;
+            }
+
+            .stat-card-premium .stat-number {
+                font-size: 18px !important;
+            }
+
+            .stat-card-premium .stat-label {
+                font-size: 8px !important;
+            }
+        }
+
+        @media (max-width: 380px) {
+            .quick-actions-grid {
+                grid-template-columns: repeat(2, 1fr) !important;
+                gap: 6px !important;
+            }
+
+            .quick-action-card {
+                min-height: 56px !important;
+                padding: 8px 4px !important;
+            }
+
+            .quick-action-card .card-title {
+                font-size: 8px !important;
+            }
+        }
+
+        @media (prefers-color-scheme: dark) {
+            body { background: #0f0a2a !important; color: #e0e7ff; }
+            .glass-effect, .glass-card, .stat-card-premium, .quick-action-card,
+            .table-wrapper, .pagination-container {
+                background: rgba(30, 27, 75, 0.9) !important;
+                border-color: rgba(76, 70, 150, 0.3) !important;
+            }
+            .stat-card-premium .stat-label { color: #94a3b8 !important; }
+            .quick-action-card .card-title { color: #e0e7ff !important; }
+            .quick-action-card .card-badge { color: #94a3b8 !important; }
+            .table-wrapper thead th { background: #1e1b4b !important; color: #818cf8 !important; border-color: rgba(76, 70, 150, 0.3) !important; }
+            .table-wrapper tbody td { color: #e0e7ff !important; border-color: rgba(76, 70, 150, 0.2) !important; }
+            .table-wrapper tbody tr:hover { background: rgba(79, 70, 229, 0.1) !important; }
+            .pagination-btn { background: rgba(45, 42, 94, 0.8) !important; color: #e0e7ff !important; border-color: rgba(76, 70, 150, 0.5) !important; }
+            .pagination-btn:hover { background: rgba(79, 70, 229, 0.3) !important; }
+            .page-info { color: #94a3b8 !important; }
+        }
+
+        /* ================================================================ */
+        /* SCROLLBAR STYLES                                                 */
+        /* ================================================================ */
+
+        .table-wrapper::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+
+        .table-wrapper::-webkit-scrollbar-track {
+            background: #f1f5f9;
+            border-radius: 10px;
+        }
+
+        .table-wrapper::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 10px;
+        }
+
+        .table-wrapper::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+
+        /* ================================================================ */
+        /* ANIMATIONS                                                       */
+        /* ================================================================ */
+
+        .fade-in {
+            animation: fadeIn 0.5s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* ================================================================ */
+        /* IMPORT SECTION                                                   */
+        /* ================================================================ */
+
+        .import-card {
+            background: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(16px) saturate(180%);
+            -webkit-backdrop-filter: blur(16px) saturate(180%);
+            border: 1px solid rgba(255, 255, 255, 0.5);
+            box-shadow: 0 4px 24px rgba(0, 0, 0, 0.04);
+            border-radius: 16px;
+            padding: 24px;
+        }
+
+        .import-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid #f1f5f9;
+        }
+
+        .import-header h3 {
+            font-size: 16px;
+            font-weight: 900;
+            color: #0f172a;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .import-body {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            align-items: center;
+        }
+
+        .file-input-group {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            background: #f8fafc;
+            padding: 8px 16px;
+            border-radius: 12px;
+            border: 1px solid #e2e8f0;
+            min-width: 200px;
+        }
+
+        .file-input-group label {
+            background: #4f46e5;
+            color: white;
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            white-space: nowrap;
+        }
+
+        .file-input-group label:hover {
+            background: #4338ca;
+        }
+
+        .file-input-group input[type="file"] {
+            display: none;
+        }
+
+        .file-input-group .file-name {
+            font-size: 12px;
+            color: #64748b;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            flex: 1;
+        }
+
+        /* ================================================================ */
+        /* MODAL STYLES                                                     */
+        /* ================================================================ */
+
+        #staff-detail-modal {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.85);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            z-index: 99999;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        #staff-detail-modal.active {
+            display: flex;
+        }
+        #staff-detail-modal .modal-box {
+            background: white;
+            width: 100%;
+            max-width: 700px;
+            border-radius: 28px;
+            overflow: hidden;
+            max-height: 90vh;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 30px 80px rgba(0,0,0,0.3);
+            animation: scaleIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+        #staff-detail-modal .modal-header {
+            padding: 20px 24px;
+            background: linear-gradient(135deg, #4f46e5, #3730a3);
+            color: white;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-shrink: 0;
+        }
+        #staff-detail-modal .modal-header h3 {
+            font-size: 18px;
+            font-weight: 900;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin: 0;
+        }
+        #staff-detail-modal .modal-close {
+            width: 40px;
+            height: 40px;
+            border: none;
+            border-radius: 12px;
+            background: rgba(255,255,255,0.1);
+            color: white;
+            cursor: pointer;
+            font-size: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+        #staff-detail-modal .modal-close:hover {
+            background: rgba(255,255,255,0.2);
+        }
+        #staff-detail-modal .modal-body {
+            padding: 24px;
+            overflow-y: auto;
+            flex: 1;
+        }
+        #staff-detail-modal .modal-footer {
+            padding: 16px 24px;
+            background: #f8fafc;
+            border-top: 1px solid #f1f5f9;
+            display: flex;
+            justify-content: flex-end;
+            flex-shrink: 0;
+        }
+        #staff-detail-modal .modal-footer button {
+            padding: 10px 32px;
+            background: #4f46e5;
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-weight: 700;
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        #staff-detail-modal .modal-footer button:hover {
+            background: #4338ca;
+        }
+        @keyframes scaleIn {
+            from { opacity: 0; transform: scale(0.9) translateY(20px); }
+            to { opacity: 1; transform: scale(1) translateY(0); }
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            z-index: 2000;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+        }
+        .modal img {
+            max-width: 90%;
+            max-height: 80%;
+            border-radius: 8px;
+        }
+        .modal-close {
+            position: absolute;
+            top: 20px;
+            right: 25px;
+            color: white !important;
+            font-size: 2.2rem;
+            cursor: pointer;
+        }
     </style>
 </head>
 <body class="safe-area">
-    <div class="app-container min-h-screen flex flex-col">
+<div class="app-container min-h-screen flex flex-col">
 
-        <!-- ADMIN AUTH VIEW -->
-        <section id="view-admin-auth" class="view-section active flex-1 flex items-center justify-center p-4 bg-gradient-to-br from-indigo-50 via-white to-purple-50">
-            <div class="w-full max-w-md mx-auto fade-in">
-                <div class="glass-effect rounded-[40px] shadow-2xl p-8 sm:p-10 transition-all duration-300">
-                    <div class="text-center mb-8">
-                        <div class="w-20 h-20 bg-gradient-to-br from-indigo-500 to-indigo-700 rounded-3xl mx-auto flex items-center justify-center shadow-xl shadow-indigo-500/30 mb-4">
-                            <i class="fa-solid fa-crown text-3xl text-white"></i>
-                        </div>
-                        <h2 class="text-3xl font-black text-indigo-900 uppercase tracking-tighter">Admin Portal</h2>
-                        <p class="text-[10px] font-bold text-indigo-400 uppercase tracking-widest mt-1">Restricted Access</p>
+    <!-- ADMIN AUTH VIEW -->
+    <section id="view-admin-auth" class="view-section active flex-1 flex items-center justify-center p-4 bg-gradient-to-br from-indigo-50 via-white to-purple-50">
+        <div class="w-full max-w-md mx-auto fade-in">
+            <div class="glass-effect rounded-[40px] shadow-2xl p-8 sm:p-10 transition-all duration-300">
+                <div class="text-center mb-8">
+                    <div class="w-20 h-20 bg-gradient-to-br from-indigo-500 to-indigo-700 rounded-3xl mx-auto flex items-center justify-center shadow-xl shadow-indigo-500/30 mb-4">
+                        <i class="fa-solid fa-crown text-3xl text-white"></i>
                     </div>
+                    <h2 class="text-3xl font-black text-indigo-900 uppercase tracking-tighter">Admin Portal</h2>
+                    <p class="text-[10px] font-bold text-indigo-400 uppercase tracking-widest mt-1">Restricted Access</p>
+                </div>
 
-                    <form id="admin-login-form" class="space-y-5">
-                        <div class="space-y-1.5">
-                            <label class="text-[10px] font-black text-indigo-400 uppercase tracking-wider flex items-center gap-1.5 ml-1"><i class="fa-solid fa-phone"></i> Admin Mobile</label>
-                            <input type="tel" id="admin-mobile" placeholder="Enter number" required class="w-full px-5 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-indigo-500 focus:bg-white outline-none transition-all font-medium text-sm">
+                <form id="admin-login-form" class="space-y-5">
+                    <div class="space-y-1.5">
+                        <label class="text-[10px] font-black text-indigo-400 uppercase tracking-wider flex items-center gap-1.5 ml-1"><i class="fa-solid fa-phone"></i> Admin Mobile</label>
+                        <input type="tel" id="admin-mobile" placeholder="Enter number" required class="w-full px-5 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-indigo-500 focus:bg-white outline-none transition-all font-medium text-sm">
+                    </div>
+                    <div class="space-y-1.5">
+                        <label class="text-[10px] font-black text-indigo-400 uppercase tracking-wider flex items-center gap-1.5 ml-1"><i class="fa-solid fa-lock"></i> Password</label>
+                        <div class="relative">
+                            <input type="password" id="admin-pass" placeholder="Enter password" required class="w-full px-5 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-indigo-500 focus:bg-white outline-none transition-all font-medium text-sm">
+                            <button type="button" onclick="window.togglePassword('admin-pass', this)" class="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-indigo-600"><i class="fa-regular fa-eye"></i></button>
                         </div>
-                        <div class="space-y-1.5">
-                            <label class="text-[10px] font-black text-indigo-400 uppercase tracking-wider flex items-center gap-1.5 ml-1"><i class="fa-solid fa-lock"></i> Password</label>
-                            <div class="relative">
-                                <input type="password" id="admin-pass" placeholder="Enter password" required class="w-full px-5 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-indigo-500 focus:bg-white outline-none transition-all font-medium text-sm">
-                                <button type="button" onclick="window.togglePassword('admin-pass', this)" class="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-indigo-600"><i class="fa-regular fa-eye"></i></button>
-                            </div>
-                        </div>
-                        <button type="submit" class="w-full py-5 bg-gradient-to-r from-indigo-600 to-indigo-800 text-white rounded-2xl font-black text-sm uppercase tracking-widest shadow-xl shadow-indigo-500/30 active:scale-[0.98] transition-all flex items-center justify-center gap-3 mt-4">
-                            <i class="fa-solid fa-unlock-keyhole text-lg"></i> Unlock Dashboard
-                        </button>
-                    </form>
-                    <div class="mt-6 text-center"><a href="index.html" class="text-[10px] font-black text-slate-400 uppercase tracking-widest hover:text-indigo-600 flex items-center justify-center gap-2"><i class="fa-solid fa-arrow-left"></i> Back to Portal</a></div>
+                    </div>
+                    <button type="submit" class="w-full py-5 bg-gradient-to-r from-indigo-600 to-indigo-800 text-white rounded-2xl font-black text-sm uppercase tracking-widest shadow-xl shadow-indigo-500/30 active:scale-[0.98] transition-all flex items-center justify-center gap-3 mt-4">
+                        <i class="fa-solid fa-unlock-keyhole text-lg"></i> Unlock Dashboard
+                    </button>
+                </form>
+                <div class="mt-6 text-center"><a href="index.html" class="text-[10px] font-black text-slate-400 uppercase tracking-widest hover:text-indigo-600 flex items-center justify-center gap-2"><i class="fa-solid fa-arrow-left"></i> Back to Portal</a></div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ADMIN DASHBOARD VIEW -->
+    <section id="view-admin-dash" class="view-section hidden p-4 sm:p-6 bg-[#f0f4f8] flex-1">
+        <!-- TOP NAV -->
+        <nav class="w-full flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8">
+            <div class="flex items-center gap-3">
+                <div class="w-12 h-12 bg-gradient-to-br from-indigo-600 to-indigo-800 rounded-2xl flex items-center justify-center shadow-lg shadow-indigo-500/20">
+                    <i class="fa-solid fa-shield-halved text-white text-xl"></i>
+                </div>
+                <div>
+                    <h2 class="text-3xl font-black tracking-tighter text-indigo-900 leading-none">ADMIN</h2>
+                    <p class="text-[10px] font-bold text-indigo-400 uppercase tracking-[0.2em] mt-1 flex items-center gap-2">
+                        <i class="fa-solid fa-circle text-[6px] text-emerald-400 animate-pulse"></i> Management Hub v3.6.8
+                    </p>
                 </div>
             </div>
-        </section>
+            <button onclick="window.handleUserLogout()" class="px-6 py-3 bg-red-50 text-red-600 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-red-600 hover:text-white transition-all active:scale-95 flex items-center justify-center gap-2 border border-red-100">
+                <i class="fa-solid fa-power-off"></i> Logout
+            </button>
+        </nav>
 
-        <!-- ADMIN DASHBOARD VIEW -->
-        <section id="view-admin-dash" class="view-section hidden p-4 sm:p-6 bg-[#f8fafc] flex-1">
-            <!-- TOP NAV -->
-            <nav class="w-full flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8">
-                <div class="flex items-center gap-3">
-                    <div class="w-12 h-12 bg-indigo-600 rounded-2xl flex items-center justify-center shadow-lg shadow-indigo-500/20"><i class="fa-solid fa-shield-halved text-white text-xl"></i></div>
+        <!-- KPI GRID - PREMIUM -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+            <div class="stat-card-premium stat-visitors" onclick="window.showAdminTab('tab-visitor-logs')">
+                <div class="flex items-center gap-4">
+                    <div class="stat-icon"><i class="fa-solid fa-users"></i></div>
                     <div>
-                        <h2 class="text-3xl font-black tracking-tighter text-indigo-900 leading-none">ADMIN</h2>
-                        <p class="text-[10px] font-bold text-indigo-400 uppercase tracking-[0.2em] mt-1 flex items-center gap-2"><i class="fa-solid fa-circle text-[6px] text-emerald-400 animate-pulse"></i> Management Hub v3.5.1</p>
+                        <div class="stat-number" id="kpi-visitors">0</div>
+                        <div class="stat-label">Visitors Today</div>
                     </div>
                 </div>
-                <button onclick="window.handleUserLogout()" class="px-6 py-3 bg-red-50 text-red-600 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-red-600 hover:text-white transition-all active:scale-95 flex items-center justify-center gap-2 border border-red-100">
-                    <i class="fa-solid fa-power-off"></i> Logout
-                </button>
-            </nav>
-
-            <!-- KPI GRID -->
-            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-                <div class="stat-card bg-white p-5 rounded-3xl shadow-xl shadow-indigo-500/5 border border-slate-50 flex items-center gap-4" onclick="window.showAdminTab('tab-visitor-logs')">
-                    <div class="w-14 h-14 bg-indigo-50 rounded-2xl flex items-center justify-center text-indigo-600 text-2xl"><i class="fa-solid fa-users"></i></div>
-                    <div class="flex-1">
-                        <p class="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Visitors Today</p>
-                        <h3 class="text-2xl font-black text-indigo-900" id="kpi-visitors">0</h3>
-                        <div class="mt-2 h-1 w-full bg-slate-100 rounded-full overflow-hidden"><div class="h-full bg-indigo-600 progress-bar" id="bar-visitors" style="width: 0%"></div></div>
-                    </div>
-                </div>
-                <div class="stat-card bg-white p-5 rounded-3xl shadow-xl shadow-indigo-500/5 border border-slate-50 flex items-center gap-4" onclick="window.showAdminTab('tab-tasks')">
-                    <div class="w-14 h-14 bg-amber-50 rounded-2xl flex items-center justify-center text-amber-500 text-2xl"><i class="fa-solid fa-clock-rotate-left"></i></div>
-                    <div class="flex-1">
-                        <p class="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Active Tasks</p>
-                        <h3 class="text-2xl font-black text-amber-600" id="kpi-tasks">0</h3>
-                        <div class="mt-2 h-1 w-full bg-slate-100 rounded-full overflow-hidden"><div class="h-full bg-amber-500 progress-bar" id="bar-tasks" style="width: 0%"></div></div>
-                    </div>
-                </div>
-                <div class="stat-card bg-white p-5 rounded-3xl shadow-xl shadow-indigo-500/5 border border-slate-50 flex items-center gap-4" onclick="window.showAdminTab('tab-staff-logs')">
-                    <div class="w-14 h-14 bg-emerald-50 rounded-2xl flex items-center justify-center text-emerald-500 text-2xl"><i class="fa-solid fa-user-check"></i></div>
-                    <div class="flex-1">
-                        <p class="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Staff Present</p>
-                        <h3 class="text-2xl font-black text-emerald-600" id="kpi-staff">0</h3>
-                        <div class="mt-2 h-1 w-full bg-slate-100 rounded-full overflow-hidden"><div class="h-full bg-emerald-500 progress-bar" id="bar-staff" style="width: 0%"></div></div>
-                    </div>
-                </div>
-                <div class="stat-card bg-white p-5 rounded-3xl shadow-xl shadow-indigo-500/5 border border-slate-50 flex items-center gap-4">
-                    <div class="w-14 h-14 bg-red-50 rounded-2xl flex items-center justify-center text-red-500 text-2xl"><i class="fa-solid fa-bell"></i></div>
-                    <div class="flex-1">
-                        <p class="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Urgent Alerts</p>
-                        <h3 class="text-2xl font-black text-red-600" id="kpi-alerts">0</h3>
-                        <div class="mt-2 h-1 w-full bg-slate-100 rounded-full overflow-hidden"><div class="h-full bg-red-500 progress-bar" id="bar-alerts" style="width: 0%"></div></div>
-                    </div>
-                </div>
+                <div class="stat-bar"><div class="stat-bar-fill" id="bar-visitors"></div></div>
             </div>
 
-            <!-- QUICK ACTIONS GRID -->
-            <div class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-9 gap-3 mb-8">
-                <button onclick="window.showAdminTab('tab-visitor-logs')" class="quick-action-btn flex flex-col items-center gap-2 p-4 bg-white rounded-2xl shadow-sm hover:border-indigo-200 transition-all active:scale-95 group">
-                    <div class="w-10 h-10 bg-indigo-50 rounded-xl flex items-center justify-center text-indigo-600 group-hover:bg-indigo-600 group-hover:text-white transition-colors"><i class="fa-solid fa-id-card-clip"></i></div>
-                    <span class="text-[8px] font-black uppercase text-slate-500 group-hover:text-indigo-600">Visitors</span>
-                </button>
-                <button onclick="window.showAdminTab('tab-staff-logs')" class="quick-action-btn flex flex-col items-center gap-2 p-4 bg-white rounded-2xl shadow-sm hover:border-emerald-200 transition-all active:scale-95 group">
-                    <div class="w-10 h-10 bg-emerald-50 rounded-xl flex items-center justify-center text-emerald-600 group-hover:bg-emerald-600 group-hover:text-white transition-colors"><i class="fa-solid fa-user-clock"></i></div>
-                    <span class="text-[8px] font-black uppercase text-slate-500 group-hover:text-emerald-600">Attendance</span>
-                </button>
-                <button onclick="window.showAdminTab('tab-tasks')" class="quick-action-btn flex flex-col items-center gap-2 p-4 bg-white rounded-2xl shadow-sm hover:border-purple-200 transition-all active:scale-95 group">
-                    <div class="w-10 h-10 bg-purple-50 rounded-xl flex items-center justify-center text-purple-600 group-hover:bg-purple-600 group-hover:text-white transition-colors"><i class="fa-solid fa-list-check"></i></div>
-                    <span class="text-[8px] font-black uppercase text-slate-500 group-hover:text-purple-600">Audit</span>
-                </button>
-                <button onclick="window.showAdminTab('tab-my-tasks')" class="quick-action-btn flex flex-col items-center gap-2 p-4 bg-white rounded-2xl shadow-sm hover:border-orange-200 transition-all active:scale-95 group">
-                    <div class="w-10 h-10 bg-orange-50 rounded-xl flex items-center justify-center text-orange-600 group-hover:bg-orange-600 group-hover:text-white transition-colors"><i class="fa-solid fa-clipboard-user"></i></div>
-                    <span class="text-[8px] font-black uppercase text-slate-500 group-hover:text-orange-600">Raised</span>
-                </button>
-                <button onclick="window.showAdminTab('tab-staff-list')" class="quick-action-btn flex flex-col items-center gap-2 p-4 bg-white rounded-2xl shadow-sm hover:border-slate-300 transition-all active:scale-95 group">
-                    <div class="w-10 h-10 bg-slate-50 rounded-xl flex items-center justify-center text-slate-600 group-hover:bg-slate-600 group-hover:text-white transition-colors"><i class="fa-solid fa-address-book"></i></div>
-                    <span class="text-[8px] font-black uppercase text-slate-500 group-hover:text-slate-600">Directory</span>
-                </button>
-                <button onclick="window.showAdminTab('tab-assets')" class="quick-action-btn flex flex-col items-center gap-2 p-4 bg-white rounded-2xl shadow-sm hover:border-cyan-200 transition-all active:scale-95 group">
-                    <div class="w-10 h-10 bg-cyan-50 rounded-xl flex items-center justify-center text-cyan-600 group-hover:bg-cyan-600 group-hover:text-white transition-colors"><i class="fa-solid fa-barcode"></i></div>
-                    <span class="text-[8px] font-black uppercase text-slate-500 group-hover:text-cyan-600">Assets</span>
-                </button>
-                <button onclick="window.showAdminTab('tab-disposal')" class="quick-action-btn flex flex-col items-center gap-2 p-4 bg-white rounded-2xl shadow-sm hover:border-red-200 transition-all active:scale-95 group">
-                    <div class="w-10 h-10 bg-red-50 rounded-xl flex items-center justify-center text-red-600 group-hover:bg-red-600 group-hover:text-white transition-colors"><i class="fa-solid fa-trash-can"></i></div>
-                    <span class="text-[8px] font-black uppercase text-slate-500 group-hover:text-red-600">Disposal</span>
-                </button>
-                <button onclick="window.showAdminTab('tab-transfers')" class="quick-action-btn flex flex-col items-center gap-2 p-4 bg-white rounded-2xl shadow-sm hover:border-indigo-200 transition-all active:scale-95 group">
-                    <div class="w-10 h-10 bg-indigo-50 rounded-xl flex items-center justify-center text-indigo-600 group-hover:bg-indigo-600 group-hover:text-white transition-colors"><i class="fa-solid fa-truck-ramp-box"></i></div>
-                    <span class="text-[8px] font-black uppercase text-slate-500 group-hover:text-indigo-600">Transfers</span>
-                </button>
-                <button onclick="window.showAdminTab('tab-settings')" class="quick-action-btn flex flex-col items-center gap-2 p-4 bg-white rounded-2xl shadow-sm hover:border-slate-300 transition-all active:scale-95 group">
-                    <div class="w-10 h-10 bg-slate-50 rounded-xl flex items-center justify-center text-slate-600 group-hover:bg-slate-600 group-hover:text-white transition-colors"><i class="fa-solid fa-gears"></i></div>
-                    <span class="text-[8px] font-black uppercase text-slate-500 group-hover:text-slate-600">Settings</span>
-                </button>
-            </div>
-
-            <!-- MAIN DATA CONTAINER -->
-            <div class="max-w-full mx-auto rounded-[32px] overflow-hidden shadow-2xl bg-white border border-slate-100 min-h-[500px] admin-main-card">
-                <div class="p-4 sm:p-6" id="admin-data-container">
-
-                    <!-- VISITOR LOGS TAB -->
-                    <div id="tab-visitor-logs" class="tab-section space-y-4">
-                        <div class="flex items-center justify-between mb-2">
-                            <h3 class="text-indigo-900 font-black text-lg uppercase flex items-center gap-2"><i class="fa-solid fa-id-card-clip text-indigo-500"></i> Visitor Logs</h3>
-                            <button onclick="window.downloadExcelReport()" class="px-4 py-2 bg-indigo-600 text-white rounded-xl text-[10px] font-black uppercase shadow-lg shadow-indigo-500/20 active:scale-95">Export Excel</button>
-                        </div>
-                        <div class="flex gap-2 flex-wrap">
-                            <input type="text" id="visitor-search" placeholder="Search..." class="flex-1 min-w-[120px] bg-slate-50 border p-3 rounded-xl text-xs outline-none focus:border-indigo-500" oninput="window.filterVisitorTable()">
-                            <input type="date" id="visitor-date-filter" class="bg-slate-50 border p-3 rounded-xl text-xs" onchange="window.filterVisitorTable()">
-                        </div>
-                        <div class="table-wrapper rounded-2xl border border-slate-100" id="visitor-table-wrapper">
-                            <table class="w-full text-left text-[10px]">
-                                <thead class="bg-slate-50 uppercase text-indigo-600 font-black">
-                                    <tr>
-                                        <th class="p-4">Type</th>
-                                        <th class="p-4">Pass No</th>
-                                        <th class="p-4">Full Name</th>
-                                        <th class="p-4">Mobile</th>
-                                        <th class="p-4">Company</th>
-                                        <th class="p-4">Purpose</th>
-                                        <th class="p-4">Date</th>
-                                        <th class="p-4">In</th>
-                                        <th class="p-4">Out</th>
-                                        <th class="p-4">Status</th>
-                                        <th class="p-4 text-center">Sig</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="visitor-logs-body" class="divide-y divide-slate-50"></tbody>
-                            </table>
-                        </div>
-                        <div id="visitor-logs-pagination" class="pagination-container"></div>
-                    </div>
-
-                    <!-- STAFF LOGS TAB -->
-                    <div id="tab-staff-logs" class="tab-section space-y-4">
-                        <div class="flex items-center justify-between">
-                            <h3 class="text-emerald-900 font-black text-lg uppercase flex items-center gap-2"><i class="fa-solid fa-user-clock text-emerald-500"></i> Staff Attendance</h3>
-                            <button onclick="window.downloadExcelReport()" class="px-4 py-2 bg-emerald-600 text-white rounded-xl text-[10px] font-black uppercase shadow-lg active:scale-95">Attendance Report</button>
-                        </div>
-                        <div class="flex gap-2 flex-wrap">
-                            <input type="text" id="staff-search" placeholder="Search..." class="flex-1 min-w-[120px] bg-slate-50 border p-3 rounded-xl text-xs outline-none" oninput="window.filterStaffTable()">
-                            <input type="date" id="staff-date-filter" class="bg-slate-50 border p-3 rounded-xl text-xs" onchange="window.filterStaffTable()">
-                        </div>
-                        <div class="table-wrapper rounded-2xl border border-slate-100" id="staff-table-wrapper">
-                            <table class="w-full text-left text-[10px]">
-                                <thead class="bg-slate-50 uppercase text-emerald-600 font-black">
-                                    <tr>
-                                        <th class="p-4">Type</th>
-                                        <th class="p-4">Full Name</th>
-                                        <th class="p-4">Mobile</th>
-                                        <th class="p-4">School</th>
-                                        <th class="p-4">Position</th>
-                                        <th class="p-4">Date</th>
-                                        <th class="p-4">In</th>
-                                        <th class="p-4">Out</th>
-                                        <th class="p-4 text-center">Sig</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="staff-attendance-body" class="divide-y divide-slate-50"></tbody>
-                            </table>
-                        </div>
-                        <div id="staff-attendance-pagination" class="pagination-container"></div>
-                    </div>
-
-                    <!-- TASK AUDIT TAB -->
-                    <div id="tab-tasks" class="tab-section space-y-4">
-                        <div class="flex items-center justify-between">
-                            <h3 class="text-purple-900 font-black text-lg uppercase flex items-center gap-2"><i class="fa-solid fa-list-check text-purple-500"></i> Global Task Audit</h3>
-                            <button onclick="window.exportTaskReportExcel()" class="px-4 py-2 bg-purple-600 text-white rounded-xl text-[10px] font-black uppercase shadow-lg active:scale-95">Tasks Report</button>
-                        </div>
-                        <div class="table-wrapper rounded-2xl border border-slate-100" id="tasks-table-wrapper">
-                            <table class="w-full text-left text-[9px]">
-                                <thead class="bg-slate-50 uppercase text-purple-600 font-black">
-                                    <tr>
-                                        <th class="p-3">ID</th>
-                                        <th class="p-3">School</th>
-                                        <th class="p-3">Area</th>
-                                        <th class="p-3">Details</th>
-                                        <th class="p-3">Dept</th>
-                                        <th class="p-3">Raised By</th>
-                                        <th class="p-3">Fixed By</th>
-                                        <th class="p-3">Status</th>
-                                        <th class="p-3">Reason</th>
-                                        <th class="p-3 text-center">Photos</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="admin-task-list-body" class="divide-y divide-slate-50"></tbody>
-                            </table>
-                        </div>
-                        <div id="tasks-pagination" class="pagination-container"></div>
-                    </div>
-
-                    <!-- MY RAISED TASKS TAB -->
-                    <div id="tab-my-tasks" class="tab-section space-y-4">
-                        <div class="flex items-center justify-between px-2">
-                            <h3 class="text-orange-600 font-black text-lg uppercase tracking-tight">Raised Tasks Tracker</h3>
-                            <div class="flex bg-slate-100 p-1 rounded-xl shadow-inner">
-                                <button onclick="window.switchRaisedTaskView('active')" id="admin-raised-tab-active" class="px-4 py-2 rounded-lg text-[9px] font-black uppercase bg-white text-indigo-600 shadow-sm">Active</button>
-                                <button onclick="window.switchRaisedTaskView('history')" id="admin-raised-tab-history" class="px-4 py-2 rounded-lg text-[9px] font-black uppercase text-slate-400">History</button>
-                            </div>
-                        </div>
-                        <div id="admin-my-tasks-container"></div>
-                        <div id="my-tasks-pagination" class="pagination-container"></div>
-                    </div>
-
-                    <!-- STAFF DIRECTORY TAB -->
-                    <div id="tab-staff-list" class="tab-section space-y-4">
-                        <div class="flex justify-between items-center px-2">
-                            <h3 class="text-slate-900 font-black text-lg uppercase tracking-tight">Staff Directory</h3>
-                            <button onclick="window.openAddStaffModal()" class="bg-slate-800 text-white px-4 py-2 rounded-xl font-bold text-[10px] uppercase shadow-lg active:scale-95 transition flex items-center gap-2"><i class="fa-solid fa-user-plus"></i> Add Staff</button>
-                        </div>
-                        <div class="table-wrapper rounded-2xl border border-slate-100" id="directory-table-wrapper">
-                            <table class="w-full text-left text-[10px]">
-                                <thead class="bg-slate-50 uppercase text-slate-600 font-black">
-                                    <tr>
-                                        <th class="p-4 text-center">Photo</th>
-                                        <th class="p-4">Name</th>
-                                        <th class="p-4">Pass</th>
-                                        <th class="p-4">School</th>
-                                        <th class="p-4">Position</th>
-                                        <th class="p-4">Mobile</th>
-                                        <th class="p-4 text-center">Action</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="admin-staff-list-body" class="divide-y divide-slate-50"></tbody>
-                            </table>
-                        </div>
-                        <div id="directory-pagination" class="pagination-container"></div>
-                    </div>
-
-                    <!-- ASSET REGISTER TAB -->
-                    <div id="tab-assets" class="tab-section space-y-4">
-                        <div class="flex flex-col md:flex-row gap-3 items-center px-2">
-                            <h3 class="text-cyan-900 font-black text-lg uppercase flex-1">Asset Register</h3>
-                            <div class="flex gap-2 w-full md:w-auto">
-                                <button onclick="window.bulkDeleteAssets()" class="px-4 py-2 bg-red-500 text-white rounded-xl text-[9px] font-black uppercase shadow-lg">Bulk Delete</button>
-                                <button onclick="window.downloadMasterAssetReport()" class="px-4 py-2 bg-cyan-600 text-white rounded-xl text-[9px] font-black uppercase shadow-lg">Export Assets</button>
-                            </div>
-                        </div>
-                        <input type="text" id="asset-search" placeholder="Search Assets..." class="w-full bg-slate-50 border p-3 rounded-xl text-xs outline-none focus:border-cyan-500" oninput="window.filterAssetTable()">
-                        <div class="table-wrapper rounded-2xl border border-slate-100" id="assets-table-wrapper">
-                            <table class="w-full text-left border-collapse" id="asset-master-table">
-                                <thead class="sticky top-0 bg-slate-50 z-10 shadow-sm">
-                                    <tr class="text-[10px] uppercase font-black text-cyan-700 border-b-2 border-cyan-100"></tr>
-                                </thead>
-                                <tbody id="admin-asset-list-body" class="divide-y divide-slate-50"></tbody>
-                            </table>
-                        </div>
-                        <div id="assets-pagination" class="pagination-container"></div>
-                    </div>
-
-                    <!-- ASSET DISPOSAL TAB -->
-                    <div id="tab-disposal" class="tab-section space-y-4">
-                        <div class="flex items-center justify-between px-2">
-                            <h3 class="text-red-700 font-black text-lg uppercase flex items-center gap-2"><i class="fa-solid fa-trash-can"></i> Asset Disposal Registry</h3>
-                            <button onclick="window.downloadDisposedAssetReport()" class="px-4 py-2 bg-red-600 text-white rounded-xl text-[10px] font-black uppercase shadow-lg">Export Excel</button>
-                        </div>
-                        <input type="text" id="disposal-search" placeholder="Search scrap logs..." class="w-full bg-slate-50 border p-3 rounded-xl text-xs outline-none" oninput="window.filterDisposalTable()">
-                        <div class="table-wrapper rounded-2xl border border-red-50" id="disposal-table-wrapper">
-                            <table class="w-full text-left" id="asset-disposal-table">
-                                <thead class="bg-red-50 uppercase text-red-900 font-black text-[9px]">
-                                    <tr>
-                                        <th class="p-3">Asset Barcode</th>
-                                        <th class="p-3">Asset Description</th>
-                                        <th class="p-3">Asset Vendor Name</th>
-                                        <th class="p-3">Category</th>
-                                        <th class="p-3">Date Place In Service</th>
-                                        <th class="p-3">Floor Discretion</th>
-                                        <th class="p-3">Floor No</th>
-                                        <th class="p-3">Location Name</th>
-                                        <th class="p-3">Major Category</th>
-                                        <th class="p-3">Minor Category</th>
-                                        <th class="p-3">School Building Name</th>
-                                        <th class="p-3">Room Number</th>
-                                        <th class="p-3">Room Name</th>
-                                        <th class="p-3">Sub Minor Category</th>
-                                        <th class="p-3">Audit Photo</th>
-                                        <th class="p-3 text-center">Action</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="admin-disposal-list-body" class="divide-y divide-slate-50"></tbody>
-                            </table>
-                        </div>
-                        <div id="disposal-pagination" class="pagination-container"></div>
-                    </div>
-
-                    <!-- ========================================================= -->
-                    <!-- ASSET MOVEMENT LOGS TAB (FULL 26-COLUMN TABLE)            -->
-                    <!-- ========================================================= -->
-                    <div id="tab-transfers" class="tab-section space-y-4">
-                        <div class="flex items-center justify-between px-2">
-                            <h3 class="text-indigo-900 font-black text-lg uppercase flex items-center gap-2">
-                                <i class="fa-solid fa-truck-ramp-box"></i> Movement Logs
-                            </h3>
-                            <div class="flex gap-2">
-                                <button onclick="window.exportTransferReport()" class="px-4 py-2 bg-indigo-600 text-white rounded-xl text-[10px] font-black uppercase shadow-lg active:scale-95">
-                                    <i class="fa-solid fa-file-excel mr-1"></i> Export Logs
-                                </button>
-                                <button onclick="window.refreshDashboardData()" class="px-4 py-2 bg-slate-600 text-white rounded-xl text-[10px] font-black uppercase shadow-lg active:scale-95">
-                                    <i class="fa-solid fa-rotate"></i> Refresh
-                                </button>
-                            </div>
-                        </div>
-
-                        <!-- Search Filter -->
-                        <input type="text" id="transfer-search" placeholder="🔍 Search transfer logs..."
-                               class="w-full bg-slate-50 border p-3 rounded-xl text-xs outline-none focus:border-indigo-500"
-                               oninput="window.filterTransferTable()">
-
-                        <!-- Table: 26 Columns -->
-                        <div class="table-wrapper rounded-2xl border border-slate-100 shadow-sm" id="transfer-table-wrapper">
-                            <table class="w-full text-left text-[9px]" id="transfer-master-table">
-                                <thead class="bg-indigo-50 uppercase text-indigo-600 font-black sticky top-0 z-10 shadow-sm whitespace-nowrap">
-                                    <tr>
-                                        <th class="p-2 min-w-[100px]">Asset Barcode</th>
-                                        <th class="p-2 min-w-[150px]">Asset Description</th>
-                                        <th class="p-2 min-w-[120px]">Asset Vendor Name</th>
-                                        <th class="p-2 min-w-[100px]">Category</th>
-                                        <th class="p-2 min-w-[100px]">Date Place In Service</th>
-                                        <th class="p-2 min-w-[120px]">Floor Discretion</th>
-                                        <th class="p-2 min-w-[60px]">Floor No</th>
-                                        <th class="p-2 min-w-[120px]">Location Name</th>
-                                        <th class="p-2 min-w-[120px]">Major Category</th>
-                                        <th class="p-2 min-w-[120px]">Minor Category</th>
-                                        <th class="p-2 min-w-[150px]">School Building Name</th>
-                                        <th class="p-2 min-w-[80px]">Room Number</th>
-                                        <th class="p-2 min-w-[120px]">Room Name</th>
-                                        <th class="p-2 min-w-[120px]">Sub Minor Category</th>
-                                        <th class="p-2 min-w-[80px] text-center">Audit Photo</th>
-                                        <th class="p-2 min-w-[120px]">Collector Name</th>
-                                        <th class="p-2 min-w-[120px]">Company Name</th>
-                                        <th class="p-2 min-w-[100px]">Collected Date</th>
-                                        <th class="p-2 min-w-[120px]">Security/Staff Name</th>
-                                        <th class="p-2 min-w-[120px]">Receiver Name</th>
-                                        <th class="p-2 min-w-[80px] text-center">Security Sig</th>
-                                        <th class="p-2 min-w-[80px] text-center">Receiver Sig</th>
-                                        <th class="p-2 min-w-[80px] text-center">Proof Photo</th>
-                                        <th class="p-2 min-w-[100px] text-center">Action</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="transfer-logs-body" class="divide-y divide-slate-50"></tbody>
-                            </table>
-                        </div>
-                        <div id="transfer-pagination" class="pagination-container"></div>
-                    </div>
-
-                    <!-- SETTINGS TAB -->
-                    <div id="tab-settings" class="tab-section space-y-6">
-                        <div class="flex items-center justify-between mb-4 px-2">
-                            <h3 class="text-slate-900 font-black text-lg uppercase flex items-center gap-2">
-                                <i class="fa-solid fa-gears text-slate-500"></i> System Configuration
-                            </h3>
-                        </div>
-
-                        <!-- Google Drive Settings Card -->
-                        <div class="bg-white rounded-3xl p-6 border border-slate-100 shadow-sm space-y-4">
-                            <div class="flex items-center gap-3 pb-4 border-b border-slate-50">
-                                <div class="w-10 h-10 bg-indigo-50 rounded-xl flex items-center justify-center text-indigo-600">
-                                    <i class="fa-brands fa-google-drive text-xl"></i>
-                                </div>
-                                <div>
-                                    <h4 class="font-black text-indigo-900 uppercase text-sm">Google Drive Sync Settings</h4>
-                                    <p class="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Direct Media Pipeline Configuration</p>
-                                </div>
-                            </div>
-
-                            <div class="space-y-2">
-                                <label class="text-[10px] font-black text-slate-400 uppercase ml-1">Apps Script Web App URL</label>
-                                <div class="relative group">
-                                    <div class="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300">
-                                        <i class="fa-solid fa-link"></i>
-                                    </div>
-                                    <input type="url" id="driveUrlInput" placeholder="https://script.google.com/macros/s/.../exec"
-                                           class="w-full pl-10 pr-4 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-indigo-500 focus:bg-white outline-none transition-all font-mono text-xs">
-                                </div>
-                            </div>
-
-                            <div class="flex flex-col sm:flex-row items-center justify-between gap-4 pt-2">
-                                <div class="flex items-center gap-2 px-3 py-2 bg-slate-50 rounded-xl border border-slate-100">
-                                    <span class="w-2 h-2 rounded-full bg-slate-300" id="driveStatusDot"></span>
-                                    <span class="text-[10px] font-bold text-slate-500 uppercase tracking-tighter" id="driveStatusText">Status: Checking...</span>
-                                </div>
-                                <button id="saveDriveUrlBtn" onclick="window.saveGoogleDriveConfig()"
-                                        class="w-full sm:w-auto px-8 py-4 bg-indigo-600 text-white rounded-2xl font-black text-xs uppercase tracking-widest shadow-lg shadow-indigo-500/20 active:scale-95 transition-all flex items-center justify-center gap-2">
-                                    <i class="fa-solid fa-cloud-arrow-up"></i> Save & Connect Drive
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </section>
-
-        <!-- FOOTER -->
-        <footer class="mt-auto py-8 text-center text-[10px] opacity-40 w-full text-indigo-900 font-bold">
-            &copy; 2026 JYS Admin Management System (v3.5.1 Premium)
-        </footer>
-    </div>
-
-    <!-- MODALS -->
-    <div id="task-modal" class="fixed inset-0 bg-black/90 backdrop-blur-md z-[100000] hidden flex items-center justify-center p-4">
-        <div class="bg-white w-full max-w-3xl rounded-[40px] overflow-hidden shadow-2xl text-gray-800">
-            <div class="p-6 border-b flex justify-between items-center bg-indigo-600 text-white"><h3 class="text-lg font-bold">Raise New Issue</h3><button type="button" onclick="closeTaskModal()"><i class="fa-solid fa-xmark text-xl"></i></button></div>
-            <form id="task-form" class="p-8 space-y-5" onsubmit="window.submitNewMaintenanceTask(event)">
-                <div class="grid grid-cols-2 gap-4"><select id="task-school" required class="p-4 border-2 border-slate-100 rounded-2xl bg-slate-50 text-sm outline-none" onchange="window.filterStaffBySchoolAndRole()"><option value="">Select School</option><option value="Jern Yafoor School 1">School 1</option><option value="Jern Yafoor School 2">School 2</option></select><select id="task-target" required class="p-4 border-2 border-slate-100 rounded-2xl bg-slate-50 text-sm outline-none" onchange="window.filterStaffBySchoolAndRole()"><option value="">Target Role</option></select></div>
-                <select id="task-assigned-staff" class="w-full p-4 border-2 border-slate-100 rounded-2xl bg-slate-50 text-sm outline-none"><option value="">Assign Specific Staff (Optional)</option></select>
-                <input type="text" id="task-loc" placeholder="Location Details" required class="w-full p-4 border-2 border-slate-100 rounded-2xl bg-slate-50 text-sm outline-none">
-                <textarea id="task-desc" placeholder="Details..." required class="w-full p-4 border-2 border-slate-100 rounded-2xl bg-slate-50 text-sm outline-none h-24 resize-none"></textarea>
-                <div class="flex items-center gap-3"><input type="file" id="task-photo-in" accept="image/*" capture="environment" class="hidden" onchange="window.handleTaskImageCapture(event)"><button type="button" onclick="document.getElementById('task-photo-in').click()" class="flex-1 py-4 border-2 border-dashed border-indigo-200 rounded-2xl text-indigo-600 font-bold text-xs uppercase flex items-center justify-center gap-2 hover:bg-indigo-50"><i class="fa-solid fa-camera"></i> Capture Photo</button><button type="submit" class="flex-1 py-4 bg-indigo-600 text-white rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl">Save Task</button></div>
-            </form>
-        </div>
-    </div>
-
-    <div id="add-staff-modal" class="fixed inset-0 bg-black/90 backdrop-blur-md z-[100001] hidden flex items-center justify-center p-4"></div>
-    <div id="edit-staff-modal" class="fixed inset-0 bg-black/90 backdrop-blur-md z-[100002] hidden flex items-center justify-center p-4"></div>
-    <div id="notification-modal" class="fixed inset-0 bg-black/90 backdrop-blur-md z-[100003] hidden flex items-center justify-center p-4"></div>
-    <div id="import-progress-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-[100004] hidden flex items-center justify-center p-4"></div>
-    <div id="asset-disposal-modal" class="fixed inset-0 bg-black/90 z-[100005] hidden flex items-center justify-center p-4">
-        <div class="bg-white w-full max-w-xl rounded-[40px] overflow-hidden shadow-2xl">
-            <div class="p-6 bg-red-600 text-white flex justify-between items-center">
-                <h3 class="text-lg font-bold uppercase tracking-tight">Dispose Asset</h3>
-                <button onclick="document.getElementById('asset-disposal-modal').classList.add('hidden')"><i class="fa-solid fa-xmark text-xl"></i></button>
-            </div>
-            <form id="disposal-form" class="p-8 space-y-5" onsubmit="window.submitAssetDisposal(event)">
-                <div class="space-y-1">
-                    <label class="text-[10px] font-black text-slate-400 uppercase">Asset Barcode</label>
-                    <input type="text" id="dispose-barcode" required class="w-full p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl outline-none focus:border-red-500" placeholder="Scan or Enter Barcode" onchange="window.handleBarcodeScan(this.value, 'dispose')">
-                </div>
-                <div class="grid grid-cols-2 gap-4">
-                    <div class="space-y-1">
-                        <label class="text-[10px] font-black text-slate-400 uppercase">Category</label>
-                        <input type="text" id="dispose-category" readonly class="w-full p-4 bg-slate-100 border-2 border-slate-100 rounded-2xl outline-none text-xs">
-                    </div>
-                    <div class="space-y-1">
-                        <label class="text-[10px] font-black text-slate-400 uppercase">Building</label>
-                        <input type="text" id="dispose-building" readonly class="w-full p-4 bg-slate-100 border-2 border-slate-100 rounded-2xl outline-none text-xs">
-                    </div>
-                </div>
-                <div class="space-y-1">
-                    <label class="text-[10px] font-black text-slate-400 uppercase">Disposal Reason</label>
-                    <textarea id="dispose-reason" required class="w-full p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl outline-none focus:border-red-500 h-24 resize-none" placeholder="Explain why this asset is being scrapped..."></textarea>
-                </div>
-                <div class="hidden">
-                    <input type="hidden" id="dispose-by">
-                    <input type="hidden" id="dispose-description">
-                    <input type="hidden" id="dispose-vendor">
-                    <input type="hidden" id="dispose-date-service">
-                    <input type="hidden" id="dispose-floor-no">
-                    <input type="hidden" id="dispose-location">
-                    <input type="hidden" id="dispose-manufacturer">
-                    <input type="hidden" id="dispose-room-no">
-                </div>
-                <button type="submit" class="w-full py-4 bg-red-600 text-white rounded-2xl font-black text-sm uppercase tracking-widest shadow-xl shadow-red-500/30 active:scale-95 transition-all">
-                    Confirm Disposal
-                </button>
-            </form>
-        </div>
-    </div>
-
-    <div id="asset-edit-modal" class="fixed inset-0 bg-black/90 z-[100006] hidden flex items-center justify-center p-4">
-        <div class="bg-white w-full max-w-xl rounded-[40px] overflow-hidden shadow-2xl">
-            <div class="p-6 bg-indigo-600 text-white flex justify-between items-center">
-                <h3 class="text-lg font-bold uppercase tracking-tight">Edit Asset Details</h3>
-                <button onclick="document.getElementById('asset-edit-modal').classList.add('hidden')"><i class="fa-solid fa-xmark text-xl"></i></button>
-            </div>
-            <form id="edit-asset-form" class="p-8 space-y-4">
-                <div class="space-y-1">
-                    <label class="text-[10px] font-black text-slate-400 uppercase">Description</label>
-                    <input type="text" id="edit-description" class="w-full p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl outline-none focus:border-indigo-500 text-sm">
-                </div>
-                <div class="grid grid-cols-2 gap-4">
-                    <div class="space-y-1">
-                        <label class="text-[10px] font-black text-slate-400 uppercase">Condition</label>
-                        <select id="edit-condition" class="w-full p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl outline-none focus:border-indigo-500 text-sm">
-                            <option value="Excellent">Excellent</option>
-                            <option value="Good">Good</option>
-                            <option value="Fair">Fair</option>
-                            <option value="Poor">Poor</option>
-                            <option value="Damaged">Damaged</option>
-                        </select>
-                    </div>
-                    <div class="space-y-1">
-                        <label class="text-[10px] font-black text-slate-400 uppercase">Location</label>
-                        <input type="text" id="edit-location" class="w-full p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl outline-none focus:border-indigo-500 text-sm">
-                    </div>
-                </div>
-                <div class="space-y-1">
-                    <label class="text-[10px] font-black text-slate-400 uppercase">Room Number</label>
-                    <input type="text" id="edit-room" class="w-full p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl outline-none focus:border-indigo-500 text-sm">
-                </div>
-                <input type="hidden" id="edit-barcode">
-                <button type="button" id="save-asset-edit-btn" class="w-full py-4 bg-indigo-600 text-white rounded-2xl font-black text-sm uppercase tracking-widest shadow-xl active:scale-95 transition-all mt-4">
-                    Save Updates
-                </button>
-            </form>
-        </div>
-    </div>
-
-    <!-- ✅ ASSET TRANSFER MODAL (RESTORED) -->
-    <div id="asset-transfer-modal" class="fixed inset-0 bg-black/90 z-[100007] hidden flex items-center justify-center p-4">
-        <div class="bg-white w-full max-w-2xl rounded-[40px] overflow-hidden shadow-2xl">
-            <div class="p-6 bg-indigo-600 text-white flex justify-between items-center">
-                <h3 class="text-lg font-bold uppercase tracking-tight">Asset Movement / Transfer</h3>
-                <button onclick="document.getElementById('asset-transfer-modal').classList.add('hidden')"><i class="fa-solid fa-xmark text-xl"></i></button>
-            </div>
-            <form id="transfer-form" class="p-8 space-y-4" onsubmit="window.submitAssetTransfer(event)">
-                <div class="grid grid-cols-2 gap-4">
-                    <input type="text" id="t_asset_barcode" placeholder="Asset Barcode" required class="p-4 bg-slate-50 border-2 rounded-2xl outline-none">
-                    <input type="text" id="t_to_location" placeholder="Destination Location" required class="p-4 bg-slate-50 border-2 rounded-2xl outline-none">
-                </div>
-                <div class="grid grid-cols-2 gap-4">
-                    <input type="text" id="t_collector_name" placeholder="Collector Name" required class="p-4 bg-slate-50 border-2 rounded-2xl outline-none">
-                    <input type="text" id="t_company_name" placeholder="Company" required class="p-4 bg-slate-50 border-2 rounded-2xl outline-none">
-                </div>
-                <!-- Signature Pads -->
-                <div class="grid grid-cols-2 gap-4">
+            <div class="stat-card-premium stat-tasks" onclick="window.showAdminTab('tab-tasks')">
+                <div class="flex items-center gap-4">
+                    <div class="stat-icon"><i class="fa-solid fa-clock-rotate-left"></i></div>
                     <div>
-                        <label class="text-[9px] font-bold uppercase text-slate-400 ml-2">Security Sig</label>
-                        <canvas id="t_security_sig" class="w-full h-24 bg-slate-50 border-2 border-dashed rounded-2xl"></canvas>
-                    </div>
-                    <div>
-                        <label class="text-[9px] font-bold uppercase text-slate-400 ml-2">Receiver Sig</label>
-                        <canvas id="t_received_sig" class="w-full h-24 bg-slate-50 border-2 border-dashed rounded-2xl"></canvas>
+                        <div class="stat-number" id="kpi-tasks">0</div>
+                        <div class="stat-label">Active Tasks</div>
                     </div>
                 </div>
-                <button type="submit" id="submit-transfer-btn" class="w-full py-4 bg-indigo-600 text-white rounded-2xl font-black uppercase tracking-widest shadow-xl">Initiate Transfer</button>
-            </form>
+                <div class="stat-bar"><div class="stat-bar-fill" id="bar-tasks"></div></div>
+            </div>
+
+            <div class="stat-card-premium stat-staff" onclick="window.showAdminTab('tab-staff-logs')">
+                <div class="flex items-center gap-4">
+                    <div class="stat-icon"><i class="fa-solid fa-user-check"></i></div>
+                    <div>
+                        <div class="stat-number" id="kpi-staff">0</div>
+                        <div class="stat-label">Staff Present</div>
+                    </div>
+                </div>
+                <div class="stat-bar"><div class="stat-bar-fill" id="bar-staff"></div></div>
+            </div>
+
+            <div class="stat-card-premium stat-alerts">
+                <div class="flex items-center gap-4">
+                    <div class="stat-icon"><i class="fa-solid fa-bell"></i></div>
+                    <div>
+                        <div class="stat-number" id="kpi-alerts">0</div>
+                        <div class="stat-label">Urgent Alerts</div>
+                    </div>
+                </div>
+                <div class="stat-bar"><div class="stat-bar-fill" id="bar-alerts"></div></div>
+            </div>
+        </div>
+
+        <!-- QUICK ACTIONS - FIXED TEXT VISIBILITY -->
+        <div class="quick-actions-grid">
+            <button onclick="window.showAdminTab('tab-visitor-logs')" class="quick-action-card card-visitor">
+                <div class="icon-wrapper"><i class="fa-solid fa-id-card-clip"></i></div>
+                <div class="card-content">
+                    <span class="card-title">Visitors</span>
+                    <span class="card-badge">Today</span>
+                </div>
+                <div class="card-arrow"><i class="fa-solid fa-chevron-right"></i></div>
+            </button>
+
+            <button onclick="window.showAdminTab('tab-staff-logs')" class="quick-action-card card-attendance">
+                <div class="icon-wrapper"><i class="fa-solid fa-user-clock"></i></div>
+                <div class="card-content">
+                    <span class="card-title">Attendance</span>
+                    <span class="card-badge">Live</span>
+                </div>
+                <div class="card-arrow"><i class="fa-solid fa-chevron-right"></i></div>
+            </button>
+
+            <button onclick="window.showAdminTab('tab-tasks')" class="quick-action-card card-audit">
+                <div class="icon-wrapper"><i class="fa-solid fa-list-check"></i></div>
+                <div class="card-content">
+                    <span class="card-title">Audit</span>
+                    <span class="card-badge">Tasks</span>
+                </div>
+                <div class="card-arrow"><i class="fa-solid fa-chevron-right"></i></div>
+            </button>
+
+            <button onclick="window.showAdminTab('tab-my-tasks')" class="quick-action-card card-raised">
+                <div class="icon-wrapper"><i class="fa-solid fa-clipboard-user"></i></div>
+                <div class="card-content">
+                    <span class="card-title">Raised</span>
+                    <span class="card-badge">My Tasks</span>
+                </div>
+                <div class="card-arrow"><i class="fa-solid fa-chevron-right"></i></div>
+            </button>
+
+            <button onclick="window.showAdminTab('tab-staff-list')" class="quick-action-card card-directory">
+                <div class="icon-wrapper"><i class="fa-solid fa-address-book"></i></div>
+                <div class="card-content">
+                    <span class="card-title">Directory</span>
+                    <span class="card-badge">Staff</span>
+                </div>
+                <div class="card-arrow"><i class="fa-solid fa-chevron-right"></i></div>
+            </button>
+
+            <button onclick="window.showAdminTab('tab-assets')" class="quick-action-card card-assets">
+                <div class="icon-wrapper"><i class="fa-solid fa-barcode"></i></div>
+                <div class="card-content">
+                    <span class="card-title">Assets</span>
+                    <span class="card-badge">Register</span>
+                </div>
+                <div class="card-arrow"><i class="fa-solid fa-chevron-right"></i></div>
+            </button>
+
+            <button onclick="window.showAdminTab('tab-disposal')" class="quick-action-card card-disposal">
+                <div class="icon-wrapper"><i class="fa-solid fa-trash-can"></i></div>
+                <div class="card-content">
+                    <span class="card-title">Disposal</span>
+                    <span class="card-badge">Scrap</span>
+                </div>
+                <div class="card-arrow"><i class="fa-solid fa-chevron-right"></i></div>
+            </button>
+
+            <button onclick="window.showAdminTab('tab-transfers')" class="quick-action-card card-transfers">
+                <div class="icon-wrapper"><i class="fa-solid fa-truck-ramp-box"></i></div>
+                <div class="card-content">
+                    <span class="card-title">Transfers</span>
+                    <span class="card-badge">Logs</span>
+                </div>
+                <div class="card-arrow"><i class="fa-solid fa-chevron-right"></i></div>
+            </button>
+
+            <button onclick="window.showAdminTab('tab-settings')" class="quick-action-card card-settings">
+                <div class="icon-wrapper"><i class="fa-solid fa-gears"></i></div>
+                <div class="card-content">
+                    <span class="card-title">Settings</span>
+                    <span class="card-badge">Config</span>
+                </div>
+                <div class="card-arrow"><i class="fa-solid fa-chevron-right"></i></div>
+            </button>
+        </div>
+
+        <!-- MAIN DATA CONTAINER -->
+        <div class="max-w-full mx-auto rounded-[32px] overflow-hidden shadow-2xl bg-white border border-slate-100 min-h-[500px] admin-main-card">
+            <div class="p-4 sm:p-6" id="admin-data-container">
+
+                <!-- VISITOR LOGS TAB -->
+                <div id="tab-visitor-logs" class="tab-section space-y-4">
+                    <div class="flex items-center justify-between mb-2">
+                        <h3 class="text-indigo-900 font-black text-lg uppercase flex items-center gap-2"><i class="fa-solid fa-id-card-clip text-indigo-500"></i> Visitor Logs</h3>
+                        <button onclick="window.downloadExcelReport()" class="px-4 py-2 bg-indigo-600 text-white rounded-xl text-[10px] font-black uppercase shadow-lg shadow-indigo-500/20 active:scale-95">Export Excel</button>
+                    </div>
+                    <div class="flex gap-2 flex-wrap">
+                        <input type="text" id="visitor-search" placeholder="Search..." class="flex-1 min-w-[120px] bg-slate-50 border p-3 rounded-xl text-xs outline-none focus:border-indigo-500" oninput="window.filterVisitorTable()">
+                        <input type="date" id="visitor-date-filter" class="bg-slate-50 border p-3 rounded-xl text-xs" onchange="window.filterVisitorTable()">
+                    </div>
+                    <div class="table-wrapper rounded-2xl border border-slate-100" id="visitor-table-wrapper">
+                        <table class="w-full text-left text-[10px]">
+                            <thead class="bg-slate-50 uppercase text-indigo-600 font-black">
+                            <tr>
+                                <th class="p-4">Type</th>
+                                <th class="p-4">Pass No</th>
+                                <th class="p-4">Full Name</th>
+                                <th class="p-4">Mobile</th>
+                                <th class="p-4">Company</th>
+                                <th class="p-4">Purpose</th>
+                                <th class="p-4">Date</th>
+                                <th class="p-4">In</th>
+                                <th class="p-4">Out</th>
+                                <th class="p-4">Status</th>
+                                <th class="p-4 text-center">Sig</th>
+                            </tr>
+                            </thead>
+                            <tbody id="visitor-logs-body" class="divide-y divide-slate-50"></tbody>
+                        </table>
+                    </div>
+                    <div id="visitor-logs-pagination" class="pagination-container"></div>
+                </div>
+
+                <!-- STAFF ATTENDANCE TAB -->
+                <div id="tab-staff-logs" class="tab-section space-y-4">
+                    <div class="flex items-center justify-between">
+                        <h3 class="text-emerald-900 font-black text-lg uppercase flex items-center gap-2"><i class="fa-solid fa-user-clock text-emerald-500"></i> Staff Attendance</h3>
+                        <button onclick="window.downloadExcelReport()" class="px-4 py-2 bg-emerald-600 text-white rounded-xl text-[10px] font-black uppercase shadow-lg active:scale-95">Attendance Report</button>
+                    </div>
+                    <div class="flex gap-2 flex-wrap">
+                        <input type="text" id="staff-search" placeholder="Search..." class="flex-1 min-w-[120px] bg-slate-50 border p-3 rounded-xl text-xs outline-none" oninput="window.filterStaffTable()">
+                        <input type="date" id="staff-date-filter" class="bg-slate-50 border p-3 rounded-xl text-xs" onchange="window.filterStaffTable()">
+                    </div>
+                    <div class="table-wrapper rounded-2xl border border-slate-100" id="staff-table-wrapper">
+                        <table class="w-full text-left text-[10px]">
+                            <thead class="bg-slate-50 uppercase text-emerald-600 font-black">
+                            <tr>
+                                <th class="p-4 text-center w-[60px]">TYPE</th>
+                                <th class="p-4 text-left min-w-[160px]">FULL NAME</th>
+                                <th class="p-4 text-left min-w-[140px]">COMPANY ID</th>
+                                <th class="p-4 text-left min-w-[160px]">COMPANY NAME</th>
+                                <th class="p-4 text-left min-w-[140px]">ADEK PASS</th>
+                                <th class="p-4 text-left min-w-[140px]">MOBILE</th>
+                                <th class="p-4 text-left min-w-[220px]">SCHOOL</th>
+                                <th class="p-4 text-left min-w-[120px]">POSITION</th>
+                                <th class="p-4 text-left min-w-[120px]">DATE</th>
+                                <th class="p-4 text-left min-w-[120px]">IN</th>
+                                <th class="p-4 text-left min-w-[120px]">OUT</th>
+                                <th class="p-4 text-center min-w-[80px]">SIG</th>
+                                <th class="p-4 text-center min-w-[80px]">ACTION</th>
+                            </tr>
+                            </thead>
+                            <tbody id="staff-attendance-body" class="divide-y divide-slate-50"></tbody>
+                        </table>
+                    </div>
+                    <div id="staff-attendance-pagination" class="pagination-container"></div>
+                </div>
+
+                <!-- TASK AUDIT TAB -->
+                <div id="tab-tasks" class="tab-section space-y-4">
+                    <div class="flex items-center justify-between">
+                        <h3 class="text-purple-900 font-black text-lg uppercase flex items-center gap-2"><i class="fa-solid fa-list-check text-purple-500"></i> Global Task Audit</h3>
+                        <button onclick="window.exportTaskReportExcel()" class="px-4 py-2 bg-purple-600 text-white rounded-xl text-[10px] font-black uppercase shadow-lg active:scale-95">Tasks Report</button>
+                    </div>
+                    <div class="table-wrapper rounded-2xl border border-slate-100" id="tasks-table-wrapper">
+                        <table class="w-full text-left text-[9px]">
+                            <thead class="bg-slate-50 uppercase text-purple-600 font-black">
+                            <tr>
+                                <th class="p-3">ID</th>
+                                <th class="p-3">School</th>
+                                <th class="p-3">Area</th>
+                                <th class="p-3">Details</th>
+                                <th class="p-3">Dept</th>
+                                <th class="p-3">Raised By</th>
+                                <th class="p-3">Fixed By</th>
+                                <th class="p-3">Status</th>
+                                <th class="p-3">Reason</th>
+                                <th class="p-3 text-center">Photos</th>
+                            </tr>
+                            </thead>
+                            <tbody id="admin-task-list-body" class="divide-y divide-slate-50"></tbody>
+                        </table>
+                    </div>
+                    <div id="tasks-pagination" class="pagination-container"></div>
+                </div>
+
+                <!-- MY RAISED TASKS TAB -->
+                <div id="tab-my-tasks" class="tab-section space-y-4">
+                    <div class="flex items-center justify-between px-2">
+                        <h3 class="text-orange-600 font-black text-lg uppercase tracking-tight">Raised Tasks Tracker</h3>
+                        <div class="flex bg-slate-100 p-1 rounded-xl shadow-inner">
+                            <button onclick="window.switchRaisedTaskView('active')" id="admin-raised-tab-active" class="px-4 py-2 rounded-lg text-[9px] font-black uppercase bg-white text-indigo-600 shadow-sm">Active</button>
+                            <button onclick="window.switchRaisedTaskView('history')" id="admin-raised-tab-history" class="px-4 py-2 rounded-lg text-[9px] font-black uppercase text-slate-400">History</button>
+                        </div>
+                    </div>
+                    <div id="admin-my-tasks-container"></div>
+                    <div id="my-tasks-pagination" class="pagination-container"></div>
+                </div>
+
+                <!-- STAFF DIRECTORY TAB -->
+                <div id="tab-staff-list" class="tab-section space-y-4">
+                    <div class="flex justify-between items-center px-2">
+                        <h3 class="text-slate-900 font-black text-lg uppercase tracking-tight">Staff Directory</h3>
+                        <button onclick="window.openAddStaffModal()" class="bg-slate-800 text-white px-4 py-2 rounded-xl font-bold text-[10px] uppercase shadow-lg active:scale-95 transition flex items-center gap-2"><i class="fa-solid fa-user-plus"></i> Add Staff</button>
+                    </div>
+                    <div class="table-wrapper rounded-2xl border border-slate-100" id="directory-table-wrapper">
+                        <table class="w-full text-left text-[10px]">
+                            <thead class="bg-slate-50 uppercase text-slate-600 font-black">
+                            <tr>
+                                <th class="p-4 text-center w-[60px]">PHOTO</th>
+                                <th class="p-4 text-left min-w-[160px]">FULL NAME</th>
+                                <th class="p-4 text-left min-w-[140px]">COMPANY ID</th>
+                                <th class="p-4 text-left min-w-[160px]">COMPANY NAME</th>
+                                <th class="p-4 text-left min-w-[140px]">ADEK PASS</th>
+                                <th class="p-4 text-left min-w-[200px]">SCHOOL</th>
+                                <th class="p-4 text-left min-w-[120px]">POSITION</th>
+                                <th class="p-4 text-left min-w-[140px]">MOBILE</th>
+                                <th class="p-4 text-center min-w-[120px]">ACTION</th>
+                            </tr>
+                            </thead>
+                            <tbody id="admin-staff-list-body" class="divide-y divide-slate-50"></tbody>
+                        </table>
+                    </div>
+                    <div id="directory-pagination" class="pagination-container"></div>
+                </div>
+
+                <!-- ASSET REGISTER TAB -->
+                <div id="tab-assets" class="tab-section space-y-4">
+                    <div class="import-card">
+                        <div class="import-header">
+                            <h3><i class="fa-regular fa-file-excel text-emerald-500"></i> Import Assets from Excel</h3>
+                            <span class="bg-indigo-50 text-indigo-600 px-3 py-1 rounded-full text-[10px] font-black">40+ Headers</span>
+                        </div>
+                        <div class="import-body">
+                            <div class="file-input-group">
+                                <input type="file" id="excel-import-input" accept=".xlsx,.xls" onchange="window.handleAssetImport(event)">
+                                <label for="excel-import-input"><i class="fa-regular fa-folder-open"></i> Choose File</label>
+                                <span class="file-name" id="file-name-display">No file selected</span>
+                            </div>
+                            <button onclick="document.getElementById('excel-import-input').click()" class="bg-indigo-600 text-white px-6 py-2 rounded-lg font-bold text-xs shadow-lg shadow-indigo-200 active:scale-95 transition flex items-center gap-2">
+                                <i class="fa-regular fa-upload"></i> Import
+                            </button>
+                            <button onclick="window.bulkDeleteAssets()" class="bg-red-500 text-white px-4 py-2 rounded-lg font-bold text-[10px] uppercase shadow-lg active:scale-95 flex items-center gap-1">
+                                <i class="fa-solid fa-trash-can"></i> Bulk Delete
+                            </button>
+                            <button onclick="window.downloadMasterAssetReport()" class="bg-cyan-600 text-white px-4 py-2 rounded-lg font-bold text-[10px] uppercase shadow-lg active:scale-95 flex items-center gap-1">
+                                <i class="fa-solid fa-file-excel"></i> Export
+                            </button>
+                        </div>
+                    </div>
+
+                    <div id="import-progress-container" class="hidden bg-indigo-50 p-4 rounded-2xl border border-indigo-100">
+                        <div class="flex justify-between items-center mb-2">
+                            <span id="import-progress-text" class="text-[10px] font-black text-indigo-900 uppercase">Preparing...</span>
+                            <span id="import-progress-percent" class="text-[10px] font-black text-indigo-600">0%</span>
+                        </div>
+                        <div class="h-2 w-full bg-slate-200 rounded-full overflow-hidden">
+                            <div id="import-progress-bar" class="h-full bg-indigo-600 transition-all duration-300" style="width: 0%"></div>
+                        </div>
+                    </div>
+
+                    <input type="text" id="asset-search" placeholder="Search Assets..." class="w-full bg-slate-50 border p-3 rounded-xl text-xs outline-none focus:border-cyan-500" oninput="window.filterAssetTable()">
+
+                    <div class="asset-table-wrapper glass-card rounded-2xl overflow-hidden">
+                        <div class="table-controls p-3 bg-slate-50 border-b border-slate-100 flex justify-between items-center">
+                            <span id="asset-count-display" class="text-[10px] font-bold text-slate-500">Loading assets...</span>
+                        </div>
+                        <div class="table-scroll-container overflow-x-auto">
+                            <table class="asset-table w-full text-[10px] min-w-[800px]">
+                                <thead id="asset-table-header" class="bg-indigo-900 text-white text-left sticky top-0 z-10"></thead>
+                                <tbody id="asset-table-body" class="divide-y divide-slate-100"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div id="assets-pagination" class="pagination-container"></div>
+                </div>
+
+                <!-- ASSET DISPOSAL TAB -->
+                <div id="tab-disposal" class="tab-section space-y-4">
+                    <div class="flex items-center justify-between px-2">
+                        <h3 class="text-red-700 font-black text-lg uppercase flex items-center gap-2"><i class="fa-solid fa-trash-can"></i> Asset Disposal Registry</h3>
+                        <button onclick="window.downloadDisposedAssetReport()" class="px-4 py-2 bg-red-600 text-white rounded-xl text-[10px] font-black uppercase shadow-lg">Export Excel</button>
+                    </div>
+                    <input type="text" id="disposal-search" placeholder="Search scrap logs..." class="w-full bg-slate-50 border p-3 rounded-xl text-xs outline-none" oninput="window.filterDisposalTable()">
+                    <div class="table-wrapper rounded-2xl border border-red-50" id="disposal-table-wrapper">
+                        <table class="w-full text-left" id="asset-disposal-table">
+                            <thead class="bg-red-50 uppercase text-red-900 font-black text-[9px]">
+                            <tr>
+                                <th class="p-3">Asset Barcode</th>
+                                <th class="p-3">Asset Description</th>
+                                <th class="p-3">Asset Vendor Name</th>
+                                <th class="p-3">Category</th>
+                                <th class="p-3">Date Place In Service</th>
+                                <th class="p-3">Floor Discretion</th>
+                                <th class="p-3">Floor No</th>
+                                <th class="p-3">Location Name</th>
+                                <th class="p-3">Major Category</th>
+                                <th class="p-3">Minor Category</th>
+                                <th class="p-3">School Building Name</th>
+                                <th class="p-3">Room Number</th>
+                                <th class="p-3">Room Name</th>
+                                <th class="p-3">Sub Minor Category</th>
+                                <th class="p-3">Audit Photo</th>
+                                <th class="p-3 text-center">Action</th>
+                            </tr>
+                            </thead>
+                            <tbody id="admin-disposal-list-body" class="divide-y divide-slate-50"></tbody>
+                        </table>
+                    </div>
+                    <div id="disposal-pagination" class="pagination-container"></div>
+                </div>
+
+                <!-- ASSET MOVEMENT LOGS TAB -->
+                <div id="tab-transfers" class="tab-section space-y-4">
+                    <div class="flex items-center justify-between px-2">
+                        <h3 class="text-indigo-900 font-black text-lg uppercase flex items-center gap-2">
+                            <i class="fa-solid fa-truck-ramp-box"></i> Movement Logs
+                        </h3>
+                        <div class="flex gap-2">
+                            <button onclick="window.exportTransferReport()" class="px-4 py-2 bg-indigo-600 text-white rounded-xl text-[10px] font-black uppercase shadow-lg active:scale-95">
+                                <i class="fa-solid fa-file-excel mr-1"></i> Export Logs
+                            </button>
+                            <button onclick="window.refreshDashboardData()" class="px-4 py-2 bg-slate-600 text-white rounded-xl text-[10px] font-black uppercase shadow-lg active:scale-95">
+                                <i class="fa-solid fa-rotate"></i> Refresh
+                            </button>
+                        </div>
+                    </div>
+
+                    <input type="text" id="transfer-search" placeholder="🔍 Search transfer logs..." class="w-full bg-slate-50 border p-3 rounded-xl text-xs outline-none focus:border-indigo-500" oninput="window.filterTransferTable()">
+
+                    <div class="table-wrapper rounded-2xl border border-slate-100 shadow-sm" id="transfer-table-wrapper">
+                        <table class="w-full text-left text-[9px]" id="transfer-master-table">
+                            <thead class="bg-indigo-50 uppercase text-indigo-600 font-black sticky top-0 z-10 shadow-sm whitespace-nowrap">
+                            <tr>
+                                <th class="p-2 min-w-[100px]">Asset Barcode</th>
+                                <th class="p-2 min-w-[150px]">Asset Description</th>
+                                <th class="p-2 min-w-[120px]">Asset Vendor Name</th>
+                                <th class="p-2 min-w-[100px]">Category</th>
+                                <th class="p-2 min-w-[100px]">Date Place In Service</th>
+                                <th class="p-2 min-w-[120px]">Floor Discretion</th>
+                                <th class="p-2 min-w-[60px]">Floor No</th>
+                                <th class="p-2 min-w-[120px]">Location Name</th>
+                                <th class="p-2 min-w-[120px]">Major Category</th>
+                                <th class="p-2 min-w-[120px]">Minor Category</th>
+                                <th class="p-2 min-w-[150px]">School Building Name</th>
+                                <th class="p-2 min-w-[80px]">Room Number</th>
+                                <th class="p-2 min-w-[120px]">Room Name</th>
+                                <th class="p-2 min-w-[120px]">Sub Minor Category</th>
+                                <th class="p-2 min-w-[80px] text-center">Audit Photo</th>
+                                <th class="p-2 min-w-[120px]">Collector Name</th>
+                                <th class="p-2 min-w-[120px]">Company Name</th>
+                                <th class="p-2 min-w-[100px]">Collected Date</th>
+                                <th class="p-2 min-w-[120px]">Security/Staff Name</th>
+                                <th class="p-2 min-w-[120px]">Receiver Name</th>
+                                <th class="p-2 min-w-[80px] text-center">Security Sig</th>
+                                <th class="p-2 min-w-[80px] text-center">Receiver Sig</th>
+                                <th class="p-2 min-w-[80px] text-center">Proof Photo</th>
+                                <th class="p-2 min-w-[100px] text-center">Action</th>
+                            </tr>
+                            </thead>
+                            <tbody id="transfer-logs-body" class="divide-y divide-slate-50"></tbody>
+                        </table>
+                    </div>
+                    <div id="transfer-pagination" class="pagination-container"></div>
+                </div>
+
+                <!-- SETTINGS TAB -->
+                <div id="tab-settings" class="tab-section space-y-6">
+                    <div class="flex items-center justify-between mb-4 px-2">
+                        <h3 class="text-slate-900 font-black text-lg uppercase flex items-center gap-2">
+                            <i class="fa-solid fa-gears text-slate-500"></i> System Configuration
+                        </h3>
+                    </div>
+
+                    <div class="glass-card rounded-3xl p-6 space-y-4">
+                        <div class="flex items-center gap-3 pb-4 border-b border-slate-100">
+                            <div class="w-10 h-10 bg-indigo-50 rounded-xl flex items-center justify-center text-indigo-600">
+                                <i class="fa-brands fa-google-drive text-xl"></i>
+                            </div>
+                            <div>
+                                <h4 class="font-black text-indigo-900 uppercase text-sm">Google Drive Sync Settings</h4>
+                                <p class="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Direct Media Pipeline Configuration</p>
+                            </div>
+                        </div>
+
+                        <div class="space-y-2">
+                            <label class="text-[10px] font-black text-slate-400 uppercase ml-1">Apps Script Web App URL</label>
+                            <div class="relative group">
+                                <div class="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300">
+                                    <i class="fa-solid fa-link"></i>
+                                </div>
+                                <input type="url" id="driveUrlInput" placeholder="https://script.google.com/macros/s/.../exec"
+                                       value="https://script.google.com/macros/s/AKfycbyXZpA-mlmctWy4HTdEiu_EsS1gmTuEe5SREu5KQ0_3LliIWzGwDNhXQArqVuz4PM-ygA/exec"
+                                       class="w-full pl-10 pr-4 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-indigo-500 focus:bg-white outline-none transition-all font-mono text-xs">
+                            </div>
+                        </div>
+
+                        <div class="flex flex-col sm:flex-row items-center justify-between gap-4 pt-2">
+                            <div class="flex items-center gap-2 px-3 py-2 bg-slate-50 rounded-xl border border-slate-100">
+                                <span class="w-2 h-2 rounded-full" id="driveStatusDot"></span>
+                                <span class="text-[10px] font-bold text-slate-500 uppercase tracking-tighter" id="driveStatusText">Status: Checking...</span>
+                            </div>
+                            <button id="saveDriveUrlBtn" onclick="window.saveGoogleDriveConfig()"
+                                    class="w-full sm:w-auto px-8 py-4 bg-indigo-600 text-white rounded-2xl font-black text-xs uppercase tracking-widest shadow-lg shadow-indigo-500/20 active:scale-95 transition-all flex items-center justify-center gap-2">
+                                <i class="fa-solid fa-cloud-arrow-up"></i> Save & Connect Drive
+                            </button>
+                        </div>
+
+                        <div id="driveStatusMessage" class="hidden mt-4 p-4 rounded-2xl text-sm font-bold"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- FOOTER -->
+    <footer class="mt-auto py-8 text-center text-[10px] opacity-40 w-full text-indigo-900 font-bold">
+        &copy; 2026 JYS Admin Management System (v3.6.8 Premium)
+    </footer>
+</div>
+
+<!-- MODALS -->
+<div id="task-modal" class="fixed inset-0 bg-black/90 backdrop-blur-md z-[100000] hidden flex items-center justify-center p-4">
+    <div class="bg-white w-full max-w-3xl rounded-[40px] overflow-hidden shadow-2xl text-gray-800">
+        <div class="p-6 border-b flex justify-between items-center bg-indigo-600 text-white"><h3 class="text-lg font-bold">Raise New Issue</h3><button type="button" onclick="closeTaskModal()"><i class="fa-solid fa-xmark text-xl"></i></button></div>
+        <form id="task-form" class="p-8 space-y-5" onsubmit="window.submitNewMaintenanceTask(event)">
+            <div class="grid grid-cols-2 gap-4"><select id="task-school" required class="p-4 border-2 border-slate-100 rounded-2xl bg-slate-50 text-sm outline-none" onchange="window.filterStaffBySchoolAndRole()"><option value="">Select School</option><option value="Jern Yafoor School 1">School 1</option><option value="Jern Yafoor School 2">School 2</option></select><select id="task-target" required class="p-4 border-2 border-slate-100 rounded-2xl bg-slate-50 text-sm outline-none" onchange="window.filterStaffBySchoolAndRole()"><option value="">Target Role</option></select></div>
+            <select id="task-assigned-staff" class="w-full p-4 border-2 border-slate-100 rounded-2xl bg-slate-50 text-sm outline-none"><option value="">Assign Specific Staff (Optional)</option></select>
+            <input type="text" id="task-loc" placeholder="Location Details" required class="w-full p-4 border-2 border-slate-100 rounded-2xl bg-slate-50 text-sm outline-none">
+            <textarea id="task-desc" placeholder="Details..." required class="w-full p-4 border-2 border-slate-100 rounded-2xl bg-slate-50 text-sm outline-none h-24 resize-none"></textarea>
+            <div class="flex items-center gap-3"><input type="file" id="task-photo-in" accept="image/*" capture="environment" class="hidden" onchange="window.handleTaskImageCapture(event)"><button type="button" onclick="document.getElementById('task-photo-in').click()" class="flex-1 py-4 border-2 border-dashed border-indigo-200 rounded-2xl text-indigo-600 font-bold text-xs uppercase flex items-center justify-center gap-2 hover:bg-indigo-50"><i class="fa-solid fa-camera"></i> Capture Photo</button><button type="submit" class="flex-1 py-4 bg-indigo-600 text-white rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl">Save Task</button></div>
+        </form>
+    </div>
+</div>
+
+<div id="add-staff-modal" class="fixed inset-0 bg-black/90 backdrop-blur-md z-[100001] hidden flex items-center justify-center p-4"></div>
+<div id="edit-staff-modal" class="fixed inset-0 bg-black/90 backdrop-blur-md z-[100002] hidden flex items-center justify-center p-4"></div>
+<div id="notification-modal" class="fixed inset-0 bg-black/90 backdrop-blur-md z-[100003] hidden flex items-center justify-center p-4"></div>
+<div id="import-progress-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-[100004] hidden flex items-center justify-center p-4"></div>
+
+<!-- ASSET DISPOSAL MODAL -->
+<div id="asset-disposal-modal" class="fixed inset-0 bg-black/90 z-[100005] hidden flex items-center justify-center p-4">
+    <div class="bg-white w-full max-w-xl rounded-[40px] overflow-hidden shadow-2xl">
+        <div class="p-6 bg-red-600 text-white flex justify-between items-center">
+            <h3 class="text-lg font-bold uppercase tracking-tight">Dispose Asset</h3>
+            <button onclick="document.getElementById('asset-disposal-modal').classList.add('hidden')"><i class="fa-solid fa-xmark text-xl"></i></button>
+        </div>
+        <form id="disposal-form" class="p-8 space-y-5" onsubmit="window.submitAssetDisposal(event)">
+            <div class="space-y-1">
+                <label class="text-[10px] font-black text-slate-400 uppercase">Asset Barcode</label>
+                <input type="text" id="dispose-barcode" required class="w-full p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl outline-none focus:border-red-500" placeholder="Scan or Enter Barcode" onchange="window.handleBarcodeScan(this.value, 'dispose')">
+            </div>
+            <div class="grid grid-cols-2 gap-4">
+                <div class="space-y-1">
+                    <label class="text-[10px] font-black text-slate-400 uppercase">Category</label>
+                    <input type="text" id="dispose-category" readonly class="w-full p-4 bg-slate-100 border-2 border-slate-100 rounded-2xl outline-none text-xs">
+                </div>
+                <div class="space-y-1">
+                    <label class="text-[10px] font-black text-slate-400 uppercase">Building</label>
+                    <input type="text" id="dispose-building" readonly class="w-full p-4 bg-slate-100 border-2 border-slate-100 rounded-2xl outline-none text-xs">
+                </div>
+            </div>
+            <div class="space-y-1">
+                <label class="text-[10px] font-black text-slate-400 uppercase">Disposal Reason</label>
+                <textarea id="dispose-reason" required class="w-full p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl outline-none focus:border-red-500 h-24 resize-none" placeholder="Explain why this asset is being scrapped..."></textarea>
+            </div>
+            <div class="hidden">
+                <input type="hidden" id="dispose-by">
+                <input type="hidden" id="dispose-description">
+                <input type="hidden" id="dispose-vendor">
+                <input type="hidden" id="dispose-date-service">
+                <input type="hidden" id="dispose-floor-no">
+                <input type="hidden" id="dispose-location">
+                <input type="hidden" id="dispose-manufacturer">
+                <input type="hidden" id="dispose-room-no">
+            </div>
+            <button type="submit" class="w-full py-4 bg-red-600 text-white rounded-2xl font-black text-sm uppercase tracking-widest shadow-xl shadow-red-500/30 active:scale-95 transition-all">
+                Confirm Disposal
+            </button>
+        </form>
+    </div>
+</div>
+
+<!-- ASSET EDIT MODAL -->
+<div id="asset-edit-modal" class="fixed inset-0 bg-black/90 z-[100006] hidden flex items-center justify-center p-4">
+    <div class="bg-white w-full max-w-xl rounded-[40px] overflow-hidden shadow-2xl">
+        <div class="p-6 bg-indigo-600 text-white flex justify-between items-center">
+            <h3 class="text-lg font-bold uppercase tracking-tight">Edit Asset Details</h3>
+            <button onclick="document.getElementById('asset-edit-modal').classList.add('hidden')"><i class="fa-solid fa-xmark text-xl"></i></button>
+        </div>
+        <form id="edit-asset-form" class="p-8 space-y-4">
+            <div class="space-y-1">
+                <label class="text-[10px] font-black text-slate-400 uppercase">Description</label>
+                <input type="text" id="edit-description" class="w-full p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl outline-none focus:border-indigo-500 text-sm">
+            </div>
+            <div class="grid grid-cols-2 gap-4">
+                <div class="space-y-1">
+                    <label class="text-[10px] font-black text-slate-400 uppercase">Condition</label>
+                    <select id="edit-condition" class="w-full p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl outline-none focus:border-indigo-500 text-sm">
+                        <option value="Excellent">Excellent</option>
+                        <option value="Good">Good</option>
+                        <option value="Fair">Fair</option>
+                        <option value="Poor">Poor</option>
+                        <option value="Damaged">Damaged</option>
+                    </select>
+                </div>
+                <div class="space-y-1">
+                    <label class="text-[10px] font-black text-slate-400 uppercase">Location</label>
+                    <input type="text" id="edit-location" class="w-full p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl outline-none focus:border-indigo-500 text-sm">
+                </div>
+            </div>
+            <div class="space-y-1">
+                <label class="text-[10px] font-black text-slate-400 uppercase">Room Number</label>
+                <input type="text" id="edit-room" class="w-full p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl outline-none focus:border-indigo-500 text-sm">
+            </div>
+            <input type="hidden" id="edit-barcode">
+            <button type="button" id="save-asset-edit-btn" class="w-full py-4 bg-indigo-600 text-white rounded-2xl font-black text-sm uppercase tracking-widest shadow-xl active:scale-95 transition-all mt-4">
+                Save Updates
+            </button>
+        </form>
+    </div>
+</div>
+
+<!-- ASSET TRANSFER MODAL -->
+<div id="asset-transfer-modal" class="fixed inset-0 bg-black/90 z-[100007] hidden flex items-center justify-center p-4">
+    <div class="bg-white w-full max-w-2xl rounded-[40px] overflow-hidden shadow-2xl">
+        <div class="p-6 bg-indigo-600 text-white flex justify-between items-center">
+            <h3 class="text-lg font-bold uppercase tracking-tight">Asset Movement / Transfer</h3>
+            <button onclick="document.getElementById('asset-transfer-modal').classList.add('hidden')"><i class="fa-solid fa-xmark text-xl"></i></button>
+        </div>
+        <form id="transfer-form" class="p-8 space-y-4" onsubmit="window.submitAssetTransfer(event)">
+            <div class="grid grid-cols-2 gap-4">
+                <input type="text" id="t_asset_barcode" placeholder="Asset Barcode" required class="p-4 bg-slate-50 border-2 rounded-2xl outline-none">
+                <input type="text" id="t_to_location" placeholder="Destination Location" required class="p-4 bg-slate-50 border-2 rounded-2xl outline-none">
+            </div>
+            <div class="grid grid-cols-2 gap-4">
+                <input type="text" id="t_collector_name" placeholder="Collector Name" required class="p-4 bg-slate-50 border-2 rounded-2xl outline-none">
+                <input type="text" id="t_company_name" placeholder="Company" required class="p-4 bg-slate-50 border-2 rounded-2xl outline-none">
+            </div>
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="text-[9px] font-bold uppercase text-slate-400 ml-2">Security Sig</label>
+                    <canvas id="t_security_sig" class="w-full h-24 bg-slate-50 border-2 border-dashed rounded-2xl"></canvas>
+                </div>
+                <div>
+                    <label class="text-[9px] font-bold uppercase text-slate-400 ml-2">Receiver Sig</label>
+                    <canvas id="t_received_sig" class="w-full h-24 bg-slate-50 border-2 border-dashed rounded-2xl"></canvas>
+                </div>
+            </div>
+            <button type="submit" id="submit-transfer-btn" class="w-full py-4 bg-indigo-600 text-white rounded-2xl font-black uppercase tracking-widest shadow-xl">Initiate Transfer</button>
+        </form>
+    </div>
+</div>
+
+<!-- STAFF DETAIL MODAL -->
+<div id="staff-detail-modal">
+    <div class="modal-box">
+        <div class="modal-header">
+            <h3><i class="fa-regular fa-user mr-2"></i> Staff Details</h3>
+            <button class="modal-close" onclick="document.getElementById('staff-detail-modal').classList.remove('active'); document.getElementById('staff-detail-modal').style.display='none'">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+        </div>
+        <div id="staff-detail-content" class="modal-body"></div>
+        <div class="modal-footer">
+            <button onclick="document.getElementById('staff-detail-modal').classList.remove('active'); document.getElementById('staff-detail-modal').style.display='none'">Close</button>
         </div>
     </div>
+</div>
 
-    <div id="imageModal" class="modal"><span class="modal-close" onclick="closeZoomModal()">&times;</span><img id="modalImage" src="" alt="Enlarged View"></div>
+<div id="imageModal" class="modal"><span class="modal-close" onclick="closeZoomModal()">&times;</span><img id="modalImage" src="" alt="Enlarged View"></div>
 
-    <script type="module" src="firebase_config.js?v=3.2"></script>
-    <script type="module" src="ui_module.js?v=3.2"></script>
-    <script type="module" src="audit_module.js?v=3.2"></script>
-    <script type="module" src="auth_module.js?v=3.2"></script>
-    <script type="module" src="attendance_module.js?v=3.2"></script>
-    <script type="module" src="task_module.js?v=3.2"></script>
-    <script type="module" src="admin_module.js?v=3.5.1"></script>
-    <script type="module" src="export_module.js?v=3.2"></script>
-    <script type="module" src="init_module.js?v=3.2"></script>
+<script type="module" src="firebase_config.js?v=3.6.8"></script>
+<script type="module" src="field_normalizer.js?v=3.6.8"></script>
+<script type="module" src="drive_module.js?v=3.6.8"></script>
+<script type="module" src="ui_module.js?v=3.6.8"></script>
+<script type="module" src="import_module.js?v=3.6.8"></script>
+<script type="module" src="export_module.js?v=3.6.8"></script>
+<script type="module" src="audit_module.js?v=3.6.8"></script>
+<script type="module" src="attendance_module.js?v=3.6.8"></script>
+<script type="module" src="tasks_module.js?v=3.6.8"></script>
+<script type="module" src="admin_module.js?v=3.6.8"></script>
+<script type="module" src="init_module.js?v=3.6.8"></script>
 
-    <script>
-        // ================================================
-        // UNIVERSAL PAGINATION SYSTEM (Lag-Free Lazy Rendering)
-        // ================================================
-        window.paginationState = {};
+<script>
+    // ================================================
+    // PAGINATION SYSTEM
+    // ================================================
+    window.paginationState = {};
 
-        const PAGINATION_ID_MAP = {
-            'visitor-logs-body': 'visitor-logs-pagination',
+    window.setupPaginationUI = function(tableBodyId, totalRows, rowsPerPage = 10) {
+        const paginationMap = {
             'staff-attendance-body': 'staff-attendance-pagination',
-            'admin-task-list-body': 'tasks-pagination',
             'admin-staff-list-body': 'directory-pagination',
-            'admin-asset-list-body': 'assets-pagination',
+            'visitor-logs-body': 'visitor-logs-pagination',
+            'admin-task-list-body': 'tasks-pagination',
+            'admin-my-tasks-container': 'my-tasks-pagination',
+            'asset-table-body': 'assets-pagination',
             'admin-disposal-list-body': 'disposal-pagination',
             'transfer-logs-body': 'transfer-pagination'
         };
 
-        // NEW: Handles UI only, doesn't touch DOM rows
-        window.setupPaginationUI = function(tableBodyId, totalRows, rowsPerPage = 20) {
-            const container = document.getElementById(PAGINATION_ID_MAP[tableBodyId]);
-            if (!container) return;
+        const containerId = paginationMap[tableBodyId];
+        const container = document.getElementById(containerId);
+        if (!container) return;
 
-            if (!window.paginationState[tableBodyId]) {
-                window.paginationState[tableBodyId] = { currentPage: 1, rowsPerPage };
+        if (!window.paginationState[tableBodyId]) {
+            window.paginationState[tableBodyId] = { currentPage: 1, rowsPerPage: rowsPerPage || 10 };
+        }
+        const state = window.paginationState[tableBodyId];
+        const totalPages = Math.max(1, Math.ceil(totalRows / rowsPerPage));
+
+        if (state.currentPage > totalPages) state.currentPage = totalPages;
+        if (state.currentPage < 1) state.currentPage = 1;
+
+        if (totalPages <= 1) {
+            container.innerHTML = '';
+            container.style.display = 'none';
+            return;
+        }
+
+        container.style.display = 'flex';
+        const start = (state.currentPage - 1) * rowsPerPage + 1;
+        const end = Math.min(state.currentPage * rowsPerPage, totalRows);
+
+        let pageButtons = '';
+        const maxVisible = 5;
+        let startPage = Math.max(1, state.currentPage - Math.floor(maxVisible / 2));
+        let endPage = Math.min(totalPages, startPage + maxVisible - 1);
+        if (endPage - startPage < maxVisible - 1) {
+            startPage = Math.max(1, endPage - maxVisible + 1);
+        }
+
+        if (startPage > 1) {
+            pageButtons += `<button class="pagination-btn" onclick="window.changePageGeneric('${tableBodyId}', 1)">1</button>`;
+            if (startPage > 2) pageButtons += `<span class="page-info">...</span>`;
+        }
+
+        for (let i = startPage; i <= endPage; i++) {
+            pageButtons += `<button class="pagination-btn ${i === state.currentPage ? 'active' : ''}" onclick="window.changePageGeneric('${tableBodyId}', ${i})">${i}</button>`;
+        }
+
+        if (endPage < totalPages) {
+            if (endPage < totalPages - 1) pageButtons += `<span class="page-info">...</span>`;
+            pageButtons += `<button class="pagination-btn" onclick="window.changePageGeneric('${tableBodyId}', ${totalPages})">${totalPages}</button>`;
+        }
+
+        container.innerHTML = `
+            <button class="pagination-btn" onclick="window.changePageGeneric('${tableBodyId}', ${state.currentPage - 1})" ${state.currentPage === 1 ? 'disabled' : ''}>
+                <i class="fa-solid fa-chevron-left"></i>
+            </button>
+            ${pageButtons}
+            <button class="pagination-btn" onclick="window.changePageGeneric('${tableBodyId}', ${state.currentPage + 1})" ${state.currentPage === totalPages ? 'disabled' : ''}>
+                <i class="fa-solid fa-chevron-right"></i>
+            </button>
+            <span class="page-info" style="margin-left:8px;font-size:8px;opacity:0.5;">
+                ${start}-${end} of ${totalRows}
+            </span>
+        `;
+    };
+
+    window.changePageGeneric = function(tableBodyId, newPage) {
+        const state = window.paginationState[tableBodyId];
+        if (!state) return;
+
+        const totalRows = getTotalRowsForTable(tableBodyId);
+        const totalPages = Math.max(1, Math.ceil(totalRows / state.rowsPerPage));
+
+        if (newPage < 1 || newPage > totalPages) return;
+        state.currentPage = newPage;
+
+        const activeTab = document.querySelector('.tab-section.active')?.id;
+        if (activeTab && window.renderTabFromAppCache) {
+            window.renderTabFromAppCache(activeTab);
+        }
+    };
+
+    function getTotalRowsForTable(tableBodyId) {
+        switch (tableBodyId) {
+            case 'staff-attendance-body': return window.appCache.attendance?.length || 0;
+            case 'admin-staff-list-body': return window.appCache.staff?.length || 0;
+            case 'visitor-logs-body': return window.appCache.visitors?.length || 0;
+            case 'admin-task-list-body': return window.appCache.tasks?.length || 0;
+            case 'admin-my-tasks-container': return window.appCache.tasks?.length || 0;
+            case 'asset-table-body': return (window.currentFilteredData.assets || window.appCache.assets)?.length || 0;
+            case 'admin-disposal-list-body': {
+                const assets = window.appCache.assets || [];
+                return assets.filter(a => a.assetStatus === 'Disposed' || a.disposalReason).length || 0;
             }
-            const state = window.paginationState[tableBodyId];
-            const totalPages = Math.max(1, Math.ceil(totalRows / rowsPerPage));
+            case 'transfer-logs-body': return (window.currentFilteredData.transfers || window.appCache.transfers)?.length || 0;
+            default: return 0;
+        }
+    }
 
-            if (totalPages <= 1) {
-                container.innerHTML = '';
-                container.style.display = 'none';
-                return;
-            }
+    // ================================================
+    // ADMIN TAB NAVIGATION
+    // ================================================
+    window.showAdminTab = (tabId) => {
+        document.querySelectorAll('.tab-section').forEach(el => el.classList.remove('active'));
+        const target = document.getElementById(tabId);
+        if (target) {
+            target.classList.add('active');
+            setTimeout(() => {
+                if (window.renderTabFromAppCache) window.renderTabFromAppCache(tabId);
+            }, 150);
+        }
+        window.scrollTo(0, 0);
+    };
 
-            container.style.display = 'flex';
-            const start = (state.currentPage - 1) * rowsPerPage;
-            const end = Math.min(start + rowsPerPage, totalRows);
+    window.togglePassword = (id, btn) => {
+        const el = document.getElementById(id);
+        const isPass = el.type === 'password';
+        el.type = isPass ? 'text' : 'password';
+        btn.querySelector('i').classList.toggle('fa-eye');
+        btn.querySelector('i').classList.toggle('fa-eye-slash');
+    };
 
-            let html = `<button class="pagination-btn" onclick="window.changePage('${tableBodyId}', ${state.currentPage - 1})" ${state.currentPage === 1 ? 'disabled' : ''}><i class="fa-solid fa-chevron-left"></i></button>`;
-            html += `<span class="page-info">Page ${state.currentPage} of ${totalPages}</span>`;
-            html += `<button class="pagination-btn" onclick="window.changePage('${tableBodyId}', ${state.currentPage + 1})" ${state.currentPage === totalPages ? 'disabled' : ''}><i class="fa-solid fa-chevron-right"></i></button>`;
-            html += `<span class="page-info" style="margin-left:12px;font-size:9px;opacity:0.5;">${start+1}-${end} of ${totalRows}</span>`;
-            container.innerHTML = html;
-        };
-
-        // NEW: Triggers re-render instead of hiding/showing
-        window.changePage = function(stateKey, newPage) {
-            const state = window.paginationState[stateKey];
-            if (!state) return;
-            state.currentPage = newPage;
-
-            // Re-trigger the specific render function based on the active tab/state
-            const activeTab = document.querySelector('.tab-section.active')?.id;
-            if (window.renderTabFromAppCache) {
-                window.renderTabFromAppCache(activeTab);
-            }
-        };
-
-        // Keep for initial/simple loads but optimized
-        window.initAllPaginations = function() {
-            // Usually called after render, which now calls setupPaginationUI
-        };
-
-        // ================================================
-        // ADMIN TAB NAVIGATION
-        // ================================================
-        window.showAdminTab = (tabId) => {
-            document.querySelectorAll('.tab-section').forEach(el => el.classList.remove('active'));
-            const target = document.getElementById(tabId);
-            if (target) {
-                target.classList.add('active');
-                setTimeout(() => {
-                    if (window.renderTabFromAppCache) window.renderTabFromAppCache(tabId);
-                    if (window.initAllPaginations) window.initAllPaginations();
-                }, 150);
-            }
-            window.scrollTo(0, 0);
-        };
-
-        window.togglePassword = (id, btn) => {
+    window.updateKPIStats = (stats) => {
+        Object.keys(stats).forEach(id => {
             const el = document.getElementById(id);
-            const isPass = el.type === 'password';
-            el.type = isPass ? 'text' : 'password';
-            btn.querySelector('i').classList.toggle('fa-eye');
-            btn.querySelector('i').classList.toggle('fa-eye-slash');
-        };
-
-        window.updateKPIStats = (stats) => {
-            Object.keys(stats).forEach(id => {
-                const el = document.getElementById(id);
-                if (el) {
-                    el.textContent = stats[id].value;
-                    const bar = document.getElementById('bar-' + id.replace('kpi-', ''));
-                    if (bar) bar.style.width = stats[id].pct + '%';
-                }
-            });
-        };
-
-        window.startKPIRefresh = function() {
-            if (window.refreshDashboardData) {
-                window.refreshDashboardData();
-                setInterval(() => { if (window.refreshDashboardData) window.refreshDashboardData(); }, 30000);
+            if (el) {
+                el.textContent = stats[id].value;
+                const bar = document.getElementById('bar-' + id.replace('kpi-', ''));
+                if (bar) bar.style.width = stats[id].pct + '%';
             }
-        };
-
-        const observer = new MutationObserver((mutations) => {
-            mutations.forEach((m) => {
-                if (m.target.id === 'view-admin-dash' && !m.target.classList.contains('hidden')) window.startKPIRefresh();
-            });
         });
-        const dashView = document.getElementById('view-admin-dash');
-        if (dashView) observer.observe(dashView, { attributes: true, attributeFilter: ['class'] });
+    };
 
-    </script>
+    window.startKPIRefresh = function() {
+        if (window.refreshDashboardData) {
+            window.refreshDashboardData();
+            setInterval(() => { if (window.refreshDashboardData) window.refreshDashboardData(); }, 30000);
+        }
+    };
+
+    // ================================================
+    // GOOGLE DRIVE CONFIGURATION
+    // ================================================
+    window.saveGoogleDriveConfig = async function() {
+        const urlInput = document.getElementById('driveUrlInput');
+        const statusDot = document.getElementById('driveStatusDot');
+        const statusText = document.getElementById('driveStatusText');
+        const statusMessage = document.getElementById('driveStatusMessage');
+        const saveBtn = document.getElementById('saveDriveUrlBtn');
+
+        if (!urlInput) return;
+        const url = urlInput.value.trim();
+
+        if (!url || url === 'https://script.google.com/macros/s/.../exec') {
+            statusMessage.className = 'mt-4 p-4 rounded-2xl text-sm font-bold bg-amber-50 text-amber-700 border border-amber-200';
+            statusMessage.innerHTML = '⚠️ Please enter a valid Google Apps Script URL';
+            statusMessage.classList.remove('hidden');
+            return;
+        }
+
+        saveBtn.disabled = true;
+        saveBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-2"></i> Saving...';
+        statusDot.className = 'w-2 h-2 rounded-full bg-amber-400 animate-pulse';
+        statusText.textContent = 'Status: Saving...';
+        statusMessage.classList.add('hidden');
+
+        try {
+            const { db } = await import('./firebase_config.js');
+            const { ref, set } = await import("https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js");
+
+            await set(ref(db, 'system_config/drive_url'), {
+                url: url,
+                enabled: true,
+                updatedAt: new Date().toISOString(),
+                updatedBy: 'Admin'
+            });
+
+            if (window.driveConfigCache) window.driveConfigCache.invalidate();
+
+            statusDot.className = 'w-2 h-2 rounded-full bg-emerald-400';
+            statusText.textContent = 'Status: Connected ✓';
+            statusMessage.className = 'mt-4 p-4 rounded-2xl text-sm font-bold bg-emerald-50 text-emerald-700 border border-emerald-200';
+            statusMessage.innerHTML = '✅ Google Drive connected successfully!';
+            statusMessage.classList.remove('hidden');
+        } catch (error) {
+            console.error('❌ Save error:', error);
+            statusDot.className = 'w-2 h-2 rounded-full bg-red-400';
+            statusText.textContent = 'Status: Error';
+            statusMessage.className = 'mt-4 p-4 rounded-2xl text-sm font-bold bg-red-50 text-red-700 border border-red-200';
+            statusMessage.innerHTML = '❌ Failed to save: ' + error.message;
+            statusMessage.classList.remove('hidden');
+        } finally {
+            saveBtn.disabled = false;
+            saveBtn.innerHTML = '<i class="fa-solid fa-cloud-arrow-up"></i> Save & Connect Drive';
+        }
+    };
+
+    window.loadDriveConfig = async function() {
+        try {
+            const { db } = await import('./firebase_config.js');
+            const { ref, get } = await import("https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js");
+            const snap = await get(ref(db, 'system_config/drive_url'));
+            const data = snap.val();
+            const urlInput = document.getElementById('driveUrlInput');
+            const statusDot = document.getElementById('driveStatusDot');
+            const statusText = document.getElementById('driveStatusText');
+            if (urlInput && data && data.url) {
+                urlInput.value = data.url;
+                statusDot.className = 'w-2 h-2 rounded-full bg-emerald-400';
+                statusText.textContent = 'Status: Connected ✓';
+            } else if (urlInput) {
+                statusDot.className = 'w-2 h-2 rounded-full bg-amber-400';
+                statusText.textContent = 'Status: Not Configured';
+            }
+        } catch (error) {
+            console.warn('⚠️ Could not load drive config:', error);
+        }
+    };
+
+    document.addEventListener('DOMContentLoaded', function() {
+        setTimeout(() => window.loadDriveConfig(), 500);
+    });
+
+    const observer = new MutationObserver((mutations) => {
+        mutations.forEach((m) => {
+            if (m.target.id === 'view-admin-dash' && !m.target.classList.contains('hidden')) {
+                window.startKPIRefresh();
+            }
+        });
+    });
+    const dashView = document.getElementById('view-admin-dash');
+    if (dashView) observer.observe(dashView, { attributes: true, attributeFilter: ['class'] });
+
+    console.log("✅ Admin page loaded with fixed text visibility");
+</script>
 </body>
 </html>

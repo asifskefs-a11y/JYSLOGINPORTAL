@@ -180,72 +180,132 @@ window._exportTaskReportExcel = async () => {
 };
 
 // ================================================
-// ✅ EXPORT: Asset Register
+// ✅ EXPORT: Asset Register (DYNAMIC HEADER SYSTEM)
 // ================================================
 window._downloadMasterAssetReport = async () => {
     try {
-        if (!window.appCache.assets) return alert("No asset data!");
+        const assets = window.appCache?.assets || [];
+        if (assets.length === 0) return alert("No asset data to export!");
+
         const workbook = new ExcelJS.Workbook();
-        const sheet = workbook.addWorksheet('Assets');
-        sheet.columns = [
-            { header: 'Barcode', key: 'bc', width: 20 },
-            { header: 'Description', key: 'desc', width: 30 },
-            { header: 'Location', key: 'loc', width: 25 },
-            { header: 'Condition', key: 'cond', width: 15 }
+        const sheet = workbook.addWorksheet('Asset Master Register');
+
+        // 1. DYNAMIC HEADER EXTRACTION
+        // We look at the first record to find all unique keys
+        const sample = assets[0];
+        const excludeKeys = [
+            'updatedAt', 'createdAt', 'assetBarcode', 'barcode',
+            'initialAuditPhotoData', 'disposalPhotoData', 'assetStatus',
+            'auditPhotoUrl', 'disposalPhotoUrl', 'photoUrl', 'assetCondition',
+            'lastAuditTimestamp', 'lastAuditBy', 'lastTransferId', 'lastDisposalTimestamp'
         ];
 
-        window.appCache.assets.forEach(a => {
-            if (a.assetStatus !== 'Disposed') sheet.addRow({ bc: a.assetBarcode, desc: a.assetDescription, loc: a.locationName, cond: a.assetCondition });
+        // Always ensure Barcode is first if available, then dynamic headers
+        const barcodeKey = assets.some(a => a.assetBarcode) ? 'assetBarcode' : (assets.some(a => a.barcode) ? 'barcode' : null);
+        const dynamicKeys = Object.keys(sample).filter(k => !excludeKeys.includes(k));
+
+        const finalHeaderKeys = [];
+        if (barcodeKey) finalHeaderKeys.push(barcodeKey);
+        finalHeaderKeys.push(...dynamicKeys);
+
+        // 2. BUILD COLUMNS DYNAMICALLY
+        sheet.columns = finalHeaderKeys.map(k => ({
+            header: k.charAt(0).toUpperCase() + k.slice(1).replace(/([A-Z])/g, ' $1').trim(),
+            key: k,
+            width: 25
+        }));
+
+        // 3. MAP DATA & ADD ROWS
+        // Filter out disposed assets for the master register
+        const activeAssets = assets.filter(a => a.assetStatus !== 'Disposed');
+        activeAssets.forEach(a => {
+            const rowData = {};
+            finalHeaderKeys.forEach(k => {
+                const val = a[k];
+                rowData[k] = (val === undefined || val === null || val === "" || val === "N/A" || val === "undefined") ? '-' : val;
+            });
+            sheet.addRow(rowData);
         });
 
+        // 4. GENERATE FILE
         const buffer = await workbook.xlsx.writeBuffer();
-        saveAs(new Blob([buffer]), `Asset_Register_${Date.now()}.xlsx`);
-    } catch (e) { console.error(e); }
+        saveAs(new Blob([buffer]), `Asset_Master_Export_${Date.now()}.xlsx`);
+        console.log("✅ Dynamic Asset Export Generated.");
+
+    } catch (e) {
+        console.error("❌ Export Error:", e);
+        alert("Export failed: " + e.message);
+    }
 };
 
 // ================================================
-// ✅ EXPORT: Disposed Assets
+// ✅ EXPORT: Disposed Assets (DYNAMIC HEADER SYSTEM)
 // ================================================
 window._downloadDisposedAssetReport = async () => {
     try {
-        if (!window.appCache.assets) return alert("No asset data!");
-        const workbook = new ExcelJS.Workbook();
-        const sheet = workbook.addWorksheet('Disposal');
-        sheet.columns = [
-            { header: 'Barcode', key: 'bc', width: 20 },
-            { header: 'Reason', key: 're', width: 30 },
-            { header: 'Disposed By', key: 'by', width: 20 }
-        ];
+        const assets = window.appCache?.assets || [];
+        const disposed = assets.filter(a => a.assetStatus === 'Disposed');
+        if (disposed.length === 0) return alert("No disposal data to export!");
 
-        window.appCache.assets.forEach(a => {
-            if (a.assetStatus === 'Disposed') sheet.addRow({ bc: a.assetBarcode, re: a.disposalReason, by: a.disposedBy });
+        const workbook = new ExcelJS.Workbook();
+        const sheet = workbook.addWorksheet('Disposal Registry');
+
+        const sample = disposed[0];
+        const excludeKeys = ['updatedAt', 'createdAt', 'initialAuditPhotoData', 'disposalPhotoData', 'auditPhotoUrl', 'disposalPhotoUrl', 'photoUrl'];
+        const dynamicKeys = Object.keys(sample).filter(k => !excludeKeys.includes(k));
+
+        sheet.columns = dynamicKeys.map(k => ({
+            header: k.charAt(0).toUpperCase() + k.slice(1).replace(/([A-Z])/g, ' $1').trim(),
+            key: k,
+            width: 25
+        }));
+
+        disposed.forEach(a => {
+            const rowData = {};
+            dynamicKeys.forEach(k => {
+                const val = a[k];
+                rowData[k] = (val === undefined || val === null || val === "" || val === "N/A" || val === "undefined") ? '-' : val;
+            });
+            sheet.addRow(rowData);
         });
 
         const buffer = await workbook.xlsx.writeBuffer();
-        saveAs(new Blob([buffer]), `Disposal_Logs_${Date.now()}.xlsx`);
+        saveAs(new Blob([buffer]), `Asset_Disposal_Export_${Date.now()}.xlsx`);
     } catch (e) { console.error(e); }
 };
 
 // ================================================
-// ✅ EXPORT: Transfer Logs
+// ✅ EXPORT: Transfer Logs (DYNAMIC HEADER SYSTEM)
 // ================================================
 window._exportTransferReport = async () => {
     try {
-        if (!window.appCache.transfers) return alert("No transfer data!");
-        const workbook = new ExcelJS.Workbook();
-        const sheet = workbook.addWorksheet('Transfers');
-        sheet.columns = [
-            { header: 'ID', key: 'id', width: 20 },
-            { header: 'Barcode', key: 'bc', width: 20 },
-            { header: 'Collector', key: 'co', width: 20 }
-        ];
+        const transfers = window.appCache?.transfers || [];
+        if (transfers.length === 0) return alert("No transfer logs to export!");
 
-        window.appCache.transfers.forEach(t => {
-            sheet.addRow({ id: t.transferId, bc: t.assetBarcode, co: t.collectorName });
+        const workbook = new ExcelJS.Workbook();
+        const sheet = workbook.addWorksheet('Movement Logs');
+
+        const sample = transfers[0];
+        const excludeKeys = ['securitySignatureUrl', 'receivedSignatureUrl', 'transferPhotoUrl', 'auditPhotoUrl', 'auditPhoto'];
+        const dynamicKeys = Object.keys(sample).filter(k => !excludeKeys.includes(k));
+
+        sheet.columns = dynamicKeys.map(k => ({
+            header: k.charAt(0).toUpperCase() + k.slice(1).replace(/([A-Z])/g, ' $1').trim(),
+            key: k,
+            width: 25
+        }));
+
+        transfers.forEach(t => {
+            const rowData = {};
+            dynamicKeys.forEach(k => {
+                const val = t[k];
+                rowData[k] = (val === undefined || val === null || val === "" || val === "N/A" || val === "undefined") ? '-' : val;
+            });
+            sheet.addRow(rowData);
         });
 
         const buffer = await workbook.xlsx.writeBuffer();
-        saveAs(new Blob([buffer]), `Transfer_Logs_${Date.now()}.xlsx`);
+        saveAs(new Blob([buffer]), `Asset_Movement_Export_${Date.now()}.xlsx`);
     } catch (e) { console.error(e); }
 };
 

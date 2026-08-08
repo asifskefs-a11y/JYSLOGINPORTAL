@@ -126,16 +126,14 @@
 
 <body class="text-white">
 
-    <!-- APP LAUNCH VIDEO OVERLAY (Local Asset Version) -->
-    <div id="launchVideoOverlay" class="fixed inset-0 w-full h-full bg-black z-[999999] items-center justify-center transition-opacity duration-1000 hidden">
-        <video id="appLaunchVideo" class="w-full h-full object-cover" autoplay muted playsinline webkit-playsinline disablePictureInPicture preload="auto" style="pointer-events: none;">
-            <source src="launch_video.mp4" type="video/mp4">
-            Your browser does not support the video tag.
-        </video>
-        <button id="skipVideoBtn" class="absolute top-8 right-8 px-8 py-3 bg-black/40 backdrop-blur-md text-white border border-white/20 rounded-full font-bold text-[10px] uppercase tracking-widest hover:bg-black/60 transition-all z-[1000000] active:scale-95 shadow-2xl">Skip Intro</button>
-    </div>
-
-    <div class="app-container">
+<!-- APP LAUNCH VIDEO OVERLAY (Local Asset Version) -->
+<div id="launchVideoOverlay" class="fixed inset-0 w-full h-full bg-black z-[999999] items-center justify-center transition-opacity duration-1000 hidden" style="display: none !important;">
+    <video id="appLaunchVideo" class="w-full h-full object-cover" autoplay muted playsinline webkit-playsinline disablePictureInPicture preload="auto" style="pointer-events: none;">
+        <source src="launch_video.mp4" type="video/mp4">
+        Your browser does not support the video tag.
+    </video>
+    <button id="skipVideoBtn" class="absolute top-8 right-8 px-8 py-3 bg-black/40 backdrop-blur-md text-white border border-white/20 rounded-full font-bold text-[10px] uppercase tracking-widest hover:bg-black/60 transition-all z-[1000000] active:scale-95 shadow-2xl">Skip Intro</button>
+</div>
         <!-- LANDING VIEW -->
         <section id="view-landing" class="view-section active items-center justify-center p-4 flex-1 min-h-screen" style="background: linear-gradient(135deg, #f5f3ff 0%, #ede9fe 50%, #e0e7ff 100%);">
             <div class="portal-container max-w-6xl mx-auto px-4 py-8">
@@ -350,15 +348,18 @@
         </div>
     </div>
 
-    <script type="module" src="firebase_config.js?v=3.2"></script>
-    <script type="module" src="ui_module.js?v=3.2"></script>
-    <script type="module" src="auth_module.js?v=3.2"></script>
-    <script type="module" src="attendance_module.js?v=3.2"></script>
-    <script type="module" src="task_module.js?v=3.2"></script>
-    <script type="module" src="admin_module.js?v=3.2"></script>
-    <script type="module" src="export_module.js?v=3.2"></script>
-    <script type="module" src="visitor_module.js?v=3.2"></script>
-    <script type="module" src="init_module.js?v=3.2"></script>
+    <script type="module" src="firebase_config.js?v=3.6.1"></script>
+    <script type="module" src="field_normalizer.js?v=3.6.1"></script>
+    <script type="module" src="drive_module.js?v=3.6.1"></script>
+    <script type="module" src="ui_module.js?v=3.6.1"></script>
+    <script type="module" src="import_module.js?v=3.6.1"></script>
+    <script type="module" src="export_module.js?v=3.6.1"></script>
+    <script type="module" src="audit_module.js?v=3.6.1"></script>
+    <script type="module" src="attendance_module.js?v=3.6.1"></script>
+    <script type="module" src="tasks_module.js?v=3.6.1"></script>
+    <script type="module" src="admin_module.js?v=3.6.1"></script>
+    <script type="module" src="visitor_module.js?v=3.6.1"></script>
+    <script type="module" src="init_module.js?v=3.6.1"></script>
 
 </body>
 </html>

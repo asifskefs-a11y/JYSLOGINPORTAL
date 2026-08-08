@@ -30,11 +30,12 @@ export const UPLOAD_CONFIG = {
         VISITORS: 'VISITORS',
         TASK_PHOTOS: 'TASK_PHOTOS',
         TASK_SIGNATURES: 'TASK_SIGNATURES',
-        DISPOSAL: 'DISPOSAL'
+        DISPOSAL: 'DISPOSAL',
+        PROFILE_PHOTOS: 'PROFILE_PHOTOS'
     },
 
     DEFAULTS: {
-        DRIVE_URL: "https://script.google.com/macros/s/AKfycbGqJah3auambryQdBDlohhYP4WkUvLgZOkiClPlUBx2EQRgDz7m3r_zZnsRkId8qnDlw/exec",
+        DRIVE_URL: "https://script.google.com/macros/s/AKfycbyXZpA-mlmctWy4HTdEiu_EsS1gmTuEe5SREu5KQ0_3LliIWzGwDNhXQArqVuz4PM-ygA/exec",
         TIMEOUT: 30000,
         MAX_RETRIES: 3
     }
