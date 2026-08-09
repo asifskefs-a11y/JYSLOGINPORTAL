@@ -1,4 +1,34 @@
 // ================================================================ */
+// WHATSAPP-STYLE TOAST ENGINE (NEW v4.1)                           */
+// ================================================================ */
+window.showWhatsAppToast = (title, message, type = 'info') => {
+    let container = document.getElementById('toast-notification-container');
+    if (!container) {
+        container = document.createElement('div');
+        container.id = 'toast-notification-container';
+        container.className = 'fixed top-4 right-4 z-[9999999] flex flex-col gap-3 max-w-sm w-full pointer-events-none';
+        document.body.appendChild(container);
+    }
+    const toast = document.createElement('div');
+    toast.className = 'pointer-events-auto bg-slate-900/95 border-l-4 border-emerald-500 text-white p-4 rounded-xl shadow-2xl backdrop-blur-md transition-all duration-300 transform translate-x-full flex flex-col gap-1';
+    toast.innerHTML = `
+        <div class="flex items-center justify-between">
+            <span class="font-bold text-xs uppercase tracking-wider text-emerald-400 flex items-center gap-2">
+                <i class="fa-solid fa-bell animate-bounce"></i> ${title}
+            </span>
+            <button onclick="this.parentElement.parentElement.remove()" class="text-slate-400 hover:text-white text-xs">&times;</button>
+        </div>
+        <p class="text-xs text-slate-200 mt-1">${message}</p>
+    `;
+    container.appendChild(toast);
+    setTimeout(() => toast.classList.remove('translate-x-full'), 50);
+    setTimeout(() => {
+        toast.classList.add('translate-x-full');
+        setTimeout(() => toast.remove(), 300);
+    }, 5000);
+};
+
+// ================================================================ */
 // UI UTILITIES & INTERFACE HELPERS                                 */
 // ================================================================ */
 
@@ -253,82 +283,6 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     attachButtonListeners();
-    const observer = new MutationObserver(attachButtonListeners);
-    observer.observe(document.body, { childList: true, subtree: true });
-});
-
-
-/**
- * ROLE-BASED DASHBOARD RULES (v4.0)
- * Triggered ONLY IF user's role is strictly 'Cleaner'
- */
-window.applyRoleDashboardRules = (userRole) => {
-    const role = (userRole || '').toString().trim().toLowerCase();
-    const isSimpleCleaner = (role === 'cleaner');
-
-    console.log(`🛡️ Applying Rules for Role: [${role}] | Restricted: ${isSimpleCleaner}`);
-
-    // Sidebar & Menu Elements
-    const restrictedMenuSections = ['menu-asset-section', 'menu-tasks-btn'];
-    const advancedDashboardSections = ['asset-transfer-section', 'asset-audit-section', 'asset-disposal-section', 'transfer-logs-section', 'security-task-area', 'tasks-management-section'];
-    const cleanerHistorySection = 'cleaner-attendance-section';
-
-    if (isSimpleCleaner) {
-        // 🛑 CLEANER ROLE: Hide everything except Home & Attendance History
-        restrictedMenuSections.forEach(id => {
-            const el = document.getElementById(id);
-            if (el) el.classList.add('hidden');
-        });
-        advancedDashboardSections.forEach(id => {
-            const el = document.getElementById(id);
-            if (el) el.classList.add('hidden');
-        });
-        const historyEl = document.getElementById(cleanerHistorySection);
-        if (historyEl) historyEl.classList.remove('hidden');
-    } else {
-        // ✅ OTHERS: Restore all features
-        restrictedMenuSections.forEach(id => {
-            const el = document.getElementById(id);
-            if (el) el.classList.remove('hidden');
-        });
-        advancedDashboardSections.forEach(id => {
-            const el = document.getElementById(id);
-            if (el) el.classList.remove('hidden');
-        });
-        const historyEl = document.getElementById(cleanerHistorySection);
-        if (historyEl) historyEl.classList.add('hidden');
-    }
-};
-
-// --- AUTOMATIC SPINNER ATTACHMENT (FORCE FIX) ---
-document.addEventListener('DOMContentLoaded', () => {
-    // Auto-catch all form submit events
-    document.addEventListener('submit', (e) => {
-        // Don't show if the form has a specific handler that already shows a more detailed spinner
-        // but as a safety, we show a generic one.
-        window.showGlobalSpinner("Saving Record...");
-    }, true);
-
-    // Auto-catch all primary action buttons
-    const attachButtonListeners = () => {
-        document.querySelectorAll('button[type="submit"], .btn-primary, .submit-btn, .btn-submit-transfer').forEach(btn => {
-            if (!btn.dataset.spinnerBound) {
-                btn.addEventListener('click', () => {
-                    // Small delay to check if form is valid before showing spinner
-                    setTimeout(() => {
-                        const form = btn.closest('form');
-                        if (!form || form.checkValidity()) {
-                            window.showGlobalSpinner("Please wait...");
-                        }
-                    }, 10);
-                });
-                btn.dataset.spinnerBound = "true";
-            }
-        });
-    };
-
-    attachButtonListeners();
-    // Re-attach for dynamic modals/content
     const observer = new MutationObserver(attachButtonListeners);
     observer.observe(document.body, { childList: true, subtree: true });
 });

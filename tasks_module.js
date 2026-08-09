@@ -18,7 +18,8 @@ window.submitNewMaintenanceTask = async () => {
     const school = document.getElementById('taskSchoolSelect')?.value;
     const area = document.getElementById('areaNameInput')?.value;
     const details = document.getElementById('taskDetailsInput')?.value;
-    if (!school || !area || !capturedTaskPhotoBase64) return alert("Required fields missing!");
+    const assignee = document.getElementById('assignedStaffSelect')?.value;
+    if (!school || !area || !capturedTaskPhotoBase64 || !assignee) return alert("Required fields missing!");
 
     const btn = document.getElementById('submitTaskBtn');
     if (btn) btn.disabled = true;
@@ -34,19 +35,28 @@ window.submitNewMaintenanceTask = async () => {
         if (res.status === 'success') {
             const taskId = "TASK-" + Date.now();
             const data = {
-                id: taskId, school, location: area, details, beforePhotoUrl: res.fileUrl, status: 'Open',
-                timestamp: new Date().toLocaleString(), raisedByName: window.currentStaff?.name || "Staff"
+                id: taskId,
+                school,
+                location: area,
+                details,
+                beforePhotoUrl: res.fileUrl,
+                status: 'Open',
+                assignee: assignee,
+                timestamp: Date.now(),
+                raisedByMobile: window.currentStaff?.mobile,
+                raisedByName: window.currentStaff?.name || "Staff"
             };
             await set(ref(db, 'tasks/' + taskId), data);
-            window.triggerSuccessPopup("Task Raised!");
-            const areaIn = document.getElementById('areaNameInput'); if (areaIn) areaIn.value = "";
-            const detIn = document.getElementById('taskDetailsInput'); if (detIn) detIn.value = "";
-            capturedTaskPhotoBase64 = "";
-            const prev = document.getElementById('taskPhotoPreviewContainer'); if (prev) prev.classList.add('hidden');
+
+            // Trigger Notification
+            window.showWhatsAppToast("🔔 New Task Assigned!", `From: ${data.raisedByName} | Branch: ${school}\nTask: ${details}`);
+
+            window.triggerSuccessPopup("Task Raised & Assigned!");
+            // Reset form...
             window.showStaffView('staff-dash-area');
         }
     } catch (e) { alert(e.message); } finally {
-        if (btn) { btn.disabled = false; btn.innerHTML = 'CREATE TASK'; }
+        if (btn) { btn.disabled = false; }
         window.hideLoader();
     }
 };

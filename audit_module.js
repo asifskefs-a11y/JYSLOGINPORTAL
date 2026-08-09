@@ -171,41 +171,37 @@ window.submitAssetTransfer = async (event) => {
         ]);
 
         const common = {
-            batchId, status: 'In-Transit', timestamp: Date.now(), date: new Date().toLocaleDateString(),
-            securitySignatureUrl: urlSec, receivedSignatureUrl: urlRec, transferPhotoUrl: urlPhoto,
+            batchId,
+            status: 'Pending', // CHANGED TO PENDING FOR APPROVAL
+            timestamp: Date.now(),
+            date: new Date().toLocaleDateString(),
+            securitySignatureUrl: urlSec,
+            receivedSignatureUrl: urlRec,
+            transferPhotoUrl: urlPhoto,
             collectorName: document.getElementById('t_collector_name')?.value || "N/A",
             companyName: document.getElementById('t_company_name')?.value || "N/A",
             securityName: window.currentStaff?.name || "N/A",
-            receiverName: "N/A", // Will be updated if receiver signs/names later or based on process
-            staffId: window.currentStaff?.staffId || ""
+            receiverName: "N/A",
+            staffId: window.currentStaff?.staffId || "",
+            requesterName: window.currentStaff?.name || "Staff"
         };
 
         const updates = {};
         window.transferBatch.forEach(asset => {
             const trfId = "TRF-" + asset.barcode + "-" + Date.now();
-            // SAVE COMPLETE METADATA TO TRANSFER NODE
-            updates[`asset_transfers/${trfId}`] = {
-                ...asset, // Includes all 15+ normalized fields
-                ...common,
-                transferId: trfId,
-                originalAssetData: asset // Redundant but safe
-            };
-            // ATOMIC MOVE: Remove from Register
-            updates[`assets/${asset.barcode}`] = null;
+            updates[`asset_transfers/${trfId}`] = { ...asset, ...common, transferId: trfId };
+            // DO NOT ATOMICALLY MOVE YET - Wait for approval
         });
 
         await update(ref(db), updates);
 
-        if (window.triggerSuccessPopup) {
-            window.triggerSuccessPopup(`Successfully Transferred ${window.transferBatch.length} Assets! 🚚`);
-        } else {
-            alert("Transferred successfully!");
-        }
+        // Success Notification
+        window.showWhatsAppToast("✅ Request Sent", "Asset Transfer Submitted & Sent to Admin for Approval.");
+        // Notify Admin
+        window.showWhatsAppToast("⚠️ Pending Request", `Asset Transfer Request from ${common.requesterName} - Action Required`);
 
         window.resetAssetTransferForm();
-        // Redirect back to dashboard view
         window.showStaffView('staff-dash-area');
-
         if (window.refreshDashboardData) await window.refreshDashboardData();
 
     } catch (e) {
@@ -448,9 +444,20 @@ window.fetchDisposalAssetDetails = async (barcode) => {
 
 window.startCameraScanner = (target) => {
     currentScanTarget = target;
-    document.getElementById('scanner-modal').classList.remove('hidden');
+    const modal = document.getElementById('scanner-modal');
+    modal.classList.remove('hidden');
+
+    // Add the overlay box
+    const container = document.getElementById('scanner-container');
+    if (!document.getElementById('scanner-overlay-box')) {
+        const overlay = document.createElement('div');
+        overlay.id = 'scanner-overlay-box';
+        overlay.className = 'scanner-overlay-box';
+        container.appendChild(overlay);
+    }
+
     const scanner = new Html5Qrcode("scanner-container");
-    scanner.start({ facingMode: "environment" }, { fps: 10, qrbox: 250 }, (text) => {
+    scanner.start({ facingMode: "environment" }, { fps: 10, qrbox: { width: 240, height: 240 } }, (text) => {
         document.getElementById(currentScanTarget).value = text.toUpperCase();
         if (currentScanTarget === 'f1_asset_barcode') window.fetchAuditAssetDetails(text);
         if (currentScanTarget === 'f1_disposal_barcode_input') window.fetchDisposalAssetDetails(text);

@@ -1,7 +1,9 @@
 import { db, UPLOAD_CONFIG } from './firebase_config.js';
 import { ref, set, get, child } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+import { registerPushNotifications } from './fcm_module.js';
 
 console.log("📦 init_module.js: Starting to load...");
+// ...
 
 // ================================================================ */
 // GLOBAL LOGIN HANDLERS (Buffer-Safe & Prevent Default)            */
@@ -117,6 +119,9 @@ window.handleStaffLogin = async (e) => {
 
             if (foundUser) {
                 console.log("✅ Staff Login: Authentication Successful for", foundUser.name);
+
+                // Register FCM after login
+                registerPushNotifications(foundUser.mobile);
 
                 if ((foundUser.role || "").toLowerCase().trim() === 'admin') {
                     console.log("🔓 Staff Login: Admin role detected, redirecting...");

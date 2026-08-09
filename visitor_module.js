@@ -114,10 +114,20 @@ window.initVisitorForm = async () => {
     if (!vId || !vDate) return;
     const now = new Date();
 
-    // ... logic for vId generation ...
-
     // ADD KEY GENERATION LOGIC IN FORM SUBMIT
     // (This would be in your saveVisitor function, assuming you add it there)
+
+    // NEW JYS-0001 FORMAT LOGIC
+    try {
+        const snap = await get(ref(db, 'visitors'));
+        let count = 1;
+        if (snap.exists()) {
+            count = Object.values(snap.val()).length + 1;
+        }
+        vId.value = "JYS-" + count.toString().padStart(4, '0');
+    } catch (e) {
+        vId.value = "JYS-" + Math.floor(Math.random() * 9000 + 1000);
+    }
 
     // Force visibility and set date/time
     vDate.value = now.toLocaleDateString('en-US') + " " + now.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', hour12: true});

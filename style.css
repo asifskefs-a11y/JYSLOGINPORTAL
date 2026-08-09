@@ -91,6 +91,41 @@ button, a, .btn, [onclick] {
     display: none !important;
 }
 
+/* --- CAMERA SCANNER VIEWPORT OVERLAY FIX --- */
+#reader, #qr-reader, .scanner-container {
+    position: relative !important;
+    width: 100% !important;
+    max-width: 480px !important;
+    margin: 0 auto !important;
+    aspect-ratio: 1 / 1 !important;
+    overflow: hidden !important;
+    border-radius: 1.5rem !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+}
+#reader video, #qr-reader video {
+    width: 100% !important;
+    height: 100% !important;
+    object-fit: cover !important;
+    border-radius: 1.5rem !important;
+}
+
+/* Center Viewfinder Frame Box */
+.scanner-overlay-box {
+    position: absolute !important;
+    top: 50% !important;
+    left: 50% !important;
+    transform: translate(-50%, -50%) !important;
+    width: 240px !important;
+    height: 240px !important;
+    border: 3px solid transparent !important;
+    box-shadow: 0 0 0 9999px rgba(15, 23, 42, 0.6) !important;
+    pointer-events: none !important;
+    z-index: 10 !important;
+    border-radius: 1rem !important;
+}
+
 /* --- PORTAL LANDING PAGE LAYOUT --- */
 .portal-main-container {
     display: flex !important;
@@ -1200,5 +1235,3 @@ canvas, .signature-pad {
     justify-content: center;
     z-index: 9999999;
 }
-
-

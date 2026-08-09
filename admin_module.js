@@ -186,28 +186,46 @@ window.autoMigrateLegacyData = async () => {
     }
 };
 
-window.loadAdminDashboard = () => { window.refreshDashboardData(); };
+window.loadAdminDashboard = () => {
+    window.refreshDashboardData();
+    window.updateVisitorsTodayCount();
+};
 
 // ================================================
 // KPI LOGIC
 // ================================================
-window.updateAdminKPIs = () => {
+async function updateVisitorsTodayCount() {
     try {
-        const today = new Date().toLocaleDateString('en-US');
-        const visitorsToday = window.appCache.visitors.filter(v => v.date === today).length;
-        const activeTasks = window.appCache.tasks.filter(t => t.status === 'Open' || t.status === 'Accepted').length;
-        const staffPresent = window.appCache.attendance.filter(a => a.date === today && a.status === 'checked_in').length;
-        const urgentAlerts = window.appCache.tasks.filter(t => t.priority === 'High' && t.status !== 'Closed').length;
+        const todayStr = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+        const vRef = ref(db, 'visitors');
 
-        const stats = {
-            'kpi-visitors': { value: visitorsToday, pct: Math.min(100, (visitorsToday / 50) * 100) },
-            'kpi-tasks': { value: activeTasks, pct: Math.min(100, (activeTasks / 20) * 100) },
-            'kpi-staff': { value: staffPresent, pct: Math.min(100, (staffPresent / 30) * 100) },
-            'kpi-alerts': { value: urgentAlerts, pct: Math.min(100, (urgentAlerts / 10) * 100) }
-        };
-        if (window.updateKPIStats) window.updateKPIStats(stats);
-    } catch (e) { console.error("KPI Error:", e); }
-};
+        onValue(vRef, (snapshot) => {
+            let count = 0;
+            if (snapshot.exists()) {
+                const data = snapshot.val();
+                Object.values(data).forEach(visitor => {
+                    // Normalize date
+                    const vDate = visitor.date;
+                    const vTimestamp = visitor.timestamp;
+
+                    let isToday = false;
+                    if(vDate) {
+                        const d = new Date(vDate);
+                        isToday = d.toISOString().split('T')[0] === todayStr;
+                    } else if(vTimestamp) {
+                        isToday = new Date(vTimestamp).toISOString().split('T')[0] === todayStr;
+                    }
+                    if (isToday) count++;
+                });
+            }
+            const counterElement = document.getElementById('visitors-today-count') || document.getElementById('visitorsCount');
+            if (counterElement) counterElement.innerText = count.toString();
+        });
+    } catch (err) {
+        console.error("Error updating today's visitor count:", err);
+    }
+}
+window.updateVisitorsTodayCount = updateVisitorsTodayCount;
 
 // ================================================
 // TAB RENDERING ENGINE
@@ -237,55 +255,45 @@ window.renderTabFromAppCache = (tabId) => {
     }, 100);
 };
 
-// ================================================
-// RENDER FUNCTIONS
-// ================================================
-function renderVisitorLogs(visitors) {
-    const body = document.getElementById('visitor-logs-body');
+// RENDER FUNCTIONS - ADMIN APPROVAL WORKFLOW
+function renderTransferLogs(transfers) {
+    const body = document.getElementById('transfer-logs-body');
     if (!body) return;
 
-    const data = (visitors || []).sort((a, b) => new Date(b.date + ' ' + b.timeIn) - new Date(a.date + ' ' + a.timeIn));
-
-    window.adminPaginators.visitors.init(data, (pageItems) => {
-        body.innerHTML = '';
-        if (pageItems.length === 0) {
-            body.innerHTML = '<tr><td colspan="12" class="p-8 text-center text-gray-400">No records found</td></tr>';
-            return;
-        }
-
-        pageItems.forEach(v => {
-            const tr = document.createElement('tr');
-            tr.className = "hover:bg-slate-50 transition-colors border-b border-gray-100 text-[10px]";
-
-            const sigHtml = v.signatureUrl ? `<img src="${window.getDirectDriveImageUrl(v.signatureUrl)}" class="h-8 w-16 object-contain mx-auto border rounded bg-white cursor-pointer" onclick="window.openImageZoom('${v.signatureUrl}')">` : "-";
-
-            let keyHtml = '<span class="text-slate-300">❌ NO</span>';
-            if (v.keyCollected === true || v.keyCollected === 'YES') {
-                keyHtml = v.status === 'SIGNED OUT' ? '<span class="text-emerald-500 font-bold">✅ RETURNED</span>' : '<span class="text-amber-500 font-bold">🔑 HELD</span>';
-            }
-
-            tr.innerHTML = `
-                <td class="p-4"><span class="px-2 py-1 bg-indigo-50 text-indigo-600 rounded-lg font-bold">VISITOR</span></td>
-                <td class="p-4 font-mono font-bold">${v.id || "-"}</td>
-                <td class="p-4 font-bold text-slate-800">${v.name || "-"}</td>
-                <td class="p-4">${v.mobile || "-"}</td>
-                <td class="p-4">${v.company || "-"}</td>
-                <td class="p-4 max-w-[120px] truncate">${v.purpose || "-"}</td>
-                <td class="p-4">${v.date || "-"}</td>
-                <td class="p-4 text-emerald-600 font-bold">${v.timeIn || "-"}</td>
-                <td class="p-4 text-red-500 font-bold">${v.outTime || "-"}</td>
-                <td class="p-4"><span class="status-badge ${v.status === 'SIGNED OUT' ? 'closed' : 'open'}">${v.status || "Active"}</span></td>
-                <td class="p-4 text-center">${keyHtml}</td>
-                <td class="p-4 text-center sticky-action-col bg-white">
-                    <button onclick="window.openDetailedAuditModal('visitor', '${v.id}')" class="btn-eye-view mx-auto">
-                        <i class="fa-solid fa-eye"></i>
-                    </button>
-                </td>
-            `;
-            body.appendChild(tr);
-        });
+    body.innerHTML = '';
+    transfers.sort((a,b) => b.timestamp - a.timestamp).forEach(t => {
+        const tr = document.createElement('tr');
+        const isPending = t.status === 'Pending';
+        tr.innerHTML = `
+            <td class="p-4">${t.assetBarcode}</td>
+            <td class="p-4">${t.collectorName}</td>
+            <td class="p-4 font-bold ${isPending ? 'text-amber-600' : 'text-emerald-600'}">${t.status}</td>
+            <td class="p-4">
+                ${isPending ? `
+                    <div class="flex gap-2">
+                        <button onclick="window.approveTransfer('${t.transferId}')" class="bg-emerald-600 text-white px-3 py-1 rounded">Approve</button>
+                        <button onclick="window.rejectTransfer('${t.transferId}')" class="bg-red-600 text-white px-3 py-1 rounded">Reject</button>
+                    </div>
+                ` : 'N/A'}
+            </td>
+        `;
+        body.appendChild(tr);
     });
 }
+
+window.approveTransfer = async (id) => {
+    // Approve and finish the move
+    const snap = await get(ref(db, 'asset_transfers/' + id));
+    if (snap.exists()) {
+        const trf = snap.val();
+        const updates = {};
+        updates[`assets/${trf.barcode}`] = trf; // Move back to assets
+        updates[`asset_transfers/${id}/status`] = 'Approved';
+        await update(ref(db), updates);
+    }
+    window.showWhatsAppToast("✅ Transfer Approved", `Asset transfer ${id} has been approved.`);
+    window.refreshDashboardData();
+};
 
 function renderStaffAttendance(attendance) {
     const body = document.getElementById('staff-attendance-body');
