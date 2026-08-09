@@ -227,7 +227,9 @@
         }
 
         function logout() {
-            location.reload();
+            localStorage.removeItem('staff_' + document.getElementById('login-mobile')?.value);
+            document.getElementById('auth-container').classList.remove('hidden');
+            document.getElementById('dashboard-container').classList.add('hidden');
         }
 
         // Attendance Logic

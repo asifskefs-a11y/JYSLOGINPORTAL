@@ -3,7 +3,6 @@ import { ref, set, get, child } from "https://www.gstatic.com/firebasejs/10.7.1/
 import { registerPushNotifications } from './fcm_module.js';
 
 console.log("📦 init_module.js: Starting to load...");
-// ...
 
 // ================================================================ */
 // GLOBAL LOGIN HANDLERS (Buffer-Safe & Prevent Default)            */
@@ -49,8 +48,7 @@ window.handleAdminLogin = (e) => {
                 if (window.loadAdminDashboard) {
                     window.loadAdminDashboard();
                 } else {
-                    console.warn("⚠️ Admin Login: loadAdminDashboard not found, reloading...");
-                    window.location.reload();
+                    console.warn("⚠️ Admin Login: loadAdminDashboard not found, no refresh.");
                 }
             } else {
                 console.log("🔓 Admin Login: Redirecting to admin.html");
@@ -141,8 +139,7 @@ window.handleStaffLogin = async (e) => {
                     console.log("🛡️ Staff Login: Transitioning to Dashboard View");
                     window.renderDashboard(foundUser);
                 } else {
-                    console.log("🛡️ Staff Login: renderDashboard not found, forcing reload to initialize dashboard");
-                    window.location.reload();
+                    console.log("🛡️ Staff Login: renderDashboard not found, manual check required.");
                 }
             } else {
                 console.warn("❌ Staff Login: No matching credentials found");
@@ -278,7 +275,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 } catch (e) {
                     console.error("❌ Staff: Session parse error, clearing...", e);
                     localStorage.removeItem('loggedStaff');
-                    window.location.reload();
                 }
             } else {
                 console.log("🛡️ Staff: No active session, checking auth area...");
