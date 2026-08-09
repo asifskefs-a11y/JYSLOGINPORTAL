@@ -1,863 +1,452 @@
 import { db, UPLOAD_CONFIG } from './firebase_config.js';
-import { ref, set, update, onValue, get } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+import { ref, set, update, push, onValue, get } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
 // ================================================================ */
-// ATTENDANCE MODULE - COMPLETE FIX                                */
+// SIGNATURE MODAL HANDLERS                                         */
 // ================================================================ */
 
 let sigCallback = null;
-let sessionListener = null;
-let cachedStaff = null;
-let isCheckInProgress = false;
 
-// ================================================================ */
-// OPEN SIGNATURE MODAL                                             */
-// ================================================================ */
+window.initSigPad = () => {
+    console.log("🖊️ attendance_module: Initializing signature pad...");
+    if (window.sigPadManager) {
+        window.sigPadManager.getPad('sig-canvas');
+    }
+};
 
-window.openSignatureModal = function(title, callback) {
-    console.log("🔓 Opening signature modal:", title);
-
+window.openSignatureModal = (title, callback) => {
+    document.getElementById('sig-modal-title').innerText = title;
     const modal = document.getElementById('signature-modal');
-    if (!modal) {
-        alert("Signature modal not found. Please refresh.");
+    if (modal) {
+        modal.classList.add('active');
+        setTimeout(() => {
+            if (window.sigPadManager) {
+                const pad = window.sigPadManager.getPad('sig-canvas');
+                if (pad) pad._setupCanvas();
+            }
+            // Auto-hide spinner once modal/canvas is ready
+            window.hideGlobalSpinner();
+        }, 150);
+    }
+    sigCallback = callback;
+};
+
+window.closeSignatureModal = () => {
+    const modal = document.getElementById('signature-modal');
+    if (modal) modal.classList.remove('active');
+    if (window.clearSignaturePad) window.clearSignaturePad('sig-canvas');
+    sigCallback = null;
+};
+
+const sigConfirmBtn = document.getElementById('sig-confirm-btn');
+if (sigConfirmBtn) {
+    sigConfirmBtn.onclick = () => {
+        try {
+            const canvasPad = window.sigPadManager.getPad('sig-canvas');
+            const data = canvasPad.toDataURL();
+
+            // Basic validation to ensure something was drawn
+            if (data.length < 1000) {
+                alert("Please provide your signature to continue.");
+                return;
+            }
+
+            if (sigCallback) sigCallback(data);
+            window.closeSignatureModal();
+        } catch (e) {
+            console.error("❌ Signature Confirmation Error:", e);
+            alert("Failed to capture signature. Please try again.");
+        }
+    };
+}
+
+// ================================================================ */
+// PASSWORD VERIFICATION MODAL                                      */
+// ================================================================ */
+
+let passwordCallback = null;
+
+window.openPasswordModal = (title, callback) => {
+    console.log("🔐 Password Modal: Opening");
+    const titleEl = document.getElementById('password-modal-title');
+    if (titleEl) titleEl.innerText = title;
+
+    const modal = document.getElementById('password-modal');
+    const input = document.getElementById('modal-auth-pass');
+    const error = document.getElementById('password-error');
+
+    if (modal) modal.classList.remove('hidden');
+    if (input) { input.value = ''; input.focus(); }
+    if (error) error.classList.add('hidden');
+
+    passwordCallback = callback;
+};
+
+window.closePasswordModal = () => {
+    const modal = document.getElementById('password-modal');
+    if (modal) modal.classList.add('hidden');
+    passwordCallback = null;
+};
+
+// Bind form submission for password verification
+document.addEventListener('DOMContentLoaded', () => {
+    const passForm = document.getElementById('password-verify-form');
+    if (passForm) {
+        passForm.onsubmit = (e) => {
+            e.preventDefault();
+            const input = document.getElementById('modal-auth-pass');
+            const error = document.getElementById('password-error');
+            const enteredPass = input?.value || "";
+
+            console.log("🔐 Password Modal: Verifying identity...");
+
+            if (!window.currentStaff) {
+                console.error("❌ Error: No staff profile in context");
+                alert("Session error. Please logout and login again.");
+                return;
+            }
+
+            // Validate against the cached staff object
+            const actualPass = (window.currentStaff.password || "").toString();
+
+            if (enteredPass === actualPass) {
+                console.log("✅ Password Modal: Identity Verified");
+                if (passwordCallback) passwordCallback();
+                window.closePasswordModal();
+            } else {
+                console.warn("❌ Password Modal: Incorrect Password");
+                if (error) error.classList.remove('hidden');
+                if (input) { input.value = ''; input.focus(); }
+            }
+        };
+    }
+});
+
+// ================================================================ */
+// KEY HANDOVER LOGIC (STRICT MANDATORY RETURN)                     */
+// ================================================================ */
+
+let keyCollectCallback = null;
+let keyReturnCallback = null;
+
+// --- SECURITY PIN GENERATION (v4.0) ---
+window.generateKeyReturnPin = () => {
+    return Math.floor(1000 + Math.random() * 9000).toString();
+};
+
+window.openKeyCollectionModal = (callback) => {
+    const modal = document.getElementById('key-collection-modal');
+    if (modal) modal.classList.remove('hidden');
+    keyCollectCallback = callback;
+};
+
+// ... (existing code)
+
+window.confirmKeyCollection = (hasKey) => {
+    const modal = document.getElementById('key-collection-modal');
+    if (modal) modal.classList.add('hidden');
+    if (keyCollectCallback) keyCollectCallback(hasKey);
+    keyCollectCallback = null;
+};
+
+window.openKeyReturnModal = (session, callback) => {
+    const modal = document.getElementById('key-return-modal');
+    const input = document.getElementById('key-return-pin-input');
+    const error = document.getElementById('pin-error');
+
+    if (modal) modal.classList.remove('hidden');
+    if (input) { input.value = ''; input.focus(); }
+    if (error) error.classList.add('hidden');
+
+    window.activeSessionForReturn = session;
+    keyReturnCallback = callback;
+};
+
+window.confirmKeyReturn = () => {
+    const input = document.getElementById('key-return-pin-input');
+    const error = document.getElementById('pin-error');
+    const enteredPin = input?.value || "";
+
+    if (!window.activeSessionForReturn) {
+        console.error("❌ Session context lost for key return");
+        alert("Session error. Please try again.");
         return;
     }
 
-    const titleEl = document.getElementById('sig-modal-title');
-    if (titleEl) titleEl.innerText = title || "Sign to Confirm";
+    const actualPin = (window.activeSessionForReturn.keyReturnPin || "").toString();
 
-    sigCallback = callback;
+    if (enteredPin === actualPin) {
+        console.log("✅ Key PIN Verified");
+        const modal = document.getElementById('key-return-modal');
+        if (modal) modal.classList.add('hidden');
+        if (keyReturnCallback) keyReturnCallback();
+        keyReturnCallback = null;
+        window.activeSessionForReturn = null;
+    } else {
+        console.warn("❌ Incorrect Key PIN");
+        if (error) error.classList.remove('hidden');
+        if (input) { input.value = ''; input.focus(); }
+    }
+};
 
-    modal.style.display = 'flex';
-    modal.classList.add('active');
-    document.body.style.overflow = 'hidden';
+// ================================================================ */
+// PERFORMANCE OPTIMIZATIONS: GEOLOCATION & ASYNC                   */
+// ================================================================ */
 
-    requestAnimationFrame(function() {
-        setTimeout(function() {
-            const pad = window.sigPadManager.initPad('sig-canvas');
-            if (pad) {
-                pad.clear();
-                pad.unlock();
-                console.log("✅ Signature pad ready");
-            }
-        }, 300);
+const getFastLocation = () => {
+    return new Promise((resolve) => {
+        if (!navigator.geolocation) {
+            console.warn("🌐 Geolocation not supported");
+            return resolve({ lat: 0, lng: 0 });
+        }
+        navigator.geolocation.getCurrentPosition(
+            (pos) => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+            (err) => {
+                console.warn("⚠️ Geolocation Error:", err.message);
+                resolve({ lat: 0, lng: 0 });
+            },
+            { enableHighAccuracy: false, timeout: 5000, maximumAge: 60000 }
+        );
     });
 };
 
 // ================================================================ */
-// CLOSE SIGNATURE MODAL                                            */
+// DASHBOARD & ATTENDANCE CORE                                      */
 // ================================================================ */
 
-window.closeSignatureModal = function() {
-    console.log("🔒 Closing signature modal");
-
-    const modal = document.getElementById('signature-modal');
-    if (modal) {
-        modal.style.display = 'none';
-        modal.classList.remove('active');
-    }
-    document.body.style.overflow = '';
-    sigCallback = null;
-
-    const pad = window.sigPadManager.getPad('sig-canvas');
-    if (pad) pad.lock();
-};
-
-// ================================================================ */
-// CONFIRM SIGNATURE - FIXED                                       */
-// ================================================================ */
-
-document.addEventListener('DOMContentLoaded', function() {
-    const confirmBtn = document.getElementById('sig-confirm-btn');
-    if (confirmBtn) {
-        confirmBtn.onclick = function() {
-            console.log("✅ Confirm signature clicked");
-
-            if (confirmBtn.disabled) return;
-            confirmBtn.disabled = true;
-            confirmBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Processing...';
-
-            const pad = window.sigPadManager.getPad('sig-canvas');
-            if (!pad) {
-                alert("Signature pad not ready");
-                confirmBtn.disabled = false;
-                confirmBtn.innerHTML = '<i class="fa-regular fa-check-circle"></i> Confirm';
-                return;
-            }
-
-            if (pad.isEmpty()) {
-                alert("Please sign before confirming.");
-                confirmBtn.disabled = false;
-                confirmBtn.innerHTML = '<i class="fa-regular fa-check-circle"></i> Confirm';
-                return;
-            }
-
-            const data = pad.toDataURL();
-            if (sigCallback) {
-                window.showLoadingOverlay('Processing your request...');
-                sigCallback(data);
-                confirmBtn.disabled = false;
-                confirmBtn.innerHTML = '<i class="fa-regular fa-check-circle"></i> Confirm';
-            } else {
-                alert("No callback defined");
-                confirmBtn.disabled = false;
-                confirmBtn.innerHTML = '<i class="fa-regular fa-check-circle"></i> Confirm';
-            }
-        };
-    }
-});
-
-// ================================================================ */
-// LOADING OVERLAY                                                  */
-// ================================================================ */
-
-window.showLoadingOverlay = function(message = 'Processing...') {
-    const existing = document.getElementById('loading-overlay');
-    if (existing) existing.remove();
-
-    const overlay = document.createElement('div');
-    overlay.id = 'loading-overlay';
-    overlay.style.cssText = `
-        position: fixed; inset: 0; z-index: 9999998;
-        display: flex; align-items: center; justify-content: center;
-        background: rgba(0,0,0,0.4); backdrop-filter: blur(4px);
-        -webkit-backdrop-filter: blur(4px);
-        animation: fadeIn 0.2s ease-out;
-    `;
-
-    overlay.innerHTML = `
-        <div style="
-            background: white; padding: 32px 24px; border-radius: 20px;
-            text-align: center; max-width: 280px; width: 90%;
-            box-shadow: 0 20px 60px rgba(0,0,0,0.15);
-            animation: scaleIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
-        ">
-            <div style="width: 48px; height: 48px; margin: 0 auto 12px;
-                border: 3px solid #e2e8f0; border-top-color: #4f46e5;
-                border-radius: 50%; animation: spin 0.6s linear infinite;"></div>
-            <h3 style="font-size: 14px; font-weight: 700; color: #0f172a; margin: 0;">${message}</h3>
-            <p style="font-size: 11px; color: #94a3b8; margin: 2px 0 0;">Please wait...</p>
-        </div>
-    `;
-
-    document.body.appendChild(overlay);
-};
-
-window.hideLoadingOverlay = function() {
-    const overlay = document.getElementById('loading-overlay');
-    if (overlay) {
-        overlay.style.opacity = '0';
-        overlay.style.transition = 'opacity 0.2s ease';
-        setTimeout(function() {
-            if (overlay.parentElement) overlay.remove();
-        }, 200);
-    }
-};
-
-// ================================================================ */
-// PREMIUM SUCCESS ANIMATION                                        */
-// ================================================================ */
-
-window.showPremiumSuccessAnimation = function(title, message, emoji = '🎉') {
-    window.hideLoadingOverlay();
-    window.closeSignatureModal();
-
-    const existing = document.getElementById('premium-success-animation');
-    if (existing) existing.remove();
-
-    const container = document.createElement('div');
-    container.id = 'premium-success-animation';
-    container.style.cssText = `
-        position: fixed; inset: 0; z-index: 9999999;
-        display: flex; align-items: center; justify-content: center;
-        background: rgba(0,0,0,0.5); backdrop-filter: blur(8px);
-        -webkit-backdrop-filter: blur(8px);
-        animation: fadeIn 0.3s ease-out; padding: 20px;
-    `;
-
-    container.innerHTML = `
-        <div style="
-            background: white; width: 90%; max-width: 340px;
-            padding: 36px 24px 32px 24px; border-radius: 28px;
-            text-align: center; box-shadow: 0 30px 80px rgba(0,0,0,0.25);
-            animation: scaleIn 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
-            position: relative; overflow: hidden;
-        ">
-            <div style="position: absolute; top: -50%; left: -50%; width: 200%; height: 200%;
-                background: radial-gradient(circle at center, rgba(16,185,129,0.06), transparent 70%);
-                pointer-events: none;"></div>
-
-            <div style="font-size: 56px; margin-bottom: 12px; display: block; animation: emojiBounce 1s ease-in-out infinite;">${emoji}</div>
-
-            <div style="width: 80px; height: 80px; margin: 0 auto 16px; display: flex; align-items: center; justify-content: center;">
-                <svg class="checkmark" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 52 52" style="width: 80px; height: 80px; display: block;">
-                    <circle class="checkmark-circle" cx="26" cy="26" r="25" fill="none" style="
-                        stroke: #10b981; stroke-width: 3.5;
-                        stroke-dasharray: 166; stroke-dashoffset: 166;
-                        stroke-miterlimit: 10; stroke-linecap: round;
-                        animation: stroke 0.6s cubic-bezier(0.65, 0, 0.45, 1) forwards;
-                    "/>
-                    <path class="checkmark-check" fill="none" d="M14.1 27.2l7.1 7.2 16.7-16.8" style="
-                        stroke: #10b981; stroke-width: 3.5;
-                        stroke-dasharray: 48; stroke-dashoffset: 48;
-                        stroke-linecap: round; stroke-linejoin: round;
-                        animation: stroke 0.4s cubic-bezier(0.65, 0, 0.45, 1) 0.8s forwards;
-                    "/>
-                </svg>
-            </div>
-
-            <h3 style="font-size: 20px; font-weight: 900; color: #0f172a; margin: 0 0 4px;">${title}</h3>
-            <p style="font-size: 13px; color: #64748b; font-weight: 500; margin: 0 0 16px; line-height: 1.5;">${message}</p>
-
-            <div style="display: flex; justify-content: center; gap: 8px; margin-bottom: 16px;">
-                <span style="font-size: 24px; animation: sparkle 0.6s ease 0.2s infinite alternate;">✨</span>
-                <span style="font-size: 28px; animation: sparkle 0.6s ease 0.4s infinite alternate;">🌟</span>
-                <span style="font-size: 24px; animation: sparkle 0.6s ease 0.6s infinite alternate;">✨</span>
-            </div>
-
-            <button onclick="this.closest('#premium-success-animation').remove()" style="
-                padding: 12px 40px; background: linear-gradient(135deg, #4f46e5, #4338ca);
-                color: white; border: none; border-radius: 16px; font-weight: 700;
-                font-size: 14px; cursor: pointer; box-shadow: 0 4px 20px rgba(79,70,229,0.3);
-                transition: all 0.2s ease; position: relative; z-index: 1;">
-                👍 Awesome!
-            </button>
-        </div>
-    `;
-
-    document.body.appendChild(container);
-
-    setTimeout(function() {
-        if (container.parentElement) {
-            container.style.opacity = '0';
-            container.style.transition = 'opacity 0.3s ease';
-            setTimeout(function() {
-                if (container.parentElement) container.remove();
-            }, 300);
-        }
-    }, 3000);
-
-    container.onclick = function(e) {
-        if (e.target === container) container.remove();
-    };
-};
-
-// ================================================================ */
-// CHECK-IN BUTTON HANDLER - FIXED                                 */
-// ================================================================ */
-
-window.handleCheckIn = function(staff) {
-    console.log("🌅 Check-In button clicked!");
-    console.log("👤 Staff data:", staff);
-
-    if (isCheckInProgress) {
-        console.log("⏳ Check-in already in progress");
-        return;
-    }
-
-    // Use cached staff if parameter is undefined
-    const staffData = staff || cachedStaff || window.currentStaff;
-
-    if (!staffData) {
-        console.error("❌ Staff data not found");
-        alert("Staff data not found. Please logout and login again.");
-        return;
-    }
-
-    console.log("✅ Staff data found:", staffData.fullName || staffData.name);
-
-    // Open password modal
-    isCheckInProgress = true;
-
-    window._pendingCheckIn = {
-        staff: staffData,
-        onSuccess: function() {
-            console.log("✅ Password verified for check-in");
-            isCheckInProgress = false;
-            requestAnimationFrame(function() {
-                setTimeout(function() {
-                    window.openSignatureModal("☀️ Morning Check-In", async function(sigData) {
-                        await window.completeCheckIn(staffData, sigData);
-                    });
-                }, 300);
-            });
-        },
-        onCancel: function() {
-            isCheckInProgress = false;
-        }
-    };
-
-    showPasswordModal('☀️ Morning Check-In', 'Enter your password to check in');
-};
-
-// ================================================================ */
-// CHECK-OUT BUTTON HANDLER - FIXED                                */
-// ================================================================ */
-
-window.handleCheckOut = function(staff) {
-    console.log("🌆 Check-Out button clicked!");
-    console.log("👤 Staff data:", staff);
-
-    // Use cached staff if parameter is undefined
-    const staffData = staff || cachedStaff || window.currentStaff;
-
-    if (!staffData) {
-        console.error("❌ Staff data not found");
-        alert("Staff data not found. Please logout and login again.");
-        return;
-    }
-
-    console.log("✅ Staff data found:", staffData.fullName || staffData.name);
-
-    window._pendingCheckOut = {
-        staff: staffData,
-        onSuccess: function() {
-            console.log("✅ Password verified for check-out");
-            setTimeout(function() {
-                window.completeCheckOut(staffData);
-            }, 300);
-        }
-    };
-
-    showPasswordModal('🌙 Evening Check-Out', 'Enter your password to check out');
-};
-
-// ================================================================ */
-// COMPLETE CHECK-IN                                                */
-// ================================================================ */
-
-window.completeCheckIn = async function(staff, sigData) {
-    console.log("✅ Completing Check-In");
-
-    try {
-        const mobile = staff.mobile || staff.mobileNumber;
-        if (!mobile) {
-            alert("Staff mobile not found");
-            return;
-        }
-
-        const name = staff.fullName || staff.name || "Staff";
-        const adek = staff.adekPass || staff.adcPassNumber || "N/A";
-        const time = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', second:'2-digit', hour12: true});
-        const dateKey = new Date().toISOString().split('T')[0];
-        const today = new Date().toLocaleDateString('en-US');
-
-        const result = await window.uploadStaffAttendanceSignature(
-            { name, adekPass: adek, mobile },
-            sigData,
-            'checkin'
-        );
-
-        if (result.status === 'success') {
-            const key = mobile + '_' + Date.now();
-
-            const data = {
-                mobile: mobile,
-                name: name,
-                adekPass: adek,
-                status: 'checked_in',
-                date: today,
-                dateKey: dateKey,
-                timeIn: time,
-                signatureUrl: result.fileUrl,
-                checkInTimestamp: Date.now(),
-                folderPath: result.folderPath || '',
-                fileName: result.fileName || ''
-            };
-
-            await set(ref(db, 'staff_attendance/' + key), data);
-            await set(ref(db, 'active_staff_sessions/' + mobile), {
-                status: 'checked_in',
-                key: key,
-                timeIn: time,
-                dateKey: dateKey
-            });
-
-            updateAttendanceUI('checked_in', time);
-
-            window.showPremiumSuccessAnimation(
-                '☀️ Good Morning!',
-                `${name}\nChecked in at ${time}`,
-                '🌅'
-            );
-
-            console.log("✅ Check-In complete");
-        } else {
-            alert("Signature upload failed: " + (result.message || "Unknown error"));
-        }
-    } catch (error) {
-        console.error("Check-in error:", error);
-        alert("Check-in failed: " + error.message);
-    }
-};
-
-// ================================================================ */
-// COMPLETE CHECK-OUT                                               */
-// ================================================================ */
-
-window.completeCheckOut = async function(staff) {
-    console.log("✅ Completing Check-Out");
-
-    try {
-        const mobile = staff.mobile || staff.mobileNumber;
-        if (!mobile) {
-            alert("Staff mobile not found");
-            return;
-        }
-
-        const name = staff.fullName || staff.name || "Staff";
-        const time = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', second:'2-digit', hour12: true});
-
-        const sessionSnapshot = await get(ref(db, 'active_staff_sessions/' + mobile));
-        const session = sessionSnapshot.val();
-
-        if (!session || session.status !== 'checked_in') {
-            alert("You are not checked in.");
-            return;
-        }
-
-        const updateData = {
-            status: 'checked_out',
-            checkOutTime: time,
-            checkOutTimestamp: Date.now()
-        };
-
-        await update(ref(db, 'staff_attendance/' + session.key), updateData);
-        await set(ref(db, 'active_staff_sessions/' + mobile), null);
-
-        updateAttendanceUI('checked_out', time);
-
-        window.showPremiumSuccessAnimation(
-            '🌙 Good Night!',
-            `${name}\nChecked out at ${time}`,
-            '🌙'
-        );
-
-        console.log("✅ Check-Out complete");
-    } catch (error) {
-        console.error("Check-out error:", error);
-        alert("Check-out failed: " + error.message);
-    }
-};
-
-// ================================================================ */
-// PASSWORD MODAL - FIXED                                          */
-// ================================================================ */
-
-function showPasswordModal(title, message) {
-    console.log("🔐 Showing password modal:", title);
-
-    const modal = document.getElementById('password-modal');
-    if (!modal) {
-        console.error("❌ Password modal not found");
-        alert("Password modal not found. Please refresh.");
-        return;
-    }
-
-    const titleEl = document.getElementById('password-modal-title');
-    if (titleEl) titleEl.textContent = title || '🔐 Verification Required';
-
-    const descEl = document.querySelector('#password-modal .text-sm');
-    if (descEl) descEl.textContent = message || 'Enter your password to continue';
-
-    const errorEl = document.getElementById('password-error');
-    if (errorEl) {
-        errorEl.classList.add('hidden');
-        errorEl.style.display = 'none';
-    }
-
-    const passInput = document.getElementById('modal-auth-pass');
-    if (passInput) {
-        passInput.value = '';
-        requestAnimationFrame(function() {
-            setTimeout(function() { passInput.focus(); }, 300);
-        });
-    }
-
-    modal.classList.remove('hidden');
-    modal.style.display = 'flex';
-}
-
-window.closePasswordModal = function() {
-    console.log("🔒 Closing password modal");
-
-    const modal = document.getElementById('password-modal');
-    if (modal) {
-        modal.classList.add('hidden');
-        modal.style.display = 'none';
-    }
-    const passInput = document.getElementById('modal-auth-pass');
-    if (passInput) passInput.value = '';
-    const errorEl = document.getElementById('password-error');
-    if (errorEl) {
-        errorEl.classList.add('hidden');
-        errorEl.style.display = 'none';
-    }
-    window._pendingCheckIn = null;
-    window._pendingCheckOut = null;
-    isCheckInProgress = false;
-};
-
-// ================================================================ */
-// PASSWORD VERIFICATION - FIXED                                   */
-// ================================================================ */
-
-document.addEventListener('DOMContentLoaded', function() {
-    const passBtn = document.getElementById('password-confirm-btn');
-    if (passBtn) {
-        passBtn.onclick = function() {
-            console.log("🔐 Password confirm clicked");
-
-            const passInput = document.getElementById('modal-auth-pass');
-            const errorEl = document.getElementById('password-error');
-
-            if (!passInput) {
-                console.error("❌ Password input not found");
-                return;
-            }
-
-            const entered = passInput.value.trim();
-
-            // Check for Check-In
-            if (window._pendingCheckIn) {
-                const staff = window._pendingCheckIn.staff;
-                const actual = staff.password || staff.pass || '';
-
-                if (entered === actual) {
-                    console.log("✅ Password correct for Check-In");
-                    if (errorEl) {
-                        errorEl.classList.add('hidden');
-                        errorEl.style.display = 'none';
-                    }
-
-                    const modal = document.getElementById('password-modal');
-                    if (modal) {
-                        modal.classList.add('hidden');
-                        modal.style.display = 'none';
-                    }
-
-                    passInput.value = '';
-
-                    if (window._pendingCheckIn.onSuccess) {
-                        requestAnimationFrame(function() {
-                            setTimeout(function() {
-                                window._pendingCheckIn.onSuccess();
-                            }, 300);
-                        });
-                    }
-                    window._pendingCheckIn = null;
-                } else {
-                    console.log("❌ Password incorrect for Check-In");
-                    if (errorEl) {
-                        errorEl.classList.remove('hidden');
-                        errorEl.style.display = 'block';
-                        errorEl.textContent = '❌ Incorrect Password. Please try again.';
-                        errorEl.style.color = '#dc2626';
-                        errorEl.style.background = '#fee2e2';
-                        errorEl.style.padding = '10px 16px';
-                        errorEl.style.borderRadius = '12px';
-                        errorEl.style.fontWeight = '700';
-                        errorEl.style.fontSize = '13px';
-                    }
-                    passInput.value = '';
-                    passInput.focus();
-                }
-                return;
-            }
-
-            // Check for Check-Out
-            if (window._pendingCheckOut) {
-                const staff = window._pendingCheckOut.staff;
-                const actual = staff.password || staff.pass || '';
-
-                if (entered === actual) {
-                    console.log("✅ Password correct for Check-Out");
-                    if (errorEl) {
-                        errorEl.classList.add('hidden');
-                        errorEl.style.display = 'none';
-                    }
-
-                    const modal = document.getElementById('password-modal');
-                    if (modal) {
-                        modal.classList.add('hidden');
-                        modal.style.display = 'none';
-                    }
-
-                    passInput.value = '';
-
-                    if (window._pendingCheckOut.onSuccess) {
-                        requestAnimationFrame(function() {
-                            setTimeout(function() {
-                                window._pendingCheckOut.onSuccess();
-                            }, 300);
-                        });
-                    }
-                    window._pendingCheckOut = null;
-                } else {
-                    console.log("❌ Password incorrect for Check-Out");
-                    if (errorEl) {
-                        errorEl.classList.remove('hidden');
-                        errorEl.style.display = 'block';
-                        errorEl.textContent = '❌ Incorrect Password. Please try again.';
-                        errorEl.style.color = '#dc2626';
-                        errorEl.style.background = '#fee2e2';
-                        errorEl.style.padding = '10px 16px';
-                        errorEl.style.borderRadius = '12px';
-                        errorEl.style.fontWeight = '700';
-                        errorEl.style.fontSize = '13px';
-                    }
-                    passInput.value = '';
-                    passInput.focus();
-                }
-                return;
-            }
-
-            console.warn("⚠️ No pending action found");
-        };
-    }
-
-    const passInput = document.getElementById('modal-auth-pass');
-    if (passInput) {
-        passInput.addEventListener('keydown', function(e) {
-            if (e.key === 'Enter') {
-                const btn = document.getElementById('password-confirm-btn');
-                if (btn) btn.click();
-            }
-        });
-    }
-});
-
-// ================================================================ */
-// UI UPDATE - FIXED                                                */
-// ================================================================ */
-
-function updateAttendanceUI(status, time) {
-    const statusText = document.getElementById('attendanceStatusText');
-    const cinBtn = document.getElementById('s-checkin-btn');
-    const coutBtn = document.getElementById('s-checkout-btn');
-
-    if (status === 'checked_in') {
-        if (cinBtn) {
-            cinBtn.classList.add('hidden');
-        }
-        if (coutBtn) {
-            coutBtn.classList.remove('hidden');
-            coutBtn.innerHTML = '<i class="fa-regular fa-circle-xmark"></i> Evening Check-Out';
-            // Fix: Properly attach event without replacing the button
-            coutBtn.onclick = function() {
-                console.log("🔄 Check-Out button clicked");
-                window.handleCheckOut(cachedStaff || window.currentStaff);
-            };
-        }
-        if (statusText) {
-            statusText.innerText = `✅ Checked in at ${time}`;
-            statusText.style.color = '#10b981';
-        }
-    } else {
-        if (cinBtn) {
-            cinBtn.classList.remove('hidden');
-            cinBtn.innerHTML = '<i class="fa-regular fa-check-circle"></i> Morning Check-In';
-            // Fix: Properly attach event without replacing the button
-            cinBtn.onclick = function() {
-                console.log("🔄 Check-In button clicked");
-                window.handleCheckIn(cachedStaff || window.currentStaff);
-            };
-        }
-        if (coutBtn) {
-            coutBtn.classList.add('hidden');
-        }
-        if (statusText) {
-            statusText.innerText = "🌅 Ready to check in";
-            statusText.style.color = '#4f46e5';
-        }
-    }
-}
-
-// ================================================================ */
-// RENDER DASHBOARD - ULTRA FAST & FIXED                           */
-// ================================================================ */
-
-window.renderDashboard = function(staff) {
-    console.log("📋 Rendering dashboard (optimized)");
-
-    // Cache staff data
-    cachedStaff = staff;
+window.renderDashboard = async (staff) => {
+    console.log("📊 renderDashboard: Initializing for", staff.name);
     window.currentStaff = staff;
 
-    // Show dashboard immediately
+    const role = (staff.role || "Staff").toString().trim().toLowerCase();
+    const isSecurity = (role === 'security');
+    const isAdmin = (role === 'admin');
+
     const authArea = document.getElementById('staff-auth-area');
     const dashArea = document.getElementById('staff-dash-area');
+
+    // ENSURE ASSET TRANSFER SECTION IS HIDDEN BY DEFAULT ON DASHBOARD LOAD
+    const assetTransferSection = document.getElementById('asset-transfer-section');
+    if (assetTransferSection) assetTransferSection.classList.add('hidden');
 
     if (authArea) authArea.classList.add('hidden');
     if (dashArea) dashArea.classList.remove('hidden');
 
-    // Get staff name
-    const name = staff.fullName || staff.name || staff.fullname || "Staff";
+    // Role-based UI Simplification (Handled by Global Helper)
+    if (window.applyRoleDashboardRules) {
+        window.applyRoleDashboardRules(role);
+        if (role === 'cleaner') window.loadPersonalAttendance(staff.mobile);
+        if (role === 'security') window.loadSecurityPinControl();
+    }
 
-    // Update UI elements
     const nameDisplay = document.getElementById('userNameDisplay');
-    if (nameDisplay) nameDisplay.innerText = name;
+    if (nameDisplay) nameDisplay.innerText = staff.fullName || staff.name || "Staff";
 
-    const menuName = document.getElementById('menuUserName');
-    if (menuName) menuName.innerText = name;
+    const idDisplay = document.getElementById('s-dash-id-display');
+    if (idDisplay) idDisplay.innerText = `ID: ${staff.staffId || staff.adekPass || "-"}`;
 
     const roleEl = document.getElementById('s-dash-role-display');
-    if (roleEl) {
-        roleEl.innerText = staff.role || staff.position || "Staff";
-    }
+    if (roleEl) roleEl.innerText = staff.role || "Staff";
 
     const branchEl = document.getElementById('userBranchDisplay');
-    if (branchEl) {
-        branchEl.innerHTML = `<i class="fa-solid fa-location-dot text-indigo-400"></i> ${staff.branch || staff.school || "Jern Yafoor School"}`;
-    }
+    if (branchEl) branchEl.innerHTML = `<i class="fa-solid fa-location-dot text-indigo-400"></i> ${staff.branch || staff.school || "Jern Yafoor School"}`;
 
-    // Profile photo - lazy load
     const profileImg = window.getDirectDriveImageUrl(staff.profilePicUrl);
-    ['userAvatar', 'menuAvatar'].forEach(function(id) {
+    ['userAvatar', 'menuAvatar'].forEach(id => {
         const el = document.getElementById(id);
         if (el) {
-            el.innerHTML = `<img src="${profileImg}" class="w-full h-full object-cover" loading="lazy" onerror="this.src='https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=4f46e5&color=fff&size=128'">`;
+            el.innerHTML = `<img src="${profileImg}" class="w-full h-full object-cover" onerror="this.src='https://ui-avatars.com/api/?name=${staff.name || 'U'}&background=4f46e5&color=fff&size=128'">`;
             el.classList.add('overflow-hidden');
         }
     });
 
-    // ========================================================== */
-    // ATTENDANCE LISTENER - FIXED                                */
-    // ========================================================== */
-
     const cinBtn = document.getElementById('s-checkin-btn');
     const coutBtn = document.getElementById('s-checkout-btn');
     const statusText = document.getElementById('attendanceStatusText');
 
-    const mobile = staff.mobile || staff.mobileNumber;
-    if (!mobile) {
-        console.error("No mobile found");
-        return;
-    }
+    if (cinBtn) { cinBtn.disabled = false; cinBtn.innerHTML = '<i class="fa-regular fa-check-circle"></i> Check In'; }
+    if (coutBtn) { coutBtn.disabled = false; coutBtn.innerHTML = '<i class="fa-regular fa-circle-xmark"></i> Check Out'; }
 
-    // Remove old listener if exists
-    if (sessionListener) {
-        sessionListener();
-        sessionListener = null;
-    }
-
-    // ========================================================== */
-    // DIRECT BUTTON BINDING - FIXED                              */
-    // ========================================================== */
-
-    // Bind Check-In button directly
-    if (cinBtn) {
-        // Remove any existing listeners by cloning
-        const newCinBtn = cinBtn.cloneNode(true);
-        cinBtn.parentNode.replaceChild(newCinBtn, cinBtn);
-
-        newCinBtn.onclick = function() {
-            console.log("🔄 Check-In button clicked (direct binding)");
-            window.handleCheckIn(staff);
-        };
-        console.log("✅ Check-In button bound");
-    }
-
-    // Bind Check-Out button directly (hidden initially)
-    if (coutBtn) {
-        const newCoutBtn = coutBtn.cloneNode(true);
-        coutBtn.parentNode.replaceChild(newCoutBtn, coutBtn);
-
-        newCoutBtn.onclick = function() {
-            console.log("🔄 Check-Out button clicked (direct binding)");
-            window.handleCheckOut(staff);
-        };
-        console.log("✅ Check-Out button bound");
-    }
-
-    // ========================================================== */
-    // SESSION LISTENER                                           */
-    // ========================================================== */
-
-    const sessionRef = ref(db, 'active_staff_sessions/' + mobile);
-
-    // Check session once first for fast initial load
-    get(sessionRef).then(function(snapshot) {
+    onValue(ref(db, 'active_staff_sessions/' + staff.mobile), async (snapshot) => {
         const session = snapshot.val();
-        updateButtons(session);
-    }).catch(function(error) {
-        console.warn("Session check error:", error);
-    });
 
-    // Setup real-time listener
-    sessionListener = onValue(sessionRef, function(snapshot) {
-        const session = snapshot.val();
-        updateButtons(session);
+        if (session && session.status === 'checked_in') {
+            if (cinBtn) cinBtn.classList.add('hidden');
+            if (coutBtn) coutBtn.classList.remove('hidden');
+            if (statusText) statusText.innerText = "Checked in at " + (session.timeIn || "recently");
+
+            if (coutBtn) {
+                coutBtn.onclick = () => {
+                    window.openPasswordModal("Check-Out Security", async () => {
+
+                        // Evening Check-Out Mandatory Return Lock
+                        if (session.keyStatus === 'HELD') {
+                            window.openKeyReturnModal(async () => {
+                                await proceedCheckOut(staff, session, coutBtn, true);
+                            });
+                        } else {
+                            await proceedCheckOut(staff, session, coutBtn, false);
+                        }
+                    });
+                };
+            }
+        } else {
+            if (cinBtn) {
+                cinBtn.classList.remove('hidden');
+                cinBtn.onclick = () => {
+                    window.openPasswordModal("Check-In Security", () => {
+                        window.openSignatureModal("Staff Check-In", async (sigData) => {
+
+                            // Morning Check-In Key Prompt (Non-Security/Admin)
+                            if (!isSecurity && !isAdmin) {
+                                window.openKeyCollectionModal(async (hasKey) => {
+                                    await proceedCheckIn(staff, sigData, cinBtn, hasKey);
+                                });
+                            } else {
+                                await proceedCheckIn(staff, sigData, cinBtn, false);
+                            }
+                        });
+                    });
+                };
+            }
+            if (coutBtn) coutBtn.classList.add('hidden');
+            if (statusText) statusText.innerText = "Ready to check in";
+        }
     });
 };
 
-function updateButtons(session) {
-    const cinBtn = document.getElementById('s-checkin-btn');
-    const coutBtn = document.getElementById('s-checkout-btn');
-    const statusText = document.getElementById('attendanceStatusText');
-    const staff = cachedStaff || window.currentStaff;
+async function proceedCheckIn(staff, sigData, btn, hasKey) {
+    console.log("📥 Check-In: Proceeding...");
+    btn.disabled = true;
+    window.showGlobalSpinner("Saving Check-In Record...");
 
-    if (session && session.status === 'checked_in') {
-        // Checked IN
-        if (cinBtn) {
-            cinBtn.classList.add('hidden');
-        }
-        if (coutBtn) {
-            coutBtn.classList.remove('hidden');
-            coutBtn.innerHTML = '<i class="fa-regular fa-circle-xmark"></i> Evening Check-Out';
-            // Fix: Set onclick directly without cloning
-            coutBtn.onclick = function() {
-                console.log("🔄 Check-Out button clicked (from listener)");
-                window.handleCheckOut(staff);
-            };
-        }
-        if (statusText) {
-            statusText.innerText = `✅ Checked in at ${session.timeIn || 'recently'}`;
-            statusText.style.color = '#10b981';
-        }
-    } else {
-        // Checked OUT
-        if (cinBtn) {
-            cinBtn.classList.remove('hidden');
-            cinBtn.innerHTML = '<i class="fa-regular fa-check-circle"></i> Morning Check-In';
-            // Fix: Set onclick directly without cloning
-            cinBtn.onclick = function() {
-                console.log("🔄 Check-In button clicked (from listener)");
-                window.handleCheckIn(staff);
-            };
-        }
-        if (coutBtn) {
-            coutBtn.classList.add('hidden');
-        }
-        if (statusText) {
-            statusText.innerText = "🌅 Ready to check in";
-            statusText.style.color = '#4f46e5';
-        }
+    try {
+        const loc = await getFastLocation();
+        const res = await window.uploadToDrive({
+            category: UPLOAD_CONFIG.CATEGORIES.STAFF_ATTENDANCE,
+            fileName: `Attendance_In_${staff.mobile}_${Date.now()}.png`,
+            image: sigData
+        });
+
+        if (res.status !== 'success') throw new Error(res.message || "Upload failed");
+
+        const key = staff.mobile + '_' + Date.now();
+        const pin = hasKey ? window.generateKeyReturnPin() : null; // GENERATE PIN
+        const data = {
+            mobile: staff.mobile,
+            name: staff.fullName || staff.name,
+            role: staff.role || "Staff",
+            branch: staff.branch || staff.school || "School 1",
+            status: 'checked_in',
+            date: new Date().toLocaleDateString(),
+            timeIn: new Date().toLocaleTimeString(),
+            timestamp: Date.now(),
+            signatureUrl: res.fileUrl,
+            lat: loc.lat,
+            lng: loc.lng,
+            keyStatus: hasKey ? "HELD" : "NONE",
+            keyCollectTime: hasKey ? Date.now() : null,
+            keyReturnPin: pin, // STORE PIN
+            companyName: staff.companyName || "N/A",
+            companyId: staff.companyId || "N/A",
+            adekPass: staff.adekPass || staff.adcPassNumber || "N/A"
+        };
+
+        await set(ref(db, 'staff_attendance/' + key), data);
+        await set(ref(db, 'active_staff_sessions/' + staff.mobile), {
+            status: 'checked_in', key, timeIn: data.timeIn, keyStatus: data.keyStatus, keyReturnPin: pin
+        });
+
+        if (hasKey) alert("🔑 YOUR KEY RETURN PIN: " + pin + "\n(Keep this for check-out)");
+
+        if (window.triggerSuccessPopup) window.triggerSuccessPopup("Checked In Successfully! ✅");
+        else alert("Checked in!");
+
+    } catch (err) {
+        console.error("❌ Check-In Error:", err);
+        alert("Error: " + err.message);
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fa-regular fa-check-circle"></i> Check In';
+        window.hideGlobalSpinner();
     }
 }
 
-// ================================================================ */
-// LOGOUT - CLEANUP                                                 */
-// ================================================================ */
-
-window.logoutStaff = function() {
-    console.log("🔒 Logging out - cleaning up listeners");
-
-    if (sessionListener) {
-        sessionListener();
-        sessionListener = null;
-    }
-
-    cachedStaff = null;
-    window.currentStaff = null;
-    isCheckInProgress = false;
+async function proceedCheckOut(staff, session, btn, keyReturned) {
+    console.log("📤 Check-Out: Proceeding...");
+    btn.disabled = true;
+    window.showGlobalSpinner("Finalizing Check-Out...");
 
     try {
-        localStorage.clear();
-        sessionStorage.clear();
-    } catch(e) {}
+        const loc = await getFastLocation();
 
-    window.location.href = 'staff-login.html';
+        const data = {
+            status: 'checked_out',
+            checkOutTime: new Date().toLocaleTimeString(),
+            checkOutTimestamp: Date.now(),
+            checkOutLat: loc.lat,
+            checkOutLng: loc.lng
+        };
+
+        if (keyReturned) {
+            data.keyStatus = "RETURNED";
+            data.keyReturnTime = Date.now();
+        }
+
+        await update(ref(db, 'staff_attendance/' + session.key), data);
+        await set(ref(db, 'active_staff_sessions/' + staff.mobile), null);
+
+        if (window.triggerSuccessPopup) window.triggerSuccessPopup("Checked Out Successfully! 👋");
+        else alert("Checked out!");
+
+    } catch (err) {
+        console.error("❌ Check-Out Error:", err);
+        alert("Error: " + err.message);
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fa-regular fa-circle-xmark"></i> Check Out';
+        window.hideGlobalSpinner();
+    }
+}
+
+window.loadPersonalAttendance = async (mobile) => {
+    const body = document.getElementById('cleaner-attendance-body');
+    const countEl = document.getElementById('cleaner-total-days');
+    if (!body) return;
+
+    try {
+        const snap = await get(ref(db, 'staff_attendance'));
+        if (snap.exists()) {
+            const all = Object.values(snap.val()).filter(a => a.mobile === mobile);
+            all.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+
+            if (countEl) countEl.innerText = `${all.length} Days Total`;
+
+            body.innerHTML = all.map(a => {
+                let keyLog = '<span class="text-slate-300">N/A</span>';
+                if (a.keyStatus === 'HELD') keyLog = '🔑 <span class="text-amber-600">Held</span>';
+                else if (a.keyStatus === 'RETURNED') keyLog = '✅ <span class="text-emerald-600">Returned</span>';
+                else if (a.keyStatus === 'NONE') keyLog = '❌ <span class="text-slate-400">None</span>';
+
+                return `
+                    <tr>
+                        <td class="p-4 font-bold text-indigo-900">${a.date}</td>
+                        <td class="p-4 text-emerald-600 font-bold">${a.timeIn || '-'}</td>
+                        <td class="p-4 text-red-500 font-bold">${a.checkOutTime || '-'}</td>
+                        <td class="p-4">${keyLog}</td>
+                    </tr>
+                `;
+            }).join('');
+        } else {
+            body.innerHTML = '<tr><td colspan="4" class="p-8 text-center text-gray-400">No records found</td></tr>';
+        }
+    } catch (e) {
+        console.error("Personal Attendance Error:", e);
+        body.innerHTML = '<tr><td colspan="4" class="p-8 text-center text-red-400">Error loading history</td></tr>';
+    }
 };
 
-console.log("✅ attendance_module.js loaded (CHECK-IN FIXED)");
+console.log("✅ attendance_module.js: UI & Security Enhanced");
+
+
+console.log("✅ attendance_module.js: UI & Security Enhanced");

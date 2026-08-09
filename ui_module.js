@@ -1,397 +1,512 @@
 // ================================================================ */
-// UI MODULE - ULTRA OPTIMIZED WITH DRIVE IMAGE FIX                */
+// UI UTILITIES & INTERFACE HELPERS                                 */
 // ================================================================ */
 
 // ================================================================ */
-// SIGNATURE PAD ENGINE - LIGHTWEIGHT                              */
+// SIGNATURE PAD ENGINE (PREMIUM v3.6.0 - EVENT ISOLATION FIX)      */
 // ================================================================ */
-
 class SignaturePadEngine {
     constructor(canvasId) {
         this.canvas = document.getElementById(canvasId);
-        if (!this.canvas) {
-            console.error("❌ Canvas not found:", canvasId);
-            return;
-        }
-
-        this.canvasId = canvasId;
+        if (!this.canvas) return;
+        this.ctx = this.canvas.getContext('2d', { alpha: false });
         this.isDrawing = false;
         this.isLocked = true;
-        this.ctx = this.canvas.getContext('2d');
-
         this._setupCanvas();
         this._bindEvents();
-
-        console.log(`✅ Signature Pad "${canvasId}" initialized`);
     }
 
-    _setupCanvas() {
-        const rect = this.canvas.getBoundingClientRect();
-        const ratio = window.devicePixelRatio || 1;
 
+_setupCanvas() {
+    const rect = this.canvas.getBoundingClientRect();
+    const ratio = window.devicePixelRatio || 1;
+    if (rect.width > 0) {
         this.canvas.width = rect.width * ratio;
         this.canvas.height = rect.height * ratio;
+        this.ctx.resetTransform();
         this.ctx.scale(ratio, ratio);
-
-        this.ctx.lineWidth = 3;
-        this.ctx.lineCap = 'round';
-        this.ctx.lineJoin = 'round';
-        this.ctx.strokeStyle = '#1E1B4B';
-        this.ctx.fillStyle = '#FFFFFF';
-        this.ctx.fillRect(0, 0, rect.width, rect.height);
     }
+    this.ctx.lineWidth = 3;
+    this.ctx.lineCap = 'round';
+    this.ctx.strokeStyle = '#1E1B4B';
+    this.ctx.fillStyle = '#FFFFFF';
+    this.ctx.fillRect(0, 0, this.canvas.width / ratio, this.canvas.height / ratio);
+}
 
-    _getPosition(e) {
-        const rect = this.canvas.getBoundingClientRect();
-        let clientX, clientY;
+_getPosition(e) {
+    const rect = this.canvas.getBoundingClientRect();
+    let clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    let clientY = e.touches ? e.touches[0].clientY : e.clientY;
+    return { x: clientX - rect.left, y: clientY - rect.top };
+}
 
-        if (e.touches && e.touches.length > 0) {
-            clientX = e.touches[0].clientX;
-            clientY = e.touches[0].clientY;
-        } else {
-            clientX = e.clientX;
-            clientY = e.clientY;
-        }
+_handleStart(e) {
+    if (this.isLocked) return;
+    e.preventDefault();
+    e.stopPropagation(); // Prevents modal auto-close
+    const pos = this._getPosition(e);
+    this.isDrawing = true;
+    this.ctx.beginPath();
+    this.ctx.moveTo(pos.x, pos.y);
+}
 
-        return {
-            x: (clientX - rect.left),
-            y: (clientY - rect.top)
-        };
-    }
+_handleMove(e) {
+    if (!this.isDrawing || this.isLocked) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const pos = this._getPosition(e);
+    this.ctx.lineTo(pos.x, pos.y);
+    this.ctx.stroke();
+}
 
-    _startDrawing(e) {
-        if (this.isLocked) return;
-        if (e.cancelable !== false) e.preventDefault();
-
-        const pos = this._getPosition(e);
-        this.isDrawing = true;
-        this.ctx.beginPath();
-        this.ctx.moveTo(pos.x, pos.y);
-    }
-
-    _draw(e) {
-        if (!this.isDrawing || this.isLocked) return;
-        if (e.cancelable !== false) e.preventDefault();
-
-        const pos = this._getPosition(e);
-        this.ctx.lineTo(pos.x, pos.y);
-        this.ctx.stroke();
-    }
-
-    _stopDrawing(e) {
-        if (this.isLocked) return;
-        if (e && e.cancelable !== false) e.preventDefault();
-
+_handleEnd(e) {
+    if (this.isDrawing) {
+        e?.stopPropagation();
         this.isDrawing = false;
         this.ctx.closePath();
     }
-
-    _bindEvents() {
-        // Touch events
-        this.canvas.addEventListener('touchstart', this._startDrawing.bind(this), { passive: false });
-        this.canvas.addEventListener('touchmove', this._draw.bind(this), { passive: false });
-        this.canvas.addEventListener('touchend', this._stopDrawing.bind(this), { passive: false });
-        this.canvas.addEventListener('touchcancel', this._stopDrawing.bind(this), { passive: false });
-
-        // Mouse events
-        this.canvas.addEventListener('mousedown', this._startDrawing.bind(this));
-        this.canvas.addEventListener('mousemove', this._draw.bind(this));
-        this.canvas.addEventListener('mouseup', this._stopDrawing.bind(this));
-        this.canvas.addEventListener('mouseleave', this._stopDrawing.bind(this));
-
-        this.canvas.addEventListener('contextmenu', function(e) { e.preventDefault(); });
-        this.canvas.style.touchAction = 'none';
-    }
-
-    unlock() {
-        this.isLocked = false;
-        const wrapper = this.canvas.closest('.canvas-wrapper');
-        if (wrapper) {
-            wrapper.classList.add('unlocked');
-            const overlay = wrapper.querySelector('.sig-lock-overlay');
-            if (overlay) overlay.style.display = 'none';
-        }
-        this.canvas.style.cursor = 'crosshair';
-        return this;
-    }
-
-    lock() {
-        this.isLocked = true;
-        const wrapper = this.canvas.closest('.canvas-wrapper');
-        if (wrapper) {
-            wrapper.classList.remove('unlocked');
-            const overlay = wrapper.querySelector('.sig-lock-overlay');
-            if (overlay) overlay.style.display = 'flex';
-        }
-        this.canvas.style.cursor = 'default';
-        return this;
-    }
-
-    clear() {
-        const rect = this.canvas.getBoundingClientRect();
-        const ratio = window.devicePixelRatio || 1;
-        this.ctx.fillStyle = '#FFFFFF';
-        this.ctx.fillRect(0, 0, rect.width * ratio, rect.height * ratio);
-        this.isDrawing = false;
-        return this;
-    }
-
-    isEmpty() {
-        const imageData = this.ctx.getImageData(0, 0, this.canvas.width, this.canvas.height);
-        const data = imageData.data;
-        for (let i = 3; i < data.length; i += 4) {
-            if (data[i] !== 0) return false;
-        }
-        return true;
-    }
-
-    toDataURL() {
-        return this.canvas.toDataURL('image/png');
-    }
 }
 
-// ================================================================ */
-// SIGNATURE PAD MANAGER - LIGHTWEIGHT                             */
-// ================================================================ */
+_bindEvents() {
+    const c = this.canvas;
+    const wrapper = c.closest('.canvas-wrapper') || c.parentElement;
+
+    // Prevent touch events from bubbling up to Modal / Backdrop Close Listeners
+    ['pointerdown', 'touchstart', 'mousedown'].forEach(evt => {
+        c.addEventListener(evt, (e) => {
+            e.stopPropagation();
+        }, { passive: false });
+
+        if (wrapper) {
+            wrapper.addEventListener(evt, (e) => {
+                e.stopPropagation();
+            }, { passive: false });
+        }
+    });
+
+    c.addEventListener('pointerdown', this._handleStart.bind(this));
+    c.addEventListener('pointermove', this._handleMove.bind(this));
+    window.addEventListener('pointerup', this._handleEnd.bind(this));
+    c.style.touchAction = 'none';
+}
+
+unlock() { this.isLocked = false; return this; }
+lock() { this.isLocked = true; return this; }
+clear() { this._setupCanvas(); }
+toDataURL() { return this.canvas.toDataURL("image/png"); }
+}
 
 class SignaturePadManager {
-    constructor() {
-        this.pads = {};
-    }
-
+    constructor() { this.pads = new Map(); }
     getPad(id) {
-        if (!this.pads[id]) {
-            this.pads[id] = new SignaturePadEngine(id);
+        if (!this.pads.has(id)) {
+            const pad = new SignaturePadEngine(id);
+            this.pads.set(id, pad);
         }
-        return this.pads[id];
-    }
-
-    initPad(id) {
-        if (this.pads[id]) {
-            try { this.pads[id].destroy(); } catch(e) {}
-        }
-        this.pads[id] = new SignaturePadEngine(id);
-        return this.pads[id];
-    }
-
-    initAllPads() {
-        const canvases = document.querySelectorAll('.signature-canvas');
-        canvases.forEach(canvas => {
-            this.getPad(canvas.id);
-        });
+        return this.pads.get(id);
     }
 }
 
 window.sigPadManager = new SignaturePadManager();
+window.getCanvasBase64 = (id) => window.sigPadManager.getPad(id).toDataURL();
 
-// ================================================================ */
-// GLOBAL FUNCTIONS - LIGHTWEIGHT                                  */
-// ================================================================ */
-
-window.unlockSignaturePad = function(event) {
-    let overlay = event;
-    if (event.target) {
-        overlay = event.target.closest('.sig-lock-overlay') || event.target;
-    }
-
-    const wrapper = overlay.closest('.canvas-wrapper');
-    if (!wrapper) return;
-
-    const canvas = wrapper.querySelector('.signature-canvas');
-    if (!canvas) return;
-
-    const pad = window.sigPadManager.getPad(canvas.id);
-    if (pad) {
-        pad.unlock();
-        overlay.style.display = 'none';
-        wrapper.classList.add('unlocked');
-    }
-};
-
-window.unlockCanvas = window.unlockSignaturePad;
-
-window.getCanvasBase64 = function(id) {
-    const pad = window.sigPadManager.getPad(id);
-    return pad ? pad.toDataURL() : null;
-};
-
-window.clearSignaturePad = function(id) {
+window.clearSignaturePad = (id) => {
     const pad = window.sigPadManager.getPad(id);
     if (pad) {
         pad.clear();
         pad.lock();
-        const wrapper = pad.canvas.closest('.canvas-wrapper');
-        if (wrapper) {
-            const overlay = wrapper.querySelector('.sig-lock-overlay');
-            if (overlay) overlay.style.display = 'flex';
-            wrapper.classList.remove('unlocked');
+    }
+    const canvas = document.getElementById(id);
+    const wrapper = canvas?.closest('.canvas-wrapper');
+    if (wrapper) wrapper.classList.remove('unlocked');
+};
+
+window.unlockCanvas = (el, event) => {
+    if (event) {
+        event.preventDefault();
+        event.stopPropagation();
+    }
+    const wrapper = el.closest('.canvas-wrapper') || el;
+    const canvas = wrapper?.querySelector('canvas') || wrapper;
+    if (wrapper) wrapper.classList.add('unlocked');
+
+    if (canvas) {
+        const pad = window.sigPadManager.getPad(canvas.id);
+        if (pad) {
+            pad.unlock();
+            // Setup dimensions safely without clearing active path
+            pad._setupCanvas();
         }
     }
 };
 
-window.initTransferSigPads = function() {
-    window.sigPadManager.initPad('t_security_sig');
-    window.sigPadManager.initPad('t_received_sig');
-};
+window.initVisitorCanvas = () => window.sigPadManager.getPad('v-sig-pad');
 
-window.initVisitorCanvas = function() {
-    window.sigPadManager.initPad('v-sig-pad');
+// --- GLOBAL SUCCESS POPUP ---
+window.triggerSuccessPopup = (msg) => {
+    alert(msg || "Action completed successfully!");
 };
 
 // ================================================================ */
-// LAUNCH VIDEO - OPTIMIZED                                        */
+// GLOBAL LOADING SPINNER (v4.0 - UNIVERSAL LOGO LOADER)            */
 // ================================================================ */
+let spinnerTimeout = null;
 
-window.handleLaunchVideo = function() {
-    const overlay = document.getElementById('launchVideoOverlay');
-    const video = document.getElementById('appLaunchVideo');
-    const skipBtn = document.getElementById('skipVideoBtn');
+window.showGlobalSpinner = (message = "Loading...") => {
+    const spinner = document.getElementById('universal-logo-loader');
+    const spText = document.getElementById('universal-loader-text');
 
-    if (!overlay) return;
-    if (sessionStorage.getItem('videoPlayedThisSession') === 'true') {
-        overlay.style.display = 'none';
-        overlay.remove();
-        return;
+    if (spinner) {
+        if (spText && message) spText.innerText = message;
+        spinner.style.display = 'flex';
+        spinner.classList.remove('hidden');
+
+        // Use Pulse instead of Spin
+        const img = spinner.querySelector('img');
+        if (img) img.className = "w-28 h-28 object-contain rounded-2xl logo-pulse-anim";
+
+        // Safety Auto-Hide after 15 seconds max
+        if (spinnerTimeout) clearTimeout(spinnerTimeout);
+        spinnerTimeout = setTimeout(() => {
+            window.hideGlobalSpinner();
+        }, 15000);
     }
+};
 
-    overlay.classList.remove('hidden');
-    overlay.style.display = 'flex';
+window.hideGlobalSpinner = () => {
+    const spinner = document.getElementById('universal-logo-loader');
+    if (spinner) {
+        spinner.style.display = 'none';
+        spinner.classList.add('hidden');
+    }
+    if (spinnerTimeout) clearTimeout(spinnerTimeout);
+};
 
-    if (video) {
-        video.play().catch(function() {
-            setTimeout(function() { hideLaunchVideo(); }, 2000);
+// Aliases for backward compatibility
+window.showLoader = window.showGlobalSpinner;
+window.hideLoader = window.hideGlobalSpinner;
+
+/**
+ * ROLE-BASED DASHBOARD RULES (v4.0)
+ * Triggered ONLY IF user's role is strictly 'Cleaner'
+ */
+window.applyRoleDashboardRules = (userRole) => {
+    const role = (userRole || '').toString().trim().toLowerCase();
+    const isSimpleCleaner = (role === 'cleaner');
+
+    console.log(`🛡️ Applying Rules for Role: [${role}] | Restricted: ${isSimpleCleaner}`);
+
+    // Sidebar & Menu Elements
+    const restrictedMenuSections = ['menu-asset-section', 'menu-tasks-btn'];
+    const advancedDashboardSections = ['asset-transfer-section', 'asset-audit-section', 'asset-disposal-section', 'transfer-logs-section', 'security-task-area', 'tasks-management-section'];
+    const cleanerHistorySection = 'cleaner-attendance-section';
+
+    if (isSimpleCleaner) {
+        // 🛑 CLEANER ROLE: Hide everything except Home & Attendance History
+        restrictedMenuSections.forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.classList.add('hidden');
         });
-        video.onended = function() { hideLaunchVideo(); };
-        video.onerror = function() { hideLaunchVideo(); };
-        setTimeout(function() {
-            if (overlay.style.display !== 'none') { hideLaunchVideo(); }
-        }, 4000);
+        advancedDashboardSections.forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.classList.add('hidden');
+        });
+        const historyEl = document.getElementById(cleanerHistorySection);
+        if (historyEl) historyEl.classList.remove('hidden');
     } else {
-        setTimeout(function() { hideLaunchVideo(); }, 1000);
-    }
-
-    if (skipBtn) {
-        skipBtn.onclick = function() { hideLaunchVideo(); };
+        // ✅ OTHERS: Restore all features
+        restrictedMenuSections.forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.classList.remove('hidden');
+        });
+        advancedDashboardSections.forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.classList.remove('hidden');
+        });
+        const historyEl = document.getElementById(cleanerHistorySection);
+        if (historyEl) historyEl.classList.add('hidden');
     }
 };
 
-function hideLaunchVideo() {
-    const overlay = document.getElementById('launchVideoOverlay');
-    const video = document.getElementById('appLaunchVideo');
-    if (!overlay) return;
-    if (video) { try { video.pause(); } catch(e) {} }
-    sessionStorage.setItem('videoPlayedThisSession', 'true');
-    overlay.style.opacity = '0';
-    setTimeout(function() {
-        overlay.style.display = 'none';
-        overlay.remove();
-    }, 300);
+// --- AUTOMATIC SPINNER ATTACHMENT (FORCE FIX) ---
+document.addEventListener('DOMContentLoaded', () => {
+    // Auto-catch all form submit events
+    document.addEventListener('submit', (e) => {
+        window.showGlobalSpinner("Saving Data...");
+    }, true);
+
+    // Auto-catch all primary action buttons
+    const attachButtonListeners = () => {
+        document.querySelectorAll('button[type="submit"], .btn-primary, .submit-btn, .btn-submit-transfer').forEach(btn => {
+            if (!btn.dataset.spinnerBound) {
+                btn.addEventListener('click', () => {
+                    setTimeout(() => {
+                        const form = btn.closest('form');
+                        if (!form || form.checkValidity()) {
+                            window.showGlobalSpinner("Please wait...");
+                        }
+                    }, 10);
+                });
+                btn.dataset.spinnerBound = "true";
+            }
+        });
+    };
+
+    attachButtonListeners();
+    const observer = new MutationObserver(attachButtonListeners);
+    observer.observe(document.body, { childList: true, subtree: true });
+});
+
+
+/**
+ * ROLE-BASED DASHBOARD RULES (v4.0)
+ * Triggered ONLY IF user's role is strictly 'Cleaner'
+ */
+window.applyRoleDashboardRules = (userRole) => {
+    const role = (userRole || '').toString().trim().toLowerCase();
+    const isSimpleCleaner = (role === 'cleaner');
+
+    console.log(`🛡️ Applying Rules for Role: [${role}] | Restricted: ${isSimpleCleaner}`);
+
+    // Sidebar & Menu Elements
+    const restrictedMenuSections = ['menu-asset-section', 'menu-tasks-btn'];
+    const advancedDashboardSections = ['asset-transfer-section', 'asset-audit-section', 'asset-disposal-section', 'transfer-logs-section', 'security-task-area', 'tasks-management-section'];
+    const cleanerHistorySection = 'cleaner-attendance-section';
+
+    if (isSimpleCleaner) {
+        // 🛑 CLEANER ROLE: Hide everything except Home & Attendance History
+        restrictedMenuSections.forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.classList.add('hidden');
+        });
+        advancedDashboardSections.forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.classList.add('hidden');
+        });
+        const historyEl = document.getElementById(cleanerHistorySection);
+        if (historyEl) historyEl.classList.remove('hidden');
+    } else {
+        // ✅ OTHERS: Restore all features
+        restrictedMenuSections.forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.classList.remove('hidden');
+        });
+        advancedDashboardSections.forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.classList.remove('hidden');
+        });
+        const historyEl = document.getElementById(cleanerHistorySection);
+        if (historyEl) historyEl.classList.add('hidden');
+    }
+};
+
+// --- AUTOMATIC SPINNER ATTACHMENT (FORCE FIX) ---
+document.addEventListener('DOMContentLoaded', () => {
+    // Auto-catch all form submit events
+    document.addEventListener('submit', (e) => {
+        // Don't show if the form has a specific handler that already shows a more detailed spinner
+        // but as a safety, we show a generic one.
+        window.showGlobalSpinner("Saving Record...");
+    }, true);
+
+    // Auto-catch all primary action buttons
+    const attachButtonListeners = () => {
+        document.querySelectorAll('button[type="submit"], .btn-primary, .submit-btn, .btn-submit-transfer').forEach(btn => {
+            if (!btn.dataset.spinnerBound) {
+                btn.addEventListener('click', () => {
+                    // Small delay to check if form is valid before showing spinner
+                    setTimeout(() => {
+                        const form = btn.closest('form');
+                        if (!form || form.checkValidity()) {
+                            window.showGlobalSpinner("Please wait...");
+                        }
+                    }, 10);
+                });
+                btn.dataset.spinnerBound = "true";
+            }
+        });
+    };
+
+    attachButtonListeners();
+    // Re-attach for dynamic modals/content
+    const observer = new MutationObserver(attachButtonListeners);
+    observer.observe(document.body, { childList: true, subtree: true });
+});
+
+// Aliases for backward compatibility with previous step
+window.showLoader = window.showGlobalSpinner;
+window.hideLoader = window.hideGlobalSpinner;
+
+/**
+ * UNIVERSAL TABLE PAGINATOR (v4.0)
+ * Handles client-side pagination for all dashboard tables
+ */
+class TablePaginator {
+    constructor(containerId, itemsPerPage = 20) {
+        this.containerId = containerId; // ID of the <div> where controls go
+        this.itemsPerPage = itemsPerPage;
+        this.currentPage = 1;
+        this.data = [];
+        this.renderCallback = null;
+    }
+
+    /**
+     * @param {Array} dataArray - The full dataset to paginate
+     * @param {Function} renderRowCallback - (pageItems, startIndex) => void
+     */
+    init(dataArray, renderRowCallback) {
+        this.data = dataArray || [];
+        this.renderCallback = renderRowCallback;
+        this.currentPage = 1;
+        this.render();
+    }
+
+    render() {
+        if (!this.renderCallback) return;
+
+        window.showGlobalSpinner("Syncing View...");
+
+        setTimeout(() => {
+            const totalPages = Math.max(1, Math.ceil(this.data.length / this.itemsPerPage));
+            if (this.currentPage > totalPages) this.currentPage = totalPages;
+            if (this.currentPage < 1) this.currentPage = 1;
+
+            const start = (this.currentPage - 1) * this.itemsPerPage;
+            const end = start + this.itemsPerPage;
+            const pageItems = this.data.slice(start, end);
+
+            // Execute actual rendering of rows
+            this.renderCallback(pageItems, start);
+
+            // Render controls UI
+            this.renderControls(totalPages);
+
+            window.hideGlobalSpinner();
+        }, 100);
+    }
+
+
+    renderControls(totalPages) {
+        const container = document.getElementById(this.containerId);
+        if (!container) return;
+
+        container.innerHTML = `
+            <div class="flex flex-col sm:flex-row items-center justify-between gap-4 px-4 py-3 bg-white/50 backdrop-blur-sm border border-slate-100 rounded-2xl text-[10px] font-black uppercase tracking-widest text-slate-400 mt-4 shadow-sm">
+                <div class="flex items-center gap-3">
+                    <span class="opacity-50">Show:</span>
+                    <select class="page-size-select bg-slate-50 border border-slate-200 rounded-lg px-2 py-1 text-indigo-600 outline-none">
+                        <option value="10" ${this.itemsPerPage === 10 ? 'selected' : ''}>10</option>
+                        <option value="20" ${this.itemsPerPage === 20 ? 'selected' : ''}>20</option>
+                        <option value="50" ${this.itemsPerPage === 50 ? 'selected' : ''}>50</option>
+                        <option value="100" ${this.itemsPerPage === 100 ? 'selected' : ''}>100</option>
+                    </select>
+                    <span class="ml-2">Total: <span class="text-indigo-600 font-black">${this.data.length}</span></span>
+                </div>
+
+                <div class="flex items-center gap-4">
+                    <button class="prev-btn w-8 h-8 flex items-center justify-center bg-indigo-50 text-indigo-600 rounded-full disabled:opacity-30 disabled:grayscale transition-all active:scale-90" ${this.currentPage === 1 ? 'disabled' : ''}>
+                        <i class="fa-solid fa-chevron-left"></i>
+                    </button>
+
+                    <div class="flex items-center gap-1">
+                        <span class="opacity-50">Page</span>
+                        <span class="text-indigo-600">${this.currentPage}</span>
+                        <span class="opacity-50">/ ${totalPages}</span>
+                    </div>
+
+                    <button class="next-btn w-8 h-8 flex items-center justify-center bg-indigo-50 text-indigo-600 rounded-full disabled:opacity-30 disabled:grayscale transition-all active:scale-90" ${this.currentPage >= totalPages ? 'disabled' : ''}>
+                        <i class="fa-solid fa-chevron-right"></i>
+                    </button>
+                </div>
+            </div>
+        `;
+
+        // Bind control events
+        container.querySelector('.prev-btn')?.addEventListener('click', (e) => { e.preventDefault(); this.currentPage--; this.render(); });
+        container.querySelector('.next-btn')?.addEventListener('click', (e) => { e.preventDefault(); this.currentPage++; this.render(); });
+        container.querySelector('.page-size-select')?.addEventListener('change', (e) => {
+            this.itemsPerPage = parseInt(e.target.value);
+            this.currentPage = 1;
+            this.render();
+        });
+    }
 }
 
+window.TablePaginator = TablePaginator;
+
+// Initialize global paginators object
+window.adminPaginators = {
+    visitors: new TablePaginator('visitor-logs-pagination'),
+    attendance: new TablePaginator('staff-attendance-pagination'),
+    tasks: new TablePaginator('tasks-pagination'),
+    directory: new TablePaginator('directory-pagination'),
+    assets: new TablePaginator('assets-pagination'),
+    disposal: new TablePaginator('disposal-pagination'),
+    transfers: new TablePaginator('transfer-pagination')
+};
+
+// --- STAFF UI TAB TOGGLING ---
+window.toggleStaffTab = (tab) => {
+    try {
+        const logTab = document.getElementById('s-tab-login');
+        const regTab = document.getElementById('s-tab-reg');
+        const logForm = document.getElementById('staff-login-form');
+        const regForm = document.getElementById('staff-reg-form');
+
+        if (!logTab || !regTab || !logForm || !regForm) return;
+
+        if (tab === 'login') {
+            logTab.classList.add('text-indigo-600', 'border-indigo-600');
+            logTab.classList.remove('text-gray-400', 'border-transparent');
+            regTab.classList.add('text-gray-400', 'border-transparent');
+            regTab.classList.remove('text-indigo-600', 'border-indigo-600');
+            logForm.classList.remove('hidden');
+            regForm.classList.add('hidden');
+        } else {
+            regTab.classList.add('text-indigo-600', 'border-indigo-600');
+            regTab.classList.remove('text-gray-400', 'border-transparent');
+            logTab.classList.add('text-gray-400', 'border-transparent');
+            logTab.classList.remove('text-indigo-600', 'border-indigo-600');
+            regForm.classList.remove('hidden');
+            regForm.classList.add('hidden');
+        }
+    } catch (e) { console.error("Toggle Tab Error:", e); }
+};
+
 // ================================================================ */
-// IMAGE HELPERS - FIXED DRIVE IMAGE URL                          */
+// MEDIA RENDERING & FALLBACKS                                      */
 // ================================================================ */
 
-window.getDirectDriveImageUrl = function(url) {
-    // ✅ FIX: Better handling of Drive URLs
-    if (!url || url === 'N/A' || url === '-' || url === '' || url === 'undefined' || url === 'null') {
-        return null;
-    }
-
-    // If it's already a valid image URL (starts with http and contains image)
-    if (url.startsWith('http') && (url.includes('.jpg') || url.includes('.png') || url.includes('.jpeg') || url.includes('.gif') || url.includes('googleusercontent'))) {
-        return url;
-    }
-
-    // If it's a base64 image
-    if (url.startsWith('data:image')) {
-        return url;
-    }
-
-    // 🔥 FIX: Extract file ID from various Google Drive URL formats
+window.getDirectDriveImageUrl = (driveUrl) => {
+    if (!driveUrl || driveUrl === 'N/A' || driveUrl === '-') return 'https://placehold.co/400x300/e2e8f0/64748b?text=No+Photo';
+    if (driveUrl.startsWith('data:image')) return driveUrl;
     let fileId = null;
-
-    // Format 1: https://lh3.googleusercontent.com/d/FILE_ID
-    let match = url.match(/\/d\/([a-zA-Z0-9_-]+)/);
+    const match = driveUrl.match(/\/file\/d\/([^\/]+)/) || driveUrl.match(/[?&]id=([^&]+)/) || driveUrl.match(/([a-zA-Z0-9_-]{25,})/);
     if (match) fileId = match[1];
-
-    // Format 2: https://drive.google.com/file/d/FILE_ID/view
-    if (!fileId) {
-        match = url.match(/\/file\/d\/([a-zA-Z0-9_-]+)/);
-        if (match) fileId = match[1];
-    }
-
-    // Format 3: ?id=FILE_ID
-    if (!fileId) {
-        match = url.match(/[?&]id=([a-zA-Z0-9_-]+)/);
-        if (match) fileId = match[1];
-    }
-
-    // Format 4: Direct file ID (25+ characters)
-    if (!fileId) {
-        match = url.match(/([a-zA-Z0-9_-]{25,})/);
-        if (match) fileId = match[1];
-    }
-
-    // If we found a file ID, return the direct image URL
-    if (fileId) {
-        // Use the lh3.googleusercontent.com format (works reliably)
-        return `https://lh3.googleusercontent.com/d/${fileId}`;
-    }
-
-    // If URL is already a valid Google Drive URL but we couldn't extract ID, try to use it directly
-    if (url.includes('googleusercontent.com') || url.includes('drive.google.com')) {
-        return url;
-    }
-
-    // Fallback: return null to trigger default avatar
-    console.warn('⚠️ Could not process image URL:', url);
-    return null;
+    return fileId ? `https://lh3.googleusercontent.com/d/${fileId}` : driveUrl;
 };
 
-// ✅ NEW: Get profile image with fallback
-window.getProfileImage = function(url, name) {
-    const processedUrl = window.getDirectDriveImageUrl(url);
-    if (processedUrl) {
-        return processedUrl;
-    }
-    // Return avatar placeholder with initials
-    const displayName = name || 'User';
-    return `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=4f46e5&color=fff&size=128&font-size=0.5&bold=true`;
-};
+window.formatDriveImageUrl = window.getDirectDriveImageUrl;
+window.openImageZoom = (url) => { if(!url || url.includes('placeholder')) return; window.open(url, '_blank'); };
 
-window.openImageZoom = function(url) {
-    if (!url || url === 'null' || url === 'undefined' || url === '') {
-        alert('No image available');
-        return;
-    }
-    const processed = window.getDirectDriveImageUrl(url);
-    if (processed) {
-        window.open(processed, '_blank');
-    } else {
-        alert('Image URL is invalid or could not be loaded');
-    }
-};
+// ================================================================ */
+// COMPRESSION & IMAGE HELPERS                                      */
+// ================================================================ */
 
-window.compressImageFile = function(file, maxWidth, maxHeight, quality) {
-    maxWidth = maxWidth || 800;
-    maxHeight = maxHeight || 800;
-    quality = quality || 0.7;
-
-    return new Promise(function(resolve) {
+window.compressImageFile = async (file, maxWidth = 1000, maxHeight = 1000, quality = 0.7) => {
+    return new Promise((resolve) => {
         const reader = new FileReader();
-        reader.onload = function(e) {
+        reader.onload = (e) => {
             const img = new Image();
-            img.onload = function() {
+            img.onload = () => {
                 const canvas = document.createElement('canvas');
                 let w = img.width, h = img.height;
-                if (w > maxWidth) { h *= maxWidth / w; w = maxWidth; }
-                if (h > maxHeight) { w *= maxHeight / h; h = maxHeight; }
-                canvas.width = w;
-                canvas.height = h;
+                if (w > h) { if (w > maxWidth) { h *= maxWidth / w; w = maxWidth; } }
+                else { if (h > maxHeight) { w *= maxHeight / h; h = maxHeight; } }
+                canvas.width = w; canvas.height = h;
                 const ctx = canvas.getContext('2d');
                 ctx.drawImage(img, 0, 0, w, h);
-                resolve(canvas.toDataURL('image/jpeg', quality));
+                resolve(canvas.toDataURL("image/jpeg", quality));
             };
             img.src = e.target.result;
         };
@@ -400,25 +515,32 @@ window.compressImageFile = function(file, maxWidth, maxHeight, quality) {
 };
 
 // ================================================================ */
-// INIT ON PAGE LOAD - FAST                                        */
+// APP LAUNCH VIDEO LOGIC                                           */
 // ================================================================ */
+window.handleLaunchVideo = () => {
+    const overlay = document.getElementById('launchVideoOverlay');
+    const video = document.getElementById('appLaunchVideo');
+    const skipBtn = document.getElementById('skipVideoBtn');
+    if (!overlay || !video) return;
+    if (sessionStorage.getItem('videoPlayedThisSession') === 'true') { overlay.remove(); return; }
+    overlay.classList.remove('hidden');
+    overlay.style.display = 'flex';
+    let hasHidden = false;
+    const hideOverlay = () => {
+        if (hasHidden) return;
+        hasHidden = true;
+        sessionStorage.setItem('videoPlayedThisSession', 'true');
+        overlay.style.transition = 'opacity 0.8s ease-out';
+        overlay.style.opacity = '0';
+        setTimeout(() => overlay.remove(), 800);
+    };
+    const safetyTimeout = setTimeout(hideOverlay, 4500);
+    video.onended = hideOverlay;
+    if (skipBtn) skipBtn.onclick = hideOverlay;
+    video.play().catch(hideOverlay);
+};
 
-document.addEventListener('DOMContentLoaded', function() {
-    // Init signature pads - use requestIdleCallback if available
-    if (window.requestIdleCallback) {
-        window.requestIdleCallback(function() {
-            window.sigPadManager.initAllPads();
-        });
-    } else {
-        setTimeout(function() {
-            window.sigPadManager.initAllPads();
-        }, 300);
-    }
+document.addEventListener('DOMContentLoaded', window.handleLaunchVideo);
+window.addEventListener('load', () => { setTimeout(() => { const o = document.getElementById('launchVideoOverlay'); if(o) o.remove(); }, 5000); });
 
-    // Launch video - defer
-    setTimeout(function() {
-        window.handleLaunchVideo();
-    }, 100);
-});
-
-console.log("✅ ui_module.js loaded (DRIVE IMAGE FIXED)");
+console.log("✅ ui_module.js loaded (UI & Interface Helpers)");

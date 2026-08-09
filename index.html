@@ -126,14 +126,16 @@
 
 <body class="text-white">
 
-<!-- APP LAUNCH VIDEO OVERLAY (Local Asset Version) -->
-<div id="launchVideoOverlay" class="fixed inset-0 w-full h-full bg-black z-[999999] items-center justify-center transition-opacity duration-1000 hidden" style="display: none !important;">
-    <video id="appLaunchVideo" class="w-full h-full object-cover" autoplay muted playsinline webkit-playsinline disablePictureInPicture preload="auto" style="pointer-events: none;">
-        <source src="launch_video.mp4" type="video/mp4">
-        Your browser does not support the video tag.
-    </video>
-    <button id="skipVideoBtn" class="absolute top-8 right-8 px-8 py-3 bg-black/40 backdrop-blur-md text-white border border-white/20 rounded-full font-bold text-[10px] uppercase tracking-widest hover:bg-black/60 transition-all z-[1000000] active:scale-95 shadow-2xl">Skip Intro</button>
-</div>
+    <!-- APP LAUNCH VIDEO OVERLAY (Local Asset Version) -->
+    <div id="launchVideoOverlay" class="fixed inset-0 w-full h-full bg-black z-[999999] items-center justify-center transition-opacity duration-1000 hidden">
+        <video id="appLaunchVideo" class="w-full h-full object-cover" autoplay muted playsinline webkit-playsinline disablePictureInPicture preload="auto" style="pointer-events: none;">
+            <source src="launch_video.mp4" type="video/mp4">
+            Your browser does not support the video tag.
+        </video>
+        <button id="skipVideoBtn" class="absolute top-8 right-8 px-8 py-3 bg-black/40 backdrop-blur-md text-white border border-white/20 rounded-full font-bold text-[10px] uppercase tracking-widest hover:bg-black/60 transition-all z-[1000000] active:scale-95 shadow-2xl">Skip Intro</button>
+    </div>
+
+    <div class="app-container">
         <!-- LANDING VIEW -->
         <section id="view-landing" class="view-section active items-center justify-center p-4 flex-1 min-h-screen" style="background: linear-gradient(135deg, #f5f3ff 0%, #ede9fe 50%, #e0e7ff 100%);">
             <div class="portal-container max-w-6xl mx-auto px-4 py-8">
@@ -230,7 +232,7 @@
                     </a>
 
                     <!-- ===== Staff Portal Card ===== -->
-                    <a href="staff-login.html?v=3.2" class="portal-card group relative flex-1 min-w-[280px] bg-white/90 backdrop-blur-sm border border-white/50 rounded-3xl p-8 transition-all duration-500 transform hover:-translate-y-2 hover:shadow-2xl hover:shadow-purple-500/20 active:scale-95 text-center cursor-pointer" style="text-decoration: none; box-shadow: 0 4px 20px rgba(168, 85, 247, 0.08);">
+                    <a href="#" onclick="window.handleStaffCardClick(); return false;" class="portal-card group relative flex-1 min-w-[280px] bg-white/90 backdrop-blur-sm border border-white/50 rounded-3xl p-8 transition-all duration-500 transform hover:-translate-y-2 hover:shadow-2xl hover:shadow-purple-500/20 active:scale-95 text-center cursor-pointer" style="text-decoration: none; box-shadow: 0 4px 20px rgba(168, 85, 247, 0.08);">
 
                         <!-- Glow Background -->
                         <div class="absolute inset-0 bg-gradient-to-br from-purple-50/50 to-transparent rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
@@ -348,18 +350,56 @@
         </div>
     </div>
 
-    <script type="module" src="firebase_config.js?v=3.6.1"></script>
-    <script type="module" src="field_normalizer.js?v=3.6.1"></script>
-    <script type="module" src="drive_module.js?v=3.6.1"></script>
-    <script type="module" src="ui_module.js?v=3.6.1"></script>
-    <script type="module" src="import_module.js?v=3.6.1"></script>
-    <script type="module" src="export_module.js?v=3.6.1"></script>
-    <script type="module" src="audit_module.js?v=3.6.1"></script>
-    <script type="module" src="attendance_module.js?v=3.6.1"></script>
-    <script type="module" src="tasks_module.js?v=3.6.1"></script>
-    <script type="module" src="admin_module.js?v=3.6.1"></script>
-    <script type="module" src="visitor_module.js?v=3.6.1"></script>
-    <script type="module" src="init_module.js?v=3.6.1"></script>
+    <script type="module" src="firebase_config.js?v=4.0"></script>
+    <script type="module" src="field_normalizer.js?v=4.0"></script>
+    <script type="module" src="drive_module.js?v=4.0"></script>
+    <script type="module" src="ui_module.js?v=4.0"></script>
+    <script type="module" src="import_module.js?v=4.0"></script>
+    <script type="module" src="export_module.js?v=4.0"></script>
+    <script type="module" src="audit_module.js?v=4.0"></script>
+    <script type="module" src="attendance_module.js?v=4.0"></script>
+    <script type="module" src="tasks_module.js?v=4.0"></script>
+    <script type="module" src="admin_module.js?v=4.0"></script>
+    <script type="module" src="visitor_module.js?v=4.0"></script>
+    <script type="module" src="init_module.js?v=4.0"></script>
 
+    <script>
+        window.handleStaffCardClick = function() {
+            const loggedStaff = localStorage.getItem('loggedStaff');
+            if (loggedStaff) {
+                // If logged in, go to the staff login page which will auto-render the dashboard
+                window.location.href = 'staff-login.html';
+            } else {
+                // If NOT logged in, go to login
+                window.location.href = 'staff-login.html';
+            }
+        };
+    </script>
+
+    <!-- FORCED GLOBAL SPINNER & OVERRIDE -->
+    <div id="universal-logo-loader" style="display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(8px); z-index: 99999999; flex-direction: column; align-items: center; justify-content: center;">
+        <img src="schoollogo.png" class="logo-pulse-anim" style="width: 100px; height: 100px; object-fit: contain;" alt="Loading..." onerror="this.src='jys_Icon.png'">
+        <p id="universal-loader-text" style="color: #ffffff; font-weight: bold; margin-top: 16px; font-family: sans-serif; letter-spacing: 1px; text-transform: uppercase;">Processing, please wait...</p>
+    </div>
+
+    <script>
+        var spinnerTimeout = null;
+        window.showGlobalSpinner = function(msg) {
+            var el = document.getElementById('universal-logo-loader');
+            var txt = document.getElementById('universal-loader-text');
+            if (el) {
+                if (txt && msg) txt.innerText = msg;
+                el.style.display = 'flex';
+                if (spinnerTimeout) clearTimeout(spinnerTimeout);
+                spinnerTimeout = setTimeout(function() { window.hideGlobalSpinner(); }, 15000);
+            }
+        };
+        window.hideGlobalSpinner = function() {
+            var el = document.getElementById('universal-logo-loader');
+            if (el) el.style.display = 'none';
+            if (spinnerTimeout) clearTimeout(spinnerTimeout);
+        };
+        document.addEventListener('submit', function() { window.showGlobalSpinner("Saving Data..."); }, true);
+    </script>
 </body>
 </html>

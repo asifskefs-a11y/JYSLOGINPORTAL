@@ -21,7 +21,8 @@ window.submitNewMaintenanceTask = async () => {
     if (!school || !area || !capturedTaskPhotoBase64) return alert("Required fields missing!");
 
     const btn = document.getElementById('submitTaskBtn');
-    if (btn) { btn.disabled = true; btn.innerHTML = 'SYNCING...'; }
+    if (btn) btn.disabled = true;
+    window.showLoader();
 
     try {
         const res = await window.uploadToDrive({
@@ -44,7 +45,10 @@ window.submitNewMaintenanceTask = async () => {
             const prev = document.getElementById('taskPhotoPreviewContainer'); if (prev) prev.classList.add('hidden');
             window.showStaffView('staff-dash-area');
         }
-    } catch (e) { alert(e.message); } finally { if (btn) { btn.disabled = false; btn.innerHTML = 'CREATE TASK'; } }
+    } catch (e) { alert(e.message); } finally {
+        if (btn) { btn.disabled = false; btn.innerHTML = 'CREATE TASK'; }
+        window.hideLoader();
+    }
 };
 
 window.closeTaskAction = async (taskId) => {

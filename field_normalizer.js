@@ -1,288 +1,375 @@
-// ================================================================ */
-// DYNAMIC HEADER NORMALIZATION - COMPLETE 39 FIELDS               */
-// ================================================================ */
+// ================================================
+// DYNAMIC HEADER NORMALIZATION & FUZZY MATCHING
+// CROSS-DEVICE SUPPORT: Mobile, Desktop, Laptop
+// ================================================
+
+/**
+ * FIELD NORMALIZATION ENGINE
+ * Handles all 16 Target Fields with intelligent matching
+ */
 
 class FieldNormalizer {
     constructor() {
+        // Define EXACT headers and sequence (15 Fields)
         this.fieldMap = {
-            // ========================================================== */
-            // CORE FIELDS (1-9)
-            // ========================================================== */
-            'assetBarcode': {
-                label: 'Asset Barcode',
-                variations: ['assetbarcode', 'asset barcode', 'barcode', 'code', 'assetcode'],
+            'barcode': {
+                label: 'ASSET BARCODE',
+                variations: ['barcode', 'assetbarcode', 'asset barcode', 'code'],
                 default: 'N/A'
             },
-            'serialNo': {
-                label: 'Serial No.',
-                variations: ['serialno', 'serial no', 'serialnumber', 'serial number', 'sno', 'sn'],
+            'description': {
+                label: 'ASSET DESCRIPTION',
+                variations: ['description', 'asset description', 'assetdesc', 'modeldescription', 'model_desc'],
                 default: 'N/A'
             },
-            'modelDescription': {
-                label: 'Model Description',
-                variations: ['modeldescription', 'model description', 'modeldesc', 'model', 'model_no'],
-                default: 'N/A'
-            },
-            'assetCondition': {
-                label: 'Asset Condition',
-                variations: ['assetcondition', 'asset condition', 'condition', 'cond'],
-                default: 'N/A'
-            },
-            'priceStatus': {
-                label: 'Price Status',
-                variations: ['pricestatus', 'price status', 'price', 'pstatus'],
-                default: 'N/A'
-            },
-            'assetUnitCost': {
-                label: 'Asset Unit Cost',
-                variations: ['assetunitcost', 'asset unit cost', 'unitcost', 'cost', 'price'],
-                default: 'N/A'
-            },
-            'assetDescription': {
-                label: 'Asset Description',
-                variations: ['assetdescription', 'asset description', 'description', 'desc', 'assetdesc'],
-                default: 'N/A'
-            },
-            'datePlaceInService': {
-                label: 'Date Place in Service',
-                variations: ['dateplaceinservice', 'date in service', 'servicedate', 'service date', 'dateinservice'],
-                default: 'N/A'
-            },
-            'manufacturer': {
-                label: 'Manufacturer',
-                variations: ['manufacturer', 'maker', 'brand', 'company', 'producer'],
-                default: 'N/A'
-            },
-
-            // ========================================================== */
-            // CATEGORY FIELDS (10-16)
-            // ========================================================== */
-            'majorCategory': {
-                label: 'Major Category',
-                variations: ['majorcategory', 'major category', 'majorcat', 'major_cat'],
-                default: 'N/A'
-            },
-            'minorCategory': {
-                label: 'Minor Category',
-                variations: ['minorcategory', 'minor category', 'minorcat', 'minor_cat'],
-                default: 'N/A'
-            },
-            'subMinorCategory': {
-                label: 'Sub Minor Category',
-                variations: ['subminorcategory', 'sub minor category', 'subminor', 'sub_minor'],
-                default: 'N/A'
-            },
-            'dofMajor': {
-                label: 'DOF Major',
-                variations: ['dofmajor', 'dof major', 'dof_major'],
-                default: 'N/A'
-            },
-            'dofMinor': {
-                label: 'DOF Minor',
-                variations: ['dofminor', 'dof minor', 'dof_minor'],
+            'vendor': {
+                label: 'ASSET VENDOR NAME',
+                variations: ['vendor', 'vendor name', 'vendorname', 'supplier'],
                 default: 'N/A'
             },
             'category': {
-                label: 'Category',
-                variations: ['category', 'cat', 'type', 'class'],
+                label: 'CATEGORY',
+                variations: ['category', 'cat', 'categoryname', 'type'],
                 default: 'N/A'
             },
-            'classification': {
-                label: 'Classification',
-                variations: ['classification', 'class', 'asset name', 'aset name', 'classification (aset name)'],
+            'serviceDate': {
+                label: 'DATE PLACE IN SERVICE',
+                variations: ['servicedate', 'service date', 'dateinservice', 'date in service', 'f8_service_date', 'lastservicedate', 'service_dt'],
                 default: 'N/A'
             },
-
-            // ========================================================== */
-            // LOCATION FIELDS (17-24)
-            // ========================================================== */
-            'locationName': {
-                label: 'Location Name',
-                variations: ['locationname', 'location name', 'location', 'loc', 'site'],
-                default: 'N/A'
-            },
-            'schoolEsisId': {
-                label: 'School ESIS ID',
-                variations: ['schooleisisid', 'school esis id', 'esisid', 'esis', 'school_id'],
-                default: 'N/A'
-            },
-            'schoolBuildingName': {
-                label: 'School Building Name',
-                variations: ['schoolbuildingname', 'school building name', 'buildingname', 'building name', 'building'],
-                default: 'N/A'
-            },
-            'roomName': {
-                label: 'Room Name',
-                variations: ['roomname', 'room name', 'room', 'location room'],
-                default: 'N/A'
-            },
-            'roomNo': {
-                label: 'Room No.',
-                variations: ['roomno', 'room no', 'roomnumber', 'room number', 'room#'],
-                default: 'N/A'
-            },
-            'roomBarcode': {
-                label: 'Room Barcode',
-                variations: ['roombarcode', 'room barcode', 'roombc', 'room_bc', 'room code'],
+            'floorDesc': {
+                label: 'FLOOR DISCRETION',
+                variations: ['floordesc', 'floor description', 'floor_desc', 'floor discretion'],
                 default: 'N/A'
             },
             'floorNo': {
-                label: 'Floor No.',
-                variations: ['floorno', 'floor no', 'floornumber', 'floor number', 'floor', 'floor#'],
+                label: 'FLOOR NO',
+                variations: ['floorno', 'floor no', 'floor_no', 'floor'],
                 default: 'N/A'
             },
-            'floorDescription': {
-                label: 'Floor Description',
-                variations: ['floordescription', 'floor description', 'floordesc', 'floor desc', 'floordiscretion'],
+            'location': {
+                label: 'LOCATION NAME',
+                variations: ['location', 'location name', 'locationname', 'loc'],
                 default: 'N/A'
             },
-
-            // ========================================================== */
-            // STATUS FIELDS (25-27)
-            // ========================================================== */
-            'barcodeStatus': {
-                label: 'Barcode Status',
-                variations: ['barcodestatus', 'barcode status', 'barcode_stat'],
+            'majorCategory': {
+                label: 'MAJOR CATEGORY',
+                variations: ['majorcategory', 'major category', 'major_category'],
                 default: 'N/A'
             },
-            'assetStatus': {
-                label: 'Asset Status',
-                variations: ['assetstatus', 'asset status', 'status', 'asset_stat'],
+            'minorCategory': {
+                label: 'MINOR CATEGORY',
+                variations: ['minorcategory', 'minor category', 'minor_category', 'classification', 'class'],
                 default: 'N/A'
             },
-            'oldSchoolName': {
-                label: 'Old School Name',
-                variations: ['oldschoolname', 'old school name', 'oldschool', 'previous school'],
+            'building': {
+                label: 'SCHOOL BUILDING NAME',
+                variations: ['building', 'building name', 'buildingname', 'schoolbuilding', 'school building name'],
                 default: 'N/A'
             },
-
-            // ========================================================== */
-            // TRANSACTION FIELDS (28-32)
-            // ========================================================== */
-            'transactionNo': {
-                label: 'Transaction No.',
-                variations: ['transactionno', 'transaction no', 'transno', 'transaction'],
+            'roomNo': {
+                label: 'ROOM NUMBER',
+                variations: ['roomno', 'room no', 'room_no', 'room number', 'roomnumber'],
                 default: 'N/A'
             },
-            'assetUsefulLife': {
-                label: 'Asset Useful Life',
-                variations: ['assetusefullife', 'asset useful life', 'usefullife', 'useful life'],
+            'roomName': {
+                label: 'ROOM NAME',
+                variations: ['roomname', 'room name', 'room_name'],
                 default: 'N/A'
             },
-            'assetVendorName': {
-                label: 'Asset Vendor Name',
-                variations: ['assetvendorname', 'asset vendor name', 'vendorname', 'vendor name', 'vendor'],
+            'subMinorCategory': {
+                label: 'SUB MINOR CATEGORY',
+                variations: ['subminorcategory', 'sub minor category', 'sub_minor_category'],
                 default: 'N/A'
             },
-            'oldAssetBarcode': {
-                label: 'Old Asset Barcode',
-                variations: ['oldassetbarcode', 'old asset barcode', 'oldbarcode', 'old code'],
-                default: 'N/A'
-            },
-            'exitingOldAssetBarcodeFromFAR': {
-                label: 'Exiting Old Asset Barcode From FAR',
-                variations: ['exitingoldassetbarcodefromfar', 'exiting old asset barcode from far', 'exiting_far'],
-                default: 'N/A'
-            },
-
-            // ========================================================== */
-            // PURCHASE FIELDS (33-35)
-            // ========================================================== */
-            'poNo': {
-                label: 'PO No.',
-                variations: ['pono', 'po no', 'ponumber', 'po number', 'purchase order'],
-                default: 'N/A'
-            },
-            'invoiceNo': {
-                label: 'Invoice No.',
-                variations: ['invoiceno', 'invoice no', 'invoicenumber', 'invoice number'],
-                default: 'N/A'
-            },
-            'dnNo': {
-                label: 'DN No.',
-                variations: ['dnno', 'dn no', 'dnnumber', 'dn number', 'delivery note'],
-                default: 'N/A'
-            },
-
-            // ========================================================== */
-            // REFERENCE FIELDS (36-39)
-            // ========================================================== */
-            'remarks': {
-                label: 'Remarks',
-                variations: ['remarks', 'remark', 'note', 'notes', 'comment'],
-                default: 'N/A'
-            },
-            'physicalAssetRegisterNo': {
-                label: 'Physical Asset Register No.',
-                variations: ['physicalassetregisterno', 'physical asset register no', 'physical_reg', 'phy_reg'],
-                default: 'N/A'
-            },
-            'fixedAssetRegisterNo': {
-                label: 'Fixed Asset Register No.',
-                variations: ['fixedassetregisterno', 'fixed asset register no', 'fixed_reg', 'far'],
-                default: 'N/A'
-            },
-            'mappingCriteria': {
-                label: 'Mapping Criteria',
-                variations: ['mappingcriteria', 'mapping criteria', 'mapping', 'criteria'],
+            'photo': {
+                label: 'AUDIT PHOTO',
+                variations: ['auditphoto', 'auditphotourl', 'photo', 'photourl', 'image'],
                 default: 'N/A'
             }
         };
+
+        this.normalizationCache = new Map();
+        this.fuzzyMatchCache = new Map();
     }
 
-    normalizeHeader(header) {
-        if (!header) return '';
-        return String(header).trim().toLowerCase().replace(/[^a-z0-9]/g, '');
+    /**
+     * PRIMARY NORMALIZATION FUNCTION
+     * Trims, lowercases, removes special characters
+     */
+    normalizeKey(str) {
+        if (!str) return '';
+
+        // Check cache
+        if (this.normalizationCache.has(str)) {
+            return this.normalizationCache.get(str);
+        }
+
+        let normalized = String(str)
+            .trim()
+            .toLowerCase()
+            // Remove special characters except letters and numbers
+            .replace(/[^a-z0-9]/g, '')
+            // Remove extra spaces
+            .replace(/\s+/g, '')
+            // Handle common abbreviations
+            .replace(/no/g, 'number')
+            .replace(/desc/g, 'description')
+            .replace(/dt/g, 'date')
+            .replace(/img/g, 'image')
+            .replace(/url/g, 'photo');
+
+        this.normalizationCache.set(str, normalized);
+        return normalized;
     }
 
-    findMatchingField(excelHeader) {
-        if (this.fieldMap[excelHeader]) return excelHeader;
+    /**
+     * SMART EXACT MATCHING
+     * Checks if key matches any variation of a field
+     */
+    exactMatch(fieldName, key) {
+        const normalizedKey = this.normalizeKey(key);
+        const fieldConfig = this.fieldMap[fieldName];
 
-        const normalized = this.normalizeHeader(excelHeader);
-        if (!normalized) return null;
+        if (!fieldConfig) return false;
 
-        for (const [key, value] of Object.entries(this.fieldMap)) {
-            if (this.normalizeHeader(key) === normalized) return key;
-            for (const variation of value.variations) {
-                if (this.normalizeHeader(variation) === normalized) return key;
+        // Check direct match
+        if (this.normalizeKey(fieldName) === normalizedKey) {
+            return true;
+        }
+
+        // Check variations
+        for (let variation of fieldConfig.variations) {
+            if (this.normalizeKey(variation) === normalizedKey) {
+                return true;
             }
         }
 
-        for (const [key, value] of Object.entries(this.fieldMap)) {
-            const keyNorm = this.normalizeHeader(key);
-            if (normalized.includes(keyNorm) || keyNorm.includes(normalized)) return key;
-        }
-
-        return null;
+        return false;
     }
 
+    /**
+     * FUZZY MATCHING ENGINE
+     * Handles 1-2 character spelling errors
+     */
+    fuzzyMatch(fieldName, key) {
+        const normalizedKey = this.normalizeKey(key);
+        const fieldConfig = this.fieldMap[fieldName];
+
+        if (!fieldConfig) return { match: false, score: 0 };
+
+        // Check cache
+        const cacheKey = `${fieldName}:${normalizedKey}`;
+        if (this.fuzzyMatchCache.has(cacheKey)) {
+            return this.fuzzyMatchCache.get(cacheKey);
+        }
+
+        let bestScore = 0;
+        let bestMatch = false;
+
+        // Compare with field name
+        const fieldNormalized = this.normalizeKey(fieldName);
+        let score = this.calculateSimilarity(normalizedKey, fieldNormalized);
+        if (score > bestScore) {
+            bestScore = score;
+            bestMatch = score >= 0.7; // 70% similarity threshold
+        }
+
+        // Compare with variations
+        for (let variation of fieldConfig.variations) {
+            const variationNormalized = this.normalizeKey(variation);
+            score = this.calculateSimilarity(normalizedKey, variationNormalized);
+
+            if (score > bestScore) {
+                bestScore = score;
+                bestMatch = score >= 0.7;
+            }
+        }
+
+        const result = { match: bestMatch, score: bestScore };
+        this.fuzzyMatchCache.set(cacheKey, result);
+        return result;
+    }
+
+    /**
+     * LEVENSHTEIN DISTANCE WITH OPTIMIZATION
+     * For 1-2 character spelling errors
+     */
+    calculateSimilarity(str1, str2) {
+        if (str1 === str2) return 1.0;
+        if (str1.length === 0 || str2.length === 0) return 0.0;
+
+        // Early exit for big differences
+        if (Math.abs(str1.length - str2.length) > 2) {
+            return 0.0;
+        }
+
+        const len1 = str1.length;
+        const len2 = str2.length;
+
+        // Use optimized Levenshtein
+        const matrix = Array(len1 + 1).fill(null).map(() => Array(len2 + 1).fill(0));
+
+        for (let i = 0; i <= len1; i++) matrix[i][0] = i;
+        for (let j = 0; j <= len2; j++) matrix[0][j] = j;
+
+        for (let i = 1; i <= len1; i++) {
+            for (let j = 1; j <= len2; j++) {
+                const cost = str1[i-1] === str2[j-1] ? 0 : 1;
+                matrix[i][j] = Math.min(
+                    matrix[i-1][j] + 1,
+                    matrix[i][j-1] + 1,
+                    matrix[i-1][j-1] + cost
+                );
+            }
+        }
+
+        const distance = matrix[len1][len2];
+        const maxLen = Math.max(len1, len2);
+        return 1.0 - (distance / maxLen);
+    }
+
+    /**
+     * SMART FIELD MAPPING
+     * Main function to map Firebase data to target fields
+     */
     mapFields(rawData) {
-        const mappedData = {};
-        const allFields = Object.keys(this.fieldMap);
-
-        for (const field of allFields) {
-            mappedData[field] = this.fieldMap[field].default;
+        if (!rawData || typeof rawData !== 'object') {
+            return this.getDefaultMapping();
         }
 
-        for (const [key, value] of Object.entries(rawData)) {
-            const matchedField = this.findMatchingField(key);
-            if (matchedField) {
-                const val = typeof value === 'string' ? value.trim() : value;
-                mappedData[matchedField] = val || this.fieldMap[matchedField].default;
+        const mappedData = {};
+        const unmatchedKeys = [];
+
+        // Process each target field
+        for (let fieldName of Object.keys(this.fieldMap)) {
+            const fieldConfig = this.fieldMap[fieldName];
+            let found = false;
+            let value = fieldConfig.default;
+
+            // Iterate through raw data keys
+            for (let rawKey of Object.keys(rawData)) {
+                // 1. Try exact match
+                if (this.exactMatch(fieldName, rawKey)) {
+                    value = rawData[rawKey] || fieldConfig.default;
+                    found = true;
+                    console.log(`✅ Exact match: ${fieldName} ← ${rawKey}`);
+                    break;
+                }
+
+                // 2. Try fuzzy match if exact fails
+                const fuzzyResult = this.fuzzyMatch(fieldName, rawKey);
+                if (fuzzyResult.match) {
+                    value = rawData[rawKey] || fieldConfig.default;
+                    found = true;
+                    console.log(`🔄 Fuzzy match: ${fieldName} ← ${rawKey} (score: ${Math.round(fuzzyResult.score * 100)}%)`);
+                    break;
+                }
             }
+
+            // If no match found, try to find by partial match
+            if (!found) {
+                // Check if any key contains the field name
+                const normalizedField = this.normalizeKey(fieldName);
+                for (let rawKey of Object.keys(rawData)) {
+                    const normalizedKey = this.normalizeKey(rawKey);
+                    if (normalizedKey.includes(normalizedField) || normalizedField.includes(normalizedKey)) {
+                        value = rawData[rawKey] || fieldConfig.default;
+                        found = true;
+                        console.log(`🔍 Partial match: ${fieldName} ← ${rawKey}`);
+                        break;
+                    }
+                }
+            }
+
+            if (!found) {
+                console.log(`❌ No match found for: ${fieldName}`);
+            }
+
+            mappedData[fieldName] = value;
         }
 
         return mappedData;
     }
 
-    getAllFields() {
-        return Object.keys(this.fieldMap);
+    /**
+     * GET DEFAULT MAPPING
+     * Returns N/A for all fields
+     */
+    getDefaultMapping() {
+        const mapping = {};
+        for (let fieldName of Object.keys(this.fieldMap)) {
+            mapping[fieldName] = this.fieldMap[fieldName].default;
+        }
+        return mapping;
     }
 
-    getFieldLabel(field) {
-        return this.fieldMap[field]?.label || field;
+    /**
+     * SMART ASSET CLASS
+     * Creates asset object from mapped data
+     */
+    createAsset(mappedData, barcode) {
+        return {
+            barcode: barcode || mappedData.barcode || 'N/A',
+            description: mappedData.description || 'N/A',
+            vendor: mappedData.vendor || 'N/A',
+            category: mappedData.category || 'N/A',
+            serviceDate: mappedData.serviceDate || 'N/A',
+            floorDesc: mappedData.floorDesc || 'N/A',
+            floorNo: mappedData.floorNo || 'N/A',
+            location: mappedData.location || 'N/A',
+            majorCategory: mappedData.majorCategory || 'N/A',
+            minorCategory: mappedData.minorCategory || 'N/A',
+            building: mappedData.building || 'N/A',
+            roomNo: mappedData.roomNo || 'N/A',
+            roomName: mappedData.roomName || 'N/A',
+            subMinorCategory: mappedData.subMinorCategory || 'N/A',
+            photo: mappedData.photo || 'N/A',
+            raw: mappedData,
+            timestamp: Date.now()
+        };
+    }
+
+    /**
+     * FOR DISPLAY ON STAFF DASHBOARD
+     * Formats mapped data for preview
+     */
+    toDisplayObject(asset) {
+        if (!asset) return {
+            desc: 'N/A', vendor: 'N/A', category: 'N/A', location: 'N/A', building: 'N/A',
+            floor: 'N/A', room: 'N/A', serial: 'N/A', manufacturer: 'N/A', photo: 'N/A',
+            barcode: 'N/A', model: 'N/A', serviceDate: 'N/A', floorDesc: 'N/A', roomBC: 'N/A',
+            majorCategory: 'N/A', classification: 'N/A', assetStatus: 'Registered',
+            minorCategory: 'N/A', subMinorCategory: 'N/A'
+        };
+
+        return {
+            barcode: asset.barcode || 'N/A',
+            desc: asset.description || 'N/A',
+            vendor: asset.vendor || 'N/A',
+            category: asset.category || 'N/A',
+            serviceDate: asset.serviceDate || 'N/A',
+            floorDesc: asset.floorDesc || 'N/A',
+            floor: asset.floorNo || 'N/A',
+            location: asset.location || 'N/A',
+            majorCategory: asset.majorCategory || 'N/A',
+            minorCategory: asset.minorCategory || 'N/A',
+            building: asset.building || 'N/A',
+            roomNo: asset.roomNo || 'N/A',
+            roomName: asset.roomName || 'N/A',
+            subMinorCategory: asset.subMinorCategory || 'N/A',
+            photo: asset.photo || 'N/A',
+            assetStatus: asset.raw?.assetStatus || asset.raw?.status || 'Registered'
+        };
     }
 }
 
+// ================================================
+// EXPORT & GLOBAL INSTANCE
+// ================================================
+
+// Create global instance
 window.fieldNormalizer = new FieldNormalizer();
+
+// Export for module use
 export { FieldNormalizer };

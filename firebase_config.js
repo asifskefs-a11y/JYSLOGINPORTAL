@@ -12,8 +12,10 @@ const firebaseConfig = {
     databaseURL: "https://schoollog-f0a04-default-rtdb.firebaseio.com"
 };
 
+console.log("🔥 Firebase: Starting Initialization...");
 const app = initializeApp(firebaseConfig);
 export const db = getDatabase(app);
+console.log("🔥 Firebase: Database Connection Established");
 
 // ================================================================ */
 // DYNAMIC MULTI-FOLDER DRIVE CONFIGURATION                         */

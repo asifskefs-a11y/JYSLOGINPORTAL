@@ -1,13 +1,15 @@
 /**
- * Excel Import — COMPLETE 39 HEADERS
+ * Excel Import — COMPLETE 39+ HEADERS
+ * ---------------------------------------------------------------
  * ALL headers from Excel file properly mapped and displayed
+ * ---------------------------------------------------------------
  */
 
 import { db } from './firebase_config.js';
-import { ref, set, update, get } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+import { ref, set, update, get, remove } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
 // ================================================================ */
-// HEADER MAPPING - ALL 39 FIELDS                                  */
+// COMPLETE HEADER MAPPING - ALL 39 FIELDS FROM EXCEL              */
 // ================================================================ */
 
 const ASSET_HEADER_MAPPING = {
@@ -66,27 +68,54 @@ const ASSET_HEADER_MAPPING = {
 };
 
 // ================================================================ */
-// NORMALIZATION FUNCTIONS                                          */
+// ALL 39 FIELDS LIST FOR VERIFICATION                              */
+// ================================================================ */
+
+const ALL_EXPECTED_FIELDS = [
+    'assetBarcode', 'serialNo', 'modelDescription', 'assetCondition',
+    'priceStatus', 'assetUnitCost', 'assetDescription', 'datePlaceInService',
+    'manufacturer', 'majorCategory', 'minorCategory', 'subMinorCategory',
+    'dofMajor', 'dofMinor', 'category', 'classification',
+    'locationName', 'schoolEsisId', 'schoolBuildingName', 'roomName',
+    'roomNo', 'roomBarcode', 'floorNo', 'floorDescription',
+    'barcodeStatus', 'assetStatus', 'oldSchoolName',
+    'transactionNo', 'assetUsefulLife', 'assetVendorName',
+    'oldAssetBarcode', 'exitingOldAssetBarcodeFromFAR',
+    'poNo', 'invoiceNo', 'dnNo',
+    'remarks', 'physicalAssetRegisterNo', 'fixedAssetRegisterNo',
+    'mappingCriteria'
+];
+
+// ================================================================ */
+// HEADER NORMALIZATION - CASE INSENSITIVE + FUZZY MATCH           */
 // ================================================================ */
 
 function normalizeHeader(header) {
     if (!header) return '';
-    return String(header).trim().toLowerCase().replace(/[^a-z0-9]/g, '');
+    return String(header)
+        .trim()
+        .toLowerCase()
+        .replace(/[^a-z0-9]/g, '');
 }
 
 function findMatchingField(excelHeader) {
+    // 1. EXACT MATCH
     if (ASSET_HEADER_MAPPING[excelHeader]) {
         return ASSET_HEADER_MAPPING[excelHeader];
     }
 
+    // 2. CASE INSENSITIVE MATCH
     const normalized = normalizeHeader(excelHeader);
     if (!normalized) return null;
 
     for (const [key, value] of Object.entries(ASSET_HEADER_MAPPING)) {
         const keyNorm = normalizeHeader(key);
-        if (keyNorm === normalized) return value;
+        if (keyNorm === normalized) {
+            return value;
+        }
     }
 
+    // 3. PARTIAL MATCH
     for (const [key, value] of Object.entries(ASSET_HEADER_MAPPING)) {
         const keyNorm = normalizeHeader(key);
         if (normalized.includes(keyNorm) || keyNorm.includes(normalized)) {
@@ -98,11 +127,22 @@ function findMatchingField(excelHeader) {
 }
 
 // ================================================================ */
-// PARSE EXCEL                                                      */
+// PAGINATION STATE                                                 */
+// ================================================================ */
+
+window.paginationState = window.paginationState || {};
+window._currentAssets = [];
+window._currentHeaders = [];
+
+// ================================================================ */
+// CORE PARSER - STANDARD ROW-BASED SHEET                          */
 // ================================================================ */
 
 function parseStandardAssetSheet(worksheet) {
-    const jsonData = XLSX.utils.sheet_to_json(worksheet, { defval: "", blankrows: false });
+    const jsonData = XLSX.utils.sheet_to_json(worksheet, {
+        defval: "",
+        blankrows: false
+    });
 
     if (!jsonData || jsonData.length === 0) {
         throw new Error("The worksheet appears to be empty.");
@@ -114,6 +154,7 @@ function parseStandardAssetSheet(worksheet) {
 
     const headerMapping = {};
     let mappedCount = 0;
+    const unmappedHeaders = [];
 
     rawHeaders.forEach((header) => {
         const mappedField = findMatchingField(header);
@@ -122,9 +163,14 @@ function parseStandardAssetSheet(worksheet) {
             mappedCount++;
             console.log(`✅ "${header}" → "${mappedField}"`);
         } else {
+            unmappedHeaders.push(header);
             console.warn(`⚠️ No mapping for: "${header}"`);
         }
     });
+
+    if (unmappedHeaders.length > 0) {
+        console.warn(`⚠️ ${unmappedHeaders.length} headers unmapped:`, unmappedHeaders);
+    }
 
     console.log(`📊 Mapped ${mappedCount}/${rawHeaders.length} headers`);
 
@@ -138,7 +184,10 @@ function parseStandardAssetSheet(worksheet) {
             rawHeaders.forEach((header) => {
                 const mappedField = headerMapping[header];
                 let value = row[header];
-                if (typeof value === 'string') value = value.trim();
+
+                if (typeof value === 'string') {
+                    value = value.trim();
+                }
 
                 if (mappedField) {
                     assetObj[mappedField] = value;
@@ -150,7 +199,11 @@ function parseStandardAssetSheet(worksheet) {
 
             const barcode = assetObj.assetBarcode;
             if (!barcode) {
-                skipped.push({ row: index + 2, reason: "Missing Asset Barcode", data: assetObj });
+                skipped.push({
+                    row: index + 2,
+                    reason: "Missing Asset Barcode",
+                    data: assetObj
+                });
                 return;
             }
 
@@ -164,27 +217,42 @@ function parseStandardAssetSheet(worksheet) {
             });
 
         } catch (error) {
-            skipped.push({ row: index + 2, reason: error.message, data: row });
+            skipped.push({
+                row: index + 2,
+                reason: error.message,
+                data: row
+            });
         }
     });
 
     console.log(`📊 Parsed ${assets.length} assets, ${skipped.length} skipped`);
 
-    return { assets, headers: rawHeaders, mappedCount, totalHeaders: rawHeaders.length, skipped };
+    return {
+        assets,
+        headers: rawHeaders,
+        mappedHeaders: headerMapping,
+        mappedCount: mappedCount,
+        totalHeaders: rawHeaders.length,
+        skipped
+    };
 }
 
 // ================================================================ */
-// SAVE TO FIREBASE - ALL 39 FIELDS                                */
+// FIREBASE SAVE - SAVE ALL 39 FIELDS                              */
 // ================================================================ */
 
 async function saveAssetsToFirebase(assets) {
-    if (!assets.length) return { saved: 0, failed: 0 };
+    if (!assets.length) {
+        console.warn("No assets to save — skipping Firebase write.");
+        return { saved: 0, failed: 0 };
+    }
 
     let saved = 0;
     let failed = 0;
     const BATCH_SIZE = 50;
 
-    console.log(`💾 Saving ${assets.length} assets...`);
+    window.showGlobalSpinner("Saving Batch to Database...");
+    console.log(`💾 Saving ${assets.length} assets to Firebase...`);
 
     for (let i = 0; i < assets.length; i += BATCH_SIZE) {
         const batch = assets.slice(i, i + BATCH_SIZE);
@@ -194,11 +262,19 @@ async function saveAssetsToFirebase(assets) {
             const { _id, _row, ...record } = asset;
             const sanitizedId = String(_id).replace(/[.#$\[\];/]/g, "_");
 
+            // Create complete record with ALL fields
             const completeRecord = {};
+
+            // Add all mapped fields
             Object.keys(record).forEach(key => {
-                completeRecord[key] = record[key] !== undefined && record[key] !== null ? record[key] : '';
+                if (record[key] !== undefined && record[key] !== null) {
+                    completeRecord[key] = record[key];
+                } else {
+                    completeRecord[key] = '';
+                }
             });
 
+            // Add metadata
             completeRecord.assetBarcode = sanitizedId;
             completeRecord.assetId = sanitizedId;
             completeRecord.importedAt = new Date().toISOString();
@@ -211,10 +287,15 @@ async function saveAssetsToFirebase(assets) {
         try {
             await update(ref(db), updates);
             saved += batch.length;
-            showImportProgress(((i + batch.length) / assets.length) * 100, i + batch.length, assets.length);
+
+            const progress = Math.min(100, Math.round(((i + batch.length) / assets.length) * 100));
+            showImportProgress(progress, i + batch.length, assets.length);
+
+            console.log(`✅ Batch ${i}-${i + batch.length}: ${batch.length} assets saved`);
         } catch (error) {
             console.error(`❌ Batch ${i} failed:`, error);
             failed += batch.length;
+
             for (const [path, data] of Object.entries(updates)) {
                 try {
                     await set(ref(db, path), data);
@@ -227,16 +308,20 @@ async function saveAssetsToFirebase(assets) {
         }
     }
 
+    window.hideGlobalSpinner();
     return { saved, failed };
 }
 
 // ================================================================ */
-// IMPORT HANDLER                                                   */
+// FILE INPUT HANDLER                                               */
 // ================================================================ */
 
 window.handleAssetImport = function(event) {
     const file = event.target.files && event.target.files[0];
     if (!file) return;
+
+    const fileNameDisplay = document.getElementById('file-name-display');
+    if (fileNameDisplay) fileNameDisplay.textContent = file.name;
 
     const validTypes = [
         'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
@@ -249,34 +334,14 @@ window.handleAssetImport = function(event) {
         return;
     }
 
-    if (!confirm(`📤 Import assets from "${file.name}"?`)) {
+    const fileSize = (file.size / 1024 / 1024).toFixed(1);
+    if (!confirm(`📤 Import assets from "${file.name}"?\n\nFile size: ${fileSize} MB`)) {
         event.target.value = '';
         return;
     }
 
     const modal = document.getElementById('import-progress-modal');
-    if (modal) {
-        modal.style.display = 'flex';
-        modal.classList.remove('hidden');
-        modal.innerHTML = `
-            <div class="bg-white p-8 rounded-[32px] shadow-2xl max-w-sm w-full text-center space-y-6">
-                <div class="w-20 h-20 bg-indigo-50 text-indigo-600 rounded-full mx-auto flex items-center justify-center">
-                    <i class="fa-solid fa-file-import text-3xl animate-pulse"></i>
-                </div>
-                <div>
-                    <h3 class="text-xl font-black text-indigo-900 uppercase">Importing Excel</h3>
-                    <p id="import-progress-text" class="text-xs text-slate-400 font-bold uppercase tracking-widest mt-1">Reading data...</p>
-                </div>
-                <div class="h-3 w-full bg-slate-100 rounded-full overflow-hidden">
-                    <div id="import-progress-bar" class="h-full bg-gradient-to-r from-indigo-500 to-indigo-600 transition-all duration-500" style="width: 0%"></div>
-                </div>
-                <div class="flex justify-between text-[10px] font-bold text-indigo-400 uppercase">
-                    <span id="import-progress-percent">0% Complete</span>
-                    <span id="import-progress-count">0 / 0</span>
-                </div>
-            </div>
-        `;
-    }
+    window.showGlobalSpinner("Processing Excel File...");
 
     const reader = new FileReader();
 
@@ -285,27 +350,53 @@ window.handleAssetImport = function(event) {
             const data = new Uint8Array(e.target.result);
             const workbook = XLSX.read(data, { type: "array", cellDates: true });
 
+            window.showGlobalSpinner("Parsing Sheet Data...");
             // Select correct sheet
             let sheetName = "Verified Asset List";
             let worksheet = workbook.Sheets[sheetName];
 
+            if (!worksheet) {
+                const alternatives = ["VerifiedAssetList", "Verified Assets", "Asset List", "Assets", "Sheet2"];
+                for (const alt of alternatives) {
+                    if (workbook.Sheets[alt]) {
+                        sheetName = alt;
+                        worksheet = workbook.Sheets[alt];
+                        console.log(`📊 Found sheet: "${sheetName}"`);
+                        break;
+                    }
+                }
+            }
+
             if (!worksheet && workbook.SheetNames.length > 1) {
                 sheetName = workbook.SheetNames[1];
                 worksheet = workbook.Sheets[sheetName];
+                console.log(`📊 Using second sheet: "${sheetName}"`);
             }
 
             if (!worksheet) {
                 sheetName = workbook.SheetNames[0];
                 worksheet = workbook.Sheets[sheetName];
+                console.warn(`⚠️ Using first sheet: "${sheetName}" (fallback)`);
             }
 
             console.log(`📊 Processing sheet: "${sheetName}"`);
 
             const result = parseStandardAssetSheet(worksheet);
 
-            if (result.assets.length === 0) {
-                throw new Error(`No assets found in sheet "${sheetName}".`);
+            console.log(`📊 Total Headers Found: ${result.totalHeaders}`);
+            console.log(`📊 Headers Mapped: ${result.mappedCount}`);
+            console.log(`📊 Assets Found: ${result.assets.length}`);
+
+            if (result.skipped.length > 0) {
+                console.warn(`⚠️ ${result.skipped.length} row(s) skipped:`, result.skipped);
             }
+
+            if (result.assets.length === 0) {
+                throw new Error(`No assets found in sheet "${sheetName}". Please make sure the data is in the correct sheet.`);
+            }
+
+            window._currentAssets = result.assets;
+            window._currentHeaders = result.headers;
 
             // Render table with ALL headers
             window.renderDynamicAssetTable(result.assets, result.headers);
@@ -324,11 +415,18 @@ window.handleAssetImport = function(event) {
             message += `❌ Failed: ${saveResult.failed}\n`;
             message += `⚠️ Skipped: ${result.skipped.length}\n\n`;
 
+            if (result.skipped.length > 0) {
+                message += `⚠️ ${result.skipped.length} rows skipped due to missing barcode.\n`;
+                message += `Check console for details.`;
+            }
+
             alert(message);
 
             if (window.refreshDashboardData) {
                 await window.refreshDashboardData();
             }
+
+            console.log(`✅ Import complete: ${saveResult.saved} asset(s) saved`);
 
         } catch (err) {
             console.error("❌ Excel import failed:", err);
@@ -339,6 +437,15 @@ window.handleAssetImport = function(event) {
                 modal.style.display = 'none';
             }
             event.target.value = "";
+        }
+    };
+
+    reader.onerror = () => {
+        console.error("Failed to read file.");
+        alert("Failed to read the selected file.");
+        if (modal) {
+            modal.classList.add('hidden');
+            modal.style.display = 'none';
         }
     };
 
@@ -357,7 +464,10 @@ function showImportProgress(percent, current, total) {
 
     const displayPercent = Math.min(100, percent);
 
-    if (progressBar) progressBar.style.width = `${displayPercent}%`;
+    if (progressBar) {
+        progressBar.style.width = `${displayPercent}%`;
+    }
+
     if (progressText) {
         const status = displayPercent < 30 ? 'Reading data...' :
                       displayPercent < 60 ? 'Processing assets...' :
@@ -365,14 +475,18 @@ function showImportProgress(percent, current, total) {
                       'Finalizing...';
         progressText.textContent = status;
     }
-    if (progressPercent) progressPercent.textContent = `${displayPercent}% Complete`;
+
+    if (progressPercent) {
+        progressPercent.textContent = `${displayPercent}% Complete`;
+    }
+
     if (progressCount && current !== undefined && total !== undefined) {
         progressCount.textContent = `${Math.min(current, total)} / ${total}`;
     }
 }
 
 // ================================================================ */
-// DYNAMIC TABLE RENDERER - SHOW ALL HEADERS                       */
+// DYNAMIC TABLE RENDERING - SHOW ALL 39 HEADERS                   */
 // ================================================================ */
 
 window.renderDynamicAssetTable = function(assets, headers) {
@@ -384,81 +498,130 @@ window.renderDynamicAssetTable = function(assets, headers) {
         return;
     }
 
-    tableHeaderContainer.innerHTML = "";
-    tableBodyContainer.innerHTML = "";
-
     if (!assets || assets.length === 0) {
         tableHeaderContainer.innerHTML = '<tr><th class="p-3">No Data</th></tr>';
         tableBodyContainer.innerHTML = '<tr><td class="p-4 text-center text-gray-400">No assets found.</td></tr>';
         return;
     }
 
-    // SHOW ALL HEADERS
     const allHeaders = headers;
-    const displayAssets = assets.slice(0, 20);
 
-    console.log(`📊 Rendering ${allHeaders.length} headers`);
+    window.adminPaginators.assets.init(assets, (pageItems, startIndex) => {
+        tableHeaderContainer.innerHTML = "";
+        tableBodyContainer.innerHTML = "";
 
-    // Build Header - ALL FIELDS
-    let headerHtml = '<tr class="bg-indigo-900 text-white text-left text-[10px] uppercase font-bold sticky top-0 z-20">';
-    headerHtml += '<th class="p-3 w-8 sticky left-0 bg-indigo-900 z-30">#</th>';
-
-    allHeaders.forEach((header) => {
-        let label = header;
-        if (label.length > 20) label = label.substring(0, 17) + '...';
-        headerHtml += `<th class="p-3 border-r border-indigo-800/20 shadow-sm text-[9px] whitespace-nowrap min-w-[100px]" title="${header}">${label}</th>`;
-    });
-
-    headerHtml += '<th class="p-3 text-center min-w-[100px]">ACTION</th></tr>';
-    tableHeaderContainer.innerHTML = headerHtml;
-
-    // Build Body
-    let bodyHtml = '';
-
-    displayAssets.forEach((asset, index) => {
-        const assetId = asset._id || asset.assetBarcode || `row_${index}`;
-        bodyHtml += `<tr class="border-b hover:bg-indigo-50 text-[10px] text-slate-700">`;
-        bodyHtml += `<td class="p-3 text-center sticky left-0 bg-white z-10 border-r shadow-sm">${index + 1}</td>`;
+        // Build Table Header
+        let headerHtml = '<tr class="bg-indigo-900 text-white text-left text-[10px] uppercase font-bold sticky top-0 z-20">';
+        headerHtml += '<th class="p-3 w-8 sticky left-0 bg-indigo-900 z-30">#</th>';
 
         allHeaders.forEach((header) => {
-            const mappedField = findMatchingField(header);
-            let value = '-';
-
-            if (mappedField && asset[mappedField] !== undefined && asset[mappedField] !== null && asset[mappedField] !== '') {
-                value = String(asset[mappedField]);
-                if (value.length > 30) value = value.substring(0, 27) + '...';
-            } else if (asset[header] !== undefined && asset[header] !== null && asset[header] !== '') {
-                value = String(asset[header]);
-                if (value.length > 30) value = value.substring(0, 27) + '...';
+            let label = header;
+            if (label.length > 20) {
+                label = label.substring(0, 17) + '...';
             }
-
-            bodyHtml += `<td class="p-3 border-r border-slate-100 max-w-[200px] truncate" title="${value}">${value}</td>`;
+            headerHtml += `<th class="p-3 border-r border-indigo-800/20 shadow-sm text-[9px] whitespace-nowrap min-w-[100px]" title="${header}">${label}</th>`;
         });
 
-        bodyHtml += `
-            <td class="p-3 text-center">
-                <button onclick="window.openEditAssetModal('${assetId}')" class="text-indigo-600 hover:text-indigo-800 p-1">
-                    <i class="fa-solid fa-pen-to-square"></i>
-                </button>
-                <button onclick="window.deleteAssetRecord('${assetId}')" class="text-red-600 hover:text-red-800 p-1">
-                    <i class="fa-solid fa-trash-can"></i>
-                </button>
-            </td>
-        </tr>`;
+        headerHtml += '<th class="p-3 text-center border-r border-indigo-800/20 shadow-sm min-w-[100px]">ACTION</th></tr>';
+        tableHeaderContainer.innerHTML = headerHtml;
+
+        // Build Table Body
+        let bodyHtml = '';
+
+        pageItems.forEach((asset, index) => {
+            const assetId = asset._id || asset.assetBarcode || `row_${startIndex + index}`;
+            bodyHtml += `<tr class="border-b hover:bg-indigo-50 text-[10px] text-slate-700">`;
+            bodyHtml += `<td class="p-3 text-center sticky left-0 bg-white z-10 border-r shadow-sm">${startIndex + index + 1}</td>`;
+
+            allHeaders.forEach((header) => {
+                const mappedField = findMatchingField(header);
+                let value = '-';
+
+                if (mappedField && asset[mappedField] !== undefined && asset[mappedField] !== null && asset[mappedField] !== '') {
+                    value = String(asset[mappedField]);
+                    if (value.length > 30) {
+                        value = value.substring(0, 27) + '...';
+                    }
+                } else if (asset[header] !== undefined && asset[header] !== null && asset[header] !== '') {
+                    value = String(asset[header]);
+                    if (value.length > 30) {
+                        value = value.substring(0, 27) + '...';
+                    }
+                }
+
+                bodyHtml += `<td class="p-3 border-r border-slate-100 max-w-[200px] truncate" title="${value}">${value}</td>`;
+            });
+
+            bodyHtml += `
+                <td class="p-3 text-center whitespace-nowrap">
+                    <div class="flex items-center justify-center gap-2">
+                        <button onclick="window.openEditAssetModal('${assetId}')" class="text-indigo-600 hover:text-indigo-800 p-1">
+                            <i class="fa-solid fa-pen-to-square"></i>
+                        </button>
+                        <button onclick="window.deleteAssetRecord('${assetId}')" class="text-red-600 hover:text-red-800 p-1">
+                            <i class="fa-solid fa-trash-can"></i>
+                        </button>
+                    </div>
+                </td>
+            </tr>`;
+        });
+
+        tableBodyContainer.innerHTML = bodyHtml;
+
+        // Update count display
+        const countDisplay = document.getElementById('asset-count-display');
+        if (countDisplay) {
+            countDisplay.textContent = `Showing ${pageItems.length} of ${assets.length} assets | ${allHeaders.length} headers detected`;
+        }
     });
-
-    tableBodyContainer.innerHTML = bodyHtml;
-
-    const countDisplay = document.getElementById('asset-count-display');
-    if (countDisplay) {
-        countDisplay.textContent = `Showing ${displayAssets.length} of ${assets.length} assets | ${allHeaders.length} headers`;
-    }
-
-    console.log(`✅ Table rendered: ${allHeaders.length} headers`);
 };
 
 // ================================================================ */
-// DEBUG FUNCTION                                                   */
+// VERIFY FIREBASE DATA - CHECK ALL 39 FIELDS                      */
+// ================================================================ */
+
+window.verifyFirebaseData = async (barcode) => {
+    try {
+        const assetRef = ref(db, `assets/${barcode}`);
+        const snapshot = await get(assetRef);
+
+        if (snapshot.exists()) {
+            const data = snapshot.val();
+            const fieldCount = Object.keys(data).length;
+
+            console.log(`📊 Asset ${barcode} has ${fieldCount} fields:`);
+            console.log(data);
+
+            // Check which fields are missing
+            const missingFields = ALL_EXPECTED_FIELDS.filter(field => {
+                return data[field] === undefined || data[field] === null;
+            });
+
+            if (missingFields.length === 0) {
+                console.log('✅ All 39 fields present!');
+            } else {
+                console.warn(`⚠️ Missing ${missingFields.length} fields:`, missingFields);
+            }
+
+            return {
+                barcode: barcode,
+                totalFields: fieldCount,
+                data: data,
+                missingFields: missingFields,
+                allPresent: missingFields.length === 0
+            };
+        } else {
+            console.error(`❌ Asset ${barcode} not found`);
+            return null;
+        }
+    } catch (error) {
+        console.error('❌ Verification error:', error);
+        return null;
+    }
+};
+
+// ================================================================ */
+// DEBUG FUNCTION - CHECK ALL SHEETS AND HEADERS                   */
 // ================================================================ */
 
 window.debugExcelHeaders = async (file) => {
@@ -468,17 +631,42 @@ window.debugExcelHeaders = async (file) => {
             try {
                 const data = new Uint8Array(e.target.result);
                 const workbook = XLSX.read(data, { type: "array" });
+
                 const sheetsInfo = workbook.SheetNames.map(name => {
                     const worksheet = workbook.Sheets[name];
                     const jsonData = XLSX.utils.sheet_to_json(worksheet, { defval: "" });
                     const headers = jsonData.length > 0 ? Object.keys(jsonData[0]) : [];
-                    return { name, headers, headerCount: headers.length, rows: jsonData.length };
+
+                    return {
+                        name: name,
+                        headers: headers,
+                        headerCount: headers.length,
+                        rows: jsonData.length
+                    };
                 });
-                resolve({ sheets: sheetsInfo, totalSheets: sheetsInfo.length });
-            } catch (err) { reject(err); }
+
+                resolve({
+                    sheets: sheetsInfo,
+                    totalSheets: sheetsInfo.length,
+                    recommendedSheet: sheetsInfo.find(s => s.headerCount > 30)?.name || sheetsInfo[0]?.name
+                });
+            } catch (err) {
+                reject(err);
+            }
         };
         reader.readAsArrayBuffer(file);
     });
 };
 
+// ================================================================ */
+// EXPOSE FUNCTIONS TO WINDOW                                      */
+// ================================================================ */
+
+window.ASSET_HEADER_MAPPING = ASSET_HEADER_MAPPING;
+window.ALL_EXPECTED_FIELDS = ALL_EXPECTED_FIELDS;
+window.findMatchingField = findMatchingField;
+window.normalizeHeader = normalizeHeader;
+
 console.log("✅ import_module.js loaded (COMPLETE 39 HEADERS)");
+console.log(`📋 Total Headers Configured: ${Object.keys(ASSET_HEADER_MAPPING).length}`);
+console.log(`📋 All 39 Fields:`, ALL_EXPECTED_FIELDS);

@@ -28,13 +28,24 @@ function getCompressedSignature(canvas) {
 window.getCompressedSignature = getCompressedSignature;
 // --- INITIALIZATION: Signature Pad for Visitors ---
 window.initVisitorCanvas = () => {
-    window.sigPadManager.getPad('v-sig-pad');
+    if (window.sigPadManager) {
+        const pad = window.sigPadManager.getPad('v-sig-pad');
+        if (pad) pad._setupCanvas();
+    }
 };
 
 window.clearVisitorSig = () => {
-    const pad = window.sigPadManager.getPad('v-sig-pad');
-    pad.clear();
-    pad.lock();
+    if (window.sigPadManager) {
+        const pad = window.sigPadManager.getPad('v-sig-pad');
+        if (pad) {
+            pad.clear();
+            pad.lock();
+        }
+    }
+};
+
+window.generateKeyReturnPin = () => {
+    return Math.floor(1000 + Math.random() * 9000).toString();
 };
 
 window.checkVisitorSession = () => {
@@ -51,14 +62,25 @@ window.checkVisitorSession = () => {
             const activeName = document.getElementById('v-active-name');
             const activeId = document.getElementById('v-active-id');
             const activeTimeIn = document.getElementById('v-active-timein');
+            const activePin = document.getElementById('v-active-pin'); // NEW
             if (activeName) activeName.innerText = data.name;
             if (activeId) activeId.innerText = data.id;
             if (activeTimeIn) activeTimeIn.innerText = data.timeIn;
+            if (activePin && data.keyCollected === 'YES') activePin.innerText = "🔑 PIN: " + data.keyReturnPin; // NEW
         }
 
         // Fix for Sign-Out button event listener
         if (signOutBtn) {
             signOutBtn.onclick = async () => {
+                if (data.keyCollected === 'YES') {
+                    const pinInput = prompt("🔑 KEY RETURN PIN REQUIRED\nEnter 4-digit PIN:");
+                    if (pinInput !== data.keyReturnPin) {
+                        alert("Incorrect PIN!");
+                        return;
+                    }
+                }
+
+                window.showGlobalSpinner("Finalizing Exit...");
                 try {
                     const now = new Date();
                     const outTime = now.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', hour12: true});
@@ -73,6 +95,8 @@ window.checkVisitorSession = () => {
                     window.checkVisitorSession();
                 } catch (e) {
                     alert("Error during sign-out: " + e.message);
+                } finally {
+                    window.hideGlobalSpinner();
                 }
             };
         }
@@ -90,17 +114,10 @@ window.initVisitorForm = async () => {
     if (!vId || !vDate) return;
     const now = new Date();
 
-    // NEW JYS-0001 FORMAT LOGIC
-    try {
-        const snap = await get(ref(db, 'visitors'));
-        let count = 1;
-        if (snap.exists()) {
-            count = Object.values(snap.val()).length + 1;
-        }
-        vId.value = "JYS-" + count.toString().padStart(4, '0');
-    } catch (e) {
-        vId.value = "JYS-" + Math.floor(Math.random() * 9000 + 1000);
-    }
+    // ... logic for vId generation ...
+
+    // ADD KEY GENERATION LOGIC IN FORM SUBMIT
+    // (This would be in your saveVisitor function, assuming you add it there)
 
     // Force visibility and set date/time
     vDate.value = now.toLocaleDateString('en-US') + " " + now.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', hour12: true});
