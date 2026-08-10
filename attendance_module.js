@@ -522,6 +522,21 @@ window.loadSecurityPinControl = () => {
 
             let rows = [];
 
+            // Helper to sync mobile local storage if this device is the one being updated
+            const syncLocalVActive = (id, pin) => {
+                const local = localStorage.getItem('vActive');
+                if (local) {
+                    try {
+                        const data = JSON.parse(local);
+                        if (data.id === id) {
+                            data.keyReturnPin = pin;
+                            data.checkoutPin = pin;
+                            localStorage.setItem('vActive', JSON.stringify(data));
+                        }
+                    } catch(e) {}
+                }
+            };
+
             // 1. Process Staff
             if (staffSnap.exists()) {
                 for (const [key, s] of Object.entries(staffSnap.val())) {
@@ -557,6 +572,8 @@ window.loadSecurityPinControl = () => {
                                 checkoutPin: newPin
                             });
                             v.keyReturnPin = newPin;
+                            // Sync mobile cache if visitor is on this device
+                            syncLocalVActive(v.id, newPin);
                         }
                         rows.push({
                             name: v.name,
@@ -581,6 +598,8 @@ window.loadSecurityPinControl = () => {
                                 checkoutPin: newPin
                             });
                             c.keyReturnPin = newPin;
+                            // Sync mobile cache if contractor is on this device
+                            syncLocalVActive(c.id, newPin);
                         }
                         rows.push({
                             name: c.name,
