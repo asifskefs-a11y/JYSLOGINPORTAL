@@ -14,21 +14,9 @@ window.initSigPad = () => {
     }
 };
 
-// 3. ATTACH KEYPRESS LISTENER FOR 'ENTER' KEY SUBMISSION
-document.addEventListener('DOMContentLoaded', () => {
-    const input = document.getElementById('key-return-pin-input');
-    if (input) {
-        input.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') {
-                e.preventDefault();
-                window.confirmKeyReturn(e);
-            }
-        });
-    }
-});
-
 window.openSignatureModal = (title, callback) => {
-    document.getElementById('sig-modal-title').innerText = title;
+    const titleEl = document.getElementById('sig-modal-title');
+    if (titleEl) titleEl.innerText = title;
     const modal = document.getElementById('signature-modal');
     if (modal) {
         modal.classList.add('active');
@@ -37,7 +25,6 @@ window.openSignatureModal = (title, callback) => {
                 const pad = window.sigPadManager.getPad('sig-canvas');
                 if (pad) pad._setupCanvas();
             }
-            // Auto-hide spinner once modal/canvas is ready
             window.hideGlobalSpinner();
         }, 150);
     }
@@ -58,7 +45,6 @@ if (sigConfirmBtn) {
             const canvasPad = window.sigPadManager.getPad('sig-canvas');
             const data = canvasPad.toDataURL();
 
-            // Basic validation to ensure something was drawn
             if (data.length < 1000) {
                 alert("Please provide your signature to continue.");
                 return;
@@ -101,7 +87,6 @@ window.closePasswordModal = () => {
     passwordCallback = null;
 };
 
-// Bind form submission for password verification
 document.addEventListener('DOMContentLoaded', () => {
     const passForm = document.getElementById('password-verify-form');
     if (passForm) {
@@ -119,7 +104,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
 
-            // Validate against the cached staff object
             const actualPass = (window.currentStaff.password || "").toString();
 
             if (enteredPass === actualPass) {
@@ -133,16 +117,26 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         };
     }
+
+    // Attach single ENTER key listener for PIN modal input
+    const pinInput = document.getElementById('key-return-pin-input');
+    if (pinInput) {
+        pinInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                window.confirmKeyReturn(e);
+            }
+        });
+    }
 });
 
 // ================================================================ */
-// KEY HANDOVER LOGIC (STRICT MANDATORY RETURN)                     */
+// KEY HANDOVER LOGIC (STRICT MANDATORY RETURN & PIN VERIFICATION)   */
 // ================================================================ */
 
 let keyCollectCallback = null;
 let keyReturnCallback = null;
 
-// --- SECURITY PIN GENERATION (v4.0) ---
 window.generateKeyReturnPin = () => {
     return Math.floor(1000 + Math.random() * 9000).toString();
 };
@@ -153,8 +147,6 @@ window.openKeyCollectionModal = (callback) => {
     keyCollectCallback = callback;
 };
 
-// ... (existing code)
-
 window.confirmKeyCollection = (hasKey) => {
     const modal = document.getElementById('key-collection-modal');
     if (modal) modal.classList.add('hidden');
@@ -163,10 +155,10 @@ window.confirmKeyCollection = (hasKey) => {
 };
 
 window.openKeyReturnModal = (staffKey, staffRecord, callback) => {
-    // Set context globally
+    // Store full session & key globally
     window.activeSessionForReturn = {
         key: staffKey,
-        ...staffRecord
+        ...(staffRecord || {})
     };
     keyReturnCallback = callback;
 
@@ -177,34 +169,52 @@ window.openKeyReturnModal = (staffKey, staffRecord, callback) => {
     if (input) input.value = '';
     if (modal) {
         modal.classList.remove('hidden');
-        modal.style.display = 'flex'; // Ensure visibility
+        modal.style.display = 'flex';
     }
     if (input) input.focus();
 };
 
 window.confirmKeyReturn = async (event) => {
-    if (event) event.preventDefault(); // Prevent accidental form submit reloads
+    if (event) event.preventDefault();
 
     const input = document.getElementById('key-return-pin-input');
     const error = document.getElementById('pin-error');
     const enteredPin = (input?.value || "").toString().trim();
 
-    if (!window.activeSessionForReturn || !window.activeSessionForReturn.key) {
-        console.error("❌ Session context lost for staff key return");
-        alert("Session error. Please close the modal and click 'Return Key' again.");
+    if (!window.activeSessionForReturn) {
+        alert("Session error. Please close modal and click 'Return Key' again.");
         return;
     }
 
     window.showGlobalSpinner("Verifying Staff Key PIN...");
+
     let liveStoredPin = "";
-    const staffKey = window.activeSessionForReturn.key;
+    const active = window.activeSessionForReturn;
+    let actualFirebaseKey = active.key;
 
     try {
-        // Always fetch live server record from Firebase
-        const snap = await get(ref(db, `staff_attendance/${staffKey}`));
-        if (snap.exists()) {
-            const liveRecord = snap.val();
-            liveStoredPin = (liveRecord.keyReturnPin || liveRecord.checkoutPin || liveRecord.pin || "").toString().trim();
+        // Deep Lookup: Fetch from specific node or search by mobile
+        if (actualFirebaseKey) {
+            const snap = await get(ref(db, `staff_attendance/${actualFirebaseKey}`));
+            if (snap.exists()) {
+                const rec = snap.val();
+                liveStoredPin = (rec.keyReturnPin || rec.checkoutPin || rec.pin || "").toString().trim();
+            }
+        }
+
+        // Fallback: Search all staff attendance if key was direct session
+        if (!liveStoredPin) {
+            const allSnap = await get(ref(db, 'staff_attendance'));
+            if (allSnap.exists()) {
+                const data = allSnap.val();
+                for (const [k, v] of Object.entries(data)) {
+                    if (v.status === 'checked_in' && (v.mobile === active.mobile || k === active.key)) {
+                        liveStoredPin = (v.keyReturnPin || v.checkoutPin || v.pin || "").toString().trim();
+                        actualFirebaseKey = k;
+                        break;
+                    }
+                }
+            }
         }
     } catch (err) {
         console.error("Error fetching live record for staff:", err);
@@ -212,16 +222,28 @@ window.confirmKeyReturn = async (event) => {
         window.hideGlobalSpinner();
     }
 
-    // Validate PIN
+    // Fallback to active session local PIN if Firebase load failed
+    if (!liveStoredPin && active.keyReturnPin) {
+        liveStoredPin = active.keyReturnPin.toString().trim();
+    }
+
+    console.log(`[Staff PIN] Input: "${enteredPin}", Expected: "${liveStoredPin}"`);
+
+    // VERIFY PIN
     if (liveStoredPin !== "" && enteredPin === liveStoredPin) {
-        console.log("✅ Staff Key PIN Verified Successfully");
+        console.log("✅ Staff Key PIN Verified Successfully!");
+
         try {
             window.showGlobalSpinner("Updating Key Status...");
-            // Update Firebase status to Key Returned / Cleared
-            await update(ref(db, `staff_attendance/${staffKey}`), {
-                keyStatus: 'RETURNED',
-                keyReturnTime: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', hour12: true})
-            });
+
+            // Update Firebase
+            if (actualFirebaseKey) {
+                await update(ref(db, `staff_attendance/${actualFirebaseKey}`), {
+                    keyStatus: 'RETURNED',
+                    keyReturnTime: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', hour12: true})
+                });
+            }
+
             // Hide Modal
             const modal = document.getElementById('key-return-modal');
             if (modal) {
@@ -230,12 +252,18 @@ window.confirmKeyReturn = async (event) => {
             }
 
             window.activeSessionForReturn = null;
-            if (keyReturnCallback) keyReturnCallback();
-            keyReturnCallback = null;
 
-            window.triggerSuccessPopup("Staff Key Returned Successfully! 🔑✅");
-            // Re-render PIN table & Dashboard
+            // Execute Callback if present (For Checkout Flow)
+            if (keyReturnCallback) {
+                const cb = keyReturnCallback;
+                keyReturnCallback = null;
+                await cb();
+            } else {
+                window.triggerSuccessPopup("Staff Key Returned Successfully! 🔑✅");
+            }
+
             if (window.loadSecurityPinControl) window.loadSecurityPinControl();
+
         } catch (e) {
             alert("Error updating key status: " + e.message);
         } finally {
@@ -251,19 +279,6 @@ window.confirmKeyReturn = async (event) => {
         alert(`❌ Invalid PIN (${enteredPin || 'Empty'}).\nPlease enter the exact 4-digit PIN shown on the Security Dashboard.`);
     }
 };
-
-// 3. ATTACH KEYPRESS LISTENER FOR 'ENTER' KEY SUBMISSION
-document.addEventListener('DOMContentLoaded', () => {
-    const input = document.getElementById('key-return-pin-input');
-    if (input) {
-        input.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') {
-                e.preventDefault();
-                window.confirmKeyReturn(e);
-            }
-        });
-    }
-});
 
 // ================================================================ */
 // PERFORMANCE OPTIMIZATIONS: GEOLOCATION & ASYNC                   */
@@ -287,7 +302,7 @@ const getFastLocation = () => {
 };
 
 // ================================================================ */
-// DASHBOARD & ATTENDANCE CORE                                      */
+// DASHBOARD & ATTENDANCE CORE                                       */
 // ================================================================ */
 
 window.renderDashboard = async (staff) => {
@@ -304,8 +319,6 @@ window.renderDashboard = async (staff) => {
     if (authArea) authArea.classList.add('hidden');
     if (dashArea) dashArea.classList.remove('hidden');
 
-    // FORCE SHOW MAIN DASHBOARD SUB-TAB (HIDE MOVEMENT LOGS & OTHERS)
-    // We target all main workflow containers to ensure a clean landing
     const subViews = [
         'tasks-management-section',
         'asset-audit-section',
@@ -318,11 +331,9 @@ window.renderDashboard = async (staff) => {
         if (el) el.classList.add('hidden');
     });
 
-    // Explicitly ensure the dashboard container/home view is visible
     const homeView = document.getElementById('staff-home-view') || document.getElementById('staff-dash-area');
     if (homeView) homeView.classList.remove('hidden');
 
-    // Role-based UI Simplification (Handled by Global Helper)
     if (window.applyRoleDashboardRules) {
         window.applyRoleDashboardRules(role);
         if (role === 'cleaner') window.loadPersonalAttendance(staff.mobile);
@@ -368,8 +379,6 @@ window.renderDashboard = async (staff) => {
             if (coutBtn) {
                 coutBtn.onclick = () => {
                     window.openPasswordModal("Check-Out Security", async () => {
-
-                        // Evening Check-Out Mandatory Return Lock
                         if (session.keyStatus === 'HELD') {
                             window.openKeyReturnModal(session.key, session, async () => {
                                 await proceedCheckOut(staff, session, coutBtn, true);
@@ -386,8 +395,6 @@ window.renderDashboard = async (staff) => {
                 cinBtn.onclick = () => {
                     window.openPasswordModal("Check-In Security", () => {
                         window.openSignatureModal("Staff Check-In", async (sigData) => {
-
-                            // Morning Check-In Key Prompt (Non-Security/Admin)
                             if (!isSecurity && !isAdmin) {
                                 window.openKeyCollectionModal(async (hasKey) => {
                                     await proceedCheckIn(staff, sigData, cinBtn, hasKey);
@@ -421,7 +428,7 @@ async function proceedCheckIn(staff, sigData, btn, hasKey) {
         if (res.status !== 'success') throw new Error(res.message || "Upload failed");
 
         const key = staff.mobile + '_' + Date.now();
-        const pin = hasKey ? window.generateKeyReturnPin() : null; // GENERATE PIN
+        const pin = hasKey ? window.generateKeyReturnPin() : null;
         const data = {
             mobile: staff.mobile,
             name: staff.fullName || staff.name,
@@ -436,7 +443,7 @@ async function proceedCheckIn(staff, sigData, btn, hasKey) {
             lng: loc.lng,
             keyStatus: hasKey ? "HELD" : "NONE",
             keyCollectTime: hasKey ? Date.now() : null,
-            keyReturnPin: pin, // STORE PIN
+            keyReturnPin: pin,
             companyName: staff.companyName || "N/A",
             companyId: staff.companyId || "N/A",
             adekPass: staff.adekPass || staff.adcPassNumber || "N/A"
@@ -444,7 +451,7 @@ async function proceedCheckIn(staff, sigData, btn, hasKey) {
 
         await set(ref(db, 'staff_attendance/' + key), data);
         await set(ref(db, 'active_staff_sessions/' + staff.mobile), {
-            status: 'checked_in', key, timeIn: data.timeIn, keyStatus: data.keyStatus, keyReturnPin: pin
+            status: 'checked_in', key, timeIn: data.timeIn, keyStatus: data.keyStatus, keyReturnPin: pin, mobile: staff.mobile
         });
 
         if (hasKey) alert("🔑 YOUR KEY RETURN PIN: " + pin + "\n(Keep this for check-out)");
@@ -483,7 +490,9 @@ async function proceedCheckOut(staff, session, btn, keyReturned) {
             data.keyReturnTime = Date.now();
         }
 
-        await update(ref(db, 'staff_attendance/' + session.key), data);
+        if (session && session.key) {
+            await update(ref(db, 'staff_attendance/' + session.key), data);
+        }
         await set(ref(db, 'active_staff_sessions/' + staff.mobile), null);
 
         if (window.triggerSuccessPopup) window.triggerSuccessPopup("Checked Out Successfully! 👋");
@@ -536,38 +545,21 @@ window.loadPersonalAttendance = async (mobile) => {
     }
 };
 
-// 3. ATTACH KEYPRESS LISTENER FOR 'ENTER' KEY SUBMISSION
-document.addEventListener('DOMContentLoaded', () => {
-    const input = document.getElementById('key-return-pin-input');
-    if (input) {
-        input.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') {
-                e.preventDefault();
-                window.confirmKeyReturn(e);
-            }
-        });
-    }
-});
-
-console.log("✅ attendance_module.js: UI & Security Enhanced");
-
 window.loadSecurityPinControl = () => {
     const container = document.getElementById('security-pin-control');
     const body = document.getElementById('security-pin-list-body');
     const head = container ? container.querySelector('thead') : null;
 
-    // 1. UNHIDE CONTAINER IMMEDIATELY IF USER IS SECURITY
     if (container) {
         container.classList.remove('hidden');
         container.style.display = 'block';
     }
 
-    // Update Table Header to 4-Column Layout
     if (head) {
         head.innerHTML = `
             <thead class="bg-indigo-950/70 text-indigo-300 font-extrabold uppercase text-[10px] tracking-wider">
                 <tr>
-                    <th class="p-3 text-left">Visitor / Contractor</th>
+                    <th class="p-3 text-left">Visitor / Contractor / Staff</th>
                     <th class="p-3 text-left">Category & Details</th>
                     <th class="p-3 text-left">Key Details</th>
                     <th class="p-3 text-center">Checkout PIN</th>
@@ -578,12 +570,10 @@ window.loadSecurityPinControl = () => {
 
     if (!body) return;
 
-    // Listen to all relevant nodes for real-time sync
     onValue(ref(db, 'staff_attendance'), () => renderPinTable());
     onValue(ref(db, 'visitor_logs'), () => renderPinTable());
     onValue(ref(db, 'contractor_logs'), () => renderPinTable());
 
-    // Trigger immediate load
     renderPinTable();
 
     async function renderPinTable() {
@@ -596,7 +586,6 @@ window.loadSecurityPinControl = () => {
 
             let rows = [];
 
-            // Helper to sync mobile local storage if this device is the one being updated
             const syncLocalVActive = (id, pin) => {
                 const local = localStorage.getItem('vActive');
                 if (local) {
@@ -646,7 +635,6 @@ window.loadSecurityPinControl = () => {
                                 checkoutPin: newPin
                             });
                             v.keyReturnPin = newPin;
-                            // Sync mobile cache if visitor is on this device
                             syncLocalVActive(v.id, newPin);
                         }
                         rows.push({
@@ -672,7 +660,6 @@ window.loadSecurityPinControl = () => {
                                 checkoutPin: newPin
                             });
                             c.keyReturnPin = newPin;
-                            // Sync mobile cache if contractor is on this device
                             syncLocalVActive(c.id, newPin);
                         }
                         rows.push({
@@ -723,6 +710,7 @@ window.loadSecurityPinControl = () => {
     }
 };
 
+console.log("✅ attendance_module.js: UI & Security Fully Fixed");
 // 3. ATTACH KEYPRESS LISTENER FOR 'ENTER' KEY SUBMISSION
 document.addEventListener('DOMContentLoaded', () => {
     const input = document.getElementById('key-return-pin-input');
