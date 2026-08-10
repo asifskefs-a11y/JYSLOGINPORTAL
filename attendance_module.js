@@ -14,6 +14,19 @@ window.initSigPad = () => {
     }
 };
 
+// 3. ATTACH KEYPRESS LISTENER FOR 'ENTER' KEY SUBMISSION
+document.addEventListener('DOMContentLoaded', () => {
+    const input = document.getElementById('key-return-pin-input');
+    if (input) {
+        input.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                window.confirmKeyReturn(e);
+            }
+        });
+    }
+});
+
 window.openSignatureModal = (title, callback) => {
     document.getElementById('sig-modal-title').innerText = title;
     const modal = document.getElementById('signature-modal');
@@ -149,39 +162,49 @@ window.confirmKeyCollection = (hasKey) => {
     keyCollectCallback = null;
 };
 
-window.openKeyReturnModal = (session, callback) => {
+window.openKeyReturnModal = (staffKey, staffRecord, callback) => {
+    // Set context globally
+    window.activeSessionForReturn = {
+        key: staffKey,
+        ...staffRecord
+    };
+    keyReturnCallback = callback;
+
     const modal = document.getElementById('key-return-modal');
     const input = document.getElementById('key-return-pin-input');
     const error = document.getElementById('pin-error');
-
-    if (modal) modal.classList.remove('hidden');
-    if (input) { input.value = ''; input.focus(); }
     if (error) error.classList.add('hidden');
-
-    window.activeSessionForReturn = session;
-    keyReturnCallback = callback;
+    if (input) input.value = '';
+    if (modal) {
+        modal.classList.remove('hidden');
+        modal.style.display = 'flex'; // Ensure visibility
+    }
+    if (input) input.focus();
 };
 
-window.confirmKeyReturn = async () => {
+window.confirmKeyReturn = async (event) => {
+    if (event) event.preventDefault(); // Prevent accidental form submit reloads
+
     const input = document.getElementById('key-return-pin-input');
     const error = document.getElementById('pin-error');
     const enteredPin = (input?.value || "").toString().trim();
 
-    if (!window.activeSessionForReturn) {
-        console.error("❌ Session context lost for key return");
-        alert("Session error. Please try again.");
+    if (!window.activeSessionForReturn || !window.activeSessionForReturn.key) {
+        console.error("❌ Session context lost for staff key return");
+        alert("Session error. Please close the modal and click 'Return Key' again.");
         return;
     }
 
-    window.showGlobalSpinner("Verifying Key PIN...");
-    let storedPin = "";
+    window.showGlobalSpinner("Verifying Staff Key PIN...");
+    let liveStoredPin = "";
+    const staffKey = window.activeSessionForReturn.key;
 
     try {
-        // Fetch fresh live record directly from Firebase Database
-        const snap = await get(ref(db, 'staff_attendance/' + window.activeSessionForReturn.key));
+        // Always fetch live server record from Firebase
+        const snap = await get(ref(db, `staff_attendance/${staffKey}`));
         if (snap.exists()) {
             const liveRecord = snap.val();
-            storedPin = (liveRecord.keyReturnPin || liveRecord.checkoutPin || liveRecord.pin || "").toString().trim();
+            liveStoredPin = (liveRecord.keyReturnPin || liveRecord.checkoutPin || liveRecord.pin || "").toString().trim();
         }
     } catch (err) {
         console.error("Error fetching live record for staff:", err);
@@ -189,20 +212,58 @@ window.confirmKeyReturn = async () => {
         window.hideGlobalSpinner();
     }
 
-    if (enteredPin === storedPin && enteredPin !== "") {
-        console.log("✅ Key PIN Verified");
-        const modal = document.getElementById('key-return-modal');
-        if (modal) modal.classList.add('hidden');
-        if (keyReturnCallback) keyReturnCallback();
-        keyReturnCallback = null;
-        window.activeSessionForReturn = null;
+    // Validate PIN
+    if (liveStoredPin !== "" && enteredPin === liveStoredPin) {
+        console.log("✅ Staff Key PIN Verified Successfully");
+        try {
+            window.showGlobalSpinner("Updating Key Status...");
+            // Update Firebase status to Key Returned / Cleared
+            await update(ref(db, `staff_attendance/${staffKey}`), {
+                keyStatus: 'RETURNED',
+                keyReturnTime: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', hour12: true})
+            });
+            // Hide Modal
+            const modal = document.getElementById('key-return-modal');
+            if (modal) {
+                modal.classList.add('hidden');
+                modal.style.display = 'none';
+            }
+
+            window.activeSessionForReturn = null;
+            if (keyReturnCallback) keyReturnCallback();
+            keyReturnCallback = null;
+
+            window.triggerSuccessPopup("Staff Key Returned Successfully! 🔑✅");
+            // Re-render PIN table & Dashboard
+            if (window.loadSecurityPinControl) window.loadSecurityPinControl();
+        } catch (e) {
+            alert("Error updating key status: " + e.message);
+        } finally {
+            window.hideGlobalSpinner();
+        }
     } else {
-        console.warn("❌ Incorrect Key PIN");
+        console.warn("❌ Incorrect Staff Key PIN");
         if (error) error.classList.remove('hidden');
-        if (input) { input.value = ''; input.focus(); }
-        alert("❌ Invalid PIN. Please enter the PIN shown on the Security Dashboard.");
+        if (input) {
+            input.value = '';
+            input.focus();
+        }
+        alert(`❌ Invalid PIN (${enteredPin || 'Empty'}).\nPlease enter the exact 4-digit PIN shown on the Security Dashboard.`);
     }
 };
+
+// 3. ATTACH KEYPRESS LISTENER FOR 'ENTER' KEY SUBMISSION
+document.addEventListener('DOMContentLoaded', () => {
+    const input = document.getElementById('key-return-pin-input');
+    if (input) {
+        input.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                window.confirmKeyReturn(e);
+            }
+        });
+    }
+});
 
 // ================================================================ */
 // PERFORMANCE OPTIMIZATIONS: GEOLOCATION & ASYNC                   */
@@ -310,7 +371,7 @@ window.renderDashboard = async (staff) => {
 
                         // Evening Check-Out Mandatory Return Lock
                         if (session.keyStatus === 'HELD') {
-                            window.openKeyReturnModal(async () => {
+                            window.openKeyReturnModal(session.key, session, async () => {
                                 await proceedCheckOut(staff, session, coutBtn, true);
                             });
                         } else {
@@ -474,6 +535,19 @@ window.loadPersonalAttendance = async (mobile) => {
         body.innerHTML = '<tr><td colspan="4" class="p-8 text-center text-red-400">Error loading history</td></tr>';
     }
 };
+
+// 3. ATTACH KEYPRESS LISTENER FOR 'ENTER' KEY SUBMISSION
+document.addEventListener('DOMContentLoaded', () => {
+    const input = document.getElementById('key-return-pin-input');
+    if (input) {
+        input.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                window.confirmKeyReturn(e);
+            }
+        });
+    }
+});
 
 console.log("✅ attendance_module.js: UI & Security Enhanced");
 
@@ -648,3 +722,16 @@ window.loadSecurityPinControl = () => {
         }
     }
 };
+
+// 3. ATTACH KEYPRESS LISTENER FOR 'ENTER' KEY SUBMISSION
+document.addEventListener('DOMContentLoaded', () => {
+    const input = document.getElementById('key-return-pin-input');
+    if (input) {
+        input.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                window.confirmKeyReturn(e);
+            }
+        });
+    }
+});
