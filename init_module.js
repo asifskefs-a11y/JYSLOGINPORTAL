@@ -4,6 +4,14 @@ import { registerPushNotifications } from './fcm_module.js';
 
 console.log("📦 init_module.js: Starting to load...");
 
+// --- SAFE NAVIGATION UTILITY ---
+function safeNavigate(targetUrl) {
+    const currentPath = window.location.pathname.split('/').pop();
+    if (currentPath !== targetUrl) {
+        window.location.href = targetUrl;
+    }
+}
+
 // ================================================================ */
 // GLOBAL LOGIN HANDLERS (Buffer-Safe & Prevent Default)            */
 // ================================================================ */
@@ -52,7 +60,7 @@ window.handleAdminLogin = (e) => {
                 }
             } else {
                 console.log("🔓 Admin Login: Redirecting to admin.html");
-                window.location.href = 'admin.html';
+                safeNavigate('admin.html');
             }
             window.hideGlobalSpinner();
         }, 800);
@@ -124,7 +132,7 @@ window.handleStaffLogin = async (e) => {
                 if ((foundUser.role || "").toLowerCase().trim() === 'admin') {
                     console.log("🔓 Staff Login: Admin role detected, redirecting...");
                     localStorage.setItem('isAdminLoggedIn', 'true');
-                    window.location.href = 'admin.html';
+                    safeNavigate('admin.html');
                     return false;
                 }
 
@@ -160,33 +168,36 @@ window.handleStaffLogin = async (e) => {
 };
 
 /**
- * VISITOR SIGN-IN HANDLER
+ * VISITOR / CONTRACTOR SIGN-IN HANDLER
  */
 window.handleVisitorSignIn = async (e) => {
     if (e) {
         e.preventDefault();
         e.stopPropagation();
     }
-    console.log("🏢 Visitor Sign-In: Form Submitted");
+    const mode = window.portalMode || 'visitor';
+    console.log(`🏢 ${mode.toUpperCase()} Sign-In: Form Submitted`);
 
     const btn = e?.target?.querySelector('button[type="submit"]');
     if (btn) btn.disabled = true;
     window.showGlobalSpinner("Saving Entry Record...");
 
     try {
-        const sigBase64 = window.getCanvasBase64 ? window.getCanvasBase64('v-sig-pad') : null;
-        if (!sigBase64 || sigBase64.length < 1000) {
-            throw new Error("Please provide a signature.");
+        const canvasId = 'v-sig-pad';
+        if (window.isCanvasBlank && window.isCanvasBlank(canvasId)) {
+            throw new Error("Please provide signature before proceeding.");
         }
 
-        console.log("🏢 Visitor Sign-In: Uploading signature...");
-        const res = await window.uploadToDrive({
-            category: UPLOAD_CONFIG.CATEGORIES.VISITORS,
-            fileName: `Visitor_Sig_${Date.now()}.png`,
-            image: sigBase64
-        });
+        const sigBase64 = window.getCanvasBase64 ? window.getCanvasBase64(canvasId) : null;
+        if (!sigBase64 || sigBase64.length < 1000) {
+            throw new Error("Please provide signature before proceeding.");
+        }
 
-        if (res.status !== 'success') throw new Error(res.message || "Signature upload failed");
+        console.log(`🏢 ${mode.toUpperCase()} Sign-In: Processing signature...`);
+
+        const securityPin = (document.getElementById('v-key-status')?.value === 'YES')
+            ? Math.floor(1000 + Math.random() * 9000).toString()
+            : null;
 
         const data = {
             id: document.getElementById('v-id').value,
@@ -195,22 +206,38 @@ window.handleVisitorSignIn = async (e) => {
             company: document.getElementById('v-company').value,
             purpose: document.getElementById('v-purpose').value,
             keyCollected: document.getElementById('v-key-status')?.value || 'NO',
+            keyReturnPin: securityPin, // 4-Digit Security PIN
             date: new Date().toLocaleDateString('en-US'),
             timeIn: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', hour12: true}),
+            timestamp: Date.now(),
             status: "active",
-            signatureUrl: res.fileUrl
+            signatureUrl: sigBase64, // Base64 Data URL
+            type: mode
         };
 
-        console.log("🏢 Visitor Sign-In: Saving to Firebase Database");
-        await set(ref(db, 'visitors/' + data.id), data);
+        if (mode === 'contractor') {
+            data.contractorId = document.getElementById('contractorId').value;
+        }
 
-        localStorage.setItem('vActive', JSON.stringify({id: data.id, name: data.name, timeIn: data.timeIn, keyCollected: data.keyCollected}));
+        const dbPath = mode === 'contractor' ? 'contractor_logs/' : 'visitor_logs/';
+        console.log(`🏢 ${mode.toUpperCase()} Sign-In: Saving to Firebase Database [${dbPath}]`);
+        await set(ref(db, dbPath + data.id), data);
+
+        // Increment the persistent counter
+        const counterPath = mode === 'contractor' ? 'counters/contractors' : 'counters/visitors';
+        if (window.currentSequenceCount) {
+            await set(ref(db, counterPath), window.currentSequenceCount);
+        }
+
+        localStorage.setItem('vActive', JSON.stringify({id: data.id, name: data.name, timeIn: data.timeIn, keyCollected: data.keyCollected, mode: mode}));
+
+        window.showWhatsAppToast(`🚪 New ${mode === 'contractor' ? 'Contractor' : 'Visitor'} Entry`, `${data.name} has checked in.`);
 
         if (window.triggerSuccessPopup) window.triggerSuccessPopup("Sign-In Successful! 🏢");
         if (window.checkVisitorSession) window.checkVisitorSession();
 
     } catch (error) {
-        console.error("❌ Visitor Sign-In: Error:", error);
+        console.error(`❌ ${mode.toUpperCase()} Sign-In: Error:`, error);
         alert("Sign-In Error: " + error.message);
     } finally {
         if (btn) btn.disabled = false;
@@ -294,7 +321,7 @@ document.addEventListener('DOMContentLoaded', () => {
             try {
                 localStorage.clear();
                 sessionStorage.clear();
-                window.location.href = 'index.html'; // Go back to landing
+                safeNavigate('index.html'); // Go back to landing
             } catch (e) { console.error("Logout Error:", e); }
         };
 

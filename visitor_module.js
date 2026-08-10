@@ -26,6 +26,20 @@ function getCompressedSignature(canvas) {
 
 // Ensure global availability for init_module.js
 window.getCompressedSignature = getCompressedSignature;
+
+function isCanvasBlank(canvasId) {
+    const canvas = document.getElementById(canvasId);
+    if (!canvas) return true;
+    const blank = document.createElement('canvas');
+    blank.width = canvas.width;
+    blank.height = canvas.height;
+    const ctx = blank.getContext('2d');
+    ctx.fillStyle = "#FFFFFF";
+    ctx.fillRect(0, 0, blank.width, blank.height);
+    return canvas.toDataURL() === blank.toDataURL();
+}
+window.isCanvasBlank = isCanvasBlank;
+
 // --- INITIALIZATION: Signature Pad for Visitors ---
 window.initVisitorCanvas = () => {
     if (window.sigPadManager) {
@@ -85,7 +99,10 @@ window.checkVisitorSession = () => {
                     const now = new Date();
                     const outTime = now.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', hour12: true});
 
-                    await update(ref(db, 'visitors/' + data.id), {
+                    const mode = data.mode || 'visitor';
+                    const dbPath = mode === 'contractor' ? 'contractor_logs/' : 'visitor_logs/';
+
+                    await update(ref(db, dbPath + data.id), {
                         outTime: outTime,
                         status: 'SIGNED OUT'
                     });
@@ -113,20 +130,21 @@ window.initVisitorForm = async () => {
     const vDate = document.getElementById('v-date');
     if (!vId || !vDate) return;
     const now = new Date();
+    const mode = window.portalMode || 'visitor';
 
-    // ADD KEY GENERATION LOGIC IN FORM SUBMIT
-    // (This would be in your saveVisitor function, assuming you add it there)
-
-    // NEW JYS-0001 FORMAT LOGIC
     try {
-        const snap = await get(ref(db, 'visitors'));
+        const counterPath = mode === 'contractor' ? 'counters/contractors' : 'counters/visitors';
+        const snap = await get(ref(db, counterPath));
         let count = 1;
         if (snap.exists()) {
-            count = Object.values(snap.val()).length + 1;
+            count = parseInt(snap.val()) + 1;
         }
-        vId.value = "JYS-" + count.toString().padStart(4, '0');
+        const prefix = mode === 'contractor' ? 'JYS-C' : 'JYS-V';
+        vId.value = prefix + count.toString().padStart(3, '0');
+        window.currentSequenceCount = count; // Save for incrementing on save
     } catch (e) {
-        vId.value = "JYS-" + Math.floor(Math.random() * 9000 + 1000);
+        console.error("ID Generation Error:", e);
+        vId.value = (mode === 'contractor' ? 'JYS-C' : 'JYS-V') + Math.floor(Math.random() * 900 + 100);
     }
 
     // Force visibility and set date/time

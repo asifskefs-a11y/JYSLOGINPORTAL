@@ -448,5 +448,72 @@ window.loadPersonalAttendance = async (mobile) => {
 
 console.log("✅ attendance_module.js: UI & Security Enhanced");
 
+window.loadSecurityPinControl = () => {
+    const body = document.getElementById('security-pin-list-body');
+    if (!body) return;
 
-console.log("✅ attendance_module.js: UI & Security Enhanced");
+    onValue(ref(db, 'staff_attendance'), (snap) => {
+        renderPinTable();
+    });
+    onValue(ref(db, 'visitor_logs'), (snap) => {
+        renderPinTable();
+    });
+    onValue(ref(db, 'contractor_logs'), (snap) => {
+        renderPinTable();
+    });
+
+    async function renderPinTable() {
+        try {
+            const [staffSnap, visSnap, conSnap] = await Promise.all([
+                get(ref(db, 'staff_attendance')),
+                get(ref(db, 'visitor_logs')),
+                get(ref(db, 'contractor_logs'))
+            ]);
+
+            let rows = [];
+
+            if (staffSnap.exists()) {
+                Object.values(staffSnap.val()).forEach(s => {
+                    if (s.status === 'checked_in' && s.keyStatus === 'HELD' && s.keyReturnPin) {
+                        rows.push({ name: s.name, type: 'STAFF', pin: s.keyReturnPin, time: s.timeIn });
+                    }
+                });
+            }
+
+            if (visSnap.exists()) {
+                Object.values(visSnap.val()).forEach(v => {
+                    if (v.status === 'active' && v.keyCollected === 'YES' && v.keyReturnPin) {
+                        rows.push({ name: v.name, type: 'VISITOR', pin: v.keyReturnPin, time: v.timeIn });
+                    }
+                });
+            }
+
+            if (conSnap.exists()) {
+                Object.values(conSnap.val()).forEach(c => {
+                    if (c.status === 'active' && c.keyCollected === 'YES' && c.keyReturnPin) {
+                        rows.push({ name: c.name, type: 'CONTRACTOR', pin: c.keyReturnPin, time: c.timeIn });
+                    }
+                });
+            }
+
+            if (rows.length === 0) {
+                body.innerHTML = '<tr><td colspan="3" class="p-8 text-center text-slate-500">No active keys issued.</td></tr>';
+                return;
+            }
+
+            body.innerHTML = rows.map(r => `
+                <tr>
+                    <td class="p-4 font-bold text-white">${r.name}</td>
+                    <td class="p-4"><span class="px-2 py-0.5 rounded text-[8px] font-black ${r.type === 'STAFF' ? 'bg-indigo-500/20 text-indigo-400' : r.type === 'VISITOR' ? 'bg-amber-500/20 text-amber-400' : 'bg-emerald-500/20 text-emerald-400'}">${r.type}</span></td>
+                    <td class="p-4 text-center">
+                        <span class="inline-flex items-center gap-2 px-4 py-2 bg-emerald-500 text-white rounded-xl font-black text-xs shadow-lg shadow-emerald-500/20">
+                            <i class="fa-solid fa-key"></i> PIN: ${r.pin}
+                        </span>
+                    </td>
+                </tr>
+            `).join('');
+        } catch (e) {
+            console.error("Error loading PIN control:", e);
+        }
+    }
+};

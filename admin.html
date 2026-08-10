@@ -50,6 +50,30 @@
         }
         .stat-card:hover { transform: translateY(-4px); box-shadow: 0 12px 30px rgba(79, 70, 229, 0.1); }
 
+        /* HIGH-CONTRAST KPI TEXT */
+        .stat-card p {
+            color: #FFFFFF !important;
+            font-weight: 800 !important;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            margin-bottom: 2px;
+        }
+        .stat-card h3 {
+            color: #FFFFFF !important;
+            font-weight: 900 !important;
+            letter-spacing: -0.01em;
+        }
+
+        /* HIGH-CONTRAST MENU LABELS */
+        .quick-action-btn span {
+            color: #1E1B4B !important;
+            font-weight: 800 !important;
+            letter-spacing: 0.05em;
+        }
+        .quick-action-btn:hover span {
+            color: #4F46E5 !important;
+        }
+
         .quick-action-btn { transition: all 0.2s ease; border: 1px solid #f1f5f9; min-height: 44px; }
         .quick-action-btn:active { transform: scale(0.95); }
 
@@ -59,14 +83,33 @@
             max-height: 600px;
             overflow-y: auto;
         }
-        .table-wrapper thead th {
+        .table-wrapper table thead th {
             position: sticky;
             top: 0;
-            background: #f8fafc;
-            z-index: 10;
+            background: #1e1b4b;
+            color: white;
+            z-index: 20;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
 
-        .status-badge { display: inline-flex; align-items: center; gap: 4px; padding: 3px 12px; border-radius: 8px; font-weight: 700; font-size: 9px; text-transform: uppercase; letter-spacing: 0.5px; }
+        .role-badge { display: inline-flex; align-items: center; justify-content: center; padding: 4px 10px; border-radius: 8px; font-weight: 800; font-size: 9px; text-transform: uppercase; letter-spacing: 0.5px; min-width: 100px; }
+        .role-security { background: #dbeafe; color: #1e40af; border: 1px solid #bfdbfe; }
+        .role-cleaner-leader { background: #dcfce7; color: #166534; border: 1px solid #bbf7d0; }
+        .role-technician { background: #f3e8ff; color: #6b21a8; border: 1px solid #e9d5ff; }
+        .role-default { background: #f1f5f9; color: #475569; border: 1px solid #e2e8f0; }
+
+        .filter-group {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            background: white;
+            padding: 16px;
+            border-radius: 20px;
+            border: 1px solid #f1f5f9;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.02);
+            flex-wrap: wrap;
+            margin-bottom: 12px;
+        }
         .status-badge.open { background: #fef3c7; color: #d97706; }
         .status-badge.closed { background: #d1fae5; color: #059669; }
         .status-badge.rejected { background: #fee2e2; color: #dc2626; }
@@ -365,10 +408,13 @@
         <section id="view-admin-auth" class="view-section active flex-1 flex items-center justify-center p-4 bg-gradient-to-br from-indigo-50 via-white to-purple-50">
             <div class="w-full max-w-md mx-auto fade-in">
                 <div class="glass-effect rounded-[40px] shadow-2xl p-8 sm:p-10 transition-all duration-300">
-                    <div class="text-center mb-8">
-                        <div class="w-20 h-20 bg-gradient-to-br from-indigo-500 to-indigo-700 rounded-3xl mx-auto flex items-center justify-center shadow-xl shadow-indigo-500/30 mb-4">
-                            <i class="fa-solid fa-crown text-3xl text-white"></i>
-                        </div>
+                    <div class="text-center mb-8 relative">
+                    <button onclick="window.location.href='index.html'" class="absolute left-0 top-0 w-10 h-10 bg-slate-800 hover:bg-slate-700 text-white rounded-xl flex items-center justify-center transition-all shadow-md">
+                        <i class="fa-solid fa-arrow-left"></i>
+                    </button>
+                    <div class="w-20 h-20 bg-gradient-to-br from-indigo-500 to-indigo-700 rounded-3xl mx-auto flex items-center justify-center shadow-xl shadow-indigo-500/30 mb-4">
+                        <i class="fa-solid fa-crown text-3xl text-white"></i>
+                    </div>
                         <h2 class="text-3xl font-black text-indigo-900 uppercase tracking-tighter">Admin Portal</h2>
                         <p class="text-[10px] font-bold text-indigo-400 uppercase tracking-widest mt-1">Restricted Access</p>
                     </div>
@@ -399,90 +445,122 @@
             <!-- TOP NAV -->
             <nav class="w-full flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8">
                 <div class="flex items-center gap-3">
-                    <div class="w-12 h-12 bg-indigo-600 rounded-2xl flex items-center justify-center shadow-lg shadow-indigo-500/20"><i class="fa-solid fa-shield-halved text-white text-xl"></i></div>
+                    <button onclick="window.location.href='index.html'" class="w-10 h-10 bg-slate-800 hover:bg-slate-700 text-white rounded-xl flex items-center justify-center transition-all shadow-md">
+                        <i class="fa-solid fa-arrow-left"></i>
+                    </button>
+                    <div class="relative">
+                        <img id="adminProfileHeaderPic" src="jys_Icon.png" class="w-12 h-12 rounded-2xl border-2 border-indigo-400 object-cover shadow-lg shadow-indigo-500/20" alt="Admin Profile">
+                        <div class="absolute -bottom-1 -right-1 w-4 h-4 bg-emerald-500 border-2 border-white rounded-full"></div>
+                    </div>
                     <div>
-                        <h2 class="text-3xl font-black tracking-tighter text-indigo-900 leading-none">ADMIN</h2>
-                        <p class="text-[10px] font-bold text-indigo-400 uppercase tracking-[0.2em] mt-1 flex items-center gap-2"><i class="fa-solid fa-circle text-[6px] text-emerald-400 animate-pulse"></i> Management Hub v3.5.1</p>
+                        <h2 class="text-3xl font-extrabold tracking-normal text-white leading-none drop-shadow-sm">ADMIN</h2>
+                        <p class="text-[10px] font-bold text-indigo-300 uppercase tracking-[0.2em] mt-1 flex items-center gap-2"><i class="fa-solid fa-circle text-[6px] text-emerald-400 animate-pulse"></i> Management Hub v3.5.1</p>
                     </div>
                 </div>
-                <button onclick="event.preventDefault(); event.stopPropagation(); window.handleUserLogout()" class="px-6 py-3 bg-red-50 text-red-600 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-red-600 hover:text-white transition-all active:scale-95 flex items-center justify-center gap-2 border border-red-100">
+                <button onclick="event.preventDefault(); event.stopPropagation(); window.handleUserLogout()" class="px-6 py-3 bg-red-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-red-700 transition-all active:scale-95 flex items-center justify-center gap-2 border border-red-500 shadow-lg shadow-red-500/20">
                     <i class="fa-solid fa-power-off"></i> Logout
                 </button>
             </nav>
 
             <!-- KPI GRID -->
-            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-                <div class="stat-card bg-white p-5 rounded-3xl shadow-xl shadow-indigo-500/5 border border-slate-50 flex items-center gap-4" onclick="window.showAdminTab('tab-visitor-logs')">
-                    <div class="w-14 h-14 bg-indigo-50 rounded-2xl flex items-center justify-center text-indigo-600 text-2xl"><i class="fa-solid fa-users"></i></div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
+                <div class="stat-card bg-indigo-600 p-5 rounded-3xl shadow-xl shadow-indigo-500/20 border-none flex items-center gap-4" onclick="window.showAdminTab('tab-visitor-logs')">
+                    <div class="w-12 h-12 bg-white/20 rounded-2xl flex items-center justify-center text-white text-xl"><i class="fa-solid fa-users"></i></div>
                     <div class="flex-1">
-                        <p class="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Visitors Today</p>
-                        <h3 class="text-2xl font-black text-indigo-900" id="kpi-visitors">0</h3>
-                        <div class="mt-2 h-1 w-full bg-slate-100 rounded-full overflow-hidden"><div class="h-full bg-indigo-600 progress-bar" id="bar-visitors" style="width: 0%"></div></div>
+                        <p class="text-[9px] font-bold text-white uppercase tracking-wider">Visitors Today</p>
+                        <h3 class="text-2xl font-black text-white" id="kpi-visitors">0</h3>
+                        <div class="mt-2 h-1 w-full bg-white/20 rounded-full overflow-hidden"><div class="h-full bg-white progress-bar" id="bar-visitors" style="width: 0%"></div></div>
                     </div>
                 </div>
-                <div class="stat-card bg-white p-5 rounded-3xl shadow-xl shadow-indigo-500/5 border border-slate-50 flex items-center gap-4" onclick="window.showAdminTab('tab-tasks')">
-                    <div class="w-14 h-14 bg-amber-50 rounded-2xl flex items-center justify-center text-amber-500 text-2xl"><i class="fa-solid fa-clock-rotate-left"></i></div>
+                <div class="stat-card bg-emerald-600 p-5 rounded-3xl shadow-xl shadow-emerald-500/20 border-none flex items-center gap-4" onclick="window.showAdminTab('tab-contractor-logs')">
+                    <div class="w-12 h-12 bg-white/20 rounded-2xl flex items-center justify-center text-white text-xl"><i class="fa-solid fa-helmet-safety"></i></div>
                     <div class="flex-1">
-                        <p class="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Active Tasks</p>
-                        <h3 class="text-2xl font-black text-amber-600" id="kpi-tasks">0</h3>
-                        <div class="mt-2 h-1 w-full bg-slate-100 rounded-full overflow-hidden"><div class="h-full bg-amber-500 progress-bar" id="bar-tasks" style="width: 0%"></div></div>
+                        <p class="text-[9px] font-bold text-white uppercase tracking-wider">Contractors</p>
+                        <h3 class="text-2xl font-black text-white" id="kpi-contractors">0</h3>
+                        <div class="mt-2 h-1 w-full bg-white/20 rounded-full overflow-hidden"><div class="h-full bg-white progress-bar" id="bar-contractors" style="width: 0%"></div></div>
                     </div>
                 </div>
-                <div class="stat-card bg-white p-5 rounded-3xl shadow-xl shadow-indigo-500/5 border border-slate-50 flex items-center gap-4" onclick="window.showAdminTab('tab-staff-logs')">
-                    <div class="w-14 h-14 bg-emerald-50 rounded-2xl flex items-center justify-center text-emerald-500 text-2xl"><i class="fa-solid fa-user-check"></i></div>
+                <div class="stat-card bg-amber-500 p-5 rounded-3xl shadow-xl shadow-amber-500/20 border-none flex items-center gap-4" onclick="window.showAdminTab('tab-tasks')">
+                    <div class="w-12 h-12 bg-white/20 rounded-2xl flex items-center justify-center text-white text-xl"><i class="fa-solid fa-clock-rotate-left"></i></div>
                     <div class="flex-1">
-                        <p class="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Staff Present</p>
-                        <h3 class="text-2xl font-black text-emerald-600" id="kpi-staff">0</h3>
-                        <div class="mt-2 h-1 w-full bg-slate-100 rounded-full overflow-hidden"><div class="h-full bg-emerald-500 progress-bar" id="bar-staff" style="width: 0%"></div></div>
+                        <p class="text-[9px] font-bold text-white uppercase tracking-wider">Active Tasks</p>
+                        <h3 class="text-2xl font-black text-white" id="kpi-tasks">0</h3>
+                        <div class="mt-2 h-1 w-full bg-white/20 rounded-full overflow-hidden"><div class="h-full bg-white progress-bar" id="bar-tasks" style="width: 0%"></div></div>
                     </div>
                 </div>
-                <div class="stat-card bg-white p-5 rounded-3xl shadow-xl shadow-indigo-500/5 border border-slate-50 flex items-center gap-4">
-                    <div class="w-14 h-14 bg-red-50 rounded-2xl flex items-center justify-center text-red-500 text-2xl"><i class="fa-solid fa-bell"></i></div>
+                <div class="stat-card bg-indigo-900 p-5 rounded-3xl shadow-xl shadow-indigo-900/20 border-none flex items-center gap-4" onclick="window.showAdminTab('tab-staff-logs')">
+                    <div class="w-12 h-12 bg-white/20 rounded-2xl flex items-center justify-center text-white text-xl"><i class="fa-solid fa-user-check"></i></div>
                     <div class="flex-1">
-                        <p class="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Urgent Alerts</p>
-                        <h3 class="text-2xl font-black text-red-600" id="kpi-alerts">0</h3>
-                        <div class="mt-2 h-1 w-full bg-slate-100 rounded-full overflow-hidden"><div class="h-full bg-red-500 progress-bar" id="bar-alerts" style="width: 0%"></div></div>
+                        <p class="text-[9px] font-bold text-white uppercase tracking-wider">Staff Present</p>
+                        <h3 class="text-2xl font-black text-white" id="kpi-staff">0</h3>
+                        <div class="mt-2 h-1 w-full bg-white/20 rounded-full overflow-hidden"><div class="h-full bg-white progress-bar" id="bar-staff" style="width: 0%"></div></div>
+                    </div>
+                </div>
+                <div class="stat-card bg-red-600 p-5 rounded-3xl shadow-xl shadow-red-500/20 border-none flex items-center gap-4">
+                    <div class="w-12 h-12 bg-white/20 rounded-2xl flex items-center justify-center text-white text-xl"><i class="fa-solid fa-bell"></i></div>
+                    <div class="flex-1">
+                        <p class="text-[9px] font-bold text-white uppercase tracking-wider">Urgent Alerts</p>
+                        <h3 class="text-2xl font-black text-white" id="kpi-alerts">0</h3>
+                        <div class="mt-2 h-1 w-full bg-white/20 rounded-full overflow-hidden"><div class="h-full bg-white progress-bar" id="bar-alerts" style="width: 0%"></div></div>
+                    </div>
+                </div>
+                <!-- TOTAL STAFF BREAKDOWN KPI -->
+                <div class="stat-card bg-slate-900 p-6 rounded-3xl shadow-2xl border border-indigo-500/30 flex items-center gap-5 lg:col-span-5">
+                    <div class="w-16 h-16 bg-gradient-to-br from-indigo-600 to-purple-700 rounded-2xl flex items-center justify-center text-white text-3xl shadow-lg"><i class="fa-solid fa-address-book"></i></div>
+                    <div class="flex-1">
+                        <p class="text-[10px] font-black text-white uppercase tracking-[0.3em] mb-2">Detailed Staff Census Breakdown</p>
+                        <div id="staffCensusCard" class="text-white font-bold flex flex-wrap gap-4 items-center">
+                            <span>Total Staff: <span id="cntTotalStaff" class="text-indigo-300 font-extrabold">0</span></span> |
+                            <span>Security: <span id="cntSecurity" class="text-emerald-400 font-extrabold">0</span></span> |
+                            <span>Cleaner Leader: <span id="cntCleanerLeader" class="text-amber-300 font-extrabold">0</span></span> |
+                            <span>Cleaner: <span id="cntCleaner" class="text-sky-300 font-extrabold">0</span></span> |
+                            <span>Technician: <span id="cntTechnician" class="text-purple-300 font-extrabold">0</span></span>
+                        </div>
                     </div>
                 </div>
             </div>
 
             <!-- QUICK ACTIONS GRID -->
-            <div class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-9 gap-3 mb-8">
-                <button onclick="window.showAdminTab('tab-visitor-logs')" class="quick-action-btn flex flex-col items-center gap-2 p-4 bg-white rounded-2xl shadow-sm hover:border-indigo-200 transition-all active:scale-95 group">
-                    <div class="w-10 h-10 bg-indigo-50 rounded-xl flex items-center justify-center text-indigo-600 group-hover:bg-indigo-600 group-hover:text-white transition-colors"><i class="fa-solid fa-id-card-clip"></i></div>
-                    <span class="text-[8px] font-black uppercase text-slate-500 group-hover:text-indigo-600">Visitors</span>
+            <div class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-10 gap-3 mb-8">
+                <button onclick="window.showAdminTab('tab-visitor-logs')" class="quick-action-btn flex flex-col items-center gap-2 p-4 bg-[#1E1B4B] rounded-2xl shadow-lg hover:bg-indigo-800 transition-all active:scale-95 group">
+                    <div class="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center text-white group-hover:bg-white/20 transition-colors"><i class="fa-solid fa-id-card-clip"></i></div>
+                    <span class="text-[8px] font-black uppercase text-white">Visitors</span>
                 </button>
-                <button onclick="window.showAdminTab('tab-staff-logs')" class="quick-action-btn flex flex-col items-center gap-2 p-4 bg-white rounded-2xl shadow-sm hover:border-emerald-200 transition-all active:scale-95 group">
-                    <div class="w-10 h-10 bg-emerald-50 rounded-xl flex items-center justify-center text-emerald-600 group-hover:bg-emerald-600 group-hover:text-white transition-colors"><i class="fa-solid fa-user-clock"></i></div>
-                    <span class="text-[8px] font-black uppercase text-slate-500 group-hover:text-emerald-600">Attendance</span>
+                <button onclick="window.showAdminTab('tab-contractor-logs')" class="quick-action-btn flex flex-col items-center gap-2 p-4 bg-[#1E1B4B] rounded-2xl shadow-lg hover:bg-emerald-800 transition-all active:scale-95 group">
+                    <div class="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center text-white group-hover:bg-white/20 transition-colors"><i class="fa-solid fa-helmet-safety"></i></div>
+                    <span class="text-[8px] font-black uppercase text-white">Contractors</span>
                 </button>
-                <button onclick="window.showAdminTab('tab-tasks')" class="quick-action-btn flex flex-col items-center gap-2 p-4 bg-white rounded-2xl shadow-sm hover:border-purple-200 transition-all active:scale-95 group">
-                    <div class="w-10 h-10 bg-purple-50 rounded-xl flex items-center justify-center text-purple-600 group-hover:bg-purple-600 group-hover:text-white transition-colors"><i class="fa-solid fa-list-check"></i></div>
-                    <span class="text-[8px] font-black uppercase text-slate-500 group-hover:text-purple-600">Audit</span>
+                <button onclick="window.showAdminTab('tab-staff-logs')" class="quick-action-btn flex flex-col items-center gap-2 p-4 bg-[#1E1B4B] rounded-2xl shadow-lg hover:bg-emerald-800 transition-all active:scale-95 group">
+                    <div class="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center text-white group-hover:bg-white/20 transition-colors"><i class="fa-solid fa-user-clock"></i></div>
+                    <span class="text-[8px] font-black uppercase text-white">Attendance</span>
                 </button>
-                <button onclick="window.showAdminTab('tab-my-tasks')" class="quick-action-btn flex flex-col items-center gap-2 p-4 bg-white rounded-2xl shadow-sm hover:border-orange-200 transition-all active:scale-95 group">
-                    <div class="w-10 h-10 bg-orange-50 rounded-xl flex items-center justify-center text-orange-600 group-hover:bg-orange-600 group-hover:text-white transition-colors"><i class="fa-solid fa-clipboard-user"></i></div>
-                    <span class="text-[8px] font-black uppercase text-slate-500 group-hover:text-orange-600">Raised</span>
+                <button onclick="window.showAdminTab('tab-tasks')" class="quick-action-btn flex flex-col items-center gap-2 p-4 bg-[#1E1B4B] rounded-2xl shadow-lg hover:bg-purple-800 transition-all active:scale-95 group">
+                    <div class="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center text-white group-hover:bg-white/20 transition-colors"><i class="fa-solid fa-list-check"></i></div>
+                    <span class="text-[8px] font-black uppercase text-white">Audit</span>
                 </button>
-                <button onclick="window.showAdminTab('tab-staff-list')" class="quick-action-btn flex flex-col items-center gap-2 p-4 bg-white rounded-2xl shadow-sm hover:border-slate-300 transition-all active:scale-95 group">
-                    <div class="w-10 h-10 bg-slate-50 rounded-xl flex items-center justify-center text-slate-600 group-hover:bg-slate-600 group-hover:text-white transition-colors"><i class="fa-solid fa-address-book"></i></div>
-                    <span class="text-[8px] font-black uppercase text-slate-500 group-hover:text-slate-600">Directory</span>
+                <button onclick="window.showAdminTab('tab-my-tasks')" class="quick-action-btn flex flex-col items-center gap-2 p-4 bg-[#1E1B4B] rounded-2xl shadow-lg hover:bg-orange-800 transition-all active:scale-95 group">
+                    <div class="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center text-white group-hover:bg-white/20 transition-colors"><i class="fa-solid fa-clipboard-user"></i></div>
+                    <span class="text-[8px] font-black uppercase text-white">Raised</span>
                 </button>
-                <button onclick="window.showAdminTab('tab-assets')" class="quick-action-btn flex flex-col items-center gap-2 p-4 bg-white rounded-2xl shadow-sm hover:border-cyan-200 transition-all active:scale-95 group">
-                    <div class="w-10 h-10 bg-cyan-50 rounded-xl flex items-center justify-center text-cyan-600 group-hover:bg-cyan-600 group-hover:text-white transition-colors"><i class="fa-solid fa-barcode"></i></div>
-                    <span class="text-[8px] font-black uppercase text-slate-500 group-hover:text-cyan-600">Assets</span>
+                <button onclick="window.showAdminTab('tab-staff-list')" class="quick-action-btn flex flex-col items-center gap-2 p-4 bg-[#1E1B4B] rounded-2xl shadow-lg hover:bg-slate-700 transition-all active:scale-95 group">
+                    <div class="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center text-white group-hover:bg-white/20 transition-colors"><i class="fa-solid fa-address-book"></i></div>
+                    <span class="text-[8px] font-black uppercase text-white">Directory</span>
                 </button>
-                <button onclick="window.showAdminTab('tab-disposal')" class="quick-action-btn flex flex-col items-center gap-2 p-4 bg-white rounded-2xl shadow-sm hover:border-red-200 transition-all active:scale-95 group">
-                    <div class="w-10 h-10 bg-red-50 rounded-xl flex items-center justify-center text-red-600 group-hover:bg-red-600 group-hover:text-white transition-colors"><i class="fa-solid fa-trash-can"></i></div>
-                    <span class="text-[8px] font-black uppercase text-slate-500 group-hover:text-red-600">Disposal</span>
+                <button onclick="window.showAdminTab('tab-assets')" class="quick-action-btn flex flex-col items-center gap-2 p-4 bg-[#1E1B4B] rounded-2xl shadow-lg hover:bg-cyan-800 transition-all active:scale-95 group">
+                    <div class="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center text-white group-hover:bg-white/20 transition-colors"><i class="fa-solid fa-barcode"></i></div>
+                    <span class="text-[8px] font-black uppercase text-white">Assets</span>
                 </button>
-                <button onclick="window.showAdminTab('tab-transfers')" class="quick-action-btn flex flex-col items-center gap-2 p-4 bg-white rounded-2xl shadow-sm hover:border-indigo-200 transition-all active:scale-95 group">
-                    <div class="w-10 h-10 bg-indigo-50 rounded-xl flex items-center justify-center text-indigo-600 group-hover:bg-indigo-600 group-hover:text-white transition-colors"><i class="fa-solid fa-truck-ramp-box"></i></div>
-                    <span class="text-[8px] font-black uppercase text-slate-500 group-hover:text-indigo-600">Transfers</span>
+                <button onclick="window.showAdminTab('tab-disposal')" class="quick-action-btn flex flex-col items-center gap-2 p-4 bg-[#1E1B4B] rounded-2xl shadow-lg hover:bg-red-800 transition-all active:scale-95 group">
+                    <div class="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center text-white group-hover:bg-white/20 transition-colors"><i class="fa-solid fa-trash-can"></i></div>
+                    <span class="text-[8px] font-black uppercase text-white">Disposal</span>
                 </button>
-                <button onclick="window.showAdminTab('tab-settings')" class="quick-action-btn flex flex-col items-center gap-2 p-4 bg-white rounded-2xl shadow-sm hover:border-slate-300 transition-all active:scale-95 group">
-                    <div class="w-10 h-10 bg-slate-50 rounded-xl flex items-center justify-center text-slate-600 group-hover:bg-slate-600 group-hover:text-white transition-colors"><i class="fa-solid fa-gears"></i></div>
-                    <span class="text-[8px] font-black uppercase text-slate-500 group-hover:text-slate-600">Settings</span>
+                <button onclick="window.showAdminTab('tab-transfers')" class="quick-action-btn flex flex-col items-center gap-2 p-4 bg-[#1E1B4B] rounded-2xl shadow-lg hover:bg-indigo-800 transition-all active:scale-95 group">
+                    <div class="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center text-white group-hover:bg-white/20 transition-colors"><i class="fa-solid fa-truck-ramp-box"></i></div>
+                    <span class="text-[8px] font-black uppercase text-white">Transfers</span>
+                </button>
+                <button onclick="window.showAdminTab('tab-settings')" class="quick-action-btn flex flex-col items-center gap-2 p-4 bg-[#1E1B4B] rounded-2xl shadow-lg hover:bg-slate-700 transition-all active:scale-95 group">
+                    <div class="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center text-white group-hover:bg-white/20 transition-colors"><i class="fa-solid fa-gears"></i></div>
+                    <span class="text-[8px] font-black uppercase text-white">Settings</span>
                 </button>
             </div>
 
@@ -500,12 +578,12 @@
                             <input type="text" id="visitor-search" placeholder="Search..." class="flex-1 min-w-[120px] bg-slate-50 border p-3 rounded-xl text-xs outline-none focus:border-indigo-500" oninput="window.filterVisitorTable()">
                             <input type="date" id="visitor-date-filter" class="bg-slate-50 border p-3 rounded-xl text-xs" onchange="window.filterVisitorTable()">
                         </div>
-                        <div class="table-wrapper rounded-2xl border border-slate-100" id="visitor-table-wrapper">
+                        <div class="table-wrapper rounded-2xl border border-slate-100 overflow-x-auto custom-scrollbar" id="visitor-table-wrapper">
                             <table class="w-full text-left text-[10px]">
                                 <thead class="bg-slate-50 uppercase text-indigo-600 font-black">
                                     <tr>
                                         <th class="p-4">Type</th>
-                                        <th class="p-4">Pass No</th>
+                                        <th class="p-4">System ID</th>
                                         <th class="p-4">Full Name</th>
                                         <th class="p-4">Mobile</th>
                                         <th class="p-4">Company</th>
@@ -515,6 +593,7 @@
                                         <th class="p-4">Out</th>
                                         <th class="p-4">Status</th>
                                         <th class="p-4">Key</th>
+                                        <th class="p-4">Signature</th>
                                         <th class="p-4 text-center">Action</th>
                                     </tr>
                                 </thead>
@@ -524,29 +603,81 @@
                         <div id="visitor-logs-pagination" class="pagination-container"></div>
                     </div>
 
+                    <!-- CONTRACTOR LOGS TAB -->
+                    <div id="tab-contractor-logs" class="tab-section space-y-4">
+                        <div class="flex items-center justify-between mb-2">
+                            <h3 class="text-emerald-900 font-black text-lg uppercase flex items-center gap-2"><i class="fa-solid fa-helmet-safety text-emerald-500"></i> Contractor Logs</h3>
+                            <button onclick="window.downloadContractorExcelReport()" class="px-4 py-2 bg-emerald-600 text-white rounded-xl text-[10px] font-black uppercase shadow-lg shadow-emerald-500/20 active:scale-95">Export Excel</button>
+                        </div>
+                        <div class="flex gap-2 flex-wrap">
+                            <input type="text" id="contractor-search" placeholder="Search contractors..." class="flex-1 min-w-[120px] bg-slate-50 border p-3 rounded-xl text-xs outline-none focus:border-emerald-500" oninput="window.filterContractorTable()">
+                            <input type="date" id="contractor-date-filter" class="bg-slate-50 border p-3 rounded-xl text-xs" onchange="window.filterContractorTable()">
+                        </div>
+                        <div class="table-wrapper rounded-2xl border border-slate-100 overflow-x-auto custom-scrollbar" id="contractor-table-wrapper">
+                            <table class="w-full text-left text-[10px]">
+                                <thead class="bg-slate-50 uppercase text-emerald-600 font-black">
+                                    <tr>
+                                        <th class="p-4">System ID</th>
+                                        <th class="p-4">Full Name</th>
+                                        <th class="p-4">Mobile</th>
+                                        <th class="p-4">Company</th>
+                                        <th class="p-4">Work Details</th>
+                                        <th class="p-4">Badge No</th>
+                                        <th class="p-4">Date</th>
+                                        <th class="p-4">In</th>
+                                        <th class="p-4">Out</th>
+                                        <th class="p-4">Status</th>
+                                        <th class="p-4">Key</th>
+                                        <th class="p-4">Signature</th>
+                                        <th class="p-4 text-center">Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="contractor-logs-body" class="divide-y divide-slate-50"></tbody>
+                            </table>
+                        </div>
+                        <div id="contractor-logs-pagination" class="pagination-container"></div>
+                    </div>
+
                     <!-- STAFF LOGS TAB -->
                     <div id="tab-staff-logs" class="tab-section space-y-4">
                         <div class="flex items-center justify-between">
                             <h3 class="text-emerald-900 font-black text-lg uppercase flex items-center gap-2"><i class="fa-solid fa-user-clock text-emerald-500"></i> Staff Attendance</h3>
                             <button onclick="window.downloadExcelReport()" class="px-4 py-2 bg-emerald-600 text-white rounded-xl text-[10px] font-black uppercase shadow-lg active:scale-95">Attendance Report</button>
                         </div>
-                        <div class="flex gap-2 flex-wrap">
-                            <input type="text" id="staff-search" placeholder="Search..." class="flex-1 min-w-[120px] bg-slate-50 border p-3 rounded-xl text-xs outline-none" oninput="window.filterStaffTable()">
-                            <input type="date" id="staff-date-filter" class="bg-slate-50 border p-3 rounded-xl text-xs" onchange="window.filterStaffTable()">
+
+                        <!-- Grouped Filters -->
+                        <div class="filter-group">
+                            <div class="flex-1 min-w-[200px] relative">
+                                <i class="fa-solid fa-search absolute left-4 top-1/2 -translate-y-1/2 text-slate-300"></i>
+                                <input type="text" id="staff-search" placeholder="Search by name or mobile..." class="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-100 rounded-xl text-xs outline-none focus:border-emerald-500" oninput="window.filterStaffTable()">
+                            </div>
+                            <input type="date" id="staff-date-filter" class="bg-slate-50 border border-slate-100 p-3 rounded-xl text-xs outline-none" onchange="window.filterStaffTable()">
+                            <select id="staff-role-filter" class="bg-slate-50 border border-slate-100 p-3 rounded-xl text-xs outline-none" onchange="window.filterStaffTable()">
+                                <option value="">All Positions</option>
+                                <option value="security">Security</option>
+                                <option value="leader">Cleaner Leader</option>
+                                <option value="tech">Technician</option>
+                            </select>
                         </div>
-                        <div class="table-wrapper rounded-2xl border border-slate-100" id="staff-table-wrapper">
+
+                        <div class="table-wrapper rounded-2xl border border-slate-100 overflow-x-auto custom-scrollbar" id="staff-table-wrapper">
                             <table class="w-full text-left text-[10px]">
                                 <thead class="bg-slate-50 uppercase text-emerald-600 font-black">
                                     <tr>
-                                        <th class="p-4">Staff Details</th>
-                                        <th class="p-4">Company Info</th>
-                                        <th class="p-4">School / Branch</th>
+                                        <th class="p-4">Staff Name</th>
+                                        <th class="p-4">Staff ID</th>
+                                        <th class="p-4">Mobile</th>
+                                        <th class="p-4">Company Name</th>
+                                        <th class="p-4">Company ID</th>
+                                        <th class="p-4">School Name</th>
+                                        <th class="p-4">Position</th>
                                         <th class="p-4">ADEK Pass</th>
                                         <th class="p-4">Date</th>
                                         <th class="p-4">Time In</th>
                                         <th class="p-4">Time Out</th>
                                         <th class="p-4 text-center">Key Status</th>
-                                        <th class="p-4 text-center">Sig</th>
+                                        <th class="p-4 text-center">Signature</th>
+                                        <th class="p-4 text-center">Action</th>
                                     </tr>
                                 </thead>
                                 <tbody id="staff-attendance-body" class="divide-y divide-slate-50"></tbody>
@@ -561,7 +692,7 @@
                             <h3 class="text-purple-900 font-black text-lg uppercase flex items-center gap-2"><i class="fa-solid fa-list-check text-purple-500"></i> Global Task Audit</h3>
                             <button onclick="window.exportTaskReportExcel()" class="px-4 py-2 bg-purple-600 text-white rounded-xl text-[10px] font-black uppercase shadow-lg active:scale-95">Tasks Report</button>
                         </div>
-                        <div class="table-wrapper rounded-2xl border border-slate-100" id="tasks-table-wrapper">
+                        <div class="table-wrapper rounded-2xl border border-slate-100 overflow-x-auto custom-scrollbar" id="tasks-table-wrapper">
                             <table class="w-full text-left text-[9px]">
                                 <thead class="bg-slate-50 uppercase text-purple-600 font-black">
                                     <tr>
@@ -602,13 +733,34 @@
                             <h3 class="text-slate-900 font-black text-lg uppercase tracking-tight">Staff Directory</h3>
                             <button onclick="window.openAddStaffModal()" class="bg-slate-800 text-white px-4 py-2 rounded-xl font-bold text-[10px] uppercase shadow-lg active:scale-95 transition flex items-center gap-2"><i class="fa-solid fa-user-plus"></i> Add Staff</button>
                         </div>
-                        <div class="table-wrapper rounded-2xl border border-slate-100" id="directory-table-wrapper">
+
+                        <!-- Grouped Filters -->
+                        <div class="filter-group">
+                            <div class="flex-1 min-w-[200px] relative">
+                                <i class="fa-solid fa-search absolute left-4 top-1/2 -translate-y-1/2 text-slate-300"></i>
+                                <input type="text" id="directory-search" placeholder="Search staff members..." class="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-100 rounded-xl text-xs outline-none focus:border-indigo-500" oninput="window.filterStaffDirectory()">
+                            </div>
+                            <select id="directory-school-filter" class="bg-slate-50 border border-slate-100 p-3 rounded-xl text-xs outline-none" onchange="window.filterStaffDirectory()">
+                                <option value="">All Schools</option>
+                                <option value="Jern Yafoor School 1">School 1</option>
+                                <option value="Jern Yafoor School 2">School 2</option>
+                            </select>
+                            <select id="directory-role-filter" class="bg-slate-50 border border-slate-100 p-3 rounded-xl text-xs outline-none" onchange="window.filterStaffDirectory()">
+                                <option value="">All Positions</option>
+                                <option value="security">Security</option>
+                                <option value="leader">Cleaner Leader</option>
+                                <option value="tech">Technician</option>
+                            </select>
+                        </div>
+
+                        <div class="table-wrapper rounded-2xl border border-slate-100 overflow-x-auto custom-scrollbar" id="directory-table-wrapper">
                             <table class="w-full text-left text-[10px]">
                                 <thead class="bg-slate-50 uppercase text-slate-600 font-black">
                                     <tr>
                                         <th class="p-4 text-center">Photo</th>
                                         <th class="p-4">Name</th>
-                                        <th class="p-4">Pass</th>
+                                        <th class="p-4">Password</th>
+                                        <th class="p-4">ADEK Pass</th>
                                         <th class="p-4">School</th>
                                         <th class="p-4">Position</th>
                                         <th class="p-4">Company</th>
@@ -699,7 +851,7 @@
                             <button onclick="window.downloadDisposedAssetReport()" class="px-4 py-2 bg-red-600 text-white rounded-xl text-[10px] font-black uppercase shadow-lg">Export Excel</button>
                         </div>
                         <input type="text" id="disposal-search" placeholder="Search scrap logs..." class="w-full bg-slate-50 border p-3 rounded-xl text-xs outline-none" oninput="window.filterDisposalTable()">
-                        <div class="table-wrapper rounded-2xl border border-red-50" id="disposal-table-wrapper">
+                        <div class="table-wrapper rounded-2xl border border-red-50 overflow-x-auto custom-scrollbar" id="disposal-table-wrapper">
                             <table class="w-full text-left" id="asset-disposal-table">
                                 <thead class="bg-red-50 uppercase text-red-900 font-black text-[9px]">
                                     <tr>
@@ -751,7 +903,7 @@
                                oninput="window.filterTransferTable()">
 
                         <!-- Table: 26 Columns -->
-                        <div class="table-wrapper rounded-2xl border border-slate-100 shadow-sm" id="transfer-table-wrapper">
+                        <div class="table-wrapper rounded-2xl border border-slate-100 shadow-sm overflow-x-auto custom-scrollbar" id="transfer-table-wrapper">
                             <table class="w-full text-left text-[9px]" id="transfer-master-table">
                                 <thead class="bg-indigo-50 uppercase text-indigo-600 font-black sticky top-0 z-10 shadow-sm whitespace-nowrap">
                                     <tr>
@@ -1001,6 +1153,7 @@
 
         const PAGINATION_ID_MAP = {
             'visitor-logs-body': 'visitor-logs-pagination',
+            'contractor-logs-body': 'contractor-logs-pagination',
             'staff-attendance-body': 'staff-attendance-pagination',
             'admin-task-list-body': 'tasks-pagination',
             'admin-staff-list-body': 'directory-pagination',
@@ -1098,20 +1251,20 @@
             });
         };
 
+        window.kpiIntervalId = null;
         window.startKPIRefresh = function() {
+            // Always clear previous timer to prevent multiple background loops
+            if (window.kpiIntervalId) {
+                clearInterval(window.kpiIntervalId);
+                window.kpiIntervalId = null;
+            }
+
             if (window.refreshDashboardData) {
-                window.refreshDashboardData();
-                setInterval(() => { if (window.refreshDashboardData) window.refreshDashboardData(); }, 30000);
+                window.refreshDashboardData(); // Initial run
             }
         };
 
-        const observer = new MutationObserver((mutations) => {
-            mutations.forEach((m) => {
-                if (m.target.id === 'view-admin-dash' && !m.target.classList.contains('hidden')) window.startKPIRefresh();
-            });
-        });
-        const dashView = document.getElementById('view-admin-dash');
-        if (dashView) observer.observe(dashView, { attributes: true, attributeFilter: ['class'] });
+        // MutationObserver removed to prevent repeated reload calls on UI toggle
 
         // ================================================================ */
         // DEBUG IMPORT HEADERS                                             */

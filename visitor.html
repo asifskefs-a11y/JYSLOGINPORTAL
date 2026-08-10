@@ -18,7 +18,7 @@
                 <a href="index.html" class="section-back-btn-circle" style="text-decoration: none;">
                     <i class="fa-solid fa-arrow-left text-lg"></i>
                 </a>
-                <h2 class="text-2xl font-black text-indigo-900 uppercase tracking-tighter">Visitor Entry</h2>
+                <h2 id="visitor-portal-title" class="text-2xl font-black text-indigo-900 uppercase tracking-normal">Visitor Entry</h2>
             </nav>
 
             <div class="flex-1 p-5 flex flex-col items-center justify-center">
@@ -29,15 +29,15 @@
                         <div class="mb-8">
                             <div class="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3 pb-4 border-b-2 border-indigo-100/60">
                                 <div class="flex items-center gap-3">
-                                    <div class="w-12 h-12 rounded-2xl bg-gradient-to-br from-indigo-600 to-indigo-800 flex items-center justify-center shadow-lg shadow-indigo-500/20">
-                                        <i class="fa-solid fa-school text-white text-xl"></i>
+                                    <div id="portal-icon-bg" class="w-12 h-12 rounded-2xl bg-gradient-to-br from-indigo-600 to-indigo-800 flex items-center justify-center shadow-lg shadow-indigo-500/20">
+                                        <i id="portal-icon" class="fa-solid fa-school text-white text-xl"></i>
                                     </div>
                                     <div>
-                                        <p class="text-[9px] font-black text-emerald-500 uppercase tracking-[0.2em] flex items-center gap-2">
+                                        <p id="portal-subtitle" class="text-[9px] font-black text-emerald-500 uppercase tracking-[0.2em] flex items-center gap-2">
                                             <span class="inline-block w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse"></span>
                                             Visitor Management
                                         </p>
-                                        <h3 class="text-2xl font-black text-indigo-900 uppercase tracking-tighter">Entry Portal</h3>
+                                        <h3 id="portal-main-title" class="text-2xl font-black text-indigo-900 uppercase tracking-normal">Entry Portal</h3>
                                     </div>
                                 </div>
                                 <div class="flex items-center gap-3 text-[10px] text-slate-400 font-bold bg-slate-50/80 px-4 py-2 rounded-xl border border-slate-100/50">
@@ -51,7 +51,7 @@
                             <div class="grid grid-cols-2 gap-4">
                                 <div class="space-y-1.5">
                                     <label class="visitor-label text-[10px] font-black text-indigo-400 uppercase tracking-wider flex items-center gap-1.5">
-                                        <i class="fa-regular fa-hashtag"></i> Visitor ID
+                                        <i class="fa-regular fa-hashtag"></i> ID
                                     </label>
                                     <input type="text" id="v-id" readonly class="w-full px-4 py-3 bg-indigo-50/50 rounded-xl text-indigo-700 font-black text-sm border-2 border-indigo-100/60 shadow-inner">
                                 </div>
@@ -65,8 +65,16 @@
 
                             <!-- INPUT FIELDS -->
                             <div class="space-y-4">
+                                <!-- Contractor ID Field (Hidden by default) -->
+                                <div id="contractor-id-field" class="space-y-1.5 hidden">
+                                    <label class="visitor-label text-[10px] font-black text-emerald-600 uppercase tracking-wider flex items-center gap-1.5">
+                                        <i class="fa-solid fa-id-card"></i> Contractor ID / Badge No. *
+                                    </label>
+                                    <input type="text" id="contractorId" placeholder="Enter Badge Number" class="transfer-input-field !min-h-[58px] !text-base border-emerald-200">
+                                </div>
+
                                 <div class="space-y-1.5">
-                                    <label class="visitor-label text-[10px] font-black text-indigo-400 uppercase tracking-wider flex items-center gap-1.5">
+                                    <label id="name-label" class="visitor-label text-[10px] font-black text-indigo-400 uppercase tracking-wider flex items-center gap-1.5">
                                         <i class="fa-regular fa-user"></i> Visitor Name
                                     </label>
                                     <input type="text" id="v-name" placeholder="Full Name" required class="transfer-input-field !min-h-[58px] !text-base border-slate-200">
@@ -78,13 +86,13 @@
                                     <input type="tel" id="v-mobile" placeholder="Mobile Number" required class="transfer-input-field !min-h-[58px] !text-base border-slate-200">
                                 </div>
                                 <div class="space-y-1.5">
-                                    <label class="visitor-label text-[10px] font-black text-indigo-400 uppercase tracking-wider flex items-center gap-1.5">
+                                    <label id="company-label" class="visitor-label text-[10px] font-black text-indigo-400 uppercase tracking-wider flex items-center gap-1.5">
                                         <i class="fa-regular fa-building"></i> Organization
                                     </label>
                                     <input type="text" id="v-company" placeholder="Company Name" required class="transfer-input-field !min-h-[58px] !text-base border-slate-200">
                                 </div>
                                 <div class="space-y-1.5">
-                                    <label class="visitor-label text-[10px] font-black text-indigo-400 uppercase tracking-wider flex items-center gap-1.5">
+                                    <label id="purpose-label" class="visitor-label text-[10px] font-black text-indigo-400 uppercase tracking-wider flex items-center gap-1.5">
                                         <i class="fa-regular fa-pen-to-square"></i> Reason
                                     </label>
                                     <textarea id="v-purpose" placeholder="Describe purpose of visit..." required class="transfer-input-field border-slate-200 h-32 p-5 rounded-2xl text-base resize-none"></textarea>
@@ -177,6 +185,32 @@
                 input.value = "NO";
             }
         };
+
+        // --- NEW: DUAL MODE INITIALIZATION ---
+        document.addEventListener('DOMContentLoaded', () => {
+            const params = new URLSearchParams(window.location.search);
+            const mode = params.get('mode') || 'visitor';
+            window.portalMode = mode;
+
+            if (mode === 'contractor') {
+                document.getElementById('visitor-portal-title').innerText = "CONTRACTOR MANAGEMENT ENTRY PORTAL";
+                document.getElementById('portal-subtitle').innerText = "Contractor Management";
+                document.getElementById('portal-main-title').innerText = "Service Portal";
+                document.getElementById('portal-icon').className = "fa-solid fa-helmet-safety text-white text-xl";
+                document.getElementById('portal-icon-bg').className = "w-12 h-12 rounded-2xl bg-gradient-to-br from-emerald-600 to-emerald-800 flex items-center justify-center shadow-lg shadow-emerald-500/20";
+
+                document.getElementById('contractor-id-field').classList.remove('hidden');
+                document.getElementById('contractorId').required = true;
+
+                document.getElementById('name-label').innerHTML = '<i class="fa-regular fa-user"></i> Contractor Name';
+                document.getElementById('v-name').placeholder = "Full Name";
+                document.getElementById('company-label').innerHTML = '<i class="fa-regular fa-building"></i> Contractor Company';
+                document.getElementById('purpose-label').innerHTML = '<i class="fa-regular fa-pen-to-square"></i> Work Description';
+                document.getElementById('v-purpose').placeholder = "Describe work to be performed...";
+            } else {
+                document.getElementById('visitor-portal-title').innerText = "VISITOR MANAGEMENT ENTRY PORTAL";
+            }
+        });
     </script>
 
     <script type="module" src="firebase_config.js?v=4.0"></script>

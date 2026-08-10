@@ -44,6 +44,11 @@ class SignaturePadEngine {
         this.isLocked = true;
         this._setupCanvas();
         this._bindEvents();
+        window.addEventListener('resize', () => {
+            // Debounced resize to avoid precision loss during active drawing
+            clearTimeout(this.resizeTimer);
+            this.resizeTimer = setTimeout(() => this._setupCanvas(), 250);
+        });
     }
 
 
@@ -391,6 +396,7 @@ window.TablePaginator = TablePaginator;
 // Initialize global paginators object
 window.adminPaginators = {
     visitors: new TablePaginator('visitor-logs-pagination'),
+    contractors: new TablePaginator('contractor-logs-pagination'),
     attendance: new TablePaginator('staff-attendance-pagination'),
     tasks: new TablePaginator('tasks-pagination'),
     directory: new TablePaginator('directory-pagination'),

@@ -155,7 +155,7 @@
                     </div>
 
                     <!-- School Name with Gradient -->
-                    <h1 class="text-4xl md:text-6xl lg:text-7xl font-black tracking-tight bg-gradient-to-r from-indigo-900 via-purple-800 to-indigo-900 bg-clip-text text-transparent drop-shadow-lg">
+                    <h1 class="text-4xl md:text-6xl lg:text-7xl font-black tracking-normal bg-gradient-to-r from-indigo-900 via-purple-800 to-indigo-900 bg-clip-text text-transparent drop-shadow-lg">
                         Jern Yafoor School
                     </h1>
 
@@ -179,8 +179,8 @@
                 <!-- ===== MAIN CARDS ===== -->
                 <main class="portal-main-container flex flex-col md:flex-row items-stretch justify-center gap-6 md:gap-8 mt-8 w-full max-w-4xl mx-auto">
 
-                    <!-- ===== Visitor Entry Card ===== -->
-                    <a href="visitor.html" class="portal-card group relative flex-1 min-w-[280px] bg-white/90 backdrop-blur-sm border border-white/50 rounded-3xl p-8 transition-all duration-500 transform hover:-translate-y-2 hover:shadow-2xl hover:shadow-indigo-500/20 active:scale-95 text-center cursor-pointer" style="text-decoration: none; box-shadow: 0 4px 20px rgba(79, 70, 229, 0.08);">
+                    <!-- ===== Visitor / Contractor Entry Card ===== -->
+                    <a href="#" onclick="window.showPortalSelector(); return false;" class="portal-card group relative flex-1 min-w-[280px] bg-white/90 backdrop-blur-sm border border-white/50 rounded-3xl p-8 transition-all duration-500 transform hover:-translate-y-2 hover:shadow-2xl hover:shadow-indigo-500/20 active:scale-95 text-center cursor-pointer" style="text-decoration: none; box-shadow: 0 4px 20px rgba(79, 70, 229, 0.08);">
 
                         <!-- Glow Background -->
                         <div class="absolute inset-0 bg-gradient-to-br from-indigo-50/50 to-transparent rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
@@ -197,17 +197,17 @@
 
                             <!-- Badge -->
                             <div class="absolute -top-2 -right-2 bg-emerald-500 text-white text-[10px] font-black px-3 py-1 rounded-full shadow-lg shadow-emerald-500/30">
-                                <i class="fa fa-check-circle mr-1"></i> Active
+                                <i class="fa-solid fa-people-arrows mr-1"></i> Public
                             </div>
                         </div>
 
                         <!-- Content -->
                         <div class="relative z-10 mt-6">
                             <h3 class="text-xl md:text-2xl font-black text-indigo-900 group-hover:text-indigo-700 transition-colors">
-                                Visitor Entry
+                                Visitor / Contractor
                             </h3>
                             <p class="text-sm mt-2 text-slate-500 font-medium leading-relaxed">
-                                Register and track visitors
+                                Access registration & entry
                             </p>
 
                             <!-- Stats -->
@@ -364,17 +364,85 @@
     <script type="module" src="init_module.js?v=4.0"></script>
 
     <script>
+        // 🚫 GLOBAL RELOAD KILL-SWITCH
+        window.location._reload = window.location.reload;
+        window.location.reload = function() {
+            console.error("🛑 BLOCKED AN AUTOMATIC PAGE RELOAD ATTEMPT! Stack trace:", new Error().stack);
+        };
+        Object.defineProperty(window.location, 'reload', {
+            configurable: false,
+            writable: false
+        });
+
+        window.showPortalSelector = function() {
+            const modal = document.getElementById('portal-selector-modal');
+            if (modal) {
+                modal.classList.remove('hidden');
+                modal.style.display = 'flex';
+            }
+        };
+
+        window.closePortalSelector = function() {
+            const modal = document.getElementById('portal-selector-modal');
+            if (modal) {
+                modal.classList.add('hidden');
+                modal.style.display = 'none';
+            }
+        };
+
         window.handleStaffCardClick = function() {
             const loggedStaff = localStorage.getItem('loggedStaff');
             if (loggedStaff) {
                 // If logged in, go to the staff login page which will auto-render the dashboard
-                window.location.href = 'staff-login.html';
+                // Check if already on the page is handled inside staff-login.html if needed,
+                // but here we just navigate if not already there.
+                if (!window.location.pathname.includes('staff-login.html')) {
+                    window.location.href = 'staff-login.html';
+                }
             } else {
                 // If NOT logged in, go to login
                 window.location.href = 'staff-login.html';
             }
         };
     </script>
+
+    <!-- PORTAL SELECTOR MODAL -->
+    <div id="portal-selector-modal" class="fixed inset-0 bg-black/90 backdrop-blur-md z-[2000] hidden flex items-center justify-center p-4">
+        <div class="bg-white w-full max-w-lg rounded-[40px] overflow-hidden shadow-2xl border border-slate-100 p-8">
+            <div class="flex justify-between items-center mb-8">
+                <h3 class="text-2xl font-black text-indigo-900 uppercase tracking-tighter">Choose Entry Mode</h3>
+                <button onclick="window.closePortalSelector()" class="w-10 h-10 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center transition-colors hover:bg-slate-200">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                <!-- Visitor Option -->
+                <a href="visitor.html?mode=visitor" class="flex flex-col items-center gap-4 p-8 bg-indigo-50 border-2 border-transparent rounded-[32px] transition-all hover:border-indigo-400 group no-underline">
+                    <div class="w-20 h-20 bg-white rounded-2xl flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
+                        <i class="fa-solid fa-user-plus text-3xl text-indigo-600"></i>
+                    </div>
+                    <div class="text-center">
+                        <span class="block font-black text-indigo-900 uppercase text-xs tracking-widest mb-1">Standard</span>
+                        <h4 class="text-lg font-black text-indigo-700 leading-tight">VISITOR ENTRY</h4>
+                    </div>
+                </a>
+
+                <!-- Contractor Option -->
+                <a href="visitor.html?mode=contractor" class="flex flex-col items-center gap-4 p-8 bg-emerald-50 border-2 border-transparent rounded-[32px] transition-all hover:border-emerald-400 group no-underline">
+                    <div class="w-20 h-20 bg-white rounded-2xl flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
+                        <i class="fa-solid fa-helmet-safety text-3xl text-emerald-600"></i>
+                    </div>
+                    <div class="text-center">
+                        <span class="block font-black text-emerald-900 uppercase text-xs tracking-widest mb-1">Work/Services</span>
+                        <h4 class="text-lg font-black text-emerald-700 leading-tight">CONTRACTOR ENTRY</h4>
+                    </div>
+                </a>
+            </div>
+
+            <p class="mt-8 text-center text-[10px] font-bold text-slate-400 uppercase tracking-widest">Authorized gate entry management</p>
+        </div>
+    </div>
 
     <!-- FORCED GLOBAL SPINNER & OVERRIDE -->
     <div id="universal-logo-loader" style="display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(8px); z-index: 99999999; flex-direction: column; align-items: center; justify-content: center;">
@@ -399,7 +467,11 @@
             if (el) el.style.display = 'none';
             if (spinnerTimeout) clearTimeout(spinnerTimeout);
         };
-        document.addEventListener('submit', function() { window.showGlobalSpinner("Saving Data..."); }, true);
+        document.addEventListener('submit', function(e) {
+            // Don't show spinner if event was prevented (validation failed)
+            if (e.defaultPrevented) return;
+            window.showGlobalSpinner("Saving Data...");
+        }, true);
     </script>
 </body>
 </html>

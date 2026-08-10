@@ -152,6 +152,57 @@ window._downloadExcelReport = async () => {
 };
 
 // ================================================
+// ✅ EXPORT: Contractor Report
+// ================================================
+window._downloadContractorExcelReport = async () => {
+    try {
+        if (!window.appCache.contractors || window.appCache.contractors.length === 0) {
+            if (window.refreshDashboardData) await window.refreshDashboardData();
+        }
+        const contractors = window.appCache.contractors || [];
+        if (contractors.length === 0) return alert("No contractor data to export.");
+
+        const workbook = new ExcelJS.Workbook();
+        const sheet = workbook.addWorksheet('Contractor Logs');
+
+        sheet.columns = [
+            { header: 'Badge No', key: 'contractorId', width: 22 },
+            { header: 'Full Name', key: 'name', width: 22 },
+            { header: 'Mobile', key: 'mobile', width: 22 },
+            { header: 'Company', key: 'company', width: 22 },
+            { header: 'Work Details', key: 'purpose', width: 22 },
+            { header: 'Date', key: 'date', width: 22 },
+            { header: 'In-Time', key: 'timeIn', width: 22 },
+            { header: 'Out-Time', key: 'timeOut', width: 22 },
+            { header: 'Status', key: 'status', width: 22 },
+            { header: 'Signature', key: 'sig', width: 22 }
+        ];
+
+        for (let i = 0; i < contractors.length; i++) {
+            const c = contractors[i];
+            sheet.addRow({
+                contractorId: c.contractorId,
+                name: c.name,
+                mobile: c.mobile,
+                company: c.company,
+                purpose: c.purpose,
+                date: c.date,
+                timeIn: c.timeIn,
+                timeOut: c.outTime || "-",
+                status: c.status
+            });
+            if (c.signatureUrl) {
+                const buf = await getImageBuffer(c.signatureUrl);
+                if (buf) addImageToSheet(workbook, sheet, buf, 9, i + 1);
+            }
+        }
+
+        const buffer = await workbook.xlsx.writeBuffer();
+        saveAs(new Blob([buffer]), `Contractor_Report_${Date.now()}.xlsx`);
+    } catch (e) { console.error(e); }
+};
+
+// ================================================
 // ✅ EXPORT: Task Report
 // ================================================
 window._exportTaskReportExcel = async () => {
@@ -308,5 +359,13 @@ window._exportTransferReport = async () => {
         saveAs(new Blob([buffer]), `Asset_Movement_Export_${Date.now()}.xlsx`);
     } catch (e) { console.error(e); }
 };
+
+// Aliases for non-prefixed calls from UI
+window.downloadExcelReport = window._downloadExcelReport;
+window.downloadContractorExcelReport = window._downloadContractorExcelReport;
+window.exportTaskReportExcel = window._exportTaskReportExcel;
+window.downloadMasterAssetReport = window._downloadMasterAssetReport;
+window.downloadDisposedAssetReport = window._downloadDisposedAssetReport;
+window.exportTransferReport = window._exportTransferReport;
 
 console.log("✅ export_module.js loaded (UNDERSCORE PREFIX & CORS FIXED)");

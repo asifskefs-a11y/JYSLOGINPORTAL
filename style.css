@@ -595,6 +595,7 @@ select option {
     padding: 16px;
     box-sizing: border-box;
     overflow-x: hidden;
+    -webkit-overflow-scrolling: touch;
 }
 
 /* Ensure nothing overflows */
@@ -644,6 +645,8 @@ html, body {
   margin: 0;
   padding: 0;
   box-sizing: border-box;
+  scroll-behavior: smooth;
+  touch-action: manipulation;
 }
 
 /* --- ASSET DATA TABLE STYLES --- */
