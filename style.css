@@ -92,6 +92,15 @@ button, a, .btn, [onclick] {
 }
 
 /* --- CAMERA SCANNER VIEWPORT OVERLAY FIX --- */
+#interactive.viewport video,
+#interactive.viewport canvas {
+    width: 100% !important;
+    height: 100% !important;
+    object-fit: cover !important;
+    margin: 0 auto !important;
+    display: block !important;
+}
+
 #reader, #qr-reader, .scanner-container {
     position: relative !important;
     width: 100% !important;

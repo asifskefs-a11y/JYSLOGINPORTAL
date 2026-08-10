@@ -143,6 +143,11 @@ window.handleStaffLogin = async (e) => {
                     window.triggerSuccessPopup(`Welcome, ${foundUser.name}! 👋`);
                 }
 
+                // REDIRECT ALL STAFF ROLES TO DASHBOARD (FIX)
+                if (window.showStaffView) {
+                    window.showStaffView('staff-dash-area');
+                }
+
                 if (window.renderDashboard) {
                     console.log("🛡️ Staff Login: Transitioning to Dashboard View");
                     window.renderDashboard(foundUser);
@@ -207,6 +212,7 @@ window.handleVisitorSignIn = async (e) => {
             purpose: document.getElementById('v-purpose').value,
             keyCollected: document.getElementById('v-key-status')?.value || 'NO',
             keyReturnPin: securityPin, // 4-Digit Security PIN
+            checkoutPin: securityPin,  // Secondary key for validation safety
             date: new Date().toLocaleDateString('en-US'),
             timeIn: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', hour12: true}),
             timestamp: Date.now(),

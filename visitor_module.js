@@ -87,24 +87,61 @@ window.checkVisitorSession = () => {
         if (signOutBtn) {
             signOutBtn.onclick = async () => {
                 if (data.keyCollected === 'YES') {
-                    const pinInput = prompt("🔑 KEY RETURN PIN REQUIRED\nEnter 4-digit PIN:");
-                    if (pinInput !== data.keyReturnPin) {
-                        alert("Incorrect PIN!");
+                    window.showGlobalSpinner("Fetching Security PIN...");
+
+                    // 1. DETERMINE REALTIME DB PATH & RECORD KEY
+                    const mode = data.mode || 'visitor';
+                    const dbNode = mode === 'contractor' ? 'contractor_logs' : 'visitor_logs';
+                    const recordId = data.firebaseKey || data.key || data.id; // Support Push Key or System ID
+
+                    let liveRecord = null;
+
+                    try {
+                        // Fetch fresh live record directly from Firebase Database
+                        const snap = await get(ref(db, dbNode));
+                        if (snap.exists()) {
+                            const allLogs = snap.val();
+                            // Find record by key or by ID
+                            const foundEntry = Object.entries(allLogs).find(([k, v]) => k === recordId || v.id === data.id || v.contractorId === data.id);
+                            if (foundEntry) {
+                                liveRecord = foundEntry[1];
+                                data.firebaseKey = foundEntry[0]; // Save actual DB key
+                            }
+                        }
+                    } catch (err) {
+                        console.error("Error fetching live record:", err);
+                    } finally {
+                        window.hideGlobalSpinner();
+                    }
+
+                    // 2. GET LIVE STORED PIN
+                    const targetObj = liveRecord || data;
+                    const storedPin = (targetObj.keyReturnPin || targetObj.checkoutPin || targetObj.pin || "").toString().trim();
+
+                    // 3. PROMPT USER FOR PIN
+                    const pinInput = prompt(`🔑 KEY RETURN PIN REQUIRED\nEnter 4-digit PIN (Shown on Security Dashboard):`);
+                    const enteredPin = (pinInput || "").toString().trim();
+
+                    if (!storedPin || storedPin !== enteredPin || enteredPin === "") {
+                        alert(`❌ Invalid PIN (${enteredPin}).\nPlease enter the correct 4-digit PIN shown on the Security Dashboard.`);
                         return;
                     }
                 }
 
+                // 4. PROCEED WITH SIGN-OUT UPON SUCCESSFUL PIN VERIFICATION
                 window.showGlobalSpinner("Finalizing Exit...");
                 try {
                     const now = new Date();
                     const outTime = now.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', hour12: true});
 
                     const mode = data.mode || 'visitor';
-                    const dbPath = mode === 'contractor' ? 'contractor_logs/' : 'visitor_logs/';
+                    const dbNode = mode === 'contractor' ? 'contractor_logs' : 'visitor_logs';
+                    const targetKey = data.firebaseKey || data.id;
 
-                    await update(ref(db, dbPath + data.id), {
+                    await update(ref(db, `${dbNode}/${targetKey}`), {
                         outTime: outTime,
-                        status: 'SIGNED OUT'
+                        status: 'SIGNED OUT',
+                        keyReturned: 'YES'
                     });
 
                     localStorage.removeItem('vActive');

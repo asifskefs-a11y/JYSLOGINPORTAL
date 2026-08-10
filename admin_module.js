@@ -356,9 +356,11 @@ function renderVisitorLogs(visitors) {
                     : `<span class="inline-flex items-center justify-center gap-1 px-3 py-1 text-[9px] font-bold rounded-full bg-amber-500/15 text-amber-600 border border-amber-500/30 whitespace-nowrap"><span>🔑</span> <span>HELD</span></span>`;
             }
 
-            const sig = v.signatureUrl || v.signatureData || v.signature || '';
-            const sigHTML = (sig && sig.length > 30)
-                ? `<img src="${sig}" class="w-12 h-7 object-contain bg-white rounded border border-slate-600 mx-auto cursor-pointer shadow-sm hover:scale-105" onclick="window.openImageZoom('${sig}')" alt="Sig">`
+            const sigData = v.signatureUrl || v.signatureData || v.signature || '';
+            const isValidSig = sigData && (sigData.startsWith('data:image') || sigData.startsWith('http'));
+
+            const signatureTdHTML = isValidSig
+                ? `<img src="${sigData}" class="w-12 h-7 object-contain bg-white rounded border border-slate-600 mx-auto cursor-pointer shadow-sm hover:scale-105 transition-transform" onclick="window.openImageZoom('${sigData}')" alt="Sig">`
                 : `<span class="text-xs text-slate-400 italic">No Sig</span>`;
 
             tr.innerHTML = `
@@ -373,7 +375,7 @@ function renderVisitorLogs(visitors) {
                 <td class="p-4 text-red-500 font-bold">${v.outTime || "-"}</td>
                 <td class="p-4"><span class="status-badge ${v.status === 'SIGNED OUT' ? 'closed' : 'open'}">${v.status || "Active"}</span></td>
                 <td class="p-4 text-center">${keyHtml}</td>
-                <td class="p-4 text-center">${sigHTML}</td>
+                <td class="p-4 text-center">${signatureTdHTML}</td>
                 <td class="p-4 text-center sticky-action-col">
                     <button onclick="window.openDetailedAuditModal('visitor', '${v.id}')" class="p-2 text-indigo-300 hover:text-white hover:bg-indigo-600/50 rounded-lg transition-all cursor-pointer">
                         <i class="fa-solid fa-eye text-base"></i>
@@ -412,9 +414,11 @@ function renderContractorLogs(contractors) {
                     : `<span class="inline-flex items-center justify-center gap-1 px-3 py-1 text-[9px] font-bold rounded-full bg-amber-500/15 text-amber-600 border border-amber-500/30 whitespace-nowrap"><span>🔑</span> <span>HELD</span></span>`;
             }
 
-            const sig = c.signatureUrl || c.signatureData || c.signature || '';
-            const sigHTML = (sig && sig.length > 30)
-                ? `<img src="${sig}" class="w-12 h-7 object-contain bg-white rounded border border-slate-600 mx-auto cursor-pointer shadow-sm hover:scale-105" onclick="window.openImageZoom('${sig}')" alt="Sig">`
+            const sigData = c.signatureUrl || c.signatureData || c.signature || '';
+            const isValidSig = sigData && (sigData.startsWith('data:image') || sigData.startsWith('http'));
+
+            const signatureTdHTML = isValidSig
+                ? `<img src="${sigData}" class="w-12 h-7 object-contain bg-white rounded border border-slate-600 mx-auto cursor-pointer shadow-sm hover:scale-105 transition-transform" onclick="window.openImageZoom('${sigData}')" alt="Sig">`
                 : `<span class="text-xs text-slate-400 italic">No Sig</span>`;
 
             tr.innerHTML = `
@@ -429,7 +433,7 @@ function renderContractorLogs(contractors) {
                 <td class="p-4 text-red-500 font-bold">${c.outTime || "-"}</td>
                 <td class="p-4"><span class="status-badge ${c.status === 'SIGNED OUT' ? 'closed' : 'open'}">${c.status || "Active"}</span></td>
                 <td class="p-4 text-center">${keyHtml}</td>
-                <td class="p-4 text-center">${sigHTML}</td>
+                <td class="p-4 text-center">${signatureTdHTML}</td>
                 <td class="p-4 text-center sticky-action-col">
                     <button onclick="window.openDetailedAuditModal('contractor', '${c.id}')" class="p-2 text-indigo-300 hover:text-white hover:bg-indigo-600/50 rounded-lg transition-all cursor-pointer">
                         <i class="fa-solid fa-eye text-base"></i>

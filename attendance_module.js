@@ -162,10 +162,10 @@ window.openKeyReturnModal = (session, callback) => {
     keyReturnCallback = callback;
 };
 
-window.confirmKeyReturn = () => {
+window.confirmKeyReturn = async () => {
     const input = document.getElementById('key-return-pin-input');
     const error = document.getElementById('pin-error');
-    const enteredPin = input?.value || "";
+    const enteredPin = (input?.value || "").toString().trim();
 
     if (!window.activeSessionForReturn) {
         console.error("❌ Session context lost for key return");
@@ -173,9 +173,23 @@ window.confirmKeyReturn = () => {
         return;
     }
 
-    const actualPin = (window.activeSessionForReturn.keyReturnPin || "").toString();
+    window.showGlobalSpinner("Verifying Key PIN...");
+    let storedPin = "";
 
-    if (enteredPin === actualPin) {
+    try {
+        // Fetch fresh live record directly from Firebase Database
+        const snap = await get(ref(db, 'staff_attendance/' + window.activeSessionForReturn.key));
+        if (snap.exists()) {
+            const liveRecord = snap.val();
+            storedPin = (liveRecord.keyReturnPin || liveRecord.checkoutPin || liveRecord.pin || "").toString().trim();
+        }
+    } catch (err) {
+        console.error("Error fetching live record for staff:", err);
+    } finally {
+        window.hideGlobalSpinner();
+    }
+
+    if (enteredPin === storedPin && enteredPin !== "") {
         console.log("✅ Key PIN Verified");
         const modal = document.getElementById('key-return-modal');
         if (modal) modal.classList.add('hidden');
@@ -186,6 +200,7 @@ window.confirmKeyReturn = () => {
         console.warn("❌ Incorrect Key PIN");
         if (error) error.classList.remove('hidden');
         if (input) { input.value = ''; input.focus(); }
+        alert("❌ Invalid PIN. Please enter the PIN shown on the Security Dashboard.");
     }
 };
 
@@ -225,12 +240,26 @@ window.renderDashboard = async (staff) => {
     const authArea = document.getElementById('staff-auth-area');
     const dashArea = document.getElementById('staff-dash-area');
 
-    // ENSURE ASSET TRANSFER SECTION IS HIDDEN BY DEFAULT ON DASHBOARD LOAD
-    const assetTransferSection = document.getElementById('asset-transfer-section');
-    if (assetTransferSection) assetTransferSection.classList.add('hidden');
-
     if (authArea) authArea.classList.add('hidden');
     if (dashArea) dashArea.classList.remove('hidden');
+
+    // FORCE SHOW MAIN DASHBOARD SUB-TAB (HIDE MOVEMENT LOGS & OTHERS)
+    // We target all main workflow containers to ensure a clean landing
+    const subViews = [
+        'tasks-management-section',
+        'asset-audit-section',
+        'asset-disposal-section',
+        'asset-transfer-section',
+        'transfer-logs-section'
+    ];
+    subViews.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.classList.add('hidden');
+    });
+
+    // Explicitly ensure the dashboard container/home view is visible
+    const homeView = document.getElementById('staff-home-view') || document.getElementById('staff-dash-area');
+    if (homeView) homeView.classList.remove('hidden');
 
     // Role-based UI Simplification (Handled by Global Helper)
     if (window.applyRoleDashboardRules) {
@@ -449,18 +478,39 @@ window.loadPersonalAttendance = async (mobile) => {
 console.log("✅ attendance_module.js: UI & Security Enhanced");
 
 window.loadSecurityPinControl = () => {
+    const container = document.getElementById('security-pin-control');
     const body = document.getElementById('security-pin-list-body');
+    const head = container ? container.querySelector('thead') : null;
+
+    // 1. UNHIDE CONTAINER IMMEDIATELY IF USER IS SECURITY
+    if (container) {
+        container.classList.remove('hidden');
+        container.style.display = 'block';
+    }
+
+    // Update Table Header to 4-Column Layout
+    if (head) {
+        head.innerHTML = `
+            <thead class="bg-indigo-950/70 text-indigo-300 font-extrabold uppercase text-[10px] tracking-wider">
+                <tr>
+                    <th class="p-3 text-left">Visitor / Contractor</th>
+                    <th class="p-3 text-left">Category & Details</th>
+                    <th class="p-3 text-left">Key Details</th>
+                    <th class="p-3 text-center">Checkout PIN</th>
+                </tr>
+            </thead>
+        `;
+    }
+
     if (!body) return;
 
-    onValue(ref(db, 'staff_attendance'), (snap) => {
-        renderPinTable();
-    });
-    onValue(ref(db, 'visitor_logs'), (snap) => {
-        renderPinTable();
-    });
-    onValue(ref(db, 'contractor_logs'), (snap) => {
-        renderPinTable();
-    });
+    // Listen to all relevant nodes for real-time sync
+    onValue(ref(db, 'staff_attendance'), () => renderPinTable());
+    onValue(ref(db, 'visitor_logs'), () => renderPinTable());
+    onValue(ref(db, 'contractor_logs'), () => renderPinTable());
+
+    // Trigger immediate load
+    renderPinTable();
 
     async function renderPinTable() {
         try {
@@ -472,43 +522,105 @@ window.loadSecurityPinControl = () => {
 
             let rows = [];
 
+            // 1. Process Staff
             if (staffSnap.exists()) {
-                Object.values(staffSnap.val()).forEach(s => {
-                    if (s.status === 'checked_in' && s.keyStatus === 'HELD' && s.keyReturnPin) {
-                        rows.push({ name: s.name, type: 'STAFF', pin: s.keyReturnPin, time: s.timeIn });
+                for (const [key, s] of Object.entries(staffSnap.val())) {
+                    if (s.status === 'checked_in' && s.keyStatus === 'HELD') {
+                        if (!s.keyReturnPin) {
+                            const newPin = Math.floor(1000 + Math.random() * 9000).toString();
+                            await update(ref(db, `staff_attendance/${key}`), {
+                                keyReturnPin: newPin,
+                                checkoutPin: newPin
+                            });
+                            s.keyReturnPin = newPin;
+                        }
+                        rows.push({
+                            name: s.name,
+                            id: s.adekPass || s.mobile,
+                            type: 'STAFF',
+                            info: s.companyName || 'Staff',
+                            pin: s.keyReturnPin,
+                            key: 'School Master Key'
+                        });
                     }
-                });
+                }
             }
 
+            // 2. Process Visitors
             if (visSnap.exists()) {
-                Object.values(visSnap.val()).forEach(v => {
-                    if (v.status === 'active' && v.keyCollected === 'YES' && v.keyReturnPin) {
-                        rows.push({ name: v.name, type: 'VISITOR', pin: v.keyReturnPin, time: v.timeIn });
+                for (const [key, v] of Object.entries(visSnap.val())) {
+                    if (v.status === 'active' && v.keyCollected === 'YES') {
+                        if (!v.keyReturnPin) {
+                            const newPin = Math.floor(1000 + Math.random() * 9000).toString();
+                            await update(ref(db, `visitor_logs/${key}`), {
+                                keyReturnPin: newPin,
+                                checkoutPin: newPin
+                            });
+                            v.keyReturnPin = newPin;
+                        }
+                        rows.push({
+                            name: v.name,
+                            id: v.id,
+                            type: 'VISITOR',
+                            info: v.company || v.purpose,
+                            pin: v.keyReturnPin,
+                            key: 'Visitor Badge'
+                        });
                     }
-                });
+                }
             }
 
+            // 3. Process Contractors
             if (conSnap.exists()) {
-                Object.values(conSnap.val()).forEach(c => {
-                    if (c.status === 'active' && c.keyCollected === 'YES' && c.keyReturnPin) {
-                        rows.push({ name: c.name, type: 'CONTRACTOR', pin: c.keyReturnPin, time: c.timeIn });
+                for (const [key, c] of Object.entries(conSnap.val())) {
+                    if (c.status === 'active' && c.keyCollected === 'YES') {
+                        if (!c.keyReturnPin) {
+                            const newPin = Math.floor(1000 + Math.random() * 9000).toString();
+                            await update(ref(db, `contractor_logs/${key}`), {
+                                keyReturnPin: newPin,
+                                checkoutPin: newPin
+                            });
+                            c.keyReturnPin = newPin;
+                        }
+                        rows.push({
+                            name: c.name,
+                            id: c.id,
+                            type: 'CONTRACTOR',
+                            info: `${c.company || ''} (${c.contractorId || ''})`,
+                            pin: c.keyReturnPin,
+                            key: 'Service Key'
+                        });
                     }
-                });
+                }
             }
 
             if (rows.length === 0) {
-                body.innerHTML = '<tr><td colspan="3" class="p-8 text-center text-slate-500">No active keys issued.</td></tr>';
+                body.innerHTML = '<tr><td colspan="4" class="p-8 text-center text-slate-500 font-bold uppercase tracking-widest">No active keys issued.</td></tr>';
                 return;
             }
 
             body.innerHTML = rows.map(r => `
-                <tr>
-                    <td class="p-4 font-bold text-white">${r.name}</td>
-                    <td class="p-4"><span class="px-2 py-0.5 rounded text-[8px] font-black ${r.type === 'STAFF' ? 'bg-indigo-500/20 text-indigo-400' : r.type === 'VISITOR' ? 'bg-amber-500/20 text-amber-400' : 'bg-emerald-500/20 text-emerald-400'}">${r.type}</span></td>
-                    <td class="p-4 text-center">
-                        <span class="inline-flex items-center gap-2 px-4 py-2 bg-emerald-500 text-white rounded-xl font-black text-xs shadow-lg shadow-emerald-500/20">
-                            <i class="fa-solid fa-key"></i> PIN: ${r.pin}
-                        </span>
+                <tr class="hover:bg-white/5 border-b border-white/5 transition-colors">
+                    <td class="p-3 align-middle">
+                        <div class="font-black text-white text-sm uppercase tracking-wide">${r.name}</div>
+                        <div class="text-[10px] text-indigo-400 font-mono font-bold">ID: ${r.id}</div>
+                    </td>
+                    <td class="p-3 align-middle">
+                        <span class="inline-block px-2 py-0.5 rounded text-[9px] font-black uppercase mb-1 ${r.type === 'STAFF' ? 'bg-indigo-500/20 text-indigo-400' : r.type === 'VISITOR' ? 'bg-amber-500/20 text-amber-400' : 'bg-emerald-500/20 text-emerald-400'}">${r.type}</span>
+                        <div class="text-[10px] text-slate-300 font-medium truncate max-w-[150px]">${r.info}</div>
+                    </td>
+                    <td class="p-3 align-middle">
+                        <div class="text-[10px] text-amber-400 font-bold flex items-center gap-1">
+                            <i class="fa-solid fa-key text-[9px]"></i> ${r.key}
+                        </div>
+                    </td>
+                    <td class="p-3 text-center align-middle">
+                        <div class="inline-flex flex-col items-center">
+                            <span class="px-3 py-1.5 bg-emerald-500 text-white rounded-xl font-black text-xs shadow-md tracking-widest">
+                                🔑 PIN: ${r.pin}
+                            </span>
+                            <span class="text-[7px] text-emerald-400 font-bold uppercase mt-0.5">Required for Exit</span>
+                        </div>
                     </td>
                 </tr>
             `).join('');

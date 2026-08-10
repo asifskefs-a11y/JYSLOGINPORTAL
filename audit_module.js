@@ -444,26 +444,51 @@ window.fetchDisposalAssetDetails = async (barcode) => {
 
 window.startCameraScanner = (target) => {
     currentScanTarget = target;
-    const modal = document.getElementById('scanner-modal');
+    const modal = document.getElementById('scannerModal');
+    if (!modal) return;
     modal.classList.remove('hidden');
+    modal.style.display = 'flex';
 
-    // Add the overlay box
-    const container = document.getElementById('scanner-container');
-    if (!document.getElementById('scanner-overlay-box')) {
-        const overlay = document.createElement('div');
-        overlay.id = 'scanner-overlay-box';
-        overlay.className = 'scanner-overlay-box';
-        container.appendChild(overlay);
+    // Center video centering
+    const viewport = document.getElementById('interactive');
+    if (viewport) {
+        viewport.innerHTML = ''; // Clear previous
     }
 
-    const scanner = new Html5Qrcode("scanner-container");
+    const scanner = new Html5Qrcode("interactive");
     scanner.start({ facingMode: "environment" }, { fps: 10, qrbox: { width: 240, height: 240 } }, (text) => {
         document.getElementById(currentScanTarget).value = text.toUpperCase();
         if (currentScanTarget === 'f1_asset_barcode') window.fetchAuditAssetDetails(text);
         if (currentScanTarget === 'f1_disposal_barcode_input') window.fetchDisposalAssetDetails(text);
         if (currentScanTarget === 't_asset_barcode') window.addAssetToBatch();
-        scanner.stop(); document.getElementById('scanner-modal').classList.add('hidden');
+        scanner.stop();
+        modal.classList.add('hidden');
+        modal.style.display = 'none';
+    }).catch(err => {
+        console.error("Scanner error:", err);
     });
+};
+
+window.stopCameraScanner = () => {
+    const modal = document.getElementById('scannerModal');
+    if (modal) {
+        modal.classList.add('hidden');
+        modal.style.display = 'none';
+    }
+    // Attempt to stop active scanner if possible via global reference if needed
+};
+
+window.toggleAccordion = (id) => {
+    const content = document.getElementById(id + '-content');
+    const icon = document.getElementById(id + '-icon');
+    if (content) {
+        content.classList.toggle('hidden');
+    }
+    if (icon) {
+        icon.classList.toggle('fa-chevron-down');
+        icon.classList.toggle('fa-chevron-right');
+        icon.classList.toggle('rotate-180');
+    }
 };
 
 console.log("✅ audit_module.js ready");

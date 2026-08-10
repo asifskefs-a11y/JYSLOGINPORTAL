@@ -231,36 +231,30 @@ window.applyRoleDashboardRules = (userRole) => {
 
     console.log(`🛡️ Applying Rules for Role: [${role}] | Restricted: ${isSimpleCleaner}`);
 
-    // Sidebar & Menu Elements
+    // Sidebar & Menu Elements (Logic only for hiding restricted menu sections)
     const restrictedMenuSections = ['menu-asset-section', 'menu-tasks-btn'];
-    const advancedDashboardSections = ['asset-transfer-section', 'asset-audit-section', 'asset-disposal-section', 'transfer-logs-section', 'security-task-area', 'tasks-management-section'];
     const cleanerHistorySection = 'cleaner-attendance-section';
 
     if (isSimpleCleaner) {
-        // 🛑 CLEANER ROLE: Hide everything except Home & Attendance History
+        // 🛑 CLEANER ROLE: Hide advanced menu sections and show history
         restrictedMenuSections.forEach(id => {
-            const el = document.getElementById(id);
-            if (el) el.classList.add('hidden');
-        });
-        advancedDashboardSections.forEach(id => {
             const el = document.getElementById(id);
             if (el) el.classList.add('hidden');
         });
         const historyEl = document.getElementById(cleanerHistorySection);
         if (historyEl) historyEl.classList.remove('hidden');
     } else {
-        // ✅ OTHERS: Restore all features
+        // ✅ OTHERS: Show advanced menu sections and hide cleaner history
         restrictedMenuSections.forEach(id => {
-            const el = document.getElementById(id);
-            if (el) el.classList.remove('hidden');
-        });
-        advancedDashboardSections.forEach(id => {
             const el = document.getElementById(id);
             if (el) el.classList.remove('hidden');
         });
         const historyEl = document.getElementById(cleanerHistorySection);
         if (historyEl) historyEl.classList.add('hidden');
     }
+
+    // NOTE: Workflow containers like 'transfer-logs-section' are managed
+    // by window.renderDashboard and window.showStaffView to prevent routing bugs.
 };
 
 // --- AUTOMATIC SPINNER ATTACHMENT (FORCE FIX) ---
