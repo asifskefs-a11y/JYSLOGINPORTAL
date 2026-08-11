@@ -86,74 +86,64 @@ window.checkVisitorSession = () => {
         // Fix for Sign-Out button event listener
         if (signOutBtn) {
             signOutBtn.onclick = async () => {
-                // 1. HELPER TO CHECK IF KEY WAS ISSUED (CASE INSENSITIVE & BOOLEAN SAFE)
-                const keyWasIssued = () => {
-                    const kc = (data.keyCollected || "").toString().toUpperCase();
-                    const ks = (data.keyStatus || "").toString().toUpperCase();
-                    return kc === 'YES' || kc === 'TRUE' || ks === 'HELD' || data.keyCollected === true;
-                };
-
+                window.showGlobalSpinner("Fetching Security PIN...");
                 let liveStoredPin = null;
-
-                // 2. ALWAYS FETCH LIVE DATA FROM FIREBASE IF A KEY WAS ISSUED
-                if (keyWasIssued()) {
-                    window.showGlobalSpinner("Validating Security PIN...");
-                    const mode = data.mode || (data.contractorId ? 'contractor' : 'visitor');
-                    const dbNode = mode === 'contractor' ? 'contractor_logs' : 'visitor_logs';
-
-                    try {
-                        const snap = await get(ref(db, dbNode));
-                        if (snap.exists()) {
-                            const logs = snap.val();
-                            // Match record by firebaseKey, id, contractorId, or mobile number
-                            const recordEntry = Object.entries(logs).find(([key, record]) =>
-                                key === data.firebaseKey ||
-                                (record.id && data.id && record.id.toString() === data.id.toString()) ||
-                                (record.contractorId && data.contractorId && record.contractorId.toString() === data.contractorId.toString()) ||
-                                (record.mobile && data.mobile && record.mobile.toString() === data.mobile.toString())
-                            );
-                            if (recordEntry) {
-                                const freshData = recordEntry[1];
-                                liveStoredPin = (freshData.keyReturnPin || freshData.checkoutPin || freshData.pin || "").toString().trim();
-                                data.firebaseKey = recordEntry[0]; // Cache exact Firebase push key
-                            }
+                const mode = data.mode || (data.contractorId ? 'contractor' : 'visitor');
+                const dbNode = mode === 'contractor' ? 'contractor_logs' : 'visitor_logs';
+                try {
+                    // 1. ALWAYS FORCE A FRESH FIREBASE LOOKUP FOR ALL CHECKOUTS
+                    const snap = await get(ref(db, dbNode));
+                    if (snap.exists()) {
+                        const logs = snap.val();
+                        const recordEntry = Object.entries(logs).find(([key, record]) =>
+                            key === data.firebaseKey ||
+                            (record.id && data.id && record.id.toString().trim() === data.id.toString().trim()) ||
+                            (record.contractorId && data.contractorId && record.contractorId.toString().trim() === data.contractorId.toString().trim()) ||
+                            (record.mobile && data.mobile && record.mobile.toString().trim() === data.mobile.toString().trim())
+                        );
+                        if (recordEntry) {
+                            const freshData = recordEntry[1];
+                            liveStoredPin = (freshData.keyReturnPin || freshData.checkoutPin || freshData.pin || "").toString().trim();
+                            data.firebaseKey = recordEntry[0];
                         }
-                    } catch (err) {
-                        console.error("Firebase live fetch error on mobile:", err);
-                    } finally {
-                        window.hideGlobalSpinner();
                     }
+                } catch (err) {
+                    console.error("Firebase fetch error:", err);
+                } finally {
+                    window.hideGlobalSpinner();
+                }
+                // Fallback to local data if fetch returned empty
+                if (!liveStoredPin) {
+                    liveStoredPin = (data.keyReturnPin || data.checkoutPin || data.pin || "").toString().trim();
+                }
+                // 2. MOBILE-SAFE PIN PROMPT LOGIC
+                // If key was issued or if a PIN is stored in DB
+                const keyIssued = data.keyCollected === 'YES' || data.keyCollected === 'Yes' || data.keyCollected === true || data.keyStatus === 'HELD' || (liveStoredPin !== "" && liveStoredPin !== null);
+                if (keyIssued) {
+                    // Use a standard prompt with clean string trimming
+                    const userEntered = prompt(`🔑 KEY RETURN PIN REQUIRED\n\nPlease enter the 4-digit PIN shown on Security Dashboard:`);
 
-                    // Fallback to local memory if live fetch returned empty
-                    if (!liveStoredPin) {
-                        liveStoredPin = (data.keyReturnPin || data.checkoutPin || data.pin || "").toString().trim();
+                    if (userEntered === null) {
+                        // User clicked Cancel
+                        return;
                     }
-
-                    // Prompt user for 4-digit PIN
-                    const pinInput = prompt("🔑 KEY RETURN PIN REQUIRED\nEnter 4-digit PIN shown on Security Dashboard:");
-                    const enteredPin = (pinInput || "").toString().trim();
+                    const enteredPin = userEntered.toString().trim();
                     if (!liveStoredPin || enteredPin === "" || enteredPin !== liveStoredPin) {
-                        alert(`❌ Invalid PIN.\n\nPlease enter the exact 4-digit PIN displayed on the Security Dashboard.`);
+                        alert(`❌ Invalid PIN!\n\nSystem Expected: [${liveStoredPin || 'No PIN found'}]\nYou Entered: [${enteredPin || 'Empty'}]\n\nPlease enter the exact 4-digit PIN displayed on the Security Dashboard.`);
                         return;
                     }
                 }
-
-                // 3. PROCEED TO SIGN OUT UPON VALIDATION
+                // 3. EXECUTE SIGN OUT
                 window.showGlobalSpinner("Finalizing Exit...");
                 try {
                     const now = new Date();
                     const outTime = now.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', hour12: true});
-                    const mode = data.mode || (data.contractorId ? 'contractor' : 'visitor');
-                    const dbNode = mode === 'contractor' ? 'contractor_logs' : 'visitor_logs';
                     const targetKey = data.firebaseKey || data.id;
-
                     await update(ref(db, `${dbNode}/${targetKey}`), {
                         outTime: outTime,
                         status: 'SIGNED OUT',
                         keyReturned: 'YES'
                     });
-
-                    // Clear mobile local storage session
                     localStorage.removeItem('vActive');
                     window.triggerSuccessPopup("Signed Out Successfully! 👋");
                     window.checkVisitorSession();

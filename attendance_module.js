@@ -2,6 +2,93 @@ import { db, UPLOAD_CONFIG } from './firebase_config.js';
 import { ref, set, update, push, onValue, get } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
 // ================================================================ */
+// NETWORK SPEED & OFFLINE SYNC HANDLERS (PUBLIC WI-FI BYPASS)       */
+// ================================================================ */
+
+const NETWORK_SPEED_THRESHOLD = 3500;
+const OFFLINE_SYNC_KEY = 'pending_offline_sync';
+
+const checkNetworkPing = async () => {
+    const start = Date.now();
+    try {
+        // Fast shallow fetch from Firebase REST endpoint
+        await fetch('https://schoollog-f0a04-default-rtdb.firebaseio.com/.json?shallow=true', { cache: 'no-store' });
+        return Date.now() - start;
+    } catch (e) {
+        return 9999;
+    }
+};
+
+window.showSlowNetWarning = () => {
+    const existing = document.getElementById('slow-net-toast');
+    if (existing) return;
+    const toast = document.createElement('div');
+    toast.id = 'slow-net-toast';
+    toast.className = 'fixed bottom-24 left-1/2 -translate-x-1/2 z-[300000] bg-amber-500 text-white px-6 py-3 rounded-2xl font-black shadow-2xl flex items-center gap-3 animate-bounce';
+    toast.innerHTML = `<i class="fa-solid fa-wifi"></i> <span>⚠️ Slow Network Detected! Syncing in background...</span>`;
+    document.body.appendChild(toast);
+    setTimeout(() => toast.remove(), 5000);
+};
+
+async function safeFirebaseWrite(type, path, data) {
+    try {
+        const ping = await checkNetworkPing();
+        if (ping > NETWORK_SPEED_THRESHOLD) {
+            window.showSlowNetWarning();
+            return await firebaseRestFallback(type, path, data);
+        }
+
+        if (type === 'set') await set(ref(db, path), data);
+        else await update(ref(db, path), data);
+        return { status: 'success' };
+    } catch (e) {
+        console.error("Firebase SDK Write Failed, trying REST fallback:", e);
+        return await firebaseRestFallback(type, path, data);
+    }
+}
+
+async function firebaseRestFallback(type, path, data) {
+    const url = `https://schoollog-f0a04-default-rtdb.firebaseio.com/${path}.json`;
+    try {
+        const method = type === 'set' ? 'PUT' : 'PATCH';
+        const res = await fetch(url, {
+            method: method,
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        });
+        if (!res.ok) throw new Error("REST API Failed");
+        return { status: 'success' };
+    } catch (e) {
+        console.error("REST Fallback Failed, saving for offline sync:", e);
+        addToOfflineSync(type, path, data);
+        return { status: 'offline_queued' };
+    }
+}
+
+function addToOfflineSync(type, path, data) {
+    const queue = JSON.parse(localStorage.getItem(OFFLINE_SYNC_KEY) || '[]');
+    queue.push({ type, path, data, timestamp: Date.now() });
+    localStorage.setItem(OFFLINE_SYNC_KEY, JSON.stringify(queue));
+}
+
+window.processOfflineSync = async () => {
+    const queue = JSON.parse(localStorage.getItem(OFFLINE_SYNC_KEY) || '[]');
+    if (queue.length === 0) return;
+    console.log(`🔄 Offline Sync: Processing ${queue.length} items...`);
+    const remaining = [];
+    for (const item of queue) {
+        try {
+            await firebaseRestFallback(item.type, item.path, item.data);
+            console.log(`✅ Sync Success: ${item.path}`);
+        } catch (e) {
+            remaining.push(item);
+        }
+    }
+    localStorage.setItem(OFFLINE_SYNC_KEY, JSON.stringify(remaining));
+};
+setInterval(window.processOfflineSync, 15000);
+
+// ================================================================ */
 // SIGNATURE MODAL HANDLERS                                         */
 // ================================================================ */
 
@@ -415,10 +502,16 @@ window.renderDashboard = async (staff) => {
 async function proceedCheckIn(staff, sigData, btn, hasKey) {
     console.log("📥 Check-In: Proceeding...");
     btn.disabled = true;
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Processing...';
     window.showGlobalSpinner("Saving Check-In Record...");
 
     try {
         const loc = await getFastLocation();
+
+        // Network Performance Check
+        const ping = await checkNetworkPing();
+        if (ping > NETWORK_SPEED_THRESHOLD) window.showSlowNetWarning();
+
         const res = await window.uploadToDrive({
             category: UPLOAD_CONFIG.CATEGORIES.STAFF_ATTENDANCE,
             fileName: `Attendance_In_${staff.mobile}_${Date.now()}.png`,
@@ -449,15 +542,18 @@ async function proceedCheckIn(staff, sigData, btn, hasKey) {
             adekPass: staff.adekPass || staff.adcPassNumber || "N/A"
         };
 
-        await set(ref(db, 'staff_attendance/' + key), data);
-        await set(ref(db, 'active_staff_sessions/' + staff.mobile), {
+        // FORCE REST FALLBACK IF NEEDED
+        const dbStatus = await safeFirebaseWrite('set', 'staff_attendance/' + key, data);
+        await safeFirebaseWrite('set', 'active_staff_sessions/' + staff.mobile, {
             status: 'checked_in', key, timeIn: data.timeIn, keyStatus: data.keyStatus, keyReturnPin: pin, mobile: staff.mobile
         });
 
         if (hasKey) alert("🔑 YOUR KEY RETURN PIN: " + pin + "\n(Keep this for check-out)");
 
-        if (window.triggerSuccessPopup) window.triggerSuccessPopup("Checked In Successfully! ✅");
-        else alert("Checked in!");
+        if (window.triggerSuccessPopup) {
+            const msg = dbStatus.status === 'offline_queued' ? "Saved Offline! Syncing when network improves. ✅" : "Checked In Successfully! ✅";
+            window.triggerSuccessPopup(msg);
+        } else alert("Checked in!");
 
     } catch (err) {
         console.error("❌ Check-In Error:", err);
@@ -472,6 +568,7 @@ async function proceedCheckIn(staff, sigData, btn, hasKey) {
 async function proceedCheckOut(staff, session, btn, keyReturned) {
     console.log("📤 Check-Out: Proceeding...");
     btn.disabled = true;
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Processing...';
     window.showGlobalSpinner("Finalizing Check-Out...");
 
     try {
@@ -490,13 +587,13 @@ async function proceedCheckOut(staff, session, btn, keyReturned) {
             data.keyReturnTime = Date.now();
         }
 
-        if (session && session.key) {
-            await update(ref(db, 'staff_attendance/' + session.key), data);
-        }
-        await set(ref(db, 'active_staff_sessions/' + staff.mobile), null);
+        const dbStatus = await safeFirebaseWrite('update', 'staff_attendance/' + (session?.key || ""), data);
+        await safeFirebaseWrite('set', 'active_staff_sessions/' + staff.mobile, null);
 
-        if (window.triggerSuccessPopup) window.triggerSuccessPopup("Checked Out Successfully! 👋");
-        else alert("Checked out!");
+        if (window.triggerSuccessPopup) {
+            const msg = dbStatus.status === 'offline_queued' ? "Saved Offline! Syncing when network improves. 👋" : "Checked Out Successfully! 👋";
+            window.triggerSuccessPopup(msg);
+        } else alert("Checked out!");
 
     } catch (err) {
         console.error("❌ Check-Out Error:", err);
