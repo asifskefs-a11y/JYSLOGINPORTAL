@@ -411,11 +411,15 @@ window.renderDashboard = async (staff) => {
         'asset-audit-section',
         'asset-disposal-section',
         'asset-transfer-section',
-        'transfer-logs-section'
+        'transfer-logs-section',
+        'security-pin-control'
     ];
     subViews.forEach(id => {
         const el = document.getElementById(id);
-        if (el) el.classList.add('hidden');
+        if (el) {
+            el.classList.add('hidden');
+            el.style.display = 'none';
+        }
     });
 
     const homeView = document.getElementById('staff-home-view') || document.getElementById('staff-dash-area');
@@ -548,12 +552,11 @@ async function proceedCheckIn(staff, sigData, btn, hasKey) {
             status: 'checked_in', key, timeIn: data.timeIn, keyStatus: data.keyStatus, keyReturnPin: pin, mobile: staff.mobile
         });
 
-        if (hasKey) alert("🔑 YOUR KEY RETURN PIN: " + pin + "\n(Keep this for check-out)");
-
         if (window.triggerSuccessPopup) {
-            const msg = dbStatus.status === 'offline_queued' ? "Saved Offline! Syncing when network improves. ✅" : "Checked In Successfully! ✅";
+            const welcomeMsg = `Welcome, ${staff.fullName || staff.name || "Staff"}! Checked-in successfully. Have a great day! 👋`;
+            const msg = dbStatus.status === 'offline_queued' ? "Saved Offline! Syncing when network improves. ✅" : welcomeMsg;
             window.triggerSuccessPopup(msg);
-        } else alert("Checked in!");
+        } else alert(`Welcome, ${staff.fullName || staff.name || "Staff"}! Checked-in successfully. Have a great day! 👋`);
 
     } catch (err) {
         console.error("❌ Check-In Error:", err);
@@ -643,9 +646,18 @@ window.loadPersonalAttendance = async (mobile) => {
 };
 
 window.loadSecurityPinControl = () => {
+    const role = (window.currentStaff?.role || "").toString().trim().toLowerCase();
     const container = document.getElementById('security-pin-control');
     const body = document.getElementById('security-pin-list-body');
     const head = container ? container.querySelector('thead') : null;
+
+    if (role !== 'security') {
+        if (container) {
+            container.classList.add('hidden');
+            container.style.display = 'none';
+        }
+        return;
+    }
 
     if (container) {
         container.classList.remove('hidden');
