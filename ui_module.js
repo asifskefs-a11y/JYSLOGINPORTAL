@@ -228,11 +228,14 @@ window.hideLoader = window.hideGlobalSpinner;
 window.applyRoleDashboardRules = (userRole) => {
     const role = (userRole || '').toString().trim().toLowerCase();
     const isSimpleCleaner = (role === 'cleaner');
+    const isSecurity = (role === 'security');
+    const isAdmin = (role === 'admin');
+    const isResolver = (role === 'cleaner leader' || role === 'technician' || role === 'housekeeping');
 
     console.log(`🛡️ Applying Rules for Role: [${role}] | Restricted: ${isSimpleCleaner}`);
 
     // Sidebar & Menu Elements (Logic only for hiding restricted menu sections)
-    const restrictedMenuSections = ['menu-asset-section', 'menu-tasks-btn'];
+    const restrictedMenuSections = ['menu-asset-section'];
     const cleanerHistorySection = 'cleaner-attendance-section';
 
     if (isSimpleCleaner) {
@@ -243,6 +246,12 @@ window.applyRoleDashboardRules = (userRole) => {
         });
         const historyEl = document.getElementById(cleanerHistorySection);
         if (historyEl) historyEl.classList.remove('hidden');
+
+        // Hide all task items for simple cleaner
+        const taskBtn = document.getElementById('menu-tasks-btn');
+        if (taskBtn) taskBtn.classList.add('hidden');
+        const createBtn = document.getElementById('menu-create-task-btn');
+        if (createBtn) createBtn.classList.add('hidden');
     } else {
         // ✅ OTHERS: Show advanced menu sections and hide cleaner history
         restrictedMenuSections.forEach(id => {
@@ -251,10 +260,26 @@ window.applyRoleDashboardRules = (userRole) => {
         });
         const historyEl = document.getElementById(cleanerHistorySection);
         if (historyEl) historyEl.classList.add('hidden');
+
+        // Task Visibility Rules
+        const taskBtn = document.getElementById('menu-tasks-btn');
+        if (taskBtn) taskBtn.classList.remove('hidden');
+
+        const createBtn = document.getElementById('menu-create-task-btn');
+        const dashCreateBtn = document.getElementById('s-dash-create-task-btn');
+
+        if (isSecurity || isAdmin) {
+            if (createBtn) createBtn.classList.remove('hidden');
+            if (dashCreateBtn) dashCreateBtn.classList.remove('hidden');
+        } else {
+            if (createBtn) createBtn.classList.add('hidden');
+            if (dashCreateBtn) dashCreateBtn.classList.add('hidden');
+        }
     }
 
-    // NOTE: Workflow containers like 'transfer-logs-section' are managed
-    // by window.renderDashboard and window.showStaffView to prevent routing bugs.
+    if (role.includes('tech')) {
+        // Renaming in UI if needed, though most is handled by templates
+    }
 };
 
 // --- AUTOMATIC SPINNER ATTACHMENT (FORCE FIX) ---

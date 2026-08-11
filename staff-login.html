@@ -73,9 +73,13 @@
                 <div>
                      <h3 class="text-[10px] font-black text-white/40 uppercase tracking-[0.2em] mb-4 ml-2">Tasks & Tools</h3>
                      <div class="space-y-2">
+                         <button id="menu-create-task-btn" onclick="window.toggleSideMenu(); window.showStaffView('tasks-management-section'); setTimeout(() => { const el = document.getElementById('security-task-area'); if(el) el.scrollIntoView({behavior: 'smooth'}); }, 300)" class="menu-item-btn hidden">
+                             <i class="fa-solid fa-plus-circle"></i>
+                             <span>Create Task</span>
+                         </button>
                          <button id="menu-tasks-btn" onclick="window.toggleSideMenu(); window.showStaffView('tasks-management-section')" class="menu-item-btn">
                              <i class="fa-solid fa-list-check"></i>
-                             <span>My Tasks</span>
+                             <span>Task History</span>
                          </button>
                          <a href="index.html" class="menu-item-btn no-underline">
                              <i class="fa-solid fa-home"></i>
@@ -209,6 +213,9 @@
                             <p class="status-text" id="attendanceStatusText">Ready to check in</p>
                         </div>
                         <div id="staff-action-container" class="flex gap-2">
+                            <button id="s-dash-create-task-btn" onclick="window.showStaffView('tasks-management-section'); setTimeout(() => { const el = document.getElementById('security-task-area'); if(el) el.scrollIntoView({behavior: 'smooth'}); }, 300)" class="px-5 py-2.5 bg-indigo-600 text-white rounded-xl font-black text-xs shadow-lg active:scale-95 transition-all flex items-center gap-1.5 hidden">
+                                <i class="fa-solid fa-plus-circle"></i> Create Task
+                            </button>
                             <button id="s-checkin-btn" class="px-5 py-2.5 bg-gradient-to-r from-emerald-500 to-emerald-600 text-white rounded-xl font-black text-xs shadow-lg active:scale-95 transition-all flex items-center gap-1.5">
                                 <i class="fa-regular fa-check-circle"></i> Check In
                             </button>
@@ -323,7 +330,7 @@
                         <div class="space-y-4">
                             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 <select id="taskSchoolSelect" class="transfer-input-field" onchange="window.filterStaffBySchoolAndRole()"><option value="">Select School</option><option value="Jern Yafoor School 1">Jern Yafoor School 1</option><option value="Jern Yafoor School 2">Jern Yafoor School 2</option></select>
-                                <select id="taskRoleSelect" class="transfer-input-field" onchange="window.filterStaffBySchoolAndRole()"><option value="">Target Role</option><option value="Cleaner Leader">Cleaner Leader</option><option value="RT Technician">RT Technician</option><option value="Housekeeping">Housekeeping</option></select>
+                                <select id="taskRoleSelect" class="transfer-input-field" onchange="window.filterStaffBySchoolAndRole()"><option value="">Target Role</option><option value="Cleaner Leader">Cleaner Leader</option><option value="Technician">Technician</option><option value="Housekeeping">Housekeeping</option></select>
                             </div>
                             <select id="assignedStaffSelect" class="transfer-input-field"><option value="">Assign Specific Staff (Optional)</option></select>
                             <input type="text" id="areaNameInput" placeholder="Area / Room Name" class="transfer-input-field">
@@ -922,6 +929,15 @@
             });
             const target = document.getElementById(viewId);
             if (target) target.classList.remove('hidden');
+
+            // Re-load view data if needed
+            if (viewId === 'tasks-management-section' && window.loadRoleView) {
+                window.loadRoleView(window.currentStaff);
+            }
+            if (viewId === 'staff-dash-area' && window.renderDashboard && window.currentStaff) {
+                 // No need to full re-render, but update state if needed
+            }
+
             window.scrollTo(0, 0);
         };
     </script>
@@ -1002,6 +1018,23 @@
     <script type="module" src="init_module.js?v=4.0"></script>
     <script type="module" src="audit_module.js?v=4.0"></script>
     <!-- FORCED GLOBAL SPINNER & OVERRIDE -->
+    <style>
+        @keyframes logoPulseScale {
+            0% { transform: scale(0.85); -webkit-transform: scale(0.85); opacity: 0.7; }
+            50% { transform: scale(1.15); -webkit-transform: scale(1.15); opacity: 1; }
+            100% { transform: scale(0.85); -webkit-transform: scale(0.85); opacity: 0.7; }
+        }
+        @-webkit-keyframes logoPulseScale {
+            0% { -webkit-transform: scale(0.85); opacity: 0.7; }
+            50% { -webkit-transform: scale(1.15); opacity: 1; }
+            100% { -webkit-transform: scale(0.85); opacity: 0.7; }
+        }
+        .logo-pulse-anim {
+            animation: logoPulseScale 1.2s ease-in-out infinite !important;
+            -webkit-animation: logoPulseScale 1.2s ease-in-out infinite !important;
+            will-change: transform, opacity;
+        }
+    </style>
     <div id="universal-logo-loader" style="display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(8px); z-index: 99999999; flex-direction: column; align-items: center; justify-content: center;">
         <img src="schoollogo.png" class="logo-pulse-anim" style="width: 100px; height: 100px; object-fit: contain;" alt="Loading..." onerror="this.src='jys_Icon.png'">
         <p id="universal-loader-text" style="color: #ffffff; font-weight: bold; margin-top: 16px; font-family: sans-serif; letter-spacing: 1px; text-transform: uppercase;">Processing, please wait...</p>
@@ -1012,9 +1045,12 @@
         window.showGlobalSpinner = function(msg) {
             var el = document.getElementById('universal-logo-loader');
             var txt = document.getElementById('universal-loader-text');
+            var img = el ? el.querySelector('img') : null;
             if (el) {
                 if (txt && msg) txt.innerText = msg;
                 el.style.display = 'flex';
+                // Force Reflow to restart animation reliably
+                if (img) { img.style.animation = 'none'; img.offsetHeight; img.style.animation = ''; }
                 if (spinnerTimeout) clearTimeout(spinnerTimeout);
                 spinnerTimeout = setTimeout(function() { window.hideGlobalSpinner(); }, 15000);
             }

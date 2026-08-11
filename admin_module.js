@@ -258,7 +258,7 @@ window.updateStaffCensusCounters = function(staffList) {
             cleanerLeaderCount++;
         } else if (pos === 'CLEANER') {
             cleanerCount++;
-        } else if (pos.includes('TECHNICIAN') || pos.includes('TECH') || pos.includes('RT')) {
+        } else if (pos.includes('TECHNICIAN') || pos.includes('TECH')) {
             technicianCount++;
         }
     });
@@ -494,7 +494,7 @@ function renderStaffAttendance(attendance) {
             let roleClass = 'role-default';
             if (role.includes('security')) roleClass = 'role-security';
             else if (role.includes('leader')) roleClass = 'role-cleaner-leader';
-            else if (role.includes('tech') || role.includes('rt')) roleClass = 'role-technician';
+            else if (role.includes('tech')) roleClass = 'role-technician';
 
             tr.innerHTML = `
                 <td class="p-4 font-black text-indigo-900 uppercase">${a.name || "-"}</td>
@@ -553,7 +553,7 @@ function renderStaffDirectory(staff) {
             let roleClass = 'role-default';
             if (role.includes('security')) roleClass = 'role-security';
             else if (role.includes('leader')) roleClass = 'role-cleaner-leader';
-            else if (role.includes('tech') || role.includes('rt')) roleClass = 'role-technician';
+            else if (role.includes('tech')) roleClass = 'role-technician';
 
             tr.innerHTML = `
                 <td class="p-4 text-center">

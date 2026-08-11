@@ -429,6 +429,8 @@ window.renderDashboard = async (staff) => {
         window.applyRoleDashboardRules(role);
         if (role === 'cleaner') window.loadPersonalAttendance(staff.mobile);
         if (role === 'security') window.loadSecurityPinControl();
+        // Force load task stats for dashboard
+        if (window.loadRoleView) window.loadRoleView(staff);
     }
 
     const nameDisplay = document.getElementById('userNameDisplay');

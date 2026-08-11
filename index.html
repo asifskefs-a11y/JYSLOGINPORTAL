@@ -445,6 +445,23 @@
     </div>
 
     <!-- FORCED GLOBAL SPINNER & OVERRIDE -->
+    <style>
+        @keyframes logoPulseScale {
+            0% { transform: scale(0.85); -webkit-transform: scale(0.85); opacity: 0.7; }
+            50% { transform: scale(1.15); -webkit-transform: scale(1.15); opacity: 1; }
+            100% { transform: scale(0.85); -webkit-transform: scale(0.85); opacity: 0.7; }
+        }
+        @-webkit-keyframes logoPulseScale {
+            0% { -webkit-transform: scale(0.85); opacity: 0.7; }
+            50% { -webkit-transform: scale(1.15); opacity: 1; }
+            100% { -webkit-transform: scale(0.85); opacity: 0.7; }
+        }
+        .logo-pulse-anim {
+            animation: logoPulseScale 1.2s ease-in-out infinite !important;
+            -webkit-animation: logoPulseScale 1.2s ease-in-out infinite !important;
+            will-change: transform, opacity;
+        }
+    </style>
     <div id="universal-logo-loader" style="display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(8px); z-index: 99999999; flex-direction: column; align-items: center; justify-content: center;">
         <img src="schoollogo.png" class="logo-pulse-anim" style="width: 100px; height: 100px; object-fit: contain;" alt="Loading..." onerror="this.src='jys_Icon.png'">
         <p id="universal-loader-text" style="color: #ffffff; font-weight: bold; margin-top: 16px; font-family: sans-serif; letter-spacing: 1px; text-transform: uppercase;">Processing, please wait...</p>
@@ -455,9 +472,12 @@
         window.showGlobalSpinner = function(msg) {
             var el = document.getElementById('universal-logo-loader');
             var txt = document.getElementById('universal-loader-text');
+            var img = el ? el.querySelector('img') : null;
             if (el) {
                 if (txt && msg) txt.innerText = msg;
                 el.style.display = 'flex';
+                // Force Reflow to restart animation reliably
+                if (img) { img.style.animation = 'none'; img.offsetHeight; img.style.animation = ''; }
                 if (spinnerTimeout) clearTimeout(spinnerTimeout);
                 spinnerTimeout = setTimeout(function() { window.hideGlobalSpinner(); }, 15000);
             }
