@@ -105,6 +105,9 @@ window.refreshDashboardData = async () => {
         window.appCache.attendance = attSnap.exists() ? Object.values(attSnap.val()) : [];
         window.appCache.transfers = trSnap.exists() ? Object.values(trSnap.val()) : [];
 
+        // Save to local cache for offline/guest Wi-Fi mode
+        localStorage.setItem('admin_cache', JSON.stringify(window.appCache));
+
         // Auto-migrate legacy data from Base64 to Drive
         window.autoMigrateLegacyData();
 
@@ -127,7 +130,20 @@ window.refreshDashboardData = async () => {
         }
 
     } catch (e) {
-        console.error("❌ Refresh Dashboard Error:", e);
+        console.warn("⚠️ Restricted Wi-Fi mode: Loading admin dashboard from local cache.");
+        const cached = localStorage.getItem('admin_cache');
+        if (cached) {
+            const data = JSON.parse(cached);
+            Object.assign(window.appCache, data);
+            window.appCache.isInitialized = true;
+            window.updateAdminKPIs();
+
+            const activeTab = document.querySelector('.tab-section.active');
+            window.renderTabFromAppCache(activeTab ? activeTab.id : 'tab-visitor-logs');
+            window.showWhatsAppToast("⚠️ Offline Mode", "Loaded from local cache.");
+        } else {
+            console.error("❌ Refresh Dashboard Error:", e);
+        }
     } finally {
         window.hideGlobalSpinner();
     }

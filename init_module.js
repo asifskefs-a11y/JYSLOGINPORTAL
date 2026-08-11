@@ -258,6 +258,18 @@ window.handleVisitorSignIn = async (e) => {
 
 document.addEventListener('DOMContentLoaded', () => {
     console.log("🚀 SchoolLog Init: DOMContentLoaded triggered");
+
+    // --- 0. REGISTER SERVICE WORKER (OFFLINE PWA MODE) ---
+    if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+            navigator.serviceWorker.register('sw.js').then(reg => {
+                console.log('✅ SW: Registered Successfully', reg.scope);
+            }).catch(err => {
+                console.warn('❌ SW: Registration Failed', err);
+            });
+        });
+    }
+
     const path = window.location.pathname;
 
     try {

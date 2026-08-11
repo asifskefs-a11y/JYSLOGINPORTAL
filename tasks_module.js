@@ -76,12 +76,45 @@ window.closeTaskAction = async (taskId) => {
 };
 
 window.loadRoleView = async (staff) => {
-    const snap = await get(ref(db, 'tasks'));
     const container = document.getElementById('tasksContainer'); if (!container) return;
-    if (snap.exists()) {
-        const tasks = Object.values(snap.val()).filter(t => t.status === 'Open');
-        container.innerHTML = tasks.map(t => `<div class="task-card"><h4>${t.location}</h4><p>${t.details}</p><button onclick="window.closeTaskAction('${t.id}')">Resolve</button></div>`).join('');
-    } else { container.innerHTML = "No pending tasks."; }
+
+    try {
+        const snap = await get(ref(db, 'tasks'));
+        if (snap.exists()) {
+            const data = snap.val();
+            // Cache locally for Wi-Fi fallback
+            localStorage.setItem('cached_tasks', JSON.stringify(data));
+
+            const tasks = Object.values(data).filter(t => t.status === 'Open');
+            renderTasksList(tasks, container);
+        } else {
+            container.innerHTML = "No pending tasks.";
+        }
+    } catch (e) {
+        console.warn("⚠️ Restricted Wi-Fi mode: Loading tasks from local cache.");
+        const cached = localStorage.getItem('cached_tasks');
+        if (cached) {
+            const tasks = Object.values(JSON.parse(cached)).filter(t => t.status === 'Open');
+            renderTasksList(tasks, container);
+            window.showWhatsAppToast("⚠️ Offline Mode", "Loaded from local cache.");
+        } else {
+            container.innerHTML = "No connection. Please login on school network first.";
+        }
+    }
 };
+
+function renderTasksList(tasks, container) {
+    container.innerHTML = tasks.map(t => `
+        <div class="task-card bg-white p-4 rounded-2xl shadow-sm border border-slate-100 flex justify-between items-center gap-4">
+            <div class="flex-1">
+                <h4 class="font-black text-indigo-900 uppercase text-sm">${t.location}</h4>
+                <p class="text-xs text-slate-500 font-medium line-clamp-2">${t.details}</p>
+            </div>
+            <button onclick="window.closeTaskAction('${t.id}')" class="bg-indigo-50 text-indigo-600 px-4 py-2 rounded-xl text-[10px] font-black uppercase whitespace-nowrap active:scale-95 transition-all">
+                Resolve
+            </button>
+        </div>
+    `).join('');
+}
 
 console.log("✅ tasks_module.js loaded (Task Management)");

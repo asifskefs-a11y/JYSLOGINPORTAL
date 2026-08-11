@@ -423,22 +423,49 @@ window.handleTransferPhoto = async (e) => {
 
 window.fetchAuditAssetDetails = async (barcode) => {
     if (!barcode || barcode.length < 3) return;
-    const snap = await get(child(ref(db), `assets/${barcode}`));
-    if (snap.exists()) {
-        const data = snap.val();
-        window.renderSmartPreview('audit-asset-preview', data, barcode);
-        document.getElementById('f1_asset_barcode').value = barcode;
+    try {
+        const snap = await get(child(ref(db), `assets/${barcode}`));
+        if (snap.exists()) {
+            const data = snap.val();
+            // Cache locally
+            localStorage.setItem(`asset_${barcode}`, JSON.stringify(data));
+            window.renderSmartPreview('audit-asset-preview', data, barcode);
+            document.getElementById('f1_asset_barcode').value = barcode;
+        }
+    } catch (e) {
+        console.warn("⚠️ Restricted Wi-Fi mode: Loading asset details from local cache.");
+        const cached = localStorage.getItem(`asset_${barcode}`);
+        if (cached) {
+            const data = JSON.parse(cached);
+            window.renderSmartPreview('audit-asset-preview', data, barcode);
+            document.getElementById('f1_asset_barcode').value = barcode;
+            window.showWhatsAppToast("⚠️ Offline Mode", "Loaded from local cache.");
+        }
     }
 };
 
 window.fetchDisposalAssetDetails = async (barcode) => {
     if (!barcode || barcode.length < 3) return;
-    const snap = await get(child(ref(db), `assets/${barcode}`));
-    if (snap.exists()) {
-        const data = snap.val();
-        window.activeDisposalAsset = data;
-        window.renderSmartPreview('disposal-asset-preview', data, barcode, 'red');
-        document.getElementById('disposed-by-name').value = window.currentStaff?.name || "Staff";
+    try {
+        const snap = await get(child(ref(db), `assets/${barcode}`));
+        if (snap.exists()) {
+            const data = snap.val();
+            // Cache locally
+            localStorage.setItem(`asset_${barcode}`, JSON.stringify(data));
+            window.activeDisposalAsset = data;
+            window.renderSmartPreview('disposal-asset-preview', data, barcode, 'red');
+            document.getElementById('disposed-by-name').value = window.currentStaff?.name || "Staff";
+        }
+    } catch (e) {
+        console.warn("⚠️ Restricted Wi-Fi mode: Loading asset details from local cache.");
+        const cached = localStorage.getItem(`asset_${barcode}`);
+        if (cached) {
+            const data = JSON.parse(cached);
+            window.activeDisposalAsset = data;
+            window.renderSmartPreview('disposal-asset-preview', data, barcode, 'red');
+            document.getElementById('disposed-by-name').value = window.currentStaff?.name || "Staff";
+            window.showWhatsAppToast("⚠️ Offline Mode", "Loaded from local cache.");
+        }
     }
 };
 

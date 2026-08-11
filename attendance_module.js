@@ -616,34 +616,47 @@ window.loadPersonalAttendance = async (mobile) => {
     try {
         const snap = await get(ref(db, 'staff_attendance'));
         if (snap.exists()) {
-            const all = Object.values(snap.val()).filter(a => a.mobile === mobile);
-            all.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
-
-            if (countEl) countEl.innerText = `${all.length} Days Total`;
-
-            body.innerHTML = all.map(a => {
-                let keyLog = '<span class="text-slate-300">N/A</span>';
-                if (a.keyStatus === 'HELD') keyLog = '🔑 <span class="text-amber-600">Held</span>';
-                else if (a.keyStatus === 'RETURNED') keyLog = '✅ <span class="text-emerald-600">Returned</span>';
-                else if (a.keyStatus === 'NONE') keyLog = '❌ <span class="text-slate-400">None</span>';
-
-                return `
-                    <tr>
-                        <td class="p-4 font-bold text-indigo-900">${a.date}</td>
-                        <td class="p-4 text-emerald-600 font-bold">${a.timeIn || '-'}</td>
-                        <td class="p-4 text-red-500 font-bold">${a.checkOutTime || '-'}</td>
-                        <td class="p-4">${keyLog}</td>
-                    </tr>
-                `;
-            }).join('');
+            const data = snap.val();
+            // Cache locally
+            localStorage.setItem(`personal_attendance_${mobile}`, JSON.stringify(data));
+            renderAttendanceList(data, mobile, body, countEl);
         } else {
             body.innerHTML = '<tr><td colspan="4" class="p-8 text-center text-gray-400">No records found</td></tr>';
         }
     } catch (e) {
-        console.error("Personal Attendance Error:", e);
-        body.innerHTML = '<tr><td colspan="4" class="p-8 text-center text-red-400">Error loading history</td></tr>';
+        console.warn("⚠️ Restricted Wi-Fi mode: Loading history from local cache.");
+        const cached = localStorage.getItem(`personal_attendance_${mobile}`);
+        if (cached) {
+            renderAttendanceList(JSON.parse(cached), mobile, body, countEl);
+            window.showWhatsAppToast("⚠️ Offline Mode", "Loaded from local cache.");
+        } else {
+            body.innerHTML = '<tr><td colspan="4" class="p-8 text-center text-red-400">Error loading history</td></tr>';
+        }
     }
 };
+
+function renderAttendanceList(data, mobile, body, countEl) {
+    const all = Object.values(data).filter(a => a.mobile === mobile);
+    all.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+
+    if (countEl) countEl.innerText = `${all.length} Days Total`;
+
+    body.innerHTML = all.map(a => {
+        let keyLog = '<span class="text-slate-300">N/A</span>';
+        if (a.keyStatus === 'HELD') keyLog = '🔑 <span class="text-amber-600">Held</span>';
+        else if (a.keyStatus === 'RETURNED') keyLog = '✅ <span class="text-emerald-600">Returned</span>';
+        else if (a.keyStatus === 'NONE') keyLog = '❌ <span class="text-slate-400">None</span>';
+
+        return `
+            <tr>
+                <td class="p-4 font-bold text-indigo-900">${a.date}</td>
+                <td class="p-4 text-emerald-600 font-bold">${a.timeIn || '-'}</td>
+                <td class="p-4 text-red-500 font-bold">${a.checkOutTime || '-'}</td>
+                <td class="p-4">${keyLog}</td>
+            </tr>
+        `;
+    }).join('');
+}
 
 window.loadSecurityPinControl = () => {
     const role = (window.currentStaff?.role || "").toString().trim().toLowerCase();
