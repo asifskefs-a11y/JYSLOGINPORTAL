@@ -37,13 +37,17 @@ window.showWhatsAppToast = (title, message, type = 'info') => {
 // ================================================================ */
 class SignaturePadEngine {
     constructor(canvasId) {
+        this.canvasId = canvasId;
         this.canvas = document.getElementById(canvasId);
-        if (!this.canvas) return;
-        this.ctx = this.canvas.getContext('2d', { alpha: false });
         this.isDrawing = false;
         this.isLocked = true;
-        this._setupCanvas();
-        this._bindEvents();
+
+        if (this.canvas) {
+            this.ctx = this.canvas.getContext('2d', { alpha: false });
+            this._setupCanvas();
+            this._bindEvents();
+        }
+
         window.addEventListener('resize', () => {
             // Debounced resize to avoid precision loss during active drawing
             clearTimeout(this.resizeTimer);
@@ -53,19 +57,39 @@ class SignaturePadEngine {
 
 
 _setupCanvas() {
+    if (!this.canvas) {
+        this.canvas = document.getElementById(this.canvasId);
+    }
+
+    if (!this.canvas) {
+        console.warn(`⚠️ Signature Canvas [${this.canvasId}] not found in DOM yet. Skipping setup.`);
+        return;
+    }
+
+    // Check if element is hidden in a tab
+    if (this.canvas.offsetParent === null && !this.canvas.clientWidth) {
+        console.warn("⚠️ Canvas is currently hidden/invisible. Setup deferred.");
+        return;
+    }
+
     const rect = this.canvas.getBoundingClientRect();
     const ratio = window.devicePixelRatio || 1;
-    if (rect.width > 0) {
+
+    if (!this.ctx) {
+        this.ctx = this.canvas.getContext('2d', { alpha: false });
+    }
+
+    if (rect.width > 0 && this.ctx) {
         this.canvas.width = rect.width * ratio;
         this.canvas.height = rect.height * ratio;
         this.ctx.resetTransform();
         this.ctx.scale(ratio, ratio);
+        this.ctx.lineWidth = 3;
+        this.ctx.lineCap = 'round';
+        this.ctx.strokeStyle = '#1E1B4B';
+        this.ctx.fillStyle = '#FFFFFF';
+        this.ctx.fillRect(0, 0, this.canvas.width / ratio, this.canvas.height / ratio);
     }
-    this.ctx.lineWidth = 3;
-    this.ctx.lineCap = 'round';
-    this.ctx.strokeStyle = '#1E1B4B';
-    this.ctx.fillStyle = '#FFFFFF';
-    this.ctx.fillRect(0, 0, this.canvas.width / ratio, this.canvas.height / ratio);
 }
 
 _getPosition(e) {

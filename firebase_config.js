@@ -16,19 +16,13 @@ console.log("🔥 Firebase: Starting Initialization...");
 const app = initializeApp(firebaseConfig);
 
 // FORCE LONG-POLLING TO BYPASS PUBLIC WI-FI WEBSOCKET BLOCKING
-// This handles the "Connection Not Private" / WebSocket firewall issues.
 export const db = getDatabase(app);
 
 // Use a self-invoking function to configure the database for long polling
 (function forceLongPolling(db) {
     try {
-        // v9+ SDK uses different internal methods, but for RTDB we can attempt
-        // to disable WebSockets by configuring the transport.
-        // For standard JS SDK v9/10:
         const { _repo } = db;
         if (_repo) {
-            // This is a common hack for Firebase v9/10 to force long polling
-            // It essentially prevents the library from using WebSockets
             db._repo.repoInfo_.host = db._repo.repoInfo_.host;
             console.log("🛠️ Firebase: WebSocket bypass active (Long-Polling mode)");
         }

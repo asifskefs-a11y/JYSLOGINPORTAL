@@ -11,7 +11,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/html5-qrcode"></script>
-    <link rel="manifest" href="manifest.json?v=3.2">
+    <link rel="manifest" href="./manifest.json">
     <link rel="apple-touch-icon" href="jys_Icon.png?v=3.2">
     <meta name="theme-color" content="#1E1B4B">
     <link rel="stylesheet" href="style.css?v=3.2">
@@ -366,8 +366,8 @@
                             </button>
                             <div id="sec-a-content" class="p-4 space-y-4">
                                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                    <div class="input-with-action-wrapper relative"><input type="text" id="f1_asset_barcode" placeholder="Asset Barcode *" class="transfer-input-field" oninput="window.fetchAuditAssetDetails(this.value); window.checkDuplicateBarcode(this.value)"><button type="button" onclick="startCameraScanner('f1_asset_barcode')" class="camera-action-trigger"><i class="fa-solid fa-camera"></i></button></div>
-                                    <div class="input-with-action-wrapper relative"><input type="text" id="f2_serial_no" placeholder="Serial No" class="transfer-input-field"><button type="button" onclick="startCameraScanner('f2_serial_no')" class="camera-action-trigger"><i class="fa-solid fa-camera"></i></button></div>
+                                    <div class="input-with-action-wrapper relative"><input type="text" id="f1_asset_barcode" placeholder="Asset Barcode *" class="transfer-input-field" oninput="window.fetchAuditAssetDetails(this.value); window.checkDuplicateBarcode(this.value)"><button type="button" onclick="window.startCameraScanner('f1_asset_barcode')" class="camera-action-trigger"><i class="fa-solid fa-camera"></i></button></div>
+                                    <div class="input-with-action-wrapper relative"><input type="text" id="f2_serial_no" placeholder="Serial No" class="transfer-input-field"><button type="button" onclick="window.startCameraScanner('f2_serial_no')" class="camera-action-trigger"><i class="fa-solid fa-camera"></i></button></div>
                                 </div>
                                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                     <input type="text" id="f3_model_desc" placeholder="Model Description" class="transfer-input-field">
@@ -423,8 +423,8 @@
                                 <select id="f19_school_building" class="transfer-input-field"><option value="">Building Name</option><option value="Jern Yafoor School Building 1">Building 1</option><option value="Jern Yafoor School Building 2">Building 2</option></select>
                                 <input type="text" id="f20_room_name" placeholder="Room Name" class="transfer-input-field">
                                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                    <div class="input-with-action-wrapper relative"><input type="text" id="f21_room_no" placeholder="Room No" class="transfer-input-field"><button type="button" onclick="startCameraScanner('f21_room_no')" class="camera-action-trigger"><i class="fa-solid fa-camera"></i></button></div>
-                                    <div class="input-with-action-wrapper relative"><input type="text" id="f22_room_barcode" placeholder="Room Barcode" class="transfer-input-field"><button type="button" onclick="startCameraScanner('f22_room_barcode')" class="camera-action-trigger"><i class="fa-solid fa-camera"></i></button></div>
+                                    <div class="input-with-action-wrapper relative"><input type="text" id="f21_room_no" placeholder="Room No" class="transfer-input-field"><button type="button" onclick="window.startCameraScanner('f21_room_no')" class="camera-action-trigger"><i class="fa-solid fa-camera"></i></button></div>
+                                    <div class="input-with-action-wrapper relative"><input type="text" id="f22_room_barcode" placeholder="Room Barcode" class="transfer-input-field"><button type="button" onclick="window.startCameraScanner('f22_room_barcode')" class="camera-action-trigger"><i class="fa-solid fa-camera"></i></button></div>
                                 </div>
                                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                     <select id="f23_floor_no" class="transfer-input-field"><option value="">Floor</option><option value="1">1</option><option value="2">2</option></select>
@@ -491,7 +491,7 @@
                             <div class="relative group">
                                 <div class="absolute left-4 top-1/2 -translate-y-1/2 text-red-300"><i class="fa-solid fa-barcode text-lg"></i></div>
                                 <input type="text" id="f1_disposal_barcode_input" placeholder="ENTER BARCODE..." class="w-full pl-14 pr-14 py-4 bg-slate-50 border-2 border-slate-200 rounded-xl focus:border-red-500 focus:bg-white outline-none transition-all text-sm font-bold uppercase tracking-wider" oninput="window.fetchDisposalAssetDetails(this.value)">
-                                <button type="button" onclick="startCameraScanner('f1_disposal_barcode_input')" class="absolute right-2 top-1/2 -translate-y-1/2 w-11 h-11 bg-red-500 text-white rounded-xl flex items-center justify-center shadow-lg shadow-red-500/25"><i class="fa-solid fa-camera text-lg"></i></button>
+                                <button type="button" onclick="window.startCameraScanner('f1_disposal_barcode_input')" class="absolute right-2 top-1/2 -translate-y-1/2 w-11 h-11 bg-red-500 text-white rounded-xl flex items-center justify-center shadow-lg shadow-red-500/25"><i class="fa-solid fa-camera text-lg"></i></button>
                             </div>
                         </div>
                         <div id="disposal-asset-preview" class="min-h-[40px] bg-slate-50 rounded-xl p-4 border-2 border-dashed border-slate-200 text-[10px] space-y-1"></div>
@@ -598,7 +598,7 @@
                                             autocapitalize="off"
                                             spellcheck="false"
                                         >
-                                        <button type="button" onclick="startCameraScanner('t_asset_barcode')" class="camera-button">
+                                        <button type="button" onclick="window.startCameraScanner('t_asset_barcode')" class="camera-button">
                                             <i class="fa-solid fa-camera text-lg"></i>
                                         </button>
                                     </div>
@@ -777,24 +777,53 @@
     <!-- MODALS -->
     <!-- STRICT SCANNER CAMERA CENTER ALIGNMENT FIX -->
     <div id="scannerModal" class="fixed inset-0 z-[999999] hidden items-center justify-center bg-black/80 backdrop-blur-sm p-4">
-        <div class="relative w-full max-w-md mx-auto bg-slate-900 rounded-2xl overflow-hidden border border-indigo-500/30 shadow-2xl flex flex-col items-center justify-center p-2">
-            <!-- Camera Video element centered -->
-            <div id="interactive" class="viewport w-full h-64 md:h-80 rounded-xl overflow-hidden flex items-center justify-center relative bg-black">
-                <!-- Video stream force-fitted by CSS #interactive.viewport video -->
-            </div>
+        <div class="relative w-full max-w-md mx-auto bg-slate-900 rounded-[2.5rem] overflow-hidden border border-indigo-500/30 shadow-2xl flex flex-col items-center p-2">
 
-            <!-- Controls -->
-            <div class="flex items-center justify-center gap-6 mt-4 pb-2">
-                <button onclick="window.stopCameraScanner()" class="w-12 h-12 rounded-full bg-red-500/20 text-red-400 text-xl hover:bg-red-500/30 active:scale-95 transition-all flex items-center justify-center border border-red-500/20">
-                    <i class="fa-solid fa-xmark"></i>
+            <!-- Header/Instructions -->
+            <div class="w-full p-4 flex justify-between items-center">
+                <div class="flex flex-col">
+                    <h4 class="text-white font-black uppercase text-xs tracking-widest">Scanner Active</h4>
+                    <p class="text-indigo-400 font-bold text-[9px] uppercase">Align Code within frame</p>
+                </div>
+                <button onclick="window.stopCameraScanner()" class="w-10 h-10 rounded-full bg-white/10 text-white flex items-center justify-center active:scale-90 transition-transform">
+                    <i class="fa-solid fa-xmark text-lg"></i>
                 </button>
             </div>
 
-            <!-- Instructions -->
-            <p class="text-white/60 text-center text-[10px] font-bold mt-2 uppercase tracking-widest">
-                <i class="fa fa-qrcode mr-2 text-indigo-400"></i>
-                Align Barcode / QR Code
-            </p>
+            <!-- Camera Video element centered -->
+            <div id="interactive" class="viewport w-full h-[320px] rounded-3xl overflow-hidden flex items-center justify-center relative bg-black border-2 border-indigo-500/20">
+                <!-- Video stream force-fitted by CSS -->
+            </div>
+
+            <!-- Scanner Controls Toolbar -->
+            <div class="w-full p-6 grid grid-cols-2 gap-4">
+                <!-- Torch Toggle -->
+                <button id="scanner-torch-btn" onclick="window.toggleScannerTorch()" class="flex flex-col items-center gap-2 p-4 bg-white/5 border border-white/10 rounded-2xl hover:bg-white/10 transition-colors active:scale-95 group">
+                    <div class="w-10 h-10 rounded-full bg-amber-500/20 text-amber-500 flex items-center justify-center group-hover:bg-amber-500 group-hover:text-white transition-all">
+                        <i class="fa-solid fa-bolt"></i>
+                    </div>
+                    <span class="text-[9px] font-black text-white uppercase tracking-widest">Toggle Torch</span>
+                </button>
+
+                <!-- Gallery Scan -->
+                <div class="relative">
+                    <input type="file" id="qr-input-file" accept="image/*" class="absolute inset-0 opacity-0 cursor-pointer z-10" onchange="window.scanQRFromImage(event)">
+                    <div class="flex flex-col items-center gap-2 p-4 bg-white/5 border border-white/10 rounded-2xl hover:bg-white/10 transition-colors active:scale-95 group h-full">
+                        <div class="w-10 h-10 rounded-full bg-indigo-500/20 text-indigo-400 flex items-center justify-center group-hover:bg-indigo-500 group-hover:text-white transition-all">
+                            <i class="fa-solid fa-image"></i>
+                        </div>
+                        <span class="text-[9px] font-black text-white uppercase tracking-widest">Scan Gallery</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Status Indicator -->
+            <div class="pb-4">
+                <div class="flex items-center gap-2 px-4 py-1.5 bg-emerald-500/10 border border-emerald-500/20 rounded-full">
+                    <span class="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-ping"></span>
+                    <span class="text-[8px] font-black text-emerald-500 uppercase tracking-[0.2em]">Ready to Scan</span>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -942,37 +971,39 @@
         };
     </script>
 
-    <!-- ================================================================ -->
-    <!-- 16-FIELD ASSET DETAILS MODAL - RESPONSIVE                        -->
-    <!-- ================================================================ -->
-    <div id="asset-details-modal" class="asset-details-modal" style="display: none;">
-        <div class="modal-overlay" onclick="window.closeAssetDetailsModal()"></div>
-        <div class="modal-container">
-            <!-- Modal Header -->
-            <div class="modal-header">
-                <div>
-                    <h3 class="modal-title">
-                        <i class="fa-regular fa-rectangle-list mr-2"></i> Detailed Asset Profile
-                    </h3>
-                    <p class="modal-subtitle">Complete Master Register Info - 16 Fields</p>
-                </div>
-                <button type="button" onclick="window.closeAssetDetailsModal()" class="modal-close-btn">
-                    <i class="fa-solid fa-xmark text-xl"></i>
-                </button>
+    <!-- ASSET DETAILS MODAL (👁️ VIEW FEATURE) -->
+    <div id="asset-details-modal" class="fixed inset-0 z-[100008] hidden items-center justify-center p-4 bg-black/90 backdrop-blur-md">
+        <div class="bg-white w-full max-w-3xl rounded-[40px] overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
+            <div class="bg-indigo-900 text-white p-6 flex justify-between items-center flex-shrink-0">
+                <h3 class="font-black uppercase tracking-tight text-xl"><i class="fa-solid fa-boxes-stacked mr-2"></i> Asset Details</h3>
+                <span class="cursor-pointer text-3xl leading-none" onclick="window.closeAssetDetailsModal()">&times;</span>
             </div>
 
-            <!-- Modal Body - 16 Fields Grid -->
-            <div id="modal-preview-container" class="modal-body">
-                <div class="flex items-center justify-center p-20">
-                    <img src="schoollogo.png" class="logo-only-spinner" alt="Loading..." onerror="this.src='jys_Icon.png'">
+            <div class="overflow-y-auto flex-1 bg-slate-50 p-8">
+                <!-- Asset Photo Container -->
+                <div class="text-center mb-8">
+                    <img id="modal-asset-photo" src="" alt="Asset Photo" class="mx-auto rounded-3xl border-4 border-white shadow-xl max-h-[250px] object-contain bg-white" style="display: none;">
+                    <div id="modal-photo-placeholder" class="py-12 bg-white rounded-3xl border-2 border-dashed border-slate-200 text-slate-400">
+                        <i class="fa-solid fa-image fa-3x mb-3"></i>
+                        <p class="text-[10px] font-black uppercase tracking-widest">No Photo Available</p>
+                    </div>
+                </div>
+
+                <!-- Asset Details Grid -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-gray-800">
+                    <div class="bg-white p-4 rounded-2xl border shadow-sm"><label class="text-[9px] font-black text-indigo-400 uppercase block mb-1">Barcode</label><span id="modal-asset-barcode" class="text-sm font-black text-indigo-900">-</span></div>
+                    <div class="bg-white p-4 rounded-2xl border shadow-sm"><label class="text-[9px] font-black text-indigo-400 uppercase block mb-1">Asset Name</label><span id="modal-asset-name" class="text-sm font-black text-indigo-900">-</span></div>
+                    <div class="bg-white p-4 rounded-2xl border shadow-sm"><label class="text-[9px] font-black text-indigo-400 uppercase block mb-1">Serial No</label><span id="modal-asset-serial" class="text-sm font-black text-slate-700">-</span></div>
+                    <div class="bg-white p-4 rounded-2xl border shadow-sm"><label class="text-[9px] font-black text-indigo-400 uppercase block mb-1">Category</label><span id="modal-asset-category" class="text-sm font-black text-slate-700">-</span></div>
+                    <div class="bg-white p-4 rounded-2xl border shadow-sm"><label class="text-[9px] font-black text-indigo-400 uppercase block mb-1">Location</label><span id="modal-asset-location" class="text-sm font-black text-slate-700">-</span></div>
+                    <div class="bg-white p-4 rounded-2xl border shadow-sm"><label class="text-[9px] font-black text-indigo-400 uppercase block mb-1">Status</label><span id="modal-asset-status" class="text-sm font-black text-slate-700">-</span></div>
+                    <div class="bg-white p-4 rounded-2xl border shadow-sm"><label class="text-[9px] font-black text-indigo-400 uppercase block mb-1">Purchased Date</label><span id="modal-asset-date" class="text-sm font-black text-slate-700">-</span></div>
+                    <div class="bg-white p-4 rounded-2xl border shadow-sm"><label class="text-[9px] font-black text-indigo-400 uppercase block mb-1">Created By</label><span id="modal-asset-createdby" class="text-sm font-black text-slate-700">-</span></div>
                 </div>
             </div>
 
-            <!-- Modal Footer -->
-            <div class="modal-footer">
-                <button type="button" onclick="window.closeAssetDetailsModal()" class="modal-close-btn-bottom">
-                    <i class="fa-regular fa-circle-xmark mr-2"></i> Close Details
-                </button>
+            <div class="p-6 border-t bg-white flex justify-end gap-3 text-gray-800">
+                <button type="button" onclick="window.closeAssetDetailsModal()" class="px-8 py-3 bg-slate-100 text-slate-600 rounded-xl font-black text-xs uppercase active:scale-95 transition-all">Close</button>
             </div>
         </div>
     </div>
@@ -1008,6 +1039,7 @@
     <script type="module" src="firebase_config.js?v=4.0"></script>
     <script type="module" src="field_normalizer.js?v=4.0"></script>
     <script type="module" src="drive_module.js?v=4.0"></script>
+    <script src="asset_management.js?v=4.5"></script>
     <script type="module" src="ui_module.js?v=4.0"></script>
     <script type="module" src="import_module.js?v=4.0"></script>
     <script type="module" src="export_module.js?v=4.0"></script>

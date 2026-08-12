@@ -1,5 +1,5 @@
 import { db, UPLOAD_CONFIG } from './firebase_config.js';
-import { ref, get, set, update, remove, onValue, push } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+import { ref, get, set, update, remove, onValue, push, query, orderByChild, equalTo } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
 // ================================================
 // ADMIN DASHBOARD CORE MODULE
@@ -1217,6 +1217,279 @@ window.filterTransferTable = () => {
     let filtered = window.appCache.transfers;
     if (query) filtered = filtered.filter(t => Object.values(t).some(val => String(val).toLowerCase().includes(query)));
     window.currentFilteredData.transfers = filtered; window.renderStandardizedAssetTable(filtered, 'transfers');
+};
+
+// ================================================
+// DYNAMIC ASSET DETAILS MODAL (👁️ VIEW FEATURE)
+// ================================================
+window.openAssetDetailsModal = async function(assetIdentifier) {
+    if (!assetIdentifier) {
+        alert("❌ Error: Invalid or Missing Asset Identifier.");
+        return;
+    }
+
+    if (typeof window.showGlobalSpinner === 'function') {
+        window.showGlobalSpinner("Fetching Asset Details...");
+    }
+
+    try {
+        let asset = null;
+
+        // Fetch from Firebase (Direct ID lookup or Barcode query fallback)
+        const directSnap = await get(ref(db, `assets/${assetIdentifier}`));
+
+        if (directSnap.exists()) {
+            asset = directSnap.val();
+        } else {
+            const assetsRef = ref(db, 'assets');
+            const barcodeQuery = query(assetsRef, orderByChild('assetBarcode'), equalTo(assetIdentifier));
+            const querySnap = await get(barcodeQuery);
+
+            if (querySnap.exists()) {
+                const data = querySnap.val();
+                const firstKey = Object.keys(data)[0];
+                asset = data[firstKey];
+            }
+        }
+
+        if (asset) {
+            // 1. RENDER PHOTO
+            const photoUrl = asset.photoURL || asset.photoUrl || asset.auditPhoto || asset.photo || asset['Photo Link'];
+            const imgEl = document.getElementById('modal-asset-photo');
+            const placeholderEl = document.getElementById('modal-photo-placeholder');
+
+            if (imgEl && photoUrl && String(photoUrl).trim() !== '') {
+                imgEl.src = window.getDirectDriveImageUrl ? window.getDirectDriveImageUrl(photoUrl) : photoUrl;
+                imgEl.style.display = 'inline-block';
+                if (placeholderEl) placeholderEl.style.display = 'none';
+            } else if (imgEl) {
+                imgEl.style.display = 'none';
+                if (placeholderEl) placeholderEl.style.display = 'block';
+            }
+
+            // 2. DYNAMICALLY RENDER ALL EXCEL HEADERS AND VALUES
+            const gridContainer = document.getElementById('dynamic-asset-fields-grid');
+            if (gridContainer) {
+                gridContainer.innerHTML = ''; // Clear previous fields
+
+                // Filter out photo keys from text list if needed, or keep all
+                const ignoredKeys = ['photoURL', 'photoUrl', 'photo', 'auditPhoto', 'id', 'firebaseKey', '_importBatch', '_forceId', '_importSource', 'updatedAt'];
+
+                // Get all object keys (headers)
+                Object.keys(asset).forEach(key => {
+                    if (ignoredKeys.includes(key)) return;
+
+                    const rawValue = asset[key];
+                    const displayValue = (rawValue !== undefined && rawValue !== null && String(rawValue).trim() !== '')
+                        ? String(rawValue)
+                        : '-';
+
+                    // Convert key format (e.g., 'assetBarcode' -> 'ASSET BARCODE')
+                    const formattedHeader = key.replace(/([A-Z])/g, ' $1').replace(/_/g, ' ').toUpperCase().trim();
+
+                    // Create Dynamic Card
+                    const fieldCard = document.createElement('div');
+
+                    // Distinct soft background with clear border for each box
+                    fieldCard.className = 'bg-slate-50 p-3.5 rounded-2xl border border-slate-300 shadow-sm hover:border-indigo-400 hover:bg-white transition-all';
+
+                    fieldCard.innerHTML = `
+                        <!-- HEADER LABEL: Bright Indigo / Medium Size / Uppercase -->
+                        <label class="text-[10px] font-black text-indigo-600 uppercase tracking-wider block mb-1 truncate" title="${formattedHeader}">
+                            ${formattedHeader}
+                        </label>
+
+                        <!-- DETAIL VALUE: Deep Slate Dark / Larger Bold Text -->
+                        <span class="text-sm font-black text-slate-900 break-words block leading-tight">
+                            ${displayValue}
+                        </span>
+                    `;
+                    gridContainer.appendChild(fieldCard);
+                });
+            }
+
+            // 3. DISPLAY MODAL
+            const modalEl = document.getElementById('asset-details-modal');
+            if (modalEl) {
+                modalEl.classList.remove('hidden');
+                modalEl.classList.add('flex');
+                modalEl.style.display = 'flex';
+            }
+        } else {
+            alert("❌ Asset record not found in database.");
+        }
+    } catch (error) {
+        console.error("Error loading dynamic asset details:", error);
+        alert("❌ Failed to load asset details.");
+    } finally {
+        if (typeof window.hideGlobalSpinner === 'function') {
+            window.hideGlobalSpinner();
+        }
+    }
+};
+
+window.closeAssetDetailsModal = function() {
+    const modalEl = document.getElementById('asset-details-modal');
+    if (modalEl) {
+        modalEl.classList.add('hidden');
+        modalEl.classList.remove('flex');
+        modalEl.style.display = 'none';
+    }
+};
+
+window.printAssetCard = (barcode) => {
+    window.open(`https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${barcode}`, '_blank');
+};
+
+// ================================================
+// DYNAMIC ASSET FORM HANDLERS
+// ================================================
+window.openEditAssetModal = async (barcode) => {
+    window.showGlobalSpinner("Loading Asset Details...");
+    try {
+        const snap = await get(ref(db, 'assets/' + barcode));
+        if (!snap.exists()) return alert("Asset not found");
+        const asset = snap.val();
+
+        const modal = document.getElementById('asset-edit-modal');
+        if (!modal) return;
+        modal.classList.remove('hidden');
+        modal.style.display = 'flex';
+
+        // DYNAMIC FORM GENERATION
+        let fieldsHtml = '';
+        const fields = window.ALL_EXPECTED_FIELDS || [];
+
+        fields.forEach(field => {
+            const label = field.replace(/([A-Z])/g, ' $1').toUpperCase();
+            fieldsHtml += `
+                <div class="form-group mb-3">
+                    <label class="block text-[9px] font-black text-slate-400 uppercase mb-1">${label}</label>
+                    <input type="text" id="edit-field-${field}" value="${asset[field] || ''}" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs outline-none focus:border-indigo-500">
+                </div>
+            `;
+        });
+
+        // INJECT PHOTO FIELD
+        fieldsHtml += `
+            <div class="form-group mt-6 p-4 bg-indigo-50/50 rounded-2xl border border-indigo-100">
+                <label class="block text-[10px] font-black text-indigo-600 uppercase mb-2">📸 Asset Photo / Proof</label>
+                <input type="file" id="asset-photo-upload" accept="image/*" capture="environment" class="w-full text-[10px] text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-[10px] file:font-black file:bg-indigo-600 file:text-white hover:file:bg-indigo-700 cursor-pointer">
+                ${(asset.photoURL || asset.auditPhoto) ? `
+                    <div class="mt-3 flex items-center gap-3">
+                        <img src="${window.getDirectDriveImageUrl(asset.photoURL || asset.auditPhoto)}" class="h-16 w-16 object-cover rounded-xl border-2 border-white shadow-sm">
+                        <span class="text-[8px] font-bold text-slate-400 uppercase">Existing Photo</span>
+                    </div>
+                ` : ''}
+            </div>
+        `;
+
+        modal.innerHTML = `
+            <div class="bg-white w-full max-w-2xl rounded-[40px] overflow-hidden shadow-2xl flex flex-col max-h-[90vh] fade-in">
+                <div class="p-6 bg-indigo-900 text-white flex justify-between items-center flex-shrink-0">
+                    <div>
+                        <h3 class="text-xl font-black uppercase tracking-tight">Edit Asset Master</h3>
+                        <p class="text-[10px] font-bold text-indigo-400 uppercase tracking-widest mt-1">Barcode: ${barcode}</p>
+                    </div>
+                    <button onclick="document.getElementById('asset-edit-modal').classList.add('hidden'); document.getElementById('asset-edit-modal').style.display='none';" class="w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors">
+                        <i class="fa-solid fa-xmark text-lg"></i>
+                    </button>
+                </div>
+                <form id="edit-asset-dynamic-form" class="p-8 overflow-y-auto flex-1 bg-slate-50 space-y-1">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-4">
+                        ${fieldsHtml}
+                    </div>
+                    <div class="pt-6 pb-2">
+                        <button type="submit" id="save-asset-btn" class="w-full py-5 bg-gradient-to-r from-indigo-600 to-indigo-800 text-white rounded-2xl font-black uppercase tracking-widest shadow-xl shadow-indigo-500/30 active:scale-[0.98] transition-all flex items-center justify-center gap-3">
+                            <i class="fa-solid fa-cloud-arrow-up text-lg"></i> Save Combined Data
+                        </button>
+                    </div>
+                </form>
+            </div>
+        `;
+
+        document.getElementById('edit-asset-dynamic-form').onsubmit = async (e) => {
+            e.preventDefault();
+            await window.submitAssetEdit(barcode);
+        };
+
+    } catch (err) {
+        alert("Error loading asset: " + err.message);
+    } finally {
+        window.hideGlobalSpinner();
+    }
+};
+
+window.submitAssetEdit = async (barcode) => {
+    const btn = document.getElementById('save-asset-btn');
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Processing...';
+    }
+
+    window.showGlobalSpinner("Uploading & Saving Combined Data...");
+
+    try {
+        const data = {};
+        const fields = window.ALL_EXPECTED_FIELDS || [];
+
+        fields.forEach(field => {
+            const input = document.getElementById(`edit-field-${field}`);
+            if (input) data[field] = input.value.trim();
+        });
+
+        // 1. HANDLE PHOTO UPLOAD (FIRST) - DIRECT TO GOOGLE DRIVE
+        const photoInput = document.getElementById('asset-photo-upload');
+        if (photoInput && photoInput.files && photoInput.files[0]) {
+            try {
+                console.log("📸 Uploading photo to Google Drive...");
+                const file = photoInput.files[0];
+                const base64 = await window.compressImageFile(file, 800, 800, 0.7);
+
+                if (window.uploadToDrive) {
+                    const res = await window.uploadToDrive({
+                        category: UPLOAD_CONFIG.CATEGORIES.ASSET_PHOTOS || 'ASSET_PHOTOS',
+                        fileName: `Asset_${barcode}_${Date.now()}.jpg`,
+                        image: base64
+                    });
+                    if (res && res.status === 'success' && res.fileUrl) {
+                        data.photoURL = res.fileUrl;
+                        data.auditPhoto = res.fileUrl;
+                        console.log("✅ Drive upload complete:", res.fileUrl);
+                    }
+                }
+            } catch (driveErr) {
+                console.error("⚠️ Drive upload failed:", driveErr);
+            }
+        }
+
+        // 2. SAVE TO DATABASE (ONLY AFTER UPLOAD ATTEMPT)
+        data.updatedAt = new Date().toISOString();
+        data.assetBarcode = barcode;
+
+        await update(ref(db, 'assets/' + barcode), data);
+        console.log("✅ Database record updated.");
+
+        window.triggerSuccessPopup("Asset Data & Photo Updated! ✅");
+
+        const modal = document.getElementById('asset-edit-modal');
+        if (modal) {
+            modal.classList.add('hidden');
+            modal.style.display = 'none';
+        }
+
+        if (window.refreshDashboardData) window.refreshDashboardData();
+
+    } catch (error) {
+        console.error("❌ Submission Error:", error);
+        alert("❌ Failed to save asset data. Please check connection and try again.\nError: " + error.message);
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fa-solid fa-cloud-arrow-up text-lg"></i> Save Combined Data';
+        }
+        window.hideGlobalSpinner();
+    }
 };
 
 window.filterStaffDirectory = () => {

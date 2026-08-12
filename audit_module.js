@@ -8,14 +8,135 @@ import { FieldNormalizer } from './field_normalizer.js';
 let transferPhotoBase64 = "";
 let initialAuditPhotoBase64 = "";
 let damageAuditPhotoBase64 = "";
-let html5QrCode = null;
-let currentScanTarget = null;
-let isScannerStarting = false;
-let isScannerRunning = false;
 
 window.transferBatch = [];
 
-// Handle Disposal Photo Capture
+// SAFE BARCODE DUPLICATE CHECKER
+window.checkDuplicateBarcode = async (inputVal) => {
+    if (!inputVal) return;
+    const barcode = inputVal.toString().trim().toUpperCase();
+    if (barcode.length < 3) return;
+
+    try {
+        const snap = await get(child(ref(db), `assets/${barcode}`));
+        const inputEl = document.getElementById('f1_asset_barcode');
+        if (snap.exists()) {
+            if (inputEl) inputEl.classList.add('border-amber-500', 'bg-amber-50');
+            console.warn(`⚠️ Barcode ${barcode} already exists in registry.`);
+        } else {
+            if (inputEl) inputEl.classList.remove('border-amber-500', 'bg-amber-50');
+        }
+    } catch (e) {
+        console.error("Duplicate check failed:", e);
+    }
+};
+
+// ================================================
+// ASSET REGISTER SUBMISSION (MASTER)
+// ================================================
+window.submitAssetAudit = async (event) => {
+    if (event) {
+        event.preventDefault();
+        event.stopPropagation();
+    }
+
+    const barcode = document.getElementById('f1_asset_barcode')?.value.trim().toUpperCase();
+    if (!barcode) return alert("Asset Barcode is required!");
+
+    const btn = event.target.querySelector('button[type="submit"]');
+    const originalBtnHtml = btn ? btn.innerHTML : 'SAVE ASSET REGISTER';
+
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Processing...';
+    }
+
+    window.showGlobalSpinner("Saving Asset Register...");
+
+    try {
+        const data = {
+            assetBarcode: barcode,
+            serialNo: document.getElementById('f2_serial_no')?.value.trim() || '',
+            modelDescription: document.getElementById('f3_model_desc')?.value.trim() || '',
+            assetCondition: document.getElementById('f4_asset_cond')?.value.trim() || '',
+            priceStatus: document.getElementById('f5_price_stat')?.value.trim() || '',
+            assetUnitCost: document.getElementById('f6_unit_cost')?.value.trim() || '',
+            assetDescription: document.getElementById('f7_asset_desc')?.value.trim() || '',
+            datePlaceInService: document.getElementById('f8_service_date')?.value.trim() || '',
+            manufacturer: document.getElementById('f9_manufacturer')?.value.trim() || '',
+            majorCategory: document.getElementById('f10_major_cat')?.value.trim() || '',
+            minorCategory: document.getElementById('f11_sub_major')?.value.trim() || '',
+            subMinorCategory: document.getElementById('f12_sub_minor')?.value.trim() || '',
+            dofMajor: document.getElementById('f13_dof_major')?.value.trim() || '',
+            dofMinor: document.getElementById('f14_dof_minor')?.value.trim() || '',
+            category: document.getElementById('f15_category')?.value.trim() || '',
+            classification: document.getElementById('f16_class')?.value.trim() || '',
+            locationName: document.getElementById('f17_location')?.value.trim() || '',
+            schoolEsisId: document.getElementById('f18_esis')?.value.trim() || '',
+            schoolBuildingName: document.getElementById('f19_school_building')?.value.trim() || '',
+            roomName: document.getElementById('f20_room_name')?.value.trim() || '',
+            roomNo: document.getElementById('f21_room_no')?.value.trim() || '',
+            roomBarcode: document.getElementById('f22_room_barcode')?.value.trim() || '',
+            floorNo: document.getElementById('f23_floor_no')?.value.trim() || '',
+            floorDescription: document.getElementById('f24_floor_desc')?.value.trim() || '',
+            barcodeStatus: document.getElementById('f25_barcode_stat')?.value.trim() || '',
+            assetStatus: document.getElementById('f26_asset_stat')?.value.trim() || '',
+            oldSchoolName: document.getElementById('f27_old_school')?.value.trim() || '',
+            transactionNo: document.getElementById('f28_trans_no')?.value.trim() || '',
+            assetUsefulLife: document.getElementById('f29_useful_life')?.value.trim() || '',
+            assetVendorName: document.getElementById('f30_vendor')?.value.trim() || '',
+            oldAssetBarcode: document.getElementById('f31_old_barcode')?.value.trim() || '',
+            physicalAssetRegisterNo: document.getElementById('f36_phys_reg_no')?.value.trim() || '',
+            fixedAssetRegisterNo: document.getElementById('f37_fixed_reg_no')?.value.trim() || '',
+            mappingCriteria: document.getElementById('f38_mapping')?.value.trim() || '',
+            remarks: document.getElementById('f35_remarks')?.value.trim() || '',
+            updatedAt: new Date().toISOString()
+        };
+
+        const photoInput = document.getElementById('f40_audit_photo_input');
+        if (photoInput && photoInput.files && photoInput.files[0]) {
+            try {
+                console.log("📸 Uploading photo to Google Drive...");
+                const file = photoInput.files[0];
+                const base64 = await window.compressImageFile(file, 800, 800, 0.7);
+
+                if (window.uploadToDrive) {
+                    const res = await window.uploadToDrive({
+                        category: UPLOAD_CONFIG.CATEGORIES.ASSET_PHOTOS || 'ASSET_PHOTOS',
+                        fileName: `Asset_${barcode}_${Date.now()}.jpg`,
+                        image: base64
+                    });
+                    if (res && res.status === 'success' && res.fileUrl) {
+                        data.photoURL = res.fileUrl;
+                        data.auditPhoto = res.fileUrl;
+                    }
+                }
+            } catch (driveErr) {
+                console.error("⚠️ Drive upload failed:", driveErr);
+            }
+        }
+
+        await update(ref(db, 'assets/' + barcode), data);
+        window.triggerSuccessPopup("Asset Registered Successfully! ✅");
+
+        if (event && event.target && event.target.reset) event.target.reset();
+        window.showStaffView('staff-dash-area');
+
+    } catch (e) {
+        console.error("❌ Submission Failed:", e);
+        alert("❌ Failed to register asset. Error: " + e.message);
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = originalBtnHtml;
+        }
+        window.hideGlobalSpinner();
+    }
+};
+
+// ================================================
+// PHOTO CAPTURE HANDLERS
+// ================================================
 window.handleDisposalBeforePhoto = (event) => {
     const file = event.target.files[0];
     if (!file) return;
@@ -172,7 +293,7 @@ window.submitAssetTransfer = async (event) => {
 
         const common = {
             batchId,
-            status: 'Pending', // CHANGED TO PENDING FOR APPROVAL
+            status: 'Pending',
             timestamp: Date.now(),
             date: new Date().toLocaleDateString(),
             securitySignatureUrl: urlSec,
@@ -190,14 +311,11 @@ window.submitAssetTransfer = async (event) => {
         window.transferBatch.forEach(asset => {
             const trfId = "TRF-" + asset.barcode + "-" + Date.now();
             updates[`asset_transfers/${trfId}`] = { ...asset, ...common, transferId: trfId };
-            // DO NOT ATOMICALLY MOVE YET - Wait for approval
         });
 
         await update(ref(db), updates);
 
-        // Success Notification
         window.showWhatsAppToast("✅ Request Sent", "Asset Transfer Submitted & Sent to Admin for Approval.");
-        // Notify Admin
         window.showWhatsAppToast("⚠️ Pending Request", `Asset Transfer Request from ${common.requesterName} - Action Required`);
 
         window.resetAssetTransferForm();
@@ -237,7 +355,6 @@ window.addAssetToBatch = async () => {
     const barcode = input?.value.trim().toUpperCase();
     if (!barcode) return;
 
-    // Check if already in batch
     if (window.transferBatch.some(a => a.barcode === barcode)) {
         alert("Asset already in batch!");
         input.value = "";
@@ -245,16 +362,13 @@ window.addAssetToBatch = async () => {
     }
 
     try {
-        console.log(`🔍 Fetching asset: ${barcode}`);
         const snap = await get(child(ref(db), `assets/${barcode}`));
         if (snap.exists()) {
             const rawData = snap.val();
-            // Use FieldNormalizer if available, else use raw
             const mapped = window.fieldNormalizer ? window.fieldNormalizer.mapFields(rawData) : rawData;
             const asset = window.fieldNormalizer ? window.fieldNormalizer.createAsset(mapped, barcode) : { barcode, ...rawData };
 
             window.transferBatch.push(asset);
-            console.log("✅ Asset added to batch:", asset);
             window.renderBatchUI();
             input.value = "";
             if (window.triggerSuccessPopup) window.triggerSuccessPopup("Asset Added! 📦");
@@ -262,7 +376,6 @@ window.addAssetToBatch = async () => {
             alert("Asset not found in register!");
         }
     } catch (e) {
-        console.error("❌ Add to Batch Error:", e);
         alert("Error looking up asset: " + e.message);
     }
 };
@@ -287,11 +400,9 @@ window.renderBatchTable = () => {
         return;
     }
 
-    // Use headers from FieldNormalizer for full 15-field display
     const fieldMap = window.fieldNormalizer ? window.fieldNormalizer.fieldMap : {};
     const fieldKeys = Object.keys(fieldMap);
 
-    // 1. Render Headers
     let headerHtml = '<tr>';
     headerHtml += '<th class="p-4 text-center sticky left-0 bg-slate-50 z-20">#</th>';
     fieldKeys.forEach(key => {
@@ -301,7 +412,6 @@ window.renderBatchTable = () => {
     headerHtml += '</tr>';
     tableHeader.innerHTML = headerHtml;
 
-    // 2. Render Rows
     tableBody.innerHTML = window.transferBatch.map((asset, index) => {
         let rowHtml = `<tr class="hover:bg-indigo-50/30 transition-colors">`;
         rowHtml += `<td class="p-4 text-center sticky left-0 bg-white z-10 border-r">${index + 1}</td>`;
@@ -317,10 +427,10 @@ window.renderBatchTable = () => {
         rowHtml += `
             <td class="p-4 text-center sticky right-0 bg-white z-10 border-l">
                 <div class="flex items-center justify-center gap-2">
-                    <button type="button" onclick="window.openAssetDetailsModal('${asset.barcode}')" class="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-600 hover:bg-indigo-600 hover:text-white transition-all flex items-center justify-center shadow-sm" title="View Full Details">
+                    <button type="button" onclick="event.preventDefault(); window.openBatchAssetDetailsModal('${asset.barcode}')" class="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-600 hover:bg-indigo-600 hover:text-white transition-all flex items-center justify-center shadow-sm" title="View Full Details">
                         <i class="fa-solid fa-eye text-xs"></i>
                     </button>
-                    <button type="button" onclick="window.removeAssetFromBatch(${index})" class="w-8 h-8 rounded-lg bg-red-50 text-red-600 hover:bg-red-600 hover:text-white transition-all flex items-center justify-center shadow-sm" title="Remove from Batch">
+                    <button type="button" onclick="event.preventDefault(); window.removeAssetFromBatch(${index})" class="w-8 h-8 rounded-lg bg-red-50 text-red-600 hover:bg-red-600 hover:text-white transition-all flex items-center justify-center shadow-sm" title="Remove from Batch">
                         <i class="fa-solid fa-trash-can text-xs"></i>
                     </button>
                 </div>
@@ -351,10 +461,10 @@ window.renderMobileCards = () => {
                 </div>
             </div>
             <div class="card-actions">
-                <button type="button" onclick="window.openAssetDetailsModal('${a.barcode}')" class="card-btn eye-btn">
+                <button type="button" onclick="event.preventDefault(); window.openBatchAssetDetailsModal('${a.barcode}')" class="card-btn eye-btn">
                     <i class="fa-solid fa-eye"></i>
                 </button>
-                <button type="button" onclick="window.removeAssetFromBatch(${i})" class="card-btn delete-btn">
+                <button type="button" onclick="event.preventDefault(); window.removeAssetFromBatch(${i})" class="card-btn delete-btn">
                     <i class="fa-solid fa-trash-can"></i>
                 </button>
             </div>
@@ -370,9 +480,9 @@ window.removeAssetFromBatch = (index) => {
 };
 
 // ================================================
-// ASSET DETAILS MODAL (16 FIELDS)
+// BATCH ASSET PREVIEW (Local Data)
 // ================================================
-window.openAssetDetailsModal = (barcode) => {
+window.openBatchAssetDetailsModal = (barcode) => {
     const asset = window.transferBatch.find(a => a.barcode === barcode);
     if (!asset) return;
 
@@ -383,7 +493,6 @@ window.openAssetDetailsModal = (barcode) => {
     modal.classList.add('active');
     modal.style.display = 'flex';
 
-    // Display all fields from normalizer
     const fieldMap = window.fieldNormalizer ? window.fieldNormalizer.fieldMap : {};
 
     let html = '';
@@ -427,13 +536,11 @@ window.fetchAuditAssetDetails = async (barcode) => {
         const snap = await get(child(ref(db), `assets/${barcode}`));
         if (snap.exists()) {
             const data = snap.val();
-            // Cache locally
             localStorage.setItem(`asset_${barcode}`, JSON.stringify(data));
             window.renderSmartPreview('audit-asset-preview', data, barcode);
             document.getElementById('f1_asset_barcode').value = barcode;
         }
     } catch (e) {
-        console.warn("⚠️ Restricted Wi-Fi mode: Loading asset details from local cache.");
         const cached = localStorage.getItem(`asset_${barcode}`);
         if (cached) {
             const data = JSON.parse(cached);
@@ -450,14 +557,12 @@ window.fetchDisposalAssetDetails = async (barcode) => {
         const snap = await get(child(ref(db), `assets/${barcode}`));
         if (snap.exists()) {
             const data = snap.val();
-            // Cache locally
             localStorage.setItem(`asset_${barcode}`, JSON.stringify(data));
             window.activeDisposalAsset = data;
             window.renderSmartPreview('disposal-asset-preview', data, barcode, 'red');
             document.getElementById('disposed-by-name').value = window.currentStaff?.name || "Staff";
         }
     } catch (e) {
-        console.warn("⚠️ Restricted Wi-Fi mode: Loading asset details from local cache.");
         const cached = localStorage.getItem(`asset_${barcode}`);
         if (cached) {
             const data = JSON.parse(cached);
@@ -467,42 +572,6 @@ window.fetchDisposalAssetDetails = async (barcode) => {
             window.showWhatsAppToast("⚠️ Offline Mode", "Loaded from local cache.");
         }
     }
-};
-
-window.startCameraScanner = (target) => {
-    currentScanTarget = target;
-    const modal = document.getElementById('scannerModal');
-    if (!modal) return;
-    modal.classList.remove('hidden');
-    modal.style.display = 'flex';
-
-    // Center video centering
-    const viewport = document.getElementById('interactive');
-    if (viewport) {
-        viewport.innerHTML = ''; // Clear previous
-    }
-
-    const scanner = new Html5Qrcode("interactive");
-    scanner.start({ facingMode: "environment" }, { fps: 10, qrbox: { width: 240, height: 240 } }, (text) => {
-        document.getElementById(currentScanTarget).value = text.toUpperCase();
-        if (currentScanTarget === 'f1_asset_barcode') window.fetchAuditAssetDetails(text);
-        if (currentScanTarget === 'f1_disposal_barcode_input') window.fetchDisposalAssetDetails(text);
-        if (currentScanTarget === 't_asset_barcode') window.addAssetToBatch();
-        scanner.stop();
-        modal.classList.add('hidden');
-        modal.style.display = 'none';
-    }).catch(err => {
-        console.error("Scanner error:", err);
-    });
-};
-
-window.stopCameraScanner = () => {
-    const modal = document.getElementById('scannerModal');
-    if (modal) {
-        modal.classList.add('hidden');
-        modal.style.display = 'none';
-    }
-    // Attempt to stop active scanner if possible via global reference if needed
 };
 
 window.toggleAccordion = (id) => {
@@ -519,6 +588,7 @@ window.toggleAccordion = (id) => {
 };
 
 console.log("✅ audit_module.js ready");
+
 window.initTransferSigPads = () => {
     const pads = ['t_security_sig', 't_received_sig'];
     pads.forEach(id => {

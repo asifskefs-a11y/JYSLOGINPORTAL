@@ -42,7 +42,7 @@ window.isCanvasBlank = isCanvasBlank;
 
 // --- INITIALIZATION: Signature Pad for Visitors ---
 window.initVisitorCanvas = () => {
-    if (window.sigPadManager) {
+    if (document.getElementById('v-sig-pad') && window.sigPadManager) {
         const pad = window.sigPadManager.getPad('v-sig-pad');
         if (pad) pad._setupCanvas();
     }

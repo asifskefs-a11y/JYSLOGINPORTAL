@@ -504,7 +504,11 @@ window.renderDynamicAssetTable = function(assets, headers) {
         return;
     }
 
-    const allHeaders = headers;
+    // FILTER OUT PHOTO/IMAGE FIELDS FROM MAIN TABLE
+    const tableHeaders = headers.filter(h => {
+        const norm = h.toLowerCase();
+        return !norm.includes('photo') && !norm.includes('image') && !norm.includes('url');
+    });
 
     window.adminPaginators.assets.init(assets, (pageItems, startIndex) => {
         tableHeaderContainer.innerHTML = "";
@@ -514,7 +518,7 @@ window.renderDynamicAssetTable = function(assets, headers) {
         let headerHtml = '<tr class="bg-indigo-900 text-white text-left text-[10px] uppercase font-bold sticky top-0 z-20">';
         headerHtml += '<th class="p-3 w-8 sticky left-0 bg-indigo-900 z-30">#</th>';
 
-        allHeaders.forEach((header) => {
+        tableHeaders.forEach((header) => {
             let label = header;
             if (label.length > 20) {
                 label = label.substring(0, 17) + '...';
@@ -522,7 +526,7 @@ window.renderDynamicAssetTable = function(assets, headers) {
             headerHtml += `<th class="p-3 border-r border-indigo-800/20 shadow-sm text-[9px] whitespace-nowrap min-w-[100px]" title="${header}">${label}</th>`;
         });
 
-        headerHtml += '<th class="p-3 text-center border-r border-indigo-800/20 shadow-sm min-w-[100px]">ACTION</th></tr>';
+        headerHtml += '<th class="p-3 text-center border-r border-indigo-800/20 shadow-sm min-w-[120px]">ACTION</th></tr>';
         tableHeaderContainer.innerHTML = headerHtml;
 
         // Build Table Body
@@ -533,33 +537,35 @@ window.renderDynamicAssetTable = function(assets, headers) {
             bodyHtml += `<tr class="border-b hover:bg-indigo-50 text-[10px] text-slate-700">`;
             bodyHtml += `<td class="p-3 text-center sticky left-0 bg-white z-10 border-r shadow-sm">${startIndex + index + 1}</td>`;
 
-            allHeaders.forEach((header) => {
+            tableHeaders.forEach((header) => {
                 const mappedField = findMatchingField(header);
                 let value = '-';
 
                 if (mappedField && asset[mappedField] !== undefined && asset[mappedField] !== null && asset[mappedField] !== '') {
                     value = String(asset[mappedField]);
-                    if (value.length > 30) {
-                        value = value.substring(0, 27) + '...';
-                    }
                 } else if (asset[header] !== undefined && asset[header] !== null && asset[header] !== '') {
                     value = String(asset[header]);
-                    if (value.length > 30) {
-                        value = value.substring(0, 27) + '...';
-                    }
                 }
 
-                bodyHtml += `<td class="p-3 border-r border-slate-100 max-w-[200px] truncate" title="${value}">${value}</td>`;
+                let displayValue = value;
+                if (displayValue.length > 30) {
+                    displayValue = displayValue.substring(0, 27) + '...';
+                }
+
+                bodyHtml += `<td class="p-3 border-r border-slate-100 max-w-[200px] truncate" title="${value}">${displayValue}</td>`;
             });
 
             bodyHtml += `
-                <td class="p-3 text-center whitespace-nowrap">
+                <td class="p-3 text-center whitespace-nowrap sticky right-0 bg-white z-10 border-l shadow-sm">
                     <div class="flex items-center justify-center gap-2">
-                        <button onclick="window.openEditAssetModal('${assetId}')" class="text-indigo-600 hover:text-indigo-800 p-1">
-                            <i class="fa-solid fa-pen-to-square"></i>
+                        <button type="button" onclick="event.preventDefault(); window.openAssetDetailsModal('${assetId}')" class="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-600 hover:bg-indigo-600 hover:text-white transition-all flex items-center justify-center shadow-sm" title="View Details">
+                            <i class="fa-solid fa-eye text-xs"></i>
                         </button>
-                        <button onclick="window.deleteAssetRecord('${assetId}')" class="text-red-600 hover:text-red-800 p-1">
-                            <i class="fa-solid fa-trash-can"></i>
+                        <button type="button" onclick="event.preventDefault(); window.openEditAssetModal('${assetId}')" class="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-600 hover:bg-indigo-600 hover:text-white transition-all flex items-center justify-center shadow-sm" title="Edit">
+                            <i class="fa-solid fa-pen-to-square text-xs"></i>
+                        </button>
+                        <button type="button" onclick="event.preventDefault(); window.deleteAssetRecord('${assetId}')" class="w-8 h-8 rounded-lg bg-red-50 text-red-600 hover:bg-red-600 hover:text-white transition-all flex items-center justify-center shadow-sm" title="Delete">
+                            <i class="fa-solid fa-trash-can text-xs"></i>
                         </button>
                     </div>
                 </td>
@@ -571,7 +577,7 @@ window.renderDynamicAssetTable = function(assets, headers) {
         // Update count display
         const countDisplay = document.getElementById('asset-count-display');
         if (countDisplay) {
-            countDisplay.textContent = `Showing ${pageItems.length} of ${assets.length} assets | ${allHeaders.length} headers detected`;
+            countDisplay.textContent = `Showing ${pageItems.length} of ${assets.length} assets | ${tableHeaders.length} data fields visible`;
         }
     });
 };

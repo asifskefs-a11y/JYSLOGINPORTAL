@@ -7,7 +7,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="manifest" href="manifest.json?v=3.2">
+    <link rel="manifest" href="./manifest.json">
     <link rel="apple-touch-icon" href="jys_Icon.png?v=3.2">
     <meta name="theme-color" content="#4f46e5">
     <link rel="stylesheet" href="style.css?v=3.2">
@@ -441,6 +441,43 @@
             </div>
 
             <p class="mt-8 text-center text-[10px] font-bold text-slate-400 uppercase tracking-widest">Authorized gate entry management</p>
+        </div>
+    </div>
+
+    <!-- ASSET DETAILS MODAL (👁️ VIEW FEATURE) -->
+    <div id="asset-details-modal" class="fixed inset-0 z-[100008] hidden items-center justify-center p-4 bg-black/90 backdrop-blur-md">
+        <div class="bg-white w-full max-w-3xl rounded-[40px] overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
+            <div class="bg-indigo-900 text-white p-6 flex justify-between items-center flex-shrink-0">
+                <h3 class="font-black uppercase tracking-tight text-xl text-white"><i class="fa-solid fa-boxes-stacked mr-2"></i> Asset Details</h3>
+                <span class="cursor-pointer text-3xl leading-none text-white" onclick="window.closeAssetDetailsModal()">&times;</span>
+            </div>
+
+            <div class="overflow-y-auto flex-1 bg-slate-50 p-8">
+                <!-- Asset Photo Section -->
+                <div class="text-center mb-8">
+                    <img id="modal-asset-photo" src="" alt="Asset Photo" class="mx-auto rounded-3xl border-4 border-white shadow-xl max-h-[250px] object-contain bg-white" style="display: none;">
+                    <div id="modal-photo-placeholder" class="py-12 bg-white rounded-3xl border-2 border-dashed border-slate-200 text-slate-400">
+                        <i class="fa-solid fa-image fa-3x mb-3"></i>
+                        <p class="text-[10px] font-black uppercase tracking-widest">No Photo Available</p>
+                    </div>
+                </div>
+
+                <!-- Asset Details Grid -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-gray-800">
+                    <div class="bg-white p-4 rounded-2xl border shadow-sm"><label class="text-[9px] font-black text-indigo-400 uppercase block mb-1">Barcode</label><span id="modal-asset-barcode" class="text-sm font-black text-indigo-900">-</span></div>
+                    <div class="bg-white p-4 rounded-2xl border shadow-sm"><label class="text-[9px] font-black text-indigo-400 uppercase block mb-1">Asset Name</label><span id="modal-asset-name" class="text-sm font-black text-indigo-900">-</span></div>
+                    <div class="bg-white p-4 rounded-2xl border shadow-sm"><label class="text-[9px] font-black text-indigo-400 uppercase block mb-1">Serial No</label><span id="modal-asset-serial" class="text-sm font-black text-slate-700">-</span></div>
+                    <div class="bg-white p-4 rounded-2xl border shadow-sm"><label class="text-[9px] font-black text-indigo-400 uppercase block mb-1">Category</label><span id="modal-asset-category" class="text-sm font-black text-slate-700">-</span></div>
+                    <div class="bg-white p-4 rounded-2xl border shadow-sm"><label class="text-[9px] font-black text-indigo-400 uppercase block mb-1">Location</label><span id="modal-asset-location" class="text-sm font-black text-slate-700">-</span></div>
+                    <div class="bg-white p-4 rounded-2xl border shadow-sm"><label class="text-[9px] font-black text-indigo-400 uppercase block mb-1">Status</label><span id="modal-asset-status" class="text-sm font-black text-slate-700">-</span></div>
+                    <div class="bg-white p-4 rounded-2xl border shadow-sm"><label class="text-[9px] font-black text-indigo-400 uppercase block mb-1">Purchased Date</label><span id="modal-asset-date" class="text-sm font-black text-slate-700">-</span></div>
+                    <div class="bg-white p-4 rounded-2xl border shadow-sm"><label class="text-[9px] font-black text-indigo-400 uppercase block mb-1">Created By</label><span id="modal-asset-createdby" class="text-sm font-black text-slate-700">-</span></div>
+                </div>
+            </div>
+
+            <div class="p-6 border-t bg-white flex justify-end">
+                <button type="button" onclick="window.closeAssetDetailsModal()" class="px-8 py-3 bg-slate-100 text-slate-600 rounded-xl font-black text-xs uppercase active:scale-95 transition-all">Close</button>
+            </div>
         </div>
     </div>
 

@@ -18,8 +18,9 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://unpkg.com/html5-qrcode"></script>
 
-    <link rel="manifest" href="manifest.json?v=3.5.1">
+    <link rel="manifest" href="./manifest.json">
     <link rel="apple-touch-icon" href="jys_Icon.png?v=3.5.1">
     <link rel="stylesheet" href="style.css?v=3.5.1">
 
@@ -1133,9 +1134,102 @@
 
     <div id="imageModal" class="modal"><span class="modal-close" onclick="closeZoomModal()">&times;</span><img id="modalImage" src="" alt="Enlarged View"></div>
 
+    <!-- DYNAMIC ASSET DETAILS MODAL -->
+    <div id="asset-details-modal" class="asset-details-modal fixed inset-0 z-[100008] hidden items-center justify-center p-4 bg-black/90 backdrop-blur-md">
+        <div class="bg-white w-full max-w-5xl rounded-[30px] overflow-hidden shadow-2xl flex flex-col max-h-[92vh]">
+            <!-- HEADER -->
+            <div class="bg-indigo-900 text-white p-5 flex justify-between items-center flex-shrink-0">
+                <h3 class="font-black uppercase tracking-tight text-lg flex items-center gap-2">
+                    <i class="fa-solid fa-boxes-stacked"></i> Asset Complete Details (Excel Record)
+                </h3>
+                <button type="button" class="cursor-pointer text-3xl leading-none hover:text-red-400 transition-colors" onclick="window.closeAssetDetailsModal()">&times;</button>
+            </div>
+
+            <div class="overflow-y-auto flex-1 bg-slate-50 p-6 space-y-6 text-gray-800">
+                <!-- PHOTO SECTION -->
+                <div class="text-center bg-white p-4 rounded-2xl border shadow-sm">
+                    <img id="modal-asset-photo" src="" alt="Asset Photo" class="mx-auto rounded-2xl border-2 border-slate-200 shadow-md max-h-[250px] object-contain bg-slate-100" style="display: none;">
+                    <div id="modal-photo-placeholder" class="py-8 bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200 text-slate-400">
+                        <i class="fa-solid fa-image fa-3x mb-2"></i>
+                        <p class="text-[11px] font-black uppercase tracking-widest">No Photo Available</p>
+                    </div>
+                </div>
+
+                <!-- DYNAMIC EXCEL FIELDS CONTAINER -->
+                <div>
+                    <h4 class="text-xs font-black uppercase tracking-wider text-indigo-950 mb-3 flex items-center gap-2">
+                        <i class="fa-solid fa-list-check"></i> Asset Metadata & Excel Properties
+                    </h4>
+                    <!-- This Grid will be dynamically populated via JavaScript -->
+                    <div id="dynamic-asset-fields-grid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                        <!-- Dynamic Cards Rendered Here -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- FOOTER -->
+            <div class="p-4 border-t bg-white flex justify-end">
+                <button type="button" onclick="window.closeAssetDetailsModal()" class="px-6 py-2.5 bg-slate-200 text-slate-700 hover:bg-indigo-600 hover:text-white rounded-xl font-bold text-xs uppercase transition-all">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- STRICT SCANNER CAMERA CENTER ALIGNMENT FIX -->
+    <div id="scannerModal" class="fixed inset-0 z-[999999] hidden items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+        <div class="relative w-full max-w-md mx-auto bg-slate-900 rounded-[2.5rem] overflow-hidden border border-indigo-500/30 shadow-2xl flex flex-col items-center p-2">
+
+            <!-- Header/Instructions -->
+            <div class="w-full p-4 flex justify-between items-center">
+                <div class="flex flex-col">
+                    <h4 class="text-white font-black uppercase text-xs tracking-widest">Scanner Active</h4>
+                    <p class="text-indigo-400 font-bold text-[9px] uppercase">Align Code within frame</p>
+                </div>
+                <button onclick="window.stopCameraScanner()" class="w-10 h-10 rounded-full bg-white/10 text-white flex items-center justify-center active:scale-90 transition-transform">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+
+            <!-- Camera Video element centered -->
+            <div id="interactive" class="viewport w-full h-[320px] rounded-3xl overflow-hidden flex items-center justify-center relative bg-black border-2 border-indigo-500/20">
+                <!-- Video stream force-fitted by CSS -->
+            </div>
+
+            <!-- Scanner Controls Toolbar -->
+            <div class="w-full p-6 grid grid-cols-2 gap-4">
+                <!-- Torch Toggle -->
+                <button id="scanner-torch-btn" onclick="window.toggleScannerTorch()" class="flex flex-col items-center gap-2 p-4 bg-white/5 border border-white/10 rounded-2xl hover:bg-white/10 transition-colors active:scale-95 group">
+                    <div class="w-10 h-10 rounded-full bg-amber-500/20 text-amber-500 flex items-center justify-center group-hover:bg-amber-500 group-hover:text-white transition-all">
+                        <i class="fa-solid fa-bolt"></i>
+                    </div>
+                    <span class="text-[9px] font-black text-white uppercase tracking-widest">Toggle Torch</span>
+                </button>
+
+                <!-- Gallery Scan -->
+                <div class="relative">
+                    <input type="file" id="qr-input-file" accept="image/*" class="absolute inset-0 opacity-0 cursor-pointer z-10" onchange="window.scanQRFromImage(event)">
+                    <div class="flex flex-col items-center gap-2 p-4 bg-white/5 border border-white/10 rounded-2xl hover:bg-white/10 transition-colors active:scale-95 group h-full">
+                        <div class="w-10 h-10 rounded-full bg-indigo-500/20 text-indigo-400 flex items-center justify-center group-hover:bg-indigo-500 group-hover:text-white transition-all">
+                            <i class="fa-solid fa-image"></i>
+                        </div>
+                        <span class="text-[9px] font-black text-white uppercase tracking-widest">Scan Gallery</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Status Indicator -->
+            <div class="pb-4">
+                <div class="flex items-center gap-2 px-4 py-1.5 bg-emerald-500/10 border border-emerald-500/20 rounded-full">
+                    <span class="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-ping"></span>
+                    <span class="text-[8px] font-black text-emerald-500 uppercase tracking-[0.2em]">Ready to Scan</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script type="module" src="firebase_config.js?v=4.0"></script>
     <script type="module" src="field_normalizer.js?v=4.0"></script>
     <script type="module" src="drive_module.js?v=4.0"></script>
+    <script src="asset_management.js?v=4.5"></script>
     <script type="module" src="ui_module.js?v=4.0"></script>
     <script type="module" src="import_module.js?v=4.0"></script>
     <script type="module" src="export_module.js?v=4.0"></script>
