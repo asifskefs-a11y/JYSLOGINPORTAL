@@ -715,17 +715,135 @@
                         <div id="tasks-pagination" class="pagination-container"></div>
                     </div>
 
-                    <!-- MY RAISED TASKS TAB -->
-                    <div id="tab-my-tasks" class="tab-section space-y-4">
-                        <div class="flex items-center justify-between px-2">
-                            <h3 class="text-orange-600 font-black text-lg uppercase tracking-tight">Raised Tasks Tracker</h3>
-                            <div class="flex bg-slate-100 p-1 rounded-xl shadow-inner">
-                                <button onclick="window.switchRaisedTaskView('active')" id="admin-raised-tab-active" class="px-4 py-2 rounded-lg text-[9px] font-black uppercase bg-white text-indigo-600 shadow-sm">Active</button>
-                                <button onclick="window.switchRaisedTaskView('history')" id="admin-raised-tab-history" class="px-4 py-2 rounded-lg text-[9px] font-black uppercase text-slate-400">History</button>
+                    <!-- MY RAISED TASKS TAB (TASKS CENTER) -->
+                    <div id="tab-my-tasks" class="tab-section space-y-6">
+                        <!-- TASK NAVIGATION TABS -->
+                        <div class="flex flex-col sm:flex-row items-center justify-between border-b pb-4 mb-6 gap-4">
+                            <h2 class="text-xl font-black text-indigo-950 uppercase tracking-tight flex items-center gap-2">
+                                <i class="fa-solid fa-list-check text-indigo-600"></i> Tasks Center
+                            </h2>
+
+                            <!-- 3 MAIN TABS -->
+                            <div class="inline-flex p-1.5 bg-slate-100 rounded-2xl border border-slate-200 shadow-inner">
+                                <button type="button" id="tab-btn-create" onclick="window.switchTaskTab('create')" class="px-5 py-2.5 rounded-xl font-black text-xs uppercase transition-all bg-indigo-600 text-white shadow-md">
+                                    <i class="fa-solid fa-circle-plus mr-1"></i> Create Task
+                                </button>
+                                <button type="button" id="tab-btn-active" onclick="window.switchTaskTab('active')" class="px-5 py-2.5 rounded-xl font-black text-xs uppercase transition-all text-slate-600 hover:text-indigo-900">
+                                    Active
+                                </button>
+                                <button type="button" id="tab-btn-history" onclick="window.switchTaskTab('history')" class="px-5 py-2.5 rounded-xl font-black text-xs uppercase transition-all text-slate-600 hover:text-indigo-900">
+                                    History
+                                </button>
                             </div>
                         </div>
-                        <div id="admin-my-tasks-container"></div>
-                        <div id="my-tasks-pagination" class="pagination-container"></div>
+
+                        <!-- SECTION 1: CREATE TASK FORM -->
+                        <div id="section-create-task" class="task-tab-content bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
+                            <h3 class="text-sm font-black uppercase text-indigo-950 mb-6 flex items-center gap-2">
+                                <i class="fa-solid fa-pen-to-square text-indigo-600"></i> Raise New Maintenance Task
+                            </h3>
+                            <form id="raise-task-form" class="space-y-5" onsubmit="window.handleCreateTaskSubmit(event)">
+                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                    <div class="space-y-1.5">
+                                        <label class="text-[9px] font-black text-indigo-400 uppercase ml-2 tracking-wider">Select School *</label>
+                                        <select id="taskSchoolSelect" required class="w-full p-4 border-2 border-slate-100 rounded-2xl bg-slate-50 text-sm outline-none focus:border-indigo-500 transition-all" onchange="window.filterStaffBySchoolAndRole()">
+                                            <option value="">Choose School</option>
+                                            <option value="Jern Yafoor School 1">Jern Yafoor School 1</option>
+                                            <option value="Jern Yafoor School 2">Jern Yafoor School 2</option>
+                                        </select>
+                                    </div>
+                                    <div class="space-y-1.5">
+                                        <label class="text-[9px] font-black text-indigo-400 uppercase ml-2 tracking-wider">Target Department *</label>
+                                        <select id="taskRoleSelect" required class="w-full p-4 border-2 border-slate-100 rounded-2xl bg-slate-50 text-sm outline-none focus:border-indigo-500 transition-all" onchange="window.filterStaffBySchoolAndRole()">
+                                            <option value="">Choose Dept</option>
+                                            <option value="Cleaner Leader">Cleaner Leader</option>
+                                            <option value="Technician">Technician</option>
+                                            <option value="Housekeeping">Housekeeping</option>
+                                        </select>
+                                    </div>
+                                </div>
+
+                                <div class="space-y-1.5">
+                                    <label class="text-[9px] font-black text-indigo-400 uppercase ml-2 tracking-wider">Assign Specific Staff (Optional)</label>
+                                    <select id="assignedStaffSelect" class="w-full p-4 border-2 border-slate-100 rounded-2xl bg-slate-50 text-sm outline-none focus:border-indigo-500 transition-all">
+                                        <option value="">Route to Any Available</option>
+                                    </select>
+                                </div>
+
+                                <div class="space-y-1.5">
+                                    <label class="text-[9px] font-black text-indigo-400 uppercase ml-2 tracking-wider">Area / Room Location *</label>
+                                    <input type="text" id="areaNameInput" placeholder="e.g. Ground Floor Corridor, Room 102" required class="w-full p-4 border-2 border-slate-100 rounded-2xl bg-slate-50 text-sm outline-none focus:border-indigo-500 transition-all">
+                                </div>
+
+                                <div class="space-y-1.5">
+                                    <label class="text-[9px] font-black text-indigo-400 uppercase ml-2 tracking-wider">Task Details / Instructions *</label>
+                                    <textarea id="taskDetailsInput" placeholder="Describe the issue in detail..." required class="w-full p-4 border-2 border-slate-100 rounded-2xl bg-slate-50 text-sm outline-none focus:border-indigo-500 transition-all h-32 resize-none"></textarea>
+                                </div>
+
+                                <div class="space-y-3">
+                                    <label class="text-[9px] font-black text-indigo-400 uppercase ml-2 tracking-wider">Evidence Photo</label>
+                                    <input type="file" id="cameraInput" accept="image/*" capture="environment" class="hidden" onchange="window.handleTaskImageCapture(event)">
+                                    <button type="button" class="w-full py-4 border-2 border-dashed border-indigo-200 rounded-2xl text-indigo-600 font-bold flex items-center justify-center gap-3 hover:bg-indigo-50 transition-all active:scale-[0.98]" onclick="document.getElementById('cameraInput').click()">
+                                        <i class="fa-solid fa-camera text-xl"></i>
+                                        <span id="cameraBtnText">Capture Problem Photo</span>
+                                    </button>
+
+                                    <div id="taskPhotoPreviewContainer" class="hidden relative rounded-2xl overflow-hidden border-2 border-indigo-100 h-56 mt-2 shadow-inner">
+                                        <img id="taskPhotoPreview" src="" class="w-full h-full object-cover" alt="Task Preview">
+                                        <button type="button" onclick="window.removeTaskPhoto()" class="absolute top-3 right-3 bg-red-600 text-white w-10 h-10 rounded-full shadow-lg flex items-center justify-center active:scale-90 transition-all">
+                                            <i class="fa-solid fa-trash-can"></i>
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <button type="submit" id="submitTaskBtn" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-5 rounded-2xl font-black text-sm uppercase tracking-[0.2em] shadow-xl shadow-indigo-500/20 active:scale-[0.98] transition-all flex items-center justify-center gap-3 mt-8">
+                                    <i class="fa-solid fa-paper-plane text-lg"></i> CREATE & ROUTE TASK
+                                </button>
+                            </form>
+                        </div>
+
+                        <!-- SECTION 2: ACTIVE TASKS -->
+                        <div id="section-active-tasks" class="task-tab-content hidden bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden p-4">
+                            <div class="overflow-x-auto">
+                                <table class="w-full text-left border-collapse">
+                                    <thead>
+                                        <tr class="bg-slate-100 text-[11px] font-black uppercase text-indigo-950 border-b border-slate-200">
+                                            <th class="p-3">Date & Time</th>
+                                            <th class="p-3">Created By</th>
+                                            <th class="p-3">Dept / Category</th>
+                                            <th class="p-3">Location / Room</th>
+                                            <th class="p-3">Status</th>
+                                            <th class="p-3 text-center">Inspect</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="active-tasks-tbody" class="text-xs divide-y divide-slate-100">
+                                        <!-- Dynamically populated via JS -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- SECTION 3: HISTORY TASKS -->
+                        <div id="section-history-tasks" class="task-tab-content hidden bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden p-4">
+                            <div class="overflow-x-auto">
+                                <table class="w-full text-left border-collapse">
+                                    <thead>
+                                        <tr class="bg-slate-100 text-[11px] font-black uppercase text-indigo-950 border-b border-slate-200">
+                                            <th class="p-3">Created Date</th>
+                                            <th class="p-3">Created By</th>
+                                            <th class="p-3">Dept / Category</th>
+                                            <th class="p-3">Location</th>
+                                            <th class="p-3">Closed By</th>
+                                            <th class="p-3">Closed Date</th>
+                                            <th class="p-3 text-center">Inspect</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="history-tasks-tbody" class="text-xs divide-y divide-slate-100">
+                                        <!-- Dynamically populated via JS -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
                     </div>
 
                     <!-- STAFF DIRECTORY TAB -->
@@ -993,25 +1111,93 @@
         </footer>
     </div>
 
-    <!-- MODALS -->
-    <div id="task-modal" class="fixed inset-0 bg-black/90 backdrop-blur-md z-[100000] hidden flex items-center justify-center p-4">
-        <div class="bg-white w-full max-w-3xl rounded-[40px] overflow-hidden shadow-2xl text-gray-800">
-            <div class="p-6 border-b flex justify-between items-center bg-indigo-600 text-white"><h3 class="text-lg font-bold">Raise New Issue</h3><button type="button" onclick="closeTaskModal()"><i class="fa-solid fa-xmark text-xl"></i></button></div>
-            <form id="task-form" class="p-8 space-y-5" onsubmit="event.preventDefault(); event.stopPropagation(); if(window.submitNewMaintenanceTask) window.submitNewMaintenanceTask(event); return false;">
-                <div class="grid grid-cols-2 gap-4"><select id="task-school" required class="p-4 border-2 border-slate-100 rounded-2xl bg-slate-50 text-sm outline-none" onchange="window.filterStaffBySchoolAndRole()"><option value="">Select School</option><option value="Jern Yafoor School 1">School 1</option><option value="Jern Yafoor School 2">School 2</option></select><select id="task-target" required class="p-4 border-2 border-slate-100 rounded-2xl bg-slate-50 text-sm outline-none" onchange="window.filterStaffBySchoolAndRole()"><option value="">Target Role</option></select></div>
-                <select id="task-assigned-staff" class="w-full p-4 border-2 border-slate-100 rounded-2xl bg-slate-50 text-sm outline-none"><option value="">Assign Specific Staff (Optional)</option></select>
-                <input type="text" id="task-loc" placeholder="Location Details" required class="w-full p-4 border-2 border-slate-100 rounded-2xl bg-slate-50 text-sm outline-none">
-                <textarea id="task-desc" placeholder="Details..." required class="w-full p-4 border-2 border-slate-100 rounded-2xl bg-slate-50 text-sm outline-none h-24 resize-none"></textarea>
-                <div class="flex items-center gap-3"><input type="file" id="task-photo-in" accept="image/*" capture="environment" class="hidden" onchange="window.handleTaskImageCapture(event)"><button type="button" onclick="document.getElementById('task-photo-in').click()" class="flex-1 py-4 border-2 border-dashed border-indigo-200 rounded-2xl text-indigo-600 font-bold text-xs uppercase flex items-center justify-center gap-2 hover:bg-indigo-50"><i class="fa-solid fa-camera"></i> Capture Photo</button><button type="submit" class="flex-1 py-4 bg-indigo-600 text-white rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl">Save Task</button></div>
-            </form>
-        </div>
-    </div>
 
     <div id="add-staff-modal" class="fixed inset-0 bg-black/90 backdrop-blur-md z-[100001] hidden flex items-center justify-center p-4"></div>
     <div id="edit-staff-modal" class="fixed inset-0 bg-black/90 backdrop-blur-md z-[100002] hidden flex items-center justify-center p-4"></div>
     <div id="view-staff-modal" class="fixed inset-0 bg-black/90 backdrop-blur-md z-[100002] hidden flex items-center justify-center p-4"></div>
     <div id="view-transfer-modal" class="fixed inset-0 bg-black/90 backdrop-blur-md z-[100002] hidden flex items-center justify-center p-4"></div>
     <div id="notification-modal" class="fixed inset-0 bg-black/90 backdrop-blur-md z-[100003] hidden flex items-center justify-center p-4"></div>
+
+    <!-- TASK INSPECTION MODAL (POPUP WITH BEFORE/AFTER PHOTOS) -->
+    <div id="task-inspector-modal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-md z-[100004] hidden flex items-center justify-center p-4">
+        <div class="bg-white w-full max-w-3xl rounded-3xl shadow-2xl border border-slate-200 overflow-hidden max-h-[92vh] flex flex-col">
+            <!-- Header -->
+            <div class="bg-indigo-950 text-white p-4 flex justify-between items-center">
+                <h3 class="font-black text-sm uppercase tracking-wide flex items-center gap-2">
+                    <i class="fa-solid fa-clipboard-check text-indigo-400"></i> Task Complete Audit & Inspector
+                </h3>
+                <button onclick="window.closeTaskInspectorModal()" class="text-3xl leading-none text-slate-300 hover:text-white">&times;</button>
+            </div>
+
+            <!-- Body -->
+            <div class="p-6 overflow-y-auto space-y-5 bg-slate-50">
+                <!-- Details Grid with DARK text -->
+                <div class="grid grid-cols-2 md:grid-cols-3 gap-3 bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
+                    <div>
+                        <label class="text-[10px] font-black text-indigo-700 uppercase block">Created By</label>
+                        <span id="insp-created-by" class="text-xs font-black text-slate-900"></span>
+                    </div>
+                    <div>
+                        <label class="text-[10px] font-black text-indigo-700 uppercase block">Created Date & Time</label>
+                        <span id="insp-created-at" class="text-xs font-black text-slate-900"></span>
+                    </div>
+                    <div>
+                        <label class="text-[10px] font-black text-indigo-700 uppercase block">Dept / Task Type</label>
+                        <span id="insp-dept" class="text-xs font-black text-slate-900"></span>
+                    </div>
+                    <div>
+                        <label class="text-[10px] font-black text-indigo-700 uppercase block">Location / Area</label>
+                        <span id="insp-location" class="text-xs font-black text-slate-900"></span>
+                    </div>
+                    <div>
+                        <label class="text-[10px] font-black text-indigo-700 uppercase block">Closed / Rejected By</label>
+                        <span id="insp-closed-by" class="text-xs font-black text-slate-900">-</span>
+                    </div>
+                    <div>
+                        <label class="text-[10px] font-black text-indigo-700 uppercase block">Closed Date & Time</label>
+                        <span id="insp-closed-at" class="text-xs font-black text-slate-900">-</span>
+                    </div>
+                </div>
+
+                <!-- Issue Description -->
+                <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
+                    <label class="text-[10px] font-black text-indigo-700 uppercase block mb-1">Issue Description</label>
+                    <p id="insp-desc" class="text-xs font-bold text-slate-800 leading-relaxed"></p>
+                </div>
+
+                <!-- PRIVACY-AWARE COMMENT SECTION -->
+                <div id="insp-comment-box" class="bg-amber-50 border-2 border-amber-200 p-4 rounded-2xl shadow-sm hidden">
+                    <label class="text-[10px] font-black text-amber-900 uppercase flex items-center gap-1 mb-1">
+                        <i class="fa-solid fa-comment-dots text-amber-600"></i> Closure / Rejection Remark / Comment:
+                    </label>
+                    <p id="insp-comment-text" class="text-xs font-black text-amber-950 italic"></p>
+                </div>
+
+                <!-- BEFORE & AFTER PHOTOS COMPARISON -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div class="border border-slate-200 rounded-2xl p-3 bg-white text-center shadow-sm">
+                        <span class="text-[10px] font-black uppercase text-amber-800 bg-amber-100 px-3 py-1 rounded-full block mb-2">📸 Before Photo</span>
+                        <div class="h-44 w-full bg-slate-100 rounded-xl flex items-center justify-center overflow-hidden border">
+                            <img id="insp-before-img" class="w-full h-full object-contain hidden" src="" alt="Before Photo">
+                            <span id="insp-no-before" class="text-xs text-slate-400 font-bold">No Image Attached</span>
+                        </div>
+                    </div>
+
+                    <div class="border border-slate-200 rounded-2xl p-3 bg-white text-center shadow-sm">
+                        <span class="text-[10px] font-black uppercase text-emerald-800 bg-emerald-100 px-3 py-1 rounded-full block mb-2">✅ After Photo</span>
+                        <div class="h-44 w-full bg-slate-100 rounded-xl flex items-center justify-center overflow-hidden border">
+                            <img id="insp-after-img" class="w-full h-full object-contain hidden" src="" alt="After Photo">
+                            <span id="insp-no-after" class="text-xs text-slate-400 font-bold">Not Uploaded / Incomplete</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="p-4 bg-white border-t flex justify-end">
+                <button onclick="window.closeTaskInspectorModal()" class="px-6 py-2.5 bg-indigo-950 text-white rounded-xl text-xs font-black uppercase shadow-md">Close Inspector</button>
+            </div>
+        </div>
+    </div>
     <div id="import-progress-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-[100004] hidden flex items-center justify-center p-4">
         <img src="schoollogo.png" class="logo-only-spinner" alt="Loading..." onerror="this.src='jys_Icon.png'">
     </div>

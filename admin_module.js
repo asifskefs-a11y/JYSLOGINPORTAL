@@ -119,6 +119,12 @@ window.refreshDashboardData = async () => {
         window.allAssets = window.appCache.assets;
 
         window.appCache.isInitialized = true;
+
+        // Ensure currentStaff exists for Task rendering if in Admin mode
+        if (localStorage.getItem('isAdminLoggedIn') === 'true' && !window.currentStaff) {
+            window.currentStaff = { role: 'admin', name: 'System Admin' };
+        }
+
         window.updateAdminKPIs();
         window.updateAdminProfileHeader();
 
@@ -342,7 +348,7 @@ window.renderTabFromAppCache = (tabId) => {
                 case 'tab-disposal': window.renderStandardizedAssetTable(window.currentFilteredData.disposal || window.appCache.assets.filter(a => a.assetStatus === 'Disposed'), 'disposal'); break;
                 case 'tab-transfers': window.renderStandardizedAssetTable(window.currentFilteredData.transfers || window.appCache.transfers || [], 'transfers'); break;
                 case 'tab-settings': window.loadGoogleDriveConfig(); break;
-                case 'tab-my-tasks': if (typeof window.initRaisedTasksTracker === 'function') window.initRaisedTasksTracker('admin-my-tasks-container'); break;
+                case 'tab-my-tasks': if (typeof window.switchTaskTab === 'function') window.switchTaskTab('active'); break;
             }
         } finally {
             window.hideGlobalSpinner();
