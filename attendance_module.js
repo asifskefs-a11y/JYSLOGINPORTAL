@@ -695,8 +695,8 @@ window.loadSecurityPinControl = () => {
     if (!body) return;
 
     onValue(ref(db, 'staff_attendance'), () => renderPinTable());
-    onValue(ref(db, 'visitor_logs'), () => renderPinTable());
-    onValue(ref(db, 'contractor_logs'), () => renderPinTable());
+    onValue(ref(db, 'visitors'), () => renderPinTable());
+    onValue(ref(db, 'contractors'), () => renderPinTable());
 
     renderPinTable();
 
@@ -704,8 +704,8 @@ window.loadSecurityPinControl = () => {
         try {
             const [staffSnap, visSnap, conSnap] = await Promise.all([
                 get(ref(db, 'staff_attendance')),
-                get(ref(db, 'visitor_logs')),
-                get(ref(db, 'contractor_logs'))
+                get(ref(db, 'visitors')),
+                get(ref(db, 'contractors'))
             ]);
 
             let rows = [];
@@ -754,7 +754,7 @@ window.loadSecurityPinControl = () => {
                     if (v.status === 'active' && v.keyCollected === 'YES') {
                         if (!v.keyReturnPin) {
                             const newPin = Math.floor(1000 + Math.random() * 9000).toString();
-                            await update(ref(db, `visitor_logs/${key}`), {
+                            await update(ref(db, `visitors/${key}`), {
                                 keyReturnPin: newPin,
                                 checkoutPin: newPin
                             });
@@ -779,7 +779,7 @@ window.loadSecurityPinControl = () => {
                     if (c.status === 'active' && c.keyCollected === 'YES') {
                         if (!c.keyReturnPin) {
                             const newPin = Math.floor(1000 + Math.random() * 9000).toString();
-                            await update(ref(db, `contractor_logs/${key}`), {
+                            await update(ref(db, `contractors/${key}`), {
                                 keyReturnPin: newPin,
                                 checkoutPin: newPin
                             });

@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Security Portal - JYS Portal</title>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="manifest" href="./manifest.json">
+    <link rel="apple-touch-icon" href="jys_Icon.png?v=3.2">
+    <meta name="theme-color" content="#1E1B4B">
+    <link rel="stylesheet" href="style.css?v=3.2">
+    <link rel="stylesheet" href="staff-ui.css?v=3.5.0">
+</head>
+<body class="text-white">
+
+    <!-- SIDE MENU OVERLAY -->
+    <div id="side-menu" class="fixed inset-0 bg-black/60 z-[200000] hidden backdrop-blur-sm transition-opacity duration-300" onclick="if(event.target === this) window.toggleSideMenu()">
+        <div id="side-menu-content" class="absolute left-0 top-0 h-full w-[85%] max-w-[340px] shadow-2xl p-6 transform -translate-x-full transition-transform duration-300 ease-in-out flex flex-col bg-indigo-950">
+            <button class="absolute top-6 right-6 w-10 h-10 bg-white/10 rounded-full flex items-center justify-center text-white/80" onclick="window.toggleSideMenu()">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+            <div class="menu-header-profile mt-8">
+                 <div class="flex items-center gap-4">
+                     <div class="avatar h-16 w-16 bg-amber-500 text-white flex items-center justify-center rounded-full text-2xl font-black shadow-lg" id="menuAvatar">S</div>
+                     <div class="flex flex-col">
+                         <h2 class="text-xl font-black leading-none text-white" id="menuUserName">Security Guard</h2>
+                         <p class="text-[10px] font-bold text-amber-400 uppercase tracking-widest mt-1">Authorized Personnel</p>
+                     </div>
+                 </div>
+            </div>
+            <div class="flex-1 overflow-y-auto no-scrollbar space-y-8 mt-8">
+                <div>
+                     <h3 class="text-[10px] font-black text-white/40 uppercase tracking-[0.2em] mb-4 ml-2">Gate Operations</h3>
+                     <div class="space-y-2">
+                         <button onclick="window.location.href='visitor.html?mode=visitor'" class="menu-item-btn w-full flex items-center gap-3 p-4 bg-white/5 rounded-2xl text-white/80 hover:bg-white/10 transition-all">
+                             <i class="fa-solid fa-user-plus text-indigo-400"></i>
+                             <span>Visitor Entry</span>
+                         </button>
+                         <button onclick="window.location.href='visitor.html?mode=contractor'" class="menu-item-btn w-full flex items-center gap-3 p-4 bg-white/5 rounded-2xl text-white/80 hover:bg-white/10 transition-all">
+                             <i class="fa-solid fa-helmet-safety text-emerald-400"></i>
+                             <span>Contractor Entry</span>
+                         </button>
+                     </div>
+                </div>
+                <div>
+                     <h3 class="text-[10px] font-black text-white/40 uppercase tracking-[0.2em] mb-4 ml-2">Maintenance & Tasks</h3>
+                     <div class="space-y-2">
+                         <button onclick="window.toggleSideMenu(); window.showStaffView('tasks-management-section'); window.switchTaskTab('create')" class="menu-item-btn w-full flex items-center gap-3 p-4 bg-white/5 rounded-2xl text-white/80 hover:bg-white/10 transition-all">
+                             <i class="fa-solid fa-plus-circle text-amber-400"></i>
+                             <span>Create Task</span>
+                         </button>
+                         <button onclick="window.toggleSideMenu(); window.showStaffView('tasks-management-section'); window.switchTaskTab('active')" class="menu-item-btn w-full flex items-center gap-3 p-4 bg-white/5 rounded-2xl text-white/80 hover:bg-white/10 transition-all">
+                             <i class="fa-solid fa-list-check text-indigo-400"></i>
+                             <span>Task History</span>
+                         </button>
+                     </div>
+                </div>
+                <a href="index.html" class="menu-item-btn w-full flex items-center gap-3 p-4 text-white/60 hover:text-white no-underline mt-4 border-t border-white/5 pt-6">
+                    <i class="fa-solid fa-home"></i>
+                    <span>Exit to Portal</span>
+                </a>
+            </div>
+            <div class="mt-auto pt-6 border-t border-white/10">
+                 <button onclick="window.logoutStaff()" class="w-full bg-red-600 text-white py-4 rounded-2xl font-black uppercase tracking-widest shadow-lg active:scale-95 transition-transform flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-right-from-bracket"></i>
+                    Logout Session
+                 </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="app-container p-4">
+        <!-- CLEAN SECURITY DASHBOARD TOP BAR -->
+        <div class="bg-indigo-950 p-4 rounded-3xl shadow-xl mb-5 flex items-center justify-between gap-3 overflow-hidden">
+            <!-- Left: Title & Badge -->
+            <div class="flex items-center gap-3">
+                <button onclick="window.toggleSideMenu()" class="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center text-white active:scale-90 transition-all">
+                    <i class="fa-solid fa-bars"></i>
+                </button>
+                <div>
+                    <h2 class="text-white font-black text-sm uppercase tracking-wider">Security Gate Control</h2>
+                    <span class="text-[10px] text-amber-400 font-bold uppercase tracking-widest block">Security Operations Panel</span>
+                </div>
+            </div>
+            <!-- Right: GATE CHECK-IN BUTTON ONLY -->
+            <div class="flex items-center gap-2">
+                <button onclick="window.openGateCheckinModal()" class="py-2.5 px-5 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-slate-950 font-black text-xs uppercase tracking-wider rounded-2xl shadow-lg flex items-center gap-2 transition-all">
+                    <i class="fa-solid fa-id-card-clip text-sm"></i> CHECK-IN / ENTRY
+                </button>
+            </div>
+        </div>
+
+        <!-- STATS GRID -->
+        <div class="grid grid-cols-2 gap-4 mb-6">
+            <div class="bg-white p-5 rounded-3xl shadow-xl border border-indigo-50 text-center">
+                <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Visitors Today</p>
+                <p class="text-3xl font-black text-indigo-900" id="top-counter-visitors">0</p>
+                <div class="mt-2 flex items-center justify-center gap-1">
+                    <span class="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse"></span>
+                    <span class="text-[8px] font-bold text-emerald-500 uppercase">Live Sync</span>
+                </div>
+            </div>
+            <div class="bg-white p-5 rounded-3xl shadow-xl border border-indigo-50 text-center">
+                <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Staff Present</p>
+                <p class="text-3xl font-black text-indigo-900" id="top-counter-staff">0</p>
+                <div class="mt-2 flex items-center justify-center gap-1">
+                    <span class="w-1.5 h-1.5 bg-indigo-400 rounded-full animate-pulse"></span>
+                    <span class="text-[8px] font-bold text-indigo-400 uppercase">Attendance</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- 🔑 SECURITY PIN CONTROL PANEL -->
+        <div id="security-pin-control" class="space-y-4">
+            <div class="flex items-center justify-between px-2">
+                <h3 class="text-sm font-black text-indigo-900 uppercase tracking-widest flex items-center gap-2">
+                    <i class="fa-solid fa-key text-amber-500"></i> KEY RETURN PIN CONTROL
+                </h3>
+            </div>
+            <div class="bg-slate-900 rounded-[2rem] shadow-2xl overflow-hidden border border-indigo-500/20">
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-[10px]">
+                        <thead class="bg-indigo-950/70 text-indigo-300 font-extrabold uppercase text-[10px] tracking-wider">
+                            <tr>
+                                <th class="p-3 text-left">Visitor / Contractor / Staff</th>
+                                <th class="p-3 text-left">Category & Details</th>
+                                <th class="p-3 text-left">Key Details</th>
+                                <th class="p-3 text-center">Checkout PIN</th>
+                            </tr>
+                        </thead>
+                        <tbody id="security-pin-list-body" class="divide-y divide-white/5 text-slate-300">
+                            <tr><td colspan="4" class="p-8 text-center text-slate-500 uppercase font-black tracking-widest">No active keys issued.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- TASKS SECTION (Hidden by default, shown via Sidebar) -->
+        <div id="tasks-management-section" class="hidden mt-6 bg-white rounded-3xl shadow-xl p-6 border border-slate-100">
+            <!-- Reuse tasks_module logic -->
+            <div id="tasksContainerActive"></div>
+            <div id="tasksContainerHistory"></div>
+        </div>
+    </div>
+
+    <script>
+        window.openGateCheckinModal = () => {
+            window.location.href = 'visitor.html';
+        };
+
+        window.toggleSideMenu = function() {
+            const menu = document.getElementById('side-menu');
+            const menuContent = document.getElementById('side-menu-content');
+            if (!menu || !menuContent) return;
+            if (!menu.classList.contains('hidden')) {
+                menuContent.style.transform = 'translateX(-100%)';
+                setTimeout(() => menu.classList.add('hidden'), 300);
+            } else {
+                menu.classList.remove('hidden');
+                setTimeout(() => menuContent.style.transform = 'translateX(0)', 10);
+            }
+        };
+
+        window.showStaffView = (id) => {
+            const el = document.getElementById(id);
+            if (el) el.classList.remove('hidden');
+            // Hide other sections if needed
+        };
+    </script>
+
+    <script type="module" src="firebase_config.js?v=4.0"></script>
+    <script type="module" src="ui_module.js?v=4.0"></script>
+    <script type="module" src="visitor_module.js?v=4.0"></script>
+    <script type="module" src="attendance_module.js?v=4.0"></script>
+    <script type="module" src="tasks_module.js?v=4.0"></script>
+    <script type="module" src="admin_module.js?v=4.0"></script>
+    <script type="module" src="init_module.js?v=4.0"></script>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const saved = localStorage.getItem('loggedStaff');
+            if (saved) {
+                const staff = JSON.parse(saved);
+                if (window.renderDashboard) window.renderDashboard(staff);
+            }
+        });
+    </script>
+</body>
+</html>

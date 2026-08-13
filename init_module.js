@@ -129,6 +129,14 @@ window.handleStaffLogin = async (e) => {
                 // Register FCM after login
                 registerPushNotifications(foundUser.mobile);
 
+                // REDIRECT ALL STAFF ROLES TO DASHBOARD
+                if ((foundUser.role || "").toLowerCase().trim() === 'security') {
+                    console.log("🔓 Staff Login: Security role detected, redirecting to security.html");
+                    localStorage.setItem('loggedStaff', JSON.stringify(foundUser));
+                    safeNavigate('security.html');
+                    return false;
+                }
+
                 if ((foundUser.role || "").toLowerCase().trim() === 'admin') {
                     console.log("🔓 Staff Login: Admin role detected, redirecting...");
                     localStorage.setItem('isAdminLoggedIn', 'true');
@@ -180,6 +188,13 @@ window.handleVisitorSignIn = async (e) => {
         e.preventDefault();
         e.stopPropagation();
     }
+
+    if (!window.currentReservedToken) {
+        alert("⚠️ Session expired or invalid. Please re-open the form.");
+        window.location.reload();
+        return;
+    }
+
     const mode = window.portalMode || 'visitor';
     console.log(`🏢 ${mode.toUpperCase()} Sign-In: Form Submitted`);
 
@@ -200,9 +215,8 @@ window.handleVisitorSignIn = async (e) => {
 
         console.log(`🏢 ${mode.toUpperCase()} Sign-In: Processing signature...`);
 
-        const securityPin = (document.getElementById('v-key-status')?.value === 'YES')
-            ? Math.floor(1000 + Math.random() * 9000).toString()
-            : null;
+        const token = window.currentReservedToken;
+        if (window.tokenTimer) clearTimeout(window.tokenTimer);
 
         const data = {
             id: document.getElementById('v-id').value,
@@ -211,35 +225,45 @@ window.handleVisitorSignIn = async (e) => {
             company: document.getElementById('v-company').value,
             purpose: document.getElementById('v-purpose').value,
             keyCollected: document.getElementById('v-key-status')?.value || 'NO',
-            keyReturnPin: securityPin, // 4-Digit Security PIN
-            checkoutPin: securityPin,  // Secondary key for validation safety
+            keyReturnPin: token.sequenceNo.toString().padStart(4, '0'), // Dynamic PIN based on sequence for safety
+            checkoutPin: token.sequenceNo.toString().padStart(4, '0'),
             date: new Date().toLocaleDateString('en-US'),
             timeIn: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', hour12: true}),
             timestamp: Date.now(),
             status: "active",
             signatureUrl: sigBase64, // Base64 Data URL
-            type: mode
+            type: mode,
+            sequenceNo: token.sequenceNo,
+            tokenId: token.tokenId
         };
 
         if (mode === 'contractor') {
             data.contractorId = document.getElementById('contractorId').value;
         }
 
-        const dbPath = mode === 'contractor' ? 'contractor_logs/' : 'visitor_logs/';
+        const dbPath = mode === 'contractor' ? 'contractors/' : 'visitors/';
         console.log(`🏢 ${mode.toUpperCase()} Sign-In: Saving to Firebase Database [${dbPath}]`);
-        await set(ref(db, dbPath + data.id), data);
 
-        // Increment the persistent counter
-        const counterPath = mode === 'contractor' ? 'counters/contractors' : 'counters/visitors';
-        if (window.currentSequenceCount) {
-            await set(ref(db, counterPath), window.currentSequenceCount);
-        }
+        // Save into Permanent Master Node using Token ID
+        await set(ref(db, dbPath + token.tokenId), data);
 
-        localStorage.setItem('vActive', JSON.stringify({id: data.id, name: data.name, timeIn: data.timeIn, keyCollected: data.keyCollected, mode: mode}));
+        // Remove temporary reservation
+        await remove(ref(db, `token_reservations/${token.tokenId}`));
 
+        localStorage.setItem('vActive', JSON.stringify({
+            id: data.id,
+            name: data.name,
+            timeIn: data.timeIn,
+            keyCollected: data.keyCollected,
+            mode: mode,
+            firebaseKey: token.tokenId,
+            keyReturnPin: data.keyReturnPin
+        }));
+
+        window.currentReservedToken = null;
         window.showWhatsAppToast(`🚪 New ${mode === 'contractor' ? 'Contractor' : 'Visitor'} Entry`, `${data.name} has checked in.`);
 
-        if (window.triggerSuccessPopup) window.triggerSuccessPopup("Sign-In Successful! 🏢");
+        if (window.triggerSuccessPopup) window.triggerSuccessPopup(`Sign-In Successful! Assigned Sequence #${token.sequenceNo} 🏢`);
         if (window.checkVisitorSession) window.checkVisitorSession();
 
     } catch (error) {

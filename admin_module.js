@@ -89,7 +89,7 @@ window.refreshDashboardData = async () => {
 
         const [vSnap, cSnap, sSnap, tSnap, aSnap, attSnap, trSnap] = await Promise.all([
             get(ref(db, 'visitors')),
-            get(ref(db, 'contractor_logs')),
+            get(ref(db, 'contractors')),
             get(ref(db, 'staff')),
             get(ref(db, 'tasks')),
             get(ref(db, 'assets')),
@@ -212,11 +212,135 @@ window.autoMigrateLegacyData = async () => {
         }
         if (staffMigrationCount > 0) console.log(`✅ Migrated ${staffMigrationCount} legacy staff profiles to Drive.`);
     }
+
+    // 3. Migrate Legacy Logs (visitor_logs -> visitors, contractor_logs -> contractors)
+    try {
+        const [oldVisSnap, oldConSnap] = await Promise.all([
+            get(ref(db, 'visitor_logs')),
+            get(ref(db, 'contractor_logs'))
+        ]);
+
+        if (oldVisSnap.exists()) {
+            console.log("🚚 Migrating legacy visitor_logs...");
+            const updates = {};
+            Object.entries(oldVisSnap.val()).forEach(([key, val]) => {
+                updates[`visitors/${key}`] = val;
+                updates[`visitor_logs/${key}`] = null;
+            });
+            await update(ref(db), updates);
+            console.log("✅ Visitor migration complete.");
+        }
+
+        if (oldConSnap.exists()) {
+            console.log("🚚 Migrating legacy contractor_logs...");
+            const updates = {};
+            Object.entries(oldConSnap.val()).forEach(([key, val]) => {
+                updates[`contractors/${key}`] = val;
+                updates[`contractor_logs/${key}`] = null;
+            });
+            await update(ref(db), updates);
+            console.log("✅ Contractor migration complete.");
+        }
+    } catch (e) { console.error("Migration Error:", e); }
+};
+
+const getNormalizedDate = (entry) => {
+    let raw = entry.date || '';
+    if (!raw && entry.checkInTime && entry.checkInTime.includes('/')) {
+        const parts = entry.checkInTime.split(' ');
+        if (parts[0].includes('/')) raw = parts[0];
+    }
+    if (!raw && entry.timestamp) {
+        raw = new Date(entry.timestamp).toLocaleDateString('en-US');
+    }
+    if (!raw) return '';
+    // Normalize format to M/D/YYYY by removing leading zeros
+    return raw.split('/').map(p => parseInt(p)).join('/');
+};
+
+/* 1. REALTIME TOP SUMMARY COUNTERS (STAFF & VISITORS) */
+window.initLiveTopCounters = function() {
+
+    // LIVE VISITOR COUNTER
+    const visitorsRef = ref(db, 'visitors');
+    onValue(visitorsRef, (snapshot) => {
+        let totalTodayVisitors = 0;
+        const todayStr = new Date().toLocaleDateString('en-US').split('/').map(p => parseInt(p)).join('/');
+
+        if (snapshot.exists()) {
+            snapshot.forEach((child) => {
+                const data = child.val();
+                if (getNormalizedDate(data) === todayStr) {
+                    totalTodayVisitors++;
+                }
+            });
+        }
+
+        const updateUI = (id, val) => {
+            const el = document.getElementById(id);
+            if (el) el.innerText = val;
+        };
+
+        updateUI('top-counter-visitors', totalTodayVisitors);
+        updateUI('admin-top-visitor-count', totalTodayVisitors);
+        updateUI('summary-visitor-badge', totalTodayVisitors);
+        updateUI('kpi-visitors', totalTodayVisitors);
+    });
+
+    // LIVE STAFF ATTENDANCE COUNTER
+    const staffRef = ref(db, 'staff_attendance');
+    onValue(staffRef, (snapshot) => {
+        let presentStaffCount = 0;
+        const todayStr = new Date().toLocaleDateString('en-US').split('/').map(p => parseInt(p)).join('/');
+
+        if (snapshot.exists()) {
+            snapshot.forEach((child) => {
+                const data = child.val();
+                const status = (data.status || '').toLowerCase();
+                if (getNormalizedDate(data) === todayStr && (status === 'checked_in' || status === 'present')) {
+                    presentStaffCount++;
+                }
+            });
+        }
+
+        const updateUI = (id, val) => {
+            const el = document.getElementById(id);
+            if (el) el.innerText = val;
+        };
+
+        updateUI('top-counter-staff', presentStaffCount);
+        updateUI('admin-top-staff-count', presentStaffCount);
+        updateUI('kpi-staff', presentStaffCount);
+    });
+};
+
+/* 2. FETCH & RENDER ALL VISITOR RECORDS (INCLUDING PAST ONES) IN ADMIN DASHBOARD */
+window.loadAdminVisitorRecords = function() {
+    const tableBody = document.getElementById('visitor-logs-body');
+    if (!tableBody) return;
+
+    const visitorsRef = ref(db, 'visitors');
+    onValue(visitorsRef, (snapshot) => {
+        const visitors = [];
+        if (snapshot.exists()) {
+            snapshot.forEach((child) => {
+                visitors.push({ id: child.key, ...child.val() });
+            });
+        }
+
+        // Use existing render function or user's simple one if preferred.
+        // User wants signatures and details properly.
+        // The existing renderVisitorLogs is quite comprehensive.
+        // I'll ensure it's called with the new data.
+        window.appCache.visitors = visitors;
+        renderVisitorLogs(visitors);
+    });
 };
 
 window.loadAdminDashboard = () => {
     window.refreshDashboardData();
-    window.updateVisitorsTodayCount();
+    window.initLiveTopCounters();
+    window.loadAdminVisitorRecords();
 };
 
 // ================================================
@@ -224,11 +348,16 @@ window.loadAdminDashboard = () => {
 // ================================================
 window.updateAdminKPIs = async () => {
     try {
-        const today = new Date().toLocaleDateString('en-US');
-        const visitorsToday = window.appCache.visitors.filter(v => v.date === today).length;
-        const contractorsToday = window.appCache.contractors.filter(c => c.date === today).length;
+        const todayStr = new Date().toLocaleDateString('en-US').split('/').map(p => parseInt(p)).join('/');
+        const visitorsToday = window.appCache.visitors.filter(v => getNormalizedDate(v) === todayStr).length;
+        const contractorsToday = window.appCache.contractors.filter(c => getNormalizedDate(c) === todayStr).length;
         const activeTasks = window.appCache.tasks.filter(t => t.status === 'Open' || t.status === 'Accepted').length;
-        const staffPresent = window.appCache.attendance.filter(a => a.date === today && a.status === 'checked_in').length;
+
+        const staffPresent = window.appCache.attendance.filter(a => {
+            const status = (a.status || '').toLowerCase();
+            return getNormalizedDate(a) === todayStr && (status === 'checked_in' || status === 'present');
+        }).length;
+
         const urgentAlerts = window.appCache.tasks.filter(t => t.priority === 'High' && t.status !== 'Closed').length;
 
         const stats = {
@@ -360,14 +489,20 @@ window.renderTabFromAppCache = (tabId) => {
 function renderVisitorLogs(visitors) {
     const body = document.getElementById('visitor-logs-body');
     if (!body) return;
-    const data = (visitors || []).sort((a, b) => new Date(b.date + ' ' + b.timeIn) - new Date(a.date + ' ' + a.timeIn));
-    window.adminPaginators.visitors.init(data, (pageItems) => {
+
+    // Filter and sort completed entries
+    const data = (visitors || [])
+        .filter(v => v.status === 'active' || v.status === 'SIGNED OUT')
+        .sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
+
+    window.adminPaginators.visitors.init(data, (pageItems, startIndex) => {
         body.innerHTML = '';
         if (pageItems.length === 0) {
             body.innerHTML = '<tr><td colspan="12" class="p-8 text-center text-gray-400">No records found</td></tr>';
             return;
         }
-        pageItems.forEach(v => {
+        pageItems.forEach((v, index) => {
+            const displaySeq = startIndex + index + 1; // Gapless sequence
             const tr = document.createElement('tr');
             tr.className = "hover:bg-slate-50 transition-colors border-b border-gray-100 text-[10px]";
 
@@ -382,11 +517,11 @@ function renderVisitorLogs(visitors) {
             const isValidSig = sigData && (sigData.startsWith('data:image') || sigData.startsWith('http'));
 
             const signatureTdHTML = isValidSig
-                ? `<img src="${sigData}" class="w-12 h-7 object-contain bg-white rounded border border-slate-600 mx-auto cursor-pointer shadow-sm hover:scale-105 transition-transform" onclick="window.openImageZoom('${sigData}')" alt="Sig">`
+                ? `<img src="${sigData}" class="h-8 w-16 object-contain bg-white rounded border border-slate-600 mx-auto cursor-pointer shadow-sm hover:scale-105 transition-transform" onclick="window.openImageZoom('${sigData}')" alt="Sig">`
                 : `<span class="text-xs text-slate-400 italic">No Sig</span>`;
 
             tr.innerHTML = `
-                <td class="p-4"><span class="px-2 py-1 bg-indigo-50 text-indigo-600 rounded-lg font-bold">VISITOR</span></td>
+                <td class="p-4 font-black text-indigo-900">#${displaySeq}</td>
                 <td class="p-4 font-mono font-bold">${v.id || "-"}</td>
                 <td class="p-4 font-bold text-slate-800">${v.name || "-"}</td>
                 <td class="p-4">${v.mobile || "-"}</td>
@@ -398,11 +533,6 @@ function renderVisitorLogs(visitors) {
                 <td class="p-4"><span class="status-badge ${v.status === 'SIGNED OUT' ? 'closed' : 'open'}">${v.status || "Active"}</span></td>
                 <td class="p-4 text-center">${keyHtml}</td>
                 <td class="p-4 text-center">${signatureTdHTML}</td>
-                <td class="p-4 text-center sticky-action-col">
-                    <button onclick="window.openDetailedAuditModal('visitor', '${v.id}')" class="p-2 text-indigo-300 hover:text-white hover:bg-indigo-600/50 rounded-lg transition-all cursor-pointer">
-                        <i class="fa-solid fa-eye text-base"></i>
-                    </button>
-                </td>
             `;
             body.appendChild(tr);
         });
@@ -412,20 +542,25 @@ function renderVisitorLogs(visitors) {
 function renderContractorLogs(contractors) {
     const body = document.getElementById('contractor-logs-body');
     if (!body) return;
-    const data = (contractors || []).sort((a, b) => new Date(b.date + ' ' + (b.timeIn || '00:00')) - new Date(a.date + ' ' + (a.timeIn || '00:00')));
+
+    // Filter and sort completed entries
+    const data = (contractors || [])
+        .filter(c => c.status === 'active' || c.status === 'SIGNED OUT')
+        .sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
 
     // Ensure we have a paginator for contractors if not already initialized
     if (!window.adminPaginators.contractors) {
         window.adminPaginators.contractors = new TablePaginator('contractor-logs-pagination');
     }
 
-    window.adminPaginators.contractors.init(data, (pageItems) => {
+    window.adminPaginators.contractors.init(data, (pageItems, startIndex) => {
         body.innerHTML = '';
         if (pageItems.length === 0) {
             body.innerHTML = '<tr><td colspan="11" class="p-8 text-center text-gray-400">No contractor records found</td></tr>';
             return;
         }
-        pageItems.forEach(c => {
+        pageItems.forEach((c, index) => {
+            const displaySeq = startIndex + index + 1; // Gapless sequence
             const tr = document.createElement('tr');
             tr.className = "hover:bg-slate-50 transition-colors border-b border-gray-100 text-[10px]";
 
@@ -440,10 +575,11 @@ function renderContractorLogs(contractors) {
             const isValidSig = sigData && (sigData.startsWith('data:image') || sigData.startsWith('http'));
 
             const signatureTdHTML = isValidSig
-                ? `<img src="${sigData}" class="w-12 h-7 object-contain bg-white rounded border border-slate-600 mx-auto cursor-pointer shadow-sm hover:scale-105 transition-transform" onclick="window.openImageZoom('${sigData}')" alt="Sig">`
+                ? `<img src="${sigData}" class="h-8 w-16 object-contain bg-white rounded border border-slate-600 mx-auto cursor-pointer shadow-sm hover:scale-105 transition-transform" onclick="window.openImageZoom('${sigData}')" alt="Sig">`
                 : `<span class="text-xs text-slate-400 italic">No Sig</span>`;
 
             tr.innerHTML = `
+                <td class="p-4 font-black text-indigo-900">#${displaySeq}</td>
                 <td class="p-4 font-mono font-bold text-emerald-600">${c.id || "-"}</td>
                 <td class="p-4 font-bold text-slate-800">${c.name || "-"}</td>
                 <td class="p-4">${c.mobile || "-"}</td>
@@ -456,11 +592,6 @@ function renderContractorLogs(contractors) {
                 <td class="p-4"><span class="status-badge ${c.status === 'SIGNED OUT' ? 'closed' : 'open'}">${c.status || "Active"}</span></td>
                 <td class="p-4 text-center">${keyHtml}</td>
                 <td class="p-4 text-center">${signatureTdHTML}</td>
-                <td class="p-4 text-center sticky-action-col">
-                    <button onclick="window.openDetailedAuditModal('contractor', '${c.id}')" class="p-2 text-indigo-300 hover:text-white hover:bg-indigo-600/50 rounded-lg transition-all cursor-pointer">
-                        <i class="fa-solid fa-eye text-base"></i>
-                    </button>
-                </td>
             `;
             body.appendChild(tr);
         });

@@ -1,8 +1,92 @@
 import { db } from './firebase_config.js';
-import { ref, set, get, update } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+import { ref, set, get, update, runTransaction, push, remove, onValue } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
 // --- VISITOR SYSTEM (v3.5.1 - FIXED) ---
 let vCanvas, vCtx, vDrawing = false;
+
+// Session state for current reserved token
+window.currentReservedToken = null;
+window.tokenTimer = null;
+
+/**
+ * ASSIGN IMMEDIATE UNIQUE TOKEN ON FORM OPEN
+ */
+window.reservePortalToken = async function(mode = 'visitor') {
+    const counterPath = mode === 'contractor' ? 'system_counters/contractor_daily' : 'system_counters/visitor_daily';
+    const counterRef = ref(db, counterPath);
+    const todayStr = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+
+    try {
+        let assignedSeq = 1;
+
+        // Atomic Transaction ensures no two devices get the same integer even in the exact same millisecond
+        await runTransaction(counterRef, (currentData) => {
+            if (currentData && currentData.date === todayStr) {
+                assignedSeq = (currentData.lastSeq || 0) + 1;
+                return { date: todayStr, lastSeq: assignedSeq };
+            } else {
+                // Reset counter for a new day
+                assignedSeq = 1;
+                return { date: todayStr, lastSeq: 1 };
+            }
+        });
+
+        // Reserve temporary token in Firebase
+        const reservationRef = push(ref(db, 'token_reservations'));
+        const tokenId = reservationRef.key;
+
+        const tokenData = {
+            tokenId: tokenId,
+            sequenceNo: assignedSeq,
+            status: 'RESERVED',
+            mode: mode,
+            createdAt: Date.now(),
+            expiresAt: Date.now() + (5 * 60 * 1000) // Expire after 5 minutes
+        };
+
+        await set(reservationRef, tokenData);
+
+        window.currentReservedToken = tokenData;
+
+        // Display Token ID on the screen
+        const badgeEl = document.getElementById('contractor-token-badge');
+        if (badgeEl) badgeEl.innerText = `Token #${assignedSeq}`;
+
+        // Sync ID field with sequence
+        const vId = document.getElementById('v-id');
+        if (vId) {
+            const prefix = mode === 'contractor' ? 'JYS-C' : 'JYS-V';
+            vId.value = prefix + assignedSeq.toString().padStart(3, '0');
+        }
+
+        // Start 5-Minute Auto-Expiry Safeguard
+        startTokenExpiryTimer(tokenId, assignedSeq);
+
+    } catch (err) {
+        console.error("Atomic reservation error:", err);
+    }
+};
+
+/**
+ * AUTO-EXPIRY & QUEUE RE-INDEXING IF ABANDONED
+ */
+function startTokenExpiryTimer(tokenId, seqNo) {
+    if (window.tokenTimer) clearTimeout(window.tokenTimer);
+
+    window.tokenTimer = setTimeout(async () => {
+        if (window.currentReservedToken && window.currentReservedToken.tokenId === tokenId) {
+            console.warn(`Token #${seqNo} expired without signature. Recycling token...`);
+
+            // Remove unsubmitted token
+            await remove(ref(db, `token_reservations/${tokenId}`));
+
+            // Mark token as recycled so queue auto-shifts
+            window.currentReservedToken = null;
+            alert("⏰ Session expired due to inactivity. Please reopen the form.");
+            window.location.reload();
+        }
+    }, 5 * 60 * 1000); // 5 Minutes
+}
 
 // ✅ FIXED: Self-contained compression function
 // Ensures visitor sign-in works even if attendance_module.js hasn't loaded.
@@ -89,7 +173,7 @@ window.checkVisitorSession = () => {
                 window.showGlobalSpinner("Fetching Security PIN...");
                 let liveStoredPin = null;
                 const mode = data.mode || (data.contractorId ? 'contractor' : 'visitor');
-                const dbNode = mode === 'contractor' ? 'contractor_logs' : 'visitor_logs';
+                const dbNode = mode === 'contractor' ? 'contractors' : 'visitors';
                 try {
                     // 1. ALWAYS FORCE A FRESH FIREBASE LOOKUP FOR ALL CHECKOUTS
                     const snap = await get(ref(db, dbNode));
@@ -169,25 +253,13 @@ window.initVisitorForm = async () => {
     const now = new Date();
     const mode = window.portalMode || 'visitor';
 
-    try {
-        const counterPath = mode === 'contractor' ? 'counters/contractors' : 'counters/visitors';
-        const snap = await get(ref(db, counterPath));
-        let count = 1;
-        if (snap.exists()) {
-            count = parseInt(snap.val()) + 1;
-        }
-        const prefix = mode === 'contractor' ? 'JYS-C' : 'JYS-V';
-        vId.value = prefix + count.toString().padStart(3, '0');
-        window.currentSequenceCount = count; // Save for incrementing on save
-    } catch (e) {
-        console.error("ID Generation Error:", e);
-        vId.value = (mode === 'contractor' ? 'JYS-C' : 'JYS-V') + Math.floor(Math.random() * 900 + 100);
-    }
+    // Start Atomic Transaction Reservation
+    await window.reservePortalToken(mode);
 
-    // Force visibility and set date/time
+    // Set date/time
     vDate.value = now.toLocaleDateString('en-US') + " " + now.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', hour12: true});
 
-    // Ensure the fields are not being hidden by CSS inline
+    // Ensure the fields are visible
     vId.parentElement.style.display = "block";
     vDate.parentElement.style.display = "block";
 
