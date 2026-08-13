@@ -55,32 +55,26 @@ self.addEventListener('activate', event => {
 });
 
 // FETCH: Cache-First, Network-Fallback strategy
-// This bypasses SSL Inspection/Firewall issues by serving from local cache first
+// Only intercept local GET requests, bypass external firebase/public wifi gateways
 self.addEventListener('fetch', event => {
-    // Only cache GET requests
-    if (event.request.method !== 'GET') return;
+    if (event.request.method !== 'GET' || !event.request.url.startsWith('file:///')) {
+        return;
+    }
 
     event.respondWith(
         caches.match(event.request).then(cachedResponse => {
             if (cachedResponse) return cachedResponse;
 
-            return fetch(event.request).then(networkResponse => {
-                // Do not cache captive portal redirects (non-ok responses or opaque redirects)
-                if (!networkResponse || networkResponse.status !== 200 || networkResponse.type === 'opaqueredirect') {
-                    return networkResponse;
+            return fetch(event.request).then(response => {
+                if (!response || response.status !== 200 || response.type === 'opaqueredirect') {
+                    return response;
                 }
-
-                // Clone response safely before caching
-                const responseToCache = networkResponse.clone();
-                caches.open(CACHE_NAME).then(cache => {
+                const responseToCache = response.clone();
+                caches.open('v1-app-cache').then(cache => {
                     cache.put(event.request, responseToCache);
                 });
-
-                return networkResponse;
-            }).catch(() => {
-                // Fallback on network fail
-                return caches.match('/index.html');
-            });
+                return response;
+            }).catch(() => caches.match('/index.html'));
         })
     );
 });

@@ -449,7 +449,8 @@ window.renderDashboard = async (staff) => {
     ['userAvatar', 'menuAvatar'].forEach(id => {
         const el = document.getElementById(id);
         if (el) {
-            el.innerHTML = `<img src="${profileImg}" class="w-full h-full object-cover" onerror="this.src='https://ui-avatars.com/api/?name=${staff.name || 'U'}&background=4f46e5&color=fff&size=128'">`;
+            el.innerHTML = `<img src="${profileImg}" class="w-full h-full object-cover" onerror="this.src=window.generateLocalAvatar('${staff.name || 'U'}')">`;
+
             el.classList.add('overflow-hidden');
         }
     });

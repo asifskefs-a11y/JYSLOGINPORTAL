@@ -547,3 +547,21 @@ document.addEventListener('DOMContentLoaded', window.handleLaunchVideo);
 window.addEventListener('load', () => { setTimeout(() => { const o = document.getElementById('launchVideoOverlay'); if(o) o.remove(); }, 5000); });
 
 console.log("✅ ui_module.js loaded (UI & Interface Helpers)");
+
+// Pure JS Avatar Generator - Completely Offline & Wifi-Safe (No external URL call)
+window.generateLocalAvatar = function(name, background = "4f46e5", color = "fff") {
+    if (!name) name = "User";
+    const initials = name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
+
+    // Generates Inline SVG Data URI without hitting any external server
+    const svg = `
+        <svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">
+            <rect width="100%" height="100%" fill="#${background}"/>
+            <text x="50%" y="50%" dominant-baseline="central" text-anchor="middle"
+                  fill="#${color}" font-family="Arial, sans-serif" font-size="50" font-weight="bold">
+                ${initials}
+            </text>
+        </svg>
+    `;
+    return 'data:image/svg+xml;utf8,' + encodeURIComponent(svg);
+}

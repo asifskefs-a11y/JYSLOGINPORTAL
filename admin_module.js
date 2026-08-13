@@ -695,7 +695,7 @@ function renderStaffDirectory(staff) {
             tr.innerHTML = `
                 <td class="p-4 text-center">
                     <div class="w-10 h-10 rounded-full bg-slate-100 border overflow-hidden mx-auto shadow-sm">
-                        <img src="${profileImg}" class="w-full h-full object-cover" onerror="this.src='https://ui-avatars.com/api/?name=${(s.fullName || s.name || 'U').replace(/ /g, '+')}&background=4f46e5&color=fff&size=40'">
+                        <img src="${profileImg}" class="w-full h-full object-cover" onerror="this.src=window.generateLocalAvatar('${s.fullName || s.name || 'U'}')">
                     </div>
                 </td>
                 <td class="p-4 font-black text-indigo-900 uppercase">${s.fullName || s.name || "-"}</td>
@@ -1041,7 +1041,7 @@ window.openEditStaffModal = async (mobile) => {
             <form id="edit-staff-form" class="p-8 space-y-4" onsubmit="event.preventDefault(); event.stopPropagation(); if(window.submitEditStaff) window.submitEditStaff(event, '${mobile}'); return false;">
                 <div class="flex items-center gap-4 p-4 bg-slate-50 border-2 rounded-2xl">
                     <div id="edit-staff-photo-preview" class="w-16 h-16 rounded-full bg-slate-200 overflow-hidden flex-shrink-0 border-2 border-white shadow-sm">
-                        <img src="${profileImg}" class="w-full h-full object-cover" onerror="this.src='https://ui-avatars.com/api/?name=${s.name || 'U'}&background=4f46e5&color=fff&size=64'">
+                        <img src="${profileImg}" class="w-full h-full object-cover" onerror="this.src=window.generateLocalAvatar('${s.fullName || s.name || 'U'}')">
                     </div>
                     <div class="flex-1">
                         <label class="block text-[10px] font-black text-slate-400 uppercase mb-1">Change Profile Photo</label>
@@ -1114,7 +1114,7 @@ window.openStaffDetailsModal = async (mobile) => {
             <div class="p-8 overflow-y-auto flex-1 bg-slate-50">
                 <div class="flex flex-col md:flex-row gap-8 items-start">
                     <div class="w-full md:w-48 flex-shrink-0">
-                        <div class="w-48 h-48 rounded-[32px] overflow-hidden border-4 border-white shadow-xl bg-white mx-auto"><img src="${profileImg}" class="w-full h-full object-cover" onerror="this.src='https://ui-avatars.com/api/?name=${(s.fullName || s.name || 'U').replace(/ /g, '+')}&background=4f46e5&color=fff&size=192'"></div>
+                        <div class="w-48 h-48 rounded-[32px] overflow-hidden border-4 border-white shadow-xl bg-white mx-auto"><img src="${profileImg}" class="w-full h-full object-cover" onerror="this.src=window.generateLocalAvatar('${s.fullName || s.name || 'U'}')"></div>
                     </div>
                     <div class="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div class="bg-white p-4 rounded-2xl border shadow-sm"><label class="text-[9px] font-black text-indigo-400 uppercase tracking-widest block">Full Name</label><p class="text-sm font-black text-indigo-900">${s.fullName || s.name || "-"}</p></div>
@@ -1219,7 +1219,7 @@ window.openStaffProfileModal = async (mobile) => {
                 <div class="p-8 overflow-y-auto flex-1 bg-slate-50">
                     <div class="flex flex-col md:flex-row gap-8 items-start">
                         <div class="w-full md:w-48 flex-shrink-0">
-                            <div class="w-48 h-48 rounded-[32px] overflow-hidden border-4 border-white shadow-xl bg-white mx-auto"><img src="${profileImg}" class="w-full h-full object-cover" onerror="this.src='https://ui-avatars.com/api/?name=${(s.fullName || s.name || 'U').replace(/ /g, '+')}&background=4f46e5&color=fff&size=192'"></div>
+                            <div class="w-48 h-48 rounded-[32px] overflow-hidden border-4 border-white shadow-xl bg-white mx-auto"><img src="${profileImg}" class="w-full h-full object-cover" onerror="this.src=window.generateLocalAvatar('${s.fullName || s.name || 'U'}')"></div>
                         </div>
                         <div class="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-4 text-gray-800">
                             <div class="bg-white p-4 rounded-2xl border shadow-sm"><label class="text-[9px] font-black text-indigo-400 uppercase tracking-widest block">Full Name</label><p class="text-sm font-black text-indigo-900">${s.fullName || s.name || "-"}</p></div>
