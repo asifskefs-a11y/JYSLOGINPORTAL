@@ -65,11 +65,12 @@ self.addEventListener('fetch', event => {
             if (cachedResponse) return cachedResponse;
 
             return fetch(event.request).then(networkResponse => {
-                // Don't cache if not a successful response or external dynamic data
-                if (!networkResponse || networkResponse.status !== 200 || networkResponse.type !== 'basic') {
+                // Do not cache captive portal redirects (non-ok responses or opaque redirects)
+                if (!networkResponse || networkResponse.status !== 200 || networkResponse.type === 'opaqueredirect') {
                     return networkResponse;
                 }
 
+                // Clone response safely before caching
                 const responseToCache = networkResponse.clone();
                 caches.open(CACHE_NAME).then(cache => {
                     cache.put(event.request, responseToCache);
@@ -77,8 +78,8 @@ self.addEventListener('fetch', event => {
 
                 return networkResponse;
             }).catch(() => {
-                // If network fails completely (e.g. guest Wi-Fi portal block)
-                console.warn('⚠️ SW: Network failed, resource not in cache:', event.request.url);
+                // Fallback on network fail
+                return caches.match('/index.html');
             });
         })
     );
