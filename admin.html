@@ -826,7 +826,7 @@
                         <!-- SECTION 3: HISTORY TASKS -->
                         <div id="section-history-tasks" class="task-tab-content hidden bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden p-4">
                             <div class="overflow-x-auto">
-                                <table class="w-full text-left border-collapse">
+                                <table id="task-history-table" class="w-full text-left border-collapse">
                                     <thead>
                                         <tr class="bg-slate-100 text-[11px] font-black uppercase text-indigo-950 border-b border-slate-200">
                                             <th class="p-3">Created Date</th>
@@ -1163,6 +1163,14 @@
                 <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
                     <label class="text-[10px] font-black text-indigo-700 uppercase block mb-1">Issue Description</label>
                     <p id="insp-desc" class="text-xs font-bold text-slate-800 leading-relaxed"></p>
+                </div>
+
+                <!-- PRIVACY-AWARE COMMENT SECTION -->
+                <div id="insp-material-box" class="bg-indigo-50 border-2 border-indigo-200 p-4 rounded-2xl shadow-sm hidden">
+                    <label class="text-[10px] font-black text-indigo-900 uppercase flex items-center gap-1 mb-1">
+                        <i class="fa-solid fa-toolbox text-indigo-600"></i> Material / Action Used:
+                    </label>
+                    <p id="insp-material-text" class="text-xs font-black text-indigo-950"></p>
                 </div>
 
                 <!-- PRIVACY-AWARE COMMENT SECTION -->

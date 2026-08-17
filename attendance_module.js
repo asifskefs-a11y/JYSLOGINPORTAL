@@ -392,20 +392,26 @@ const getFastLocation = () => {
 // DASHBOARD & ATTENDANCE CORE                                       */
 // ================================================================ */
 
-window.renderDashboard = async (staff) => {
-    console.log("📊 renderDashboard: Initializing for", staff.name);
+window.initUserDashboard = async (staff) => {
+    console.log("📊 initUserDashboard: Initializing for", staff.name || staff.fullName);
     window.currentStaff = staff;
+
+    // Safety check for mobile number (prevent undefined errors in Firebase)
+    if (staff.mobile) {
+        localStorage.setItem('loggedStaffMobile', staff.mobile);
+    }
 
     const role = (staff.role || "Staff").toString().trim().toLowerCase();
     const isSecurity = (role === 'security');
-    const isAdmin = (role === 'admin');
+    const isAdmin = (role === 'admin') || (localStorage.getItem('isAdminLoggedIn') === 'true');
 
+    // HIDE AUTH / LOGIN SECTION IF VISIBLE
     const authArea = document.getElementById('staff-auth-area');
     const dashArea = document.getElementById('staff-dash-area');
-
     if (authArea) authArea.classList.add('hidden');
     if (dashArea) dashArea.classList.remove('hidden');
 
+    // RESET ALL SUBVIEWS
     const subViews = [
         'tasks-management-section',
         'asset-audit-section',
@@ -422,39 +428,78 @@ window.renderDashboard = async (staff) => {
         }
     });
 
-    const homeView = document.getElementById('staff-home-view') || document.getElementById('staff-dash-area');
-    if (homeView) homeView.classList.remove('hidden');
-
+    // APPLY ROLE RULES (Side Menu & Restricted Sections)
     if (window.applyRoleDashboardRules) {
         window.applyRoleDashboardRules(role);
         if (role === 'cleaner') window.loadPersonalAttendance(staff.mobile);
         if (role === 'security') window.loadSecurityPinControl();
-        // Force load task stats for dashboard
-        if (window.loadRoleView) window.loadRoleView(staff);
     }
 
-    const nameDisplay = document.getElementById('userNameDisplay');
-    if (nameDisplay) nameDisplay.innerText = staff.fullName || staff.name || "Staff";
+    // FORCE RELOAD TASK STATS & VIEW (Handles counters)
+    if (window.loadRoleView) {
+        console.log("🛡️ Dashboard: Re-connecting Task real-time counters");
+        window.loadRoleView(staff);
+    }
 
-    const idDisplay = document.getElementById('s-dash-id-display');
-    if (idDisplay) idDisplay.innerText = `ID: ${staff.staffId || staff.adekPass || "-"}`;
+    // POPULATE PROFILE CARD DETAILS WITH SAFE FALLBACKS
+    const nameEl = document.getElementById('user-name');
+    if (nameEl) nameEl.innerText = staff.name || staff.fullName || "Staff Member";
 
-    const roleEl = document.getElementById('s-dash-role-display');
-    if (roleEl) roleEl.innerText = staff.role || "Staff";
+    const passIdEl = document.getElementById('user-pass-id');
+    if (passIdEl) passIdEl.innerText = `ID: ${staff.passId || staff.adekPass || staff.adcPassNumber || staff.staffId || "-"}`;
 
-    const branchEl = document.getElementById('userBranchDisplay');
+    const roleBadgeEl = document.getElementById('user-role');
+    if (roleBadgeEl) roleBadgeEl.innerText = staff.role || "Staff";
+
+    const branchEl = document.getElementById('user-branch');
     if (branchEl) branchEl.innerHTML = `<i class="fa-solid fa-location-dot text-indigo-400"></i> ${staff.branch || staff.school || "Jern Yafoor School"}`;
 
-    const profileImg = window.getDirectDriveImageUrl(staff.profilePicUrl);
-    ['userAvatar', 'menuAvatar'].forEach(id => {
-        const el = document.getElementById(id);
-        if (el) {
-            el.innerHTML = `<img src="${profileImg}" class="w-full h-full object-cover" onerror="this.src=window.generateLocalAvatar('${staff.name || 'U'}')">`;
+    // SAFE AVATAR FALLBACK GENERATOR (SVG Data-URI)
+    const initials = (staff.name || staff.fullName || 'U').charAt(0).toUpperCase();
+    const fallbackAvatar = `data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='100' height='100' viewBox='0 0 100 100'><rect width='100%' height='100%' fill='%234F46E5'/><text x='50%' y='55%' dominant-baseline='middle' text-anchor='middle' fill='%23ffffff' font-size='40' font-family='sans-serif' font-weight='bold'>${initials}</text></svg>`;
 
-            el.classList.add('overflow-hidden');
-        }
+    const avatarImg = document.getElementById('user-avatar');
+    if (avatarImg) {
+        avatarImg.src = staff.profilePicUrl ? window.getDirectDriveImageUrl(staff.profilePicUrl) : fallbackAvatar;
+        avatarImg.onerror = () => { avatarImg.src = fallbackAvatar; };
+    }
+
+    // UPDATE STAT COUNTERS FROM FIREBASE TASKS
+    const userRole = (staff.role || '').toLowerCase();
+    const userMobile = (staff.mobile || '').toString();
+    const userName = (staff.name || staff.fullName || '').toLowerCase();
+
+    onValue(ref(db, 'tasks'), (snapshot) => {
+        const tasks = snapshot.val() || {};
+        let total = 0, pending = 0, completed = 0;
+        Object.values(tasks).forEach(task => {
+            if (!task) return;
+
+            // Flexible Role/Ownership Mapping
+            const taskRole = (task.assignedRole || task.category || '').toLowerCase();
+            const taskCreatorMobile = (task.raisedByMobile || '').toString();
+            const taskCreatorName = (task.raisedByName || task.createdBy || '').toLowerCase();
+
+            const isRelevant = isAdmin ||
+                               taskRole.includes(userRole) ||
+                               taskCreatorMobile === userMobile ||
+                               taskCreatorName === userName;
+
+            if (isRelevant) {
+                total++;
+                if (task.status === 'Closed' || task.status === 'Completed' || task.status === 'Rejected') {
+                    completed++;
+                } else {
+                    pending++;
+                }
+            }
+        });
+        if (document.getElementById('total-tasks-count')) document.getElementById('total-tasks-count').innerText = total;
+        if (document.getElementById('pending-tasks-count')) document.getElementById('pending-tasks-count').innerText = pending;
+        if (document.getElementById('completed-tasks-count')) document.getElementById('completed-tasks-count').innerText = completed;
     });
 
+    // RE-INITIALIZE ATTENDANCE LISTENER
     const cinBtn = document.getElementById('s-checkin-btn');
     const coutBtn = document.getElementById('s-checkout-btn');
     const statusText = document.getElementById('attendanceStatusText');
@@ -464,6 +509,7 @@ window.renderDashboard = async (staff) => {
 
     onValue(ref(db, 'active_staff_sessions/' + staff.mobile), async (snapshot) => {
         const session = snapshot.val();
+        console.log("📥 Attendance State Update:", session ? session.status : "No session");
 
         if (session && session.status === 'checked_in') {
             if (cinBtn) cinBtn.classList.add('hidden');
@@ -505,6 +551,9 @@ window.renderDashboard = async (staff) => {
         }
     });
 };
+
+// Maintain alias for backward compatibility
+window.renderDashboard = window.initUserDashboard;
 
 async function proceedCheckIn(staff, sigData, btn, hasKey) {
     console.log("📥 Check-In: Proceeding...");

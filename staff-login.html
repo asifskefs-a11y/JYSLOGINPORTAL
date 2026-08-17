@@ -189,37 +189,39 @@
                         </div>
                     </div>
 
-                    <div class="user-row">
+                    <div class="user-row" id="user-profile-card">
                         <div class="avatar-wrapper">
-                            <div class="avatar" id="userAvatar">?</div>
+                            <div class="avatar h-16 w-16 overflow-hidden" id="user-avatar-container">
+                                <img src="" id="user-avatar" class="w-full h-full object-cover" alt="User">
+                            </div>
                             <div class="avatar-status"></div>
                         </div>
                         <div class="user-details flex-1 min-w-0">
-                            <h3 class="name font-black text-indigo-900 flex flex-wrap items-center gap-2" id="userNameDisplay">Staff User</h3>
-                            <p class="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-0.5" id="s-dash-id-display">ID: -</p>
+                            <h3 class="name font-black text-indigo-900 flex flex-wrap items-center gap-2" id="user-name">Staff Member</h3>
+                            <p class="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-0.5" id="user-pass-id">ID: -</p>
                             <div class="flex flex-wrap items-center gap-2 mt-1.5">
-                                <span class="role-badge" id="s-dash-role-display">Staff</span>
-                                <span class="text-[9px] font-bold text-slate-400 uppercase tracking-tighter flex items-center gap-1" id="userBranchDisplay">
+                                <span class="role-badge" id="user-role">Staff</span>
+                                <span class="text-[9px] font-bold text-slate-400 uppercase tracking-tighter flex items-center gap-1" id="user-branch">
                                     <i class="fa-solid fa-location-dot text-indigo-400"></i>
-                                    School 1
+                                    School Location
                                 </span>
                             </div>
                         </div>
                     </div>
 
-                    <div class="attendance-box">
-                        <div class="flex flex-col">
-                            <p class="label">Attendance Status</p>
-                            <p class="status-text" id="attendanceStatusText">Ready to check in</p>
+                    <div class="mt-4 flex items-center justify-between bg-slate-50 p-3 rounded-2xl border border-slate-200">
+                        <div>
+                            <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Attendance Status</p>
+                            <p id="attendanceStatusText" class="text-xs font-black text-indigo-950">Ready to check in</p>
                         </div>
                         <div id="staff-action-container" class="flex gap-2">
                             <button id="s-dash-create-task-btn" onclick="window.showStaffView('tasks-management-section'); window.switchTaskTab('create')" class="px-5 py-2.5 bg-indigo-600 text-white rounded-xl font-black text-xs shadow-lg active:scale-95 transition-all flex items-center gap-1.5 hidden">
                                 <i class="fa-solid fa-plus-circle"></i> Create Task
                             </button>
-                            <button id="s-checkin-btn" class="px-5 py-2.5 bg-gradient-to-r from-emerald-500 to-emerald-600 text-white rounded-xl font-black text-xs shadow-lg active:scale-95 transition-all flex items-center gap-1.5">
+                            <button id="s-checkin-btn" class="px-5 py-2.5 bg-emerald-600 text-white font-bold text-xs rounded-xl shadow-lg flex items-center gap-2 transition-all active:scale-95">
                                 <i class="fa-regular fa-check-circle"></i> Check In
                             </button>
-                            <button id="s-checkout-btn" class="px-5 py-2.5 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-xl font-black text-xs shadow-lg active:scale-95 transition-all hidden flex items-center gap-1.5">
+                            <button id="s-checkout-btn" class="hidden px-5 py-2.5 bg-rose-600 text-white font-bold text-xs rounded-xl shadow-lg flex items-center gap-2 transition-all active:scale-95">
                                 <i class="fa-regular fa-circle-xmark"></i> Check Out
                             </button>
                         </div>
@@ -265,19 +267,19 @@
                 <div class="stats-grid fade-in">
                     <div class="stat-card stat-total group">
                         <p class="label">Total Tasks</p>
-                        <p class="number" id="statTotal">0</p>
+                        <p class="number" id="total-tasks-count">0</p>
                         <div class="icon-box"><i class="fa-solid fa-list-check"></i></div>
                         <div class="absolute bottom-0 left-0 h-1 bg-indigo-600 w-full"></div>
                     </div>
                     <div class="stat-card stat-pending group">
                         <p class="label">Pending</p>
-                        <p class="number" id="statPending">0</p>
+                        <p class="number" id="pending-tasks-count">0</p>
                         <div class="icon-box"><i class="fa-solid fa-clock-rotate-left"></i></div>
                         <div class="absolute bottom-0 left-0 h-1 bg-amber-500 w-1/2"></div>
                     </div>
                     <div class="stat-card stat-completed group">
                         <p class="label">Completed</p>
-                        <p class="number" id="statCompleted">0</p>
+                        <p class="number" id="completed-tasks-count">0</p>
                         <div class="icon-box"><i class="fa-solid fa-circle-check"></i></div>
                         <div class="absolute bottom-0 left-0 h-1 bg-emerald-500 w-1/3"></div>
                     </div>
@@ -938,6 +940,65 @@
         <div class="bg-white w-full max-w-sm rounded-3xl overflow-hidden p-6 text-gray-800"><h3 class="text-lg font-bold text-red-600 mb-4">Reject Task</h3><textarea id="reject-reason" placeholder="Reason..." class="w-full p-3 border rounded-xl h-24 mb-4"></textarea><div class="flex gap-2"><button onclick="closeRejectModal()" class="flex-1 py-3 border rounded-xl font-bold">Cancel</button><button onclick="submitRejection()" class="flex-1 py-3 bg-red-600 text-white rounded-xl font-bold">Confirm Reject</button></div></div>
     </div>
 
+    <!-- TASK CLOSURE MODAL -->
+    <div id="close-task-modal" class="fixed inset-0 bg-black/90 z-[200100] hidden flex items-center justify-center p-4">
+        <div class="bg-white w-full max-w-sm rounded-3xl overflow-hidden p-8 text-gray-800 shadow-2xl">
+            <div class="text-center mb-6">
+                <div class="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full mx-auto flex items-center justify-center mb-4">
+                    <i class="fa-solid fa-check-double text-2xl"></i>
+                </div>
+                <h3 class="text-xl font-black text-indigo-900 uppercase tracking-tight">Complete Task</h3>
+                <p class="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">Resolution Verification</p>
+            </div>
+
+            <div class="space-y-4">
+                <div class="space-y-1.5">
+                    <label class="text-[10px] font-black text-indigo-400 uppercase tracking-wider ml-1">Material / Action Used *</label>
+                    <select id="task-material-used" onchange="window.toggleMaterialOtherInput(this.value)" class="w-full p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl text-sm font-medium outline-none focus:border-emerald-500">
+                        <option value="">-- Select Material / Action Used * --</option>
+                        <option value="Repaired Existing Item (Repair It)">Repaired Existing Item (Repair It)</option>
+                        <option value="Tarsons">Tarsons</option>
+                        <option value="3M">3M</option>
+                        <option value="Diversey">Diversey</option>
+                        <option value="Others">Others</option>
+                    </select>
+                </div>
+
+                <div id="material-other-container" class="space-y-1.5 hidden">
+                    <label class="text-[10px] font-black text-amber-600 uppercase tracking-wider ml-1">Specify Other Material *</label>
+                    <input type="text" id="task-material-other-text" placeholder="Enter material name..." class="w-full p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl text-sm font-medium outline-none focus:border-amber-500">
+                </div>
+
+                <div class="space-y-1.5">
+                    <label class="text-[10px] font-black text-indigo-400 uppercase tracking-wider ml-1">Resolution Remark *</label>
+                    <textarea id="closure-comment" placeholder="Describe how you fixed it..." class="w-full p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl text-sm font-medium outline-none focus:border-emerald-500 h-32 resize-none"></textarea>
+                </div>
+
+                <!-- Hidden Capture Input (Fully valid hidden element without pointer blocking for best mobile reliability) -->
+                <input type="file" id="task-after-photo-input" accept="image/*" capture="environment"
+                       style="display: block; opacity: 0; width: 1px; height: 1px; position: absolute; left: -9999px;"
+                       onchange="window.handleAfterPhotoCaptured(event)">
+
+                <div id="after-photo-preview-container" class="hidden relative h-40 rounded-2xl overflow-hidden border-2 border-emerald-100 mb-4">
+                    <img id="after-photo-preview" src="" class="w-full h-full object-cover" alt="Proof Photo">
+                    <button type="button" onclick="window.removeAfterPhoto()" class="absolute top-2 right-2 bg-red-500 text-white w-8 h-8 rounded-full shadow-lg flex items-center justify-center"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+
+                <div class="flex flex-col gap-3">
+                    <button id="capture-proof-btn" onclick="document.getElementById('task-after-photo-input').click()" class="w-full py-4 border-2 border-dashed border-emerald-200 rounded-2xl text-emerald-600 font-bold text-xs uppercase flex items-center justify-center gap-2 hover:bg-emerald-50">
+                        <i class="fa-solid fa-camera text-base"></i> Capture Proof Photo *
+                    </button>
+
+                    <button id="final-submit-close-btn" onclick="window.submitTaskClosure()" class="w-full py-5 bg-emerald-600 text-white rounded-2xl font-black text-sm uppercase tracking-widest shadow-xl shadow-emerald-500/20 active:scale-95 transition-all flex items-center justify-center gap-3 mt-2">
+                        <i class="fa-solid fa-camera-retro"></i> Capture Photo & Close
+                    </button>
+
+                    <button onclick="window.closeClosureModal()" class="w-full py-3 text-slate-400 font-black text-[10px] uppercase underline">Cancel</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <div id="imageModal" class="modal"><span class="modal-close" onclick="closeZoomModal()">&times;</span><img id="modalImage" src="" alt="Enlarged View"></div>
 
     <div id="password-modal" class="fixed inset-0 bg-black/90 backdrop-blur-md z-[200003] hidden flex items-center justify-center p-4">
@@ -1050,7 +1111,7 @@
 
                     <!-- Info Badge -->
                     <div class="bg-indigo-900 text-white p-4 rounded-2xl shadow-md flex justify-between items-center">
-                        <div class="space-y-1">
+                        <div class="space-y-1 text-white">
                             <span id="asset-display-id" class="px-2 py-0.5 bg-amber-500 text-slate-950 text-[9px] font-black rounded-md uppercase tracking-widest">AST-0000</span>
                             <h4 id="asset-display-name" class="text-sm font-black truncate max-w-[180px]">Item Name</h4>
                             <p id="asset-display-category" class="text-[10px] font-bold text-indigo-200 uppercase tracking-widest">Category / Type</p>
@@ -1058,35 +1119,23 @@
                         <img id="asset-display-img" class="w-16 h-16 object-cover rounded-xl border border-indigo-400 bg-white shadow-sm" src="" alt="Asset">
                     </div>
 
-                    <!-- EDIT LOCATION FORM CARD -->
-                    <form id="form-asset-update" onsubmit="window.saveAssetLocationUpdate(event)" class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm space-y-3">
+                    <!-- FULL DYNAMIC EDIT FORM (SYNCED TO MASTER REGISTER) -->
+                    <form id="form-asset-update" onsubmit="window.saveAssetLocationUpdate(event)" class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm space-y-4">
                         <input type="hidden" id="edit-asset-doc-id">
 
-                        <div class="space-y-1">
-                            <label class="text-[10px] font-black uppercase text-indigo-900 block tracking-wider">
-                                📍 Update Location / Area / Room <span class="text-red-500">*</span>
-                            </label>
-                            <input type="text" id="edit-asset-location" required placeholder="e.g. Class 12C, Block B" class="w-full px-3 py-2.5 bg-amber-50 border-2 border-amber-300 rounded-xl text-xs font-black text-slate-900 focus:outline-none focus:ring-2 focus:ring-amber-500 transition-all">
+                        <div id="dynamic-edit-fields-container" class="space-y-4 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar text-gray-800">
+                            <!-- Dynamically injected via staff_asset_module.js -->
+                            <div class="flex flex-col items-center justify-center py-8 text-slate-400">
+                                <i class="fa-solid fa-spinner fa-spin fa-2x mb-2"></i>
+                                <p class="text-[10px] font-black uppercase tracking-widest">Generating Form...</p>
+                            </div>
                         </div>
 
-                        <div class="space-y-1">
-                            <label class="text-[10px] font-black uppercase text-slate-700 block tracking-wider">Asset Status</label>
-                            <select id="edit-asset-status" class="w-full px-3 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs font-bold text-slate-900 outline-none focus:border-indigo-600">
-                                <option value="OPERATIONAL">🟢 Operational / Good Condition</option>
-                                <option value="NEEDS_MAINTENANCE">🟡 Needs Maintenance</option>
-                                <option value="DAMAGED">🔴 Damaged / Out of Order</option>
-                                <option value="IN_TRANSIT">🔵 In Transit / Shifting</option>
-                            </select>
+                        <div class="pt-4 border-t">
+                            <button type="submit" id="btn-save-asset" class="w-full py-4 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs uppercase tracking-wider rounded-xl shadow-lg flex items-center justify-center gap-2 transition-all active:scale-[0.98] shadow-emerald-500/20">
+                                <i class="fa-solid fa-cloud-arrow-up text-lg"></i> SAVE & SYNC MASTER REGISTER
+                            </button>
                         </div>
-
-                        <div class="space-y-1">
-                            <label class="text-[10px] font-black uppercase text-slate-700 block tracking-wider">Internal Note</label>
-                            <textarea id="edit-asset-note" rows="2" placeholder="Explain the change (optional)..." class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-bold text-slate-900 outline-none focus:border-indigo-600 resize-none"></textarea>
-                        </div>
-
-                        <button type="submit" id="btn-save-asset" class="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs uppercase tracking-wider rounded-xl shadow-lg flex items-center justify-center gap-2 transition-all active:scale-[0.98] shadow-emerald-500/20">
-                            <i class="fa-solid fa-cloud-arrow-up"></i> Save & Sync to Admin
-                        </button>
                     </form>
                 </div>
             </div>
@@ -1108,6 +1157,10 @@
         };
 
         window.showStaffView = function(viewId) {
+            // Hide the Auth area when showing any dashboard view
+            const authArea = document.getElementById('staff-auth-area');
+            if (authArea) authArea.classList.add('hidden');
+
             const areas = ['staff-dash-area', 'tasks-management-section', 'asset-audit-section', 'asset-disposal-section', 'asset-transfer-section', 'transfer-logs-section'];
             areas.forEach(id => {
                 const el = document.getElementById(id);

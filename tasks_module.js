@@ -2,12 +2,16 @@ import { db, UPLOAD_CONFIG } from './firebase_config.js';
 import { ref, get, update, push, set, onValue } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
 // ================================================
-// TASK MANAGEMENT MODULE
+// TASK MANAGEMENT MODULE (v4.3 - MATERIAL TRACKING)
 // ================================================
 
 let capturedTaskPhotoBase64 = "";
+let capturedAfterPhotoBase64 = "";
+let activeTaskIdForClosure = null;
 let currentTaskTab = 'create'; // 'create', 'active', 'history'
 let taskListenerActive = false;
+
+/* --- PHOTO CAPTURE HANDLERS --- */
 
 window.handleTaskImageCapture = async (e) => {
     const file = e.target.files[0]; if (!file) return;
@@ -18,12 +22,203 @@ window.handleTaskImageCapture = async (e) => {
 
 window.removeTaskPhoto = () => {
     capturedTaskPhotoBase64 = "";
+    const input = document.getElementById('cameraInput');
+    if (input) input.value = "";
     const preview = document.getElementById('taskPhotoPreview');
     if (preview) preview.src = "";
     document.getElementById('taskPhotoPreviewContainer')?.classList.add('hidden');
 };
 
-/* Tab Switcher Function */
+window.handleAfterPhotoCaptured = async (e) => {
+    const file = e.target.files[0]; if (!file) return;
+    window.showGlobalSpinner("Optimizing Proof...");
+    try {
+        capturedAfterPhotoBase64 = await window.compressImageFile(file);
+
+        // UI Feedback: Show preview
+        const preview = document.getElementById('after-photo-preview');
+        const container = document.getElementById('after-photo-preview-container');
+        if (preview && container) {
+            preview.src = capturedAfterPhotoBase64;
+            container.classList.remove('hidden');
+            document.getElementById('capture-proof-btn')?.classList.add('hidden');
+        }
+
+        // AUTO-SUBMIT: If all required fields are entered before the photo, finalize now
+        const comment = document.getElementById('closure-comment').value.trim();
+        const material = document.getElementById('task-material-used')?.value;
+        const otherText = document.getElementById('task-material-other-text')?.value.trim();
+
+        let isMaterialValid = material && (material !== 'Others' || otherText);
+
+        if (comment && isMaterialValid) {
+            console.log("🚀 Photo captured & requirements met. Finalizing closure automatically...");
+            window.executeFinalClosure();
+        }
+    } catch (err) {
+        console.error("Photo process error:", err);
+    } finally {
+        window.hideGlobalSpinner();
+    }
+};
+
+window.removeAfterPhoto = () => {
+    capturedAfterPhotoBase64 = "";
+    const input = document.getElementById('task-after-photo-input');
+    if (input) input.value = "";
+    const preview = document.getElementById('after-photo-preview');
+    if (preview) preview.src = "";
+    document.getElementById('after-photo-preview-container')?.classList.add('hidden');
+    document.getElementById('capture-proof-btn')?.classList.remove('hidden');
+};
+
+/* --- MATERIAL DROPDOWN LOGIC --- */
+
+window.toggleMaterialOtherInput = (value) => {
+    const container = document.getElementById('material-other-container');
+    const otherInput = document.getElementById('task-material-other-text');
+    if (!container) return;
+
+    if (value === 'Others') {
+        container.classList.remove('hidden');
+        if (otherInput) otherInput.focus();
+    } else {
+        container.classList.add('hidden');
+        if (otherInput) otherInput.value = "";
+    }
+};
+
+/* --- TASK ACTIONS (CLOSE / REJECT) --- */
+
+window.closeClosureModal = () => {
+    const modal = document.getElementById('close-task-modal');
+    if (modal) modal.classList.add('hidden');
+    activeTaskIdForClosure = null;
+    window.removeAfterPhoto();
+    document.getElementById('closure-comment').value = "";
+
+    const matSelect = document.getElementById('task-material-used');
+    if (matSelect) matSelect.value = "";
+    window.toggleMaterialOtherInput("");
+};
+
+window.closeTaskAction = async (taskId) => {
+    activeTaskIdForClosure = taskId;
+    const modal = document.getElementById('close-task-modal');
+    if (modal) {
+        modal.classList.remove('hidden');
+        // Reset state for clean start
+        window.removeAfterPhoto();
+        document.getElementById('closure-comment').value = "";
+        const matSelect = document.getElementById('task-material-used');
+        if (matSelect) matSelect.value = "";
+        window.toggleMaterialOtherInput("");
+    }
+};
+
+window.submitTaskClosure = function() {
+    const commentInput = document.getElementById('closure-comment');
+    const comment = commentInput ? commentInput.value.trim() : '';
+    const matSelect = document.getElementById('task-material-used');
+    const material = matSelect ? matSelect.value : '';
+    const otherText = document.getElementById('task-material-other-text')?.value.trim();
+
+    if (!material) {
+        alert("Please select the Material / Action used.");
+        return;
+    }
+    if (material === 'Others' && !otherText) {
+        alert("Please specify the other material used.");
+        return;
+    }
+    if (!comment) {
+        alert("Please enter a resolution remark.");
+        return;
+    }
+
+    if (!capturedAfterPhotoBase64) {
+        // Trigger camera directly from user click event to satisfy browser security
+        console.log("📸 Requirements validated. Opening camera for proof...");
+        const camInput = document.getElementById('task-after-photo-input');
+        if (camInput) {
+            camInput.click();
+        } else {
+            alert("Camera input element missing!");
+        }
+        return;
+    }
+
+    // If photo already exists, finalize
+    window.executeFinalClosure();
+};
+
+window.executeFinalClosure = async () => {
+    const comment = document.getElementById('closure-comment').value.trim();
+    const matSelect = document.getElementById('task-material-used');
+    const material = matSelect ? matSelect.value : '';
+    const otherText = document.getElementById('task-material-other-text')?.value.trim();
+    const taskId = activeTaskIdForClosure;
+
+    if (!taskId || !comment || !capturedAfterPhotoBase64) return;
+
+    let finalMaterial = material === 'Others' ? `Others: ${otherText}` : material;
+
+    window.showGlobalSpinner("Finalizing Closure...");
+    try {
+        const res = await window.uploadToDrive({
+            category: UPLOAD_CONFIG.CATEGORIES.TASK_PHOTOS,
+            fileName: `Task_After_${taskId}_${Date.now()}.jpg`,
+            image: capturedAfterPhotoBase64
+        });
+
+        if (res.status === 'success') {
+            const updateData = {
+                status: 'Closed',
+                afterPhotoUrl: res.fileUrl || "",
+                completionPhoto: res.fileUrl || "",
+                completionComment: comment || "Resolved",
+                materialUsed: finalMaterial || "N/A",
+                solvedByName: window.currentStaff?.fullName || window.currentStaff?.name || "User",
+                solvedTimestamp: Date.now()
+            };
+
+            await update(ref(db, 'tasks/' + taskId), updateData);
+            window.triggerSuccessPopup("Task Completed & Closed! ✅");
+            window.closeClosureModal();
+            window.loadRoleView(window.currentStaff);
+        } else {
+            throw new Error(res.message || "Failed to upload photo");
+        }
+    } catch (err) {
+        alert("Error closing task: " + err.message);
+    } finally {
+        window.hideGlobalSpinner();
+    }
+};
+
+window.rejectTaskAction = async (taskId) => {
+    const reason = prompt("Please enter reason for rejection:");
+    if (!reason) return;
+
+    window.showGlobalSpinner("Rejecting Task...");
+    try {
+        await update(ref(db, 'tasks/' + taskId), {
+            status: 'Rejected',
+            rejectionReason: reason || "No reason provided",
+            solvedByName: window.currentStaff?.fullName || window.currentStaff?.name || "User",
+            solvedTimestamp: Date.now()
+        });
+        window.triggerSuccessPopup("Task Rejected.");
+        window.loadRoleView(window.currentStaff);
+    } catch (e) {
+        alert(e.message);
+    } finally {
+        window.hideGlobalSpinner();
+    }
+};
+
+/* --- TAB NAVIGATION & VIEW LOADING --- */
+
 window.switchTaskTab = function(tabName) {
     currentTaskTab = tabName;
 
@@ -85,16 +280,16 @@ window.handleCreateTaskSubmit = async function(event) {
         const taskId = "TASK-" + Date.now();
         const data = {
             id: taskId,
-            assignedSchool: school,
-            location: area,
-            details,
-            beforePhotoUrl: photoUrl,
+            assignedSchool: school || "N/A",
+            location: area || "N/A",
+            details: details || "No details",
+            beforePhotoUrl: photoUrl || "",
             status: 'Open',
-            assignedRole: targetRole,
+            assignedRole: targetRole || "General",
             assignedStaff: specificStaff || "Any",
             timestamp: Date.now(),
-            raisedByMobile: window.currentStaff?.mobile,
-            raisedByName: window.currentStaff?.fullName || window.currentStaff?.name || "Staff"
+            raisedByMobile: window.currentStaff?.mobile || localStorage.getItem('loggedStaffMobile') || "Unknown",
+            raisedByName: window.currentStaff?.fullName || window.currentStaff?.name || "Staff Member"
         };
 
         await set(ref(db, 'tasks/' + taskId), data);
@@ -113,71 +308,6 @@ window.handleCreateTaskSubmit = async function(event) {
         alert("❌ Failed to create task: " + e.message);
     } finally {
         if (btn) btn.disabled = false;
-        window.hideGlobalSpinner();
-    }
-};
-
-window.closeTaskAction = async (taskId) => {
-    const confirmClose = confirm("Are you sure you want to resolve and close this task?");
-    if (!confirmClose) return;
-
-    const comment = prompt("Please enter a resolution remark / comment (Required):");
-    if (!comment || comment.trim() === "") return alert("A resolution remark is required to close the task.");
-
-    const fileInput = document.createElement('input');
-    fileInput.type = 'file';
-    fileInput.accept = 'image/*';
-    fileInput.setAttribute('capture', 'environment');
-
-    fileInput.onchange = async (e) => {
-        if(!e.target.files[0]) return;
-        window.showGlobalSpinner("Closing Task...");
-        try {
-            const comp = await window.compressImageFile(e.target.files[0]);
-            const res = await window.uploadToDrive({
-                category: UPLOAD_CONFIG.CATEGORIES.TASK_PHOTOS,
-                fileName: `Task_After_${taskId}.jpg`,
-                image: comp
-            });
-
-            if (res.status === 'success') {
-                await update(ref(db, 'tasks/' + taskId), {
-                    status: 'Closed',
-                    afterPhotoUrl: res.fileUrl,
-                    completionPhoto: res.fileUrl,
-                    completionComment: comment.trim(),
-                    solvedByName: window.currentStaff?.fullName || window.currentStaff?.name || "User",
-                    solvedTimestamp: Date.now()
-                });
-                window.triggerSuccessPopup("Task Closed Successfully! ✅");
-                window.loadRoleView(window.currentStaff);
-            }
-        } catch (err) {
-            alert("Error closing task: " + err.message);
-        } finally {
-            window.hideGlobalSpinner();
-        }
-    };
-    fileInput.click();
-};
-
-window.rejectTaskAction = async (taskId) => {
-    const reason = prompt("Please enter reason for rejection:");
-    if (!reason) return;
-
-    window.showGlobalSpinner("Rejecting Task...");
-    try {
-        await update(ref(db, 'tasks/' + taskId), {
-            status: 'Rejected',
-            rejectionReason: reason,
-            solvedByName: window.currentStaff?.fullName || window.currentStaff?.name || "User",
-            solvedTimestamp: Date.now()
-        });
-        window.triggerSuccessPopup("Task Rejected.");
-        window.loadRoleView(window.currentStaff);
-    } catch (e) {
-        alert(e.message);
-    } finally {
         window.hideGlobalSpinner();
     }
 };
@@ -207,7 +337,7 @@ window.renderActiveTasksTable = function(tasks) {
         const loc = task.location || task.areaName || task.roomName || '-';
 
         tr.innerHTML = `
-            <td class="p-3 font-semibold text-slate-800">${createdDate}</td>
+            <td class="p-3 font-bold text-slate-900">${createdDate}</td>
             <td class="p-3 font-black text-slate-900">${creator}</td>
             <td class="p-3 font-bold text-slate-700">${dept}</td>
             <td class="p-3 font-black text-slate-900 bg-slate-100/50 rounded-lg">${loc}</td>
@@ -246,12 +376,12 @@ window.renderHistoryTasksTable = function(tasks) {
         const closedDate = task.solvedTimestamp ? new Date(task.solvedTimestamp).toLocaleString() : (task.closedAt || '-');
 
         tr.innerHTML = `
-            <td class="p-3 font-semibold text-slate-800">${createdDate}</td>
+            <td class="p-3 font-bold text-slate-900">${createdDate}</td>
             <td class="p-3 font-black text-slate-900">${creator}</td>
             <td class="p-3 font-bold text-slate-700">${dept}</td>
             <td class="p-3 font-black text-slate-900 bg-slate-100/50 rounded-lg">${loc}</td>
             <td class="p-3 font-bold text-emerald-700">${closer}</td>
-            <td class="p-3 font-semibold text-slate-800">${closedDate}</td>
+            <td class="p-3 font-bold text-slate-900">${closedDate}</td>
             <td class="p-3 text-center">
                 <button onclick="window.openTaskInspector('${task.id}')" class="px-3 py-1.5 bg-indigo-900 text-white hover:bg-indigo-700 rounded-xl font-black text-xs transition-all flex items-center gap-1 mx-auto">
                     <i class="fa-solid fa-eye"></i> View
@@ -275,6 +405,7 @@ window.openTaskInspector = function(taskId) {
     const closedDate = task.solvedTimestamp ? new Date(task.solvedTimestamp).toLocaleString() : (task.closedAt || '-');
     const desc = task.details || task.description || task.taskDetails || 'No details provided.';
     const remark = task.completionComment || task.rejectionReason || '';
+    const material = task.materialUsed || 'N/A';
 
     document.getElementById('insp-created-by').innerText = `${createdBy}`;
     document.getElementById('insp-created-at').innerText = createdDate;
@@ -283,6 +414,15 @@ window.openTaskInspector = function(taskId) {
     document.getElementById('insp-closed-by').innerText = closedBy ? `${closedBy}` : 'Not Closed Yet';
     document.getElementById('insp-closed-at').innerText = closedDate;
     document.getElementById('insp-desc').innerText = desc;
+
+    // MATERIAL USED DISPLAY
+    const matBox = document.getElementById('insp-material-box');
+    const matText = document.getElementById('insp-material-text');
+    if (matBox && matText) {
+        matText.innerText = material;
+        if (task.status === 'Closed') matBox.classList.remove('hidden');
+        else matBox.classList.add('hidden');
+    }
 
     // PRIVACY-AWARE REMARK VISIBILITY
     const commentBox = document.getElementById('insp-comment-box');
@@ -332,7 +472,6 @@ window.loadRoleView = async (staff) => {
     const role = (staff?.role || "").toLowerCase().trim();
     const isSecurity = role === 'security';
     const isAdmin = role === 'admin' || isActuallyAdmin;
-    const isResolver = role === 'cleaner leader' || role === 'technician' || role === 'housekeeping';
 
     const activeContainer = document.getElementById('tasksContainerActive');
     const historyContainer = document.getElementById('tasksContainerHistory');
@@ -345,7 +484,7 @@ window.loadRoleView = async (staff) => {
     // Show/Hide Create Task Tab for non-authorized users
     const createTabBtn = document.getElementById('tab-btn-create');
     if (createTabBtn) {
-        if (isSecurity || isAdmin) {
+        if (isSecurity) {
             createTabBtn.classList.remove('hidden');
         } else {
             createTabBtn.classList.add('hidden');
@@ -357,7 +496,7 @@ window.loadRoleView = async (staff) => {
     // Toggle Dashboard Create Task Button Visibility
     const dashCreateBtn = document.getElementById('s-dash-create-task-btn');
     if (dashCreateBtn) {
-        if (isSecurity || isAdmin) {
+        if (isSecurity) {
             dashCreateBtn.classList.remove('hidden');
         } else {
             dashCreateBtn.classList.add('hidden');
@@ -392,9 +531,9 @@ window.loadRoleView = async (staff) => {
             const pending = userTasks.filter(t => t.status === 'Open' || t.status === 'Accepted').length;
             const completed = userTasks.filter(t => t.status === 'Closed' || t.status === 'Rejected').length;
 
-            if (document.getElementById('statTotal')) document.getElementById('statTotal').innerText = total;
-            if (document.getElementById('statPending')) document.getElementById('statPending').innerText = pending;
-            if (document.getElementById('statCompleted')) document.getElementById('statCompleted').innerText = completed;
+            if (document.getElementById('total-tasks-count')) document.getElementById('total-tasks-count').innerText = total;
+            if (document.getElementById('pending-tasks-count')) document.getElementById('pending-tasks-count').innerText = pending;
+            if (document.getElementById('completed-tasks-count')) document.getElementById('completed-tasks-count').innerText = completed;
 
             const activeTasks = userTasks.filter(t => t.status === 'Open' || t.status === 'Accepted');
             const historyTasks = userTasks.filter(t => t.status === 'Closed' || t.status === 'Rejected');
@@ -404,6 +543,7 @@ window.loadRoleView = async (staff) => {
             if (historyTbody) window.renderHistoryTasksTable(historyTasks);
 
             // Render Cards (Staff Portal)
+            const isResolver = role === 'cleaner leader' || role === 'technician' || role === 'housekeeping';
             if (activeContainer) renderTasksList(activeTasks, activeContainer, isResolver, 'active');
             if (historyContainer) renderTasksList(historyTasks, historyContainer, isResolver, 'history');
 
@@ -477,6 +617,7 @@ function renderTasksList(tasks, container, isResolver, type) {
 
         const isCreator = t.raisedByMobile === currentUser?.mobile;
         const remark = t.completionComment || t.rejectionReason || '';
+        const material = t.materialUsed || '';
 
         return `
             <div class="task-card bg-white p-5 rounded-[2rem] shadow-xl border border-indigo-50 flex flex-col gap-4 fade-in">
@@ -484,7 +625,7 @@ function renderTasksList(tasks, container, isResolver, type) {
                     <div class="flex-1">
                         <div class="flex items-center gap-2 mb-1">
                             <span class="px-2 py-0.5 rounded text-[8px] font-black text-white uppercase ${statusClass}">${t.status}</span>
-                            <span class="text-[9px] text-slate-400 font-bold uppercase tracking-tighter">${new Date(t.timestamp).toLocaleString()}</span>
+                            <span class="text-[9px] text-slate-900 font-black uppercase tracking-tighter">${new Date(t.timestamp).toLocaleString()}</span>
                         </div>
                         <h4 class="font-black text-indigo-900 uppercase text-sm leading-tight">${t.location}</h4>
                     </div>
@@ -496,6 +637,12 @@ function renderTasksList(tasks, container, isResolver, type) {
                 </div>
 
                 <p class="text-xs text-slate-600 font-medium leading-relaxed">${t.details || t.description || '-'}</p>
+
+                ${material ? `
+                    <div class="bg-indigo-50 border border-indigo-100 p-3 rounded-2xl text-[9px] text-indigo-900 font-black uppercase tracking-wider">
+                        <i class="fa-solid fa-toolbox mr-1 text-indigo-500"></i> Material: ${material}
+                    </div>
+                ` : ''}
 
                 ${(isCreator || isAdmin) && remark ? `
                     <div class="bg-amber-50 border border-amber-200 p-3 rounded-2xl text-[10px] text-amber-950 font-bold italic">
@@ -529,6 +676,4 @@ function renderTasksList(tasks, container, isResolver, type) {
 }
 
 
-console.log("✅ tasks_module.js: Role-Based Logic Restored");
-
-console.log("✅ tasks_module.js loaded (Task Management)");
+console.log("✅ tasks_module.js: v4.3 Clean Architecture Deployed");

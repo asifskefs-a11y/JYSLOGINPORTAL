@@ -151,16 +151,23 @@ window.handleStaffLogin = async (e) => {
                     window.triggerSuccessPopup(`Welcome, ${foundUser.name}! 👋`);
                 }
 
-                // REDIRECT ALL STAFF ROLES TO DASHBOARD (FIX)
-                if (window.showStaffView) {
-                    window.showStaffView('staff-dash-area');
+                // HIDE AUTH AREA & RESET FORM
+                const authArea = document.getElementById('staff-auth-area');
+                const loginForm = document.getElementById('staff-login-form');
+                if (authArea) authArea.classList.add('hidden');
+                if (loginForm) loginForm.reset();
+
+                // INITIALIZE USER DASHBOARD (PROFILE, ATTENDANCE, TASKS)
+                if (window.initUserDashboard) {
+                    console.log("🛡️ Staff Login: Initializing User Dashboard Logic");
+                    window.initUserDashboard(foundUser);
+                } else if (window.renderDashboard) {
+                    window.renderDashboard(foundUser);
                 }
 
-                if (window.renderDashboard) {
-                    console.log("🛡️ Staff Login: Transitioning to Dashboard View");
-                    window.renderDashboard(foundUser);
-                } else {
-                    console.log("🛡️ Staff Login: renderDashboard not found, manual check required.");
+                // SHOW DASHBOARD VIEW
+                if (window.showStaffView) {
+                    window.showStaffView('staff-dash-area');
                 }
             } else {
                 console.warn("❌ Staff Login: No matching credentials found");
@@ -332,12 +339,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 console.log("🛡️ Staff: Active session found, rendering dashboard...");
                 try {
                     const staffData = JSON.parse(loggedStaff);
-                    if (window.renderDashboard) {
+                    if (window.initUserDashboard) {
+                        window.initUserDashboard(staffData);
+                    } else if (window.renderDashboard) {
                         window.renderDashboard(staffData);
                     } else {
                         console.log("⏳ Staff: Waiting for attendance_module.js...");
                         setTimeout(() => {
-                            if (window.renderDashboard) window.renderDashboard(staffData);
+                            if (window.initUserDashboard) window.initUserDashboard(staffData);
+                            else if (window.renderDashboard) window.renderDashboard(staffData);
                             else if (window.checkStaffAuth) window.checkStaffAuth();
                         }, 1000);
                     }
@@ -363,7 +373,17 @@ document.addEventListener('DOMContentLoaded', () => {
             try {
                 localStorage.clear();
                 sessionStorage.clear();
-                safeNavigate('index.html'); // Go back to landing
+
+                // RESET UI FOR STAFF PAGE IF ON IT
+                const authArea = document.getElementById('staff-auth-area');
+                const dashArea = document.getElementById('staff-dash-area');
+                if (authArea) authArea.classList.remove('hidden');
+                if (dashArea) dashArea.classList.add('hidden');
+
+                // Optional: Redirect if not already on landing/login
+                if (!window.location.pathname.includes('staff-login.html')) {
+                    safeNavigate('index.html');
+                }
             } catch (e) { console.error("Logout Error:", e); }
         };
 

@@ -251,18 +251,44 @@ window.hideLoader = window.hideGlobalSpinner;
  */
 window.applyRoleDashboardRules = (userRole) => {
     const role = (userRole || '').toString().trim().toLowerCase();
-    const isSimpleCleaner = (role === 'cleaner');
     const isSecurity = (role === 'security');
     const isAdmin = (role === 'admin');
     const isResolver = (role === 'cleaner leader' || role === 'technician' || role === 'housekeeping');
 
-    console.log(`🛡️ Applying Rules for Role: [${role}] | Restricted: ${isSimpleCleaner}`);
+    console.log(`🛡️ Applying Rules for Role: [${role}]`);
 
-    // Sidebar & Menu Elements (Logic only for hiding restricted menu sections)
+    // Sidebar & Menu Elements
     const restrictedMenuSections = ['menu-asset-section'];
     const cleanerHistorySection = 'cleaner-attendance-section';
 
-    if (isSimpleCleaner) {
+    // 1. Sidebar 'Create Task' Button
+    const createBtn = document.getElementById('menu-create-task-btn');
+    if (createBtn) {
+        if (isSecurity) {
+            createBtn.classList.remove('hidden');
+        } else {
+            createBtn.classList.add('hidden');
+        }
+    }
+
+    // 2. Dashboard 'Create Task' Button
+    const dashCreateBtn = document.getElementById('s-dash-create-task-btn');
+    if (dashCreateBtn) {
+        if (isSecurity) {
+            dashCreateBtn.classList.remove('hidden');
+        } else {
+            dashCreateBtn.classList.add('hidden');
+        }
+    }
+
+    // 3. 'Tasks History' Menu Item
+    const taskBtn = document.getElementById('menu-tasks-btn');
+    if (taskBtn) {
+        // All roles can see task history/center
+        taskBtn.classList.remove('hidden');
+    }
+
+    if (role === 'cleaner') {
         // 🛑 CLEANER ROLE: Hide advanced menu sections and show history
         restrictedMenuSections.forEach(id => {
             const el = document.getElementById(id);
@@ -270,12 +296,6 @@ window.applyRoleDashboardRules = (userRole) => {
         });
         const historyEl = document.getElementById(cleanerHistorySection);
         if (historyEl) historyEl.classList.remove('hidden');
-
-        // Hide all task items for simple cleaner
-        const taskBtn = document.getElementById('menu-tasks-btn');
-        if (taskBtn) taskBtn.classList.add('hidden');
-        const createBtn = document.getElementById('menu-create-task-btn');
-        if (createBtn) createBtn.classList.add('hidden');
     } else {
         // ✅ OTHERS: Show advanced menu sections and hide cleaner history
         restrictedMenuSections.forEach(id => {
@@ -284,25 +304,6 @@ window.applyRoleDashboardRules = (userRole) => {
         });
         const historyEl = document.getElementById(cleanerHistorySection);
         if (historyEl) historyEl.classList.add('hidden');
-
-        // Task Visibility Rules
-        const taskBtn = document.getElementById('menu-tasks-btn');
-        if (taskBtn) taskBtn.classList.remove('hidden');
-
-        const createBtn = document.getElementById('menu-create-task-btn');
-        const dashCreateBtn = document.getElementById('s-dash-create-task-btn');
-
-        if (isSecurity || isAdmin) {
-            if (createBtn) createBtn.classList.remove('hidden');
-            if (dashCreateBtn) dashCreateBtn.classList.remove('hidden');
-        } else {
-            if (createBtn) createBtn.classList.add('hidden');
-            if (dashCreateBtn) dashCreateBtn.classList.add('hidden');
-        }
-    }
-
-    if (role.includes('tech')) {
-        // Renaming in UI if needed, though most is handled by templates
     }
 };
 
