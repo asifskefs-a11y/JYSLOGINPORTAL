@@ -839,6 +839,44 @@ window.saveGoogleDriveConfig = async () => {
 // ================================================
 // BULK DELETE & RECOVERY
 // ================================================
+
+/**
+ * RESTORED: Bulk Clear Asset Register
+ * High-integrity deletion with verification
+ */
+window.confirmAndDeleteAllAssets = async function() {
+    const confirmFirst = confirm("⚠️ WARNING: Are you sure you want to DELETE ALL ASSETS from the database? This action CANNOT be undone!");
+    if (!confirmFirst) return;
+
+    const verification = prompt("To confirm bulk deletion of all 6,000+ assets, type 'DELETE ALL' below:");
+    if (verification !== "DELETE ALL") {
+        alert("❌ Deletion canceled. Verification word did not match.");
+        return;
+    }
+
+    window.showGlobalSpinner("Clearing entire asset database...");
+
+    try {
+        // Single batch remove for instantaneous Firebase clearing
+        await set(ref(db, 'assets'), null);
+
+        window.appCache.assets = [];
+        window.selectedAssetKeys.clear();
+
+        alert("✅ All assets have been successfully deleted from the register.");
+
+        // Refresh local UI
+        if (window.renderTabFromAppCache) window.renderTabFromAppCache('tab-assets');
+        if (window.updateAdminKPIs) window.updateAdminKPIs();
+
+    } catch (err) {
+        console.error("Bulk delete error:", err);
+        alert("❌ Failed to clear assets: " + err.message);
+    } finally {
+        window.hideGlobalSpinner();
+    }
+};
+
 window.bulkDeleteAssets = async () => {
     const selectedCount = window.selectedAssetKeys.size;
     if (selectedCount === 0) return alert("Please select assets to delete.");

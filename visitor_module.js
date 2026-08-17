@@ -228,6 +228,10 @@ window.checkVisitorSession = () => {
                         status: 'SIGNED OUT',
                         keyReturned: 'YES'
                     });
+
+                    // REMOVE FROM SECURITY KEY CONTROL (RESTORED)
+                    await remove(ref(db, `security_key_control/${data.mobile || data.id}`));
+
                     localStorage.removeItem('vActive');
                     window.triggerSuccessPopup("Signed Out Successfully! 👋");
                     window.checkVisitorSession();

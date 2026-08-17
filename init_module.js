@@ -1,5 +1,12 @@
 import { db, UPLOAD_CONFIG } from './firebase_config.js';
-import { ref, set, get, child } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+import {
+    ref,
+    set,
+    get,
+    push,
+    remove,
+    child
+} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 import { registerPushNotifications } from './fcm_module.js';
 
 console.log("📦 init_module.js: Starting to load...");
@@ -253,6 +260,18 @@ window.handleVisitorSignIn = async (e) => {
 
         // Save into Permanent Master Node using Token ID
         await set(ref(db, dbPath + token.tokenId), data);
+
+        // SYNC TO SECURITY KEY CONTROL (RESTORED)
+        if (data.keyCollected === 'YES') {
+            await set(ref(db, `security_key_control/${data.mobile || data.id}`), {
+                name: data.name,
+                id: data.id,
+                type: mode.toUpperCase(),
+                pin: data.keyReturnPin,
+                status: 'HELD',
+                timestamp: Date.now()
+            });
+        }
 
         // Remove temporary reservation
         await remove(ref(db, `token_reservations/${token.tokenId}`));

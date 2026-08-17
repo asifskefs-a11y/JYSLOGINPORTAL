@@ -226,7 +226,7 @@ window.switchTaskTab = function(tabName) {
     document.querySelectorAll('.task-tab-content').forEach(el => el.classList.add('hidden'));
 
     // Reset button styles
-    const buttons = ['create', 'active', 'history'];
+    const buttons = ['create-task', 'active', 'history'];
     buttons.forEach(b => {
         const btn = document.getElementById(`tab-btn-${b}`);
         if (btn) {
@@ -235,7 +235,8 @@ window.switchTaskTab = function(tabName) {
     });
 
     // Activate selected tab & button
-    const activeBtn = document.getElementById(`tab-btn-${tabName}`);
+    const activeBtnId = tabName === 'create' ? 'tab-btn-create-task' : `tab-btn-${tabName}`;
+    const activeBtn = document.getElementById(activeBtnId);
     if (activeBtn) {
         activeBtn.className = "flex-1 sm:flex-none px-5 py-2.5 rounded-xl font-black text-[10px] uppercase transition-all bg-indigo-600 text-white shadow-md";
     }
@@ -481,15 +482,21 @@ window.loadRoleView = async (staff) => {
     // Check if either card containers or table bodies exist
     if (!activeContainer && !historyContainer && !activeTbody && !historyTbody) return;
 
-    // Show/Hide Create Task Tab for non-authorized users
-    const createTabBtn = document.getElementById('tab-btn-create');
+    // --- STRICT ROLE-BASED TAB VISIBILITY ---
+    const createTabBtn = document.getElementById('tab-btn-create-task');
     if (createTabBtn) {
         if (isSecurity) {
             createTabBtn.classList.remove('hidden');
+            createTabBtn.style.display = 'inline-flex';
         } else {
             createTabBtn.classList.add('hidden');
-            // If they are on 'create' tab but not authorized, force to 'active'
-            if (currentTaskTab === 'create') window.switchTaskTab('active');
+            createTabBtn.style.display = 'none';
+
+            // DEFAULT VIEW: If on 'create' but unauthorized, jump to 'active'
+            if (currentTaskTab === 'create') {
+                console.log("🔒 Access Restricted: Switching unauthorized user to Active Tasks view.");
+                window.switchTaskTab('active');
+            }
         }
     }
 

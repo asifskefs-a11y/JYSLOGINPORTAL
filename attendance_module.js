@@ -411,7 +411,7 @@ window.initUserDashboard = async (staff) => {
     if (authArea) authArea.classList.add('hidden');
     if (dashArea) dashArea.classList.remove('hidden');
 
-    // RESET ALL SUBVIEWS
+    // RESET SUBVIEWS (Role-Specific)
     const subViews = [
         'tasks-management-section',
         'asset-audit-section',
@@ -420,11 +420,33 @@ window.initUserDashboard = async (staff) => {
         'transfer-logs-section',
         'security-pin-control'
     ];
+
     subViews.forEach(id => {
         const el = document.getElementById(id);
         if (el) {
+            // RESTORATION EXCEPTION: Don't hide core Security Dashboard features if the user is Security
+            if (isSecurity && (id === 'security-pin-control' || id === 'tasks-management-section')) return;
+
             el.classList.add('hidden');
             el.style.display = 'none';
+        }
+    });
+
+    // --- ENSURE PRIMARY DASHBOARD COMPONENTS ARE VISIBLE ---
+    const primaryComponents = [
+        'user-profile-card',
+        'security-profile-card',
+        'active-staff-grid',
+        'visitor-log-section',
+        'tasks-summary-card',
+        'attendance-controls',
+        'staff-action-container'
+    ];
+    primaryComponents.forEach(id => {
+        const el = document.getElementById(id) || document.querySelector(`.${id}`);
+        if (el) {
+            el.classList.remove('hidden');
+            el.style.display = ''; // Restore default (flex/block)
         }
     });
 
@@ -468,6 +490,12 @@ window.initUserDashboard = async (staff) => {
     const userRole = (staff.role || '').toLowerCase();
     const userMobile = (staff.mobile || '').toString();
     const userName = (staff.name || staff.fullName || '').toLowerCase();
+
+    // Security Dashboard Label Update
+    const taskOverviewLabel = document.querySelector('#tasks-summary-card .stat-completed .label');
+    if (isSecurity && taskOverviewLabel) {
+        taskOverviewLabel.innerText = "Task Overview";
+    }
 
     onValue(ref(db, 'tasks'), (snapshot) => {
         const tasks = snapshot.val() || {};
@@ -533,14 +561,27 @@ window.initUserDashboard = async (staff) => {
             if (cinBtn) {
                 cinBtn.classList.remove('hidden');
                 cinBtn.onclick = () => {
+                    // Step 1: Security Password
                     window.openPasswordModal("Check-In Security", () => {
+                        // Step 2: Signature Modal
                         window.openSignatureModal("Staff Check-In", async (sigData) => {
-                            if (!isSecurity && !isAdmin) {
-                                window.openKeyCollectionModal(async (hasKey) => {
-                                    await proceedCheckIn(staff, sigData, cinBtn, hasKey);
-                                });
+                            const role = (staff.role || '').toLowerCase();
+                            const isSecurityOrAdmin = (role === 'security' || role === 'admin');
+
+                            // Step 3: Trigger Key Collection Modal for Non-Security Staff
+                            if (!isSecurityOrAdmin) {
+                                if (typeof window.openKeyCollectionModal === 'function') {
+                                    window.openKeyCollectionModal(async (hasKey, keyCode) => {
+                                        await proceedCheckIn(staff, sigData, cinBtn, hasKey, keyCode);
+                                    });
+                                } else {
+                                    // Fallback prompt if modal function is unavailable
+                                    const hasKey = confirm("Did you collect a key for this shift?");
+                                    const keyCode = hasKey ? prompt("Enter Key Code/ID:") : null;
+                                    await proceedCheckIn(staff, sigData, cinBtn, hasKey, keyCode);
+                                }
                             } else {
-                                await proceedCheckIn(staff, sigData, cinBtn, false);
+                                await proceedCheckIn(staff, sigData, cinBtn, false, null);
                             }
                         });
                     });
@@ -555,7 +596,7 @@ window.initUserDashboard = async (staff) => {
 // Maintain alias for backward compatibility
 window.renderDashboard = window.initUserDashboard;
 
-async function proceedCheckIn(staff, sigData, btn, hasKey) {
+async function proceedCheckIn(staff, sigData, btn, hasKey, keyCode = null) {
     console.log("📥 Check-In: Proceeding...");
     btn.disabled = true;
     btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Processing...';
@@ -591,6 +632,7 @@ async function proceedCheckIn(staff, sigData, btn, hasKey) {
             lat: loc.lat,
             lng: loc.lng,
             keyStatus: hasKey ? "HELD" : "NONE",
+            keyCode: keyCode || "N/A",
             keyCollectTime: hasKey ? Date.now() : null,
             keyReturnPin: pin,
             companyName: staff.companyName || "N/A",
@@ -600,6 +642,19 @@ async function proceedCheckIn(staff, sigData, btn, hasKey) {
 
         // FORCE REST FALLBACK IF NEEDED
         const dbStatus = await safeFirebaseWrite('set', 'staff_attendance/' + key, data);
+
+        // SYNC TO SECURITY KEY CONTROL (RESTORED)
+        if (hasKey) {
+            await safeFirebaseWrite('set', 'security_key_control/' + staff.mobile, {
+                name: data.name,
+                mobile: data.mobile,
+                role: data.role,
+                pin: pin,
+                status: 'HELD',
+                timestamp: Date.now()
+            });
+        }
+
         await safeFirebaseWrite('set', 'active_staff_sessions/' + staff.mobile, {
             status: 'checked_in', key, timeIn: data.timeIn, keyStatus: data.keyStatus, keyReturnPin: pin, mobile: staff.mobile
         });
@@ -643,6 +698,12 @@ async function proceedCheckOut(staff, session, btn, keyReturned) {
         }
 
         const dbStatus = await safeFirebaseWrite('update', 'staff_attendance/' + (session?.key || ""), data);
+
+        // UPDATE SECURITY KEY CONTROL (RESTORED)
+        if (keyReturned) {
+            await safeFirebaseWrite('set', 'security_key_control/' + staff.mobile, null);
+        }
+
         await safeFirebaseWrite('set', 'active_staff_sessions/' + staff.mobile, null);
 
         if (window.triggerSuccessPopup) {
@@ -714,9 +775,8 @@ window.loadSecurityPinControl = () => {
     const role = (window.currentStaff?.role || "").toString().trim().toLowerCase();
     const container = document.getElementById('security-pin-control');
     const body = document.getElementById('security-pin-list-body');
-    const head = container ? container.querySelector('thead') : null;
 
-    if (role !== 'security') {
+    if (role !== 'security' && (localStorage.getItem('isAdminLoggedIn') !== 'true')) {
         if (container) {
             container.classList.add('hidden');
             container.style.display = 'none';
@@ -727,19 +787,6 @@ window.loadSecurityPinControl = () => {
     if (container) {
         container.classList.remove('hidden');
         container.style.display = 'block';
-    }
-
-    if (head) {
-        head.innerHTML = `
-            <thead class="bg-indigo-950/70 text-indigo-300 font-extrabold uppercase text-[10px] tracking-wider">
-                <tr>
-                    <th class="p-3 text-left">Visitor / Contractor / Staff</th>
-                    <th class="p-3 text-left">Category & Details</th>
-                    <th class="p-3 text-left">Key Details</th>
-                    <th class="p-3 text-center">Checkout PIN</th>
-                </tr>
-            </thead>
-        `;
     }
 
     if (!body) return;
@@ -760,124 +807,104 @@ window.loadSecurityPinControl = () => {
 
             let rows = [];
 
-            const syncLocalVActive = (id, pin) => {
-                const local = localStorage.getItem('vActive');
-                if (local) {
-                    try {
-                        const data = JSON.parse(local);
-                        if (data.id === id) {
-                            data.keyReturnPin = pin;
-                            data.checkoutPin = pin;
-                            localStorage.setItem('vActive', JSON.stringify(data));
-                        }
-                    } catch(e) {}
-                }
-            };
-
             // 1. Process Staff
             if (staffSnap.exists()) {
-                for (const [key, s] of Object.entries(staffSnap.val())) {
+                Object.entries(staffSnap.val()).forEach(([key, s]) => {
                     if (s.status === 'checked_in' && s.keyStatus === 'HELD') {
-                        if (!s.keyReturnPin) {
-                            const newPin = Math.floor(1000 + Math.random() * 9000).toString();
-                            await update(ref(db, `staff_attendance/${key}`), {
-                                keyReturnPin: newPin,
-                                checkoutPin: newPin
-                            });
-                            s.keyReturnPin = newPin;
-                        }
                         rows.push({
                             name: s.name,
                             id: s.adekPass || s.mobile,
                             type: 'STAFF',
-                            info: s.companyName || 'Staff',
-                            pin: s.keyReturnPin,
-                            key: 'School Master Key'
+                            info: s.companyName || 'Staff Member',
+                            pin: s.keyReturnPin || '0000',
+                            key: 'School Master Key',
+                            signature: s.signatureUrl,
+                            fullData: s,
+                            firebaseKey: key,
+                            dataType: 'staff'
                         });
                     }
-                }
+                });
             }
 
             // 2. Process Visitors
             if (visSnap.exists()) {
-                for (const [key, v] of Object.entries(visSnap.val())) {
-                    if (v.status === 'active' && v.keyCollected === 'YES') {
-                        if (!v.keyReturnPin) {
-                            const newPin = Math.floor(1000 + Math.random() * 9000).toString();
-                            await update(ref(db, `visitors/${key}`), {
-                                keyReturnPin: newPin,
-                                checkoutPin: newPin
-                            });
-                            v.keyReturnPin = newPin;
-                            syncLocalVActive(v.id, newPin);
-                        }
+                Object.entries(visSnap.val()).forEach(([key, v]) => {
+                    if (v.status === 'active' && (v.keyCollected === 'YES' || v.keyCollected === true)) {
                         rows.push({
                             name: v.name,
                             id: v.id,
                             type: 'VISITOR',
                             info: v.company || v.purpose,
-                            pin: v.keyReturnPin,
-                            key: 'Visitor Badge'
+                            pin: v.keyReturnPin || v.checkoutPin || '0000',
+                            key: 'Visitor Badge',
+                            signature: v.signatureUrl,
+                            fullData: v,
+                            firebaseKey: key,
+                            dataType: 'visitor'
                         });
                     }
-                }
+                });
             }
 
             // 3. Process Contractors
             if (conSnap.exists()) {
-                for (const [key, c] of Object.entries(conSnap.val())) {
-                    if (c.status === 'active' && c.keyCollected === 'YES') {
-                        if (!c.keyReturnPin) {
-                            const newPin = Math.floor(1000 + Math.random() * 9000).toString();
-                            await update(ref(db, `contractors/${key}`), {
-                                keyReturnPin: newPin,
-                                checkoutPin: newPin
-                            });
-                            c.keyReturnPin = newPin;
-                            syncLocalVActive(c.id, newPin);
-                        }
+                Object.entries(conSnap.val()).forEach(([key, c]) => {
+                    if (c.status === 'active' && (c.keyCollected === 'YES' || c.keyCollected === true)) {
                         rows.push({
                             name: c.name,
                             id: c.id,
                             type: 'CONTRACTOR',
                             info: `${c.company || ''} (${c.contractorId || ''})`,
-                            pin: c.keyReturnPin,
-                            key: 'Service Key'
+                            pin: c.keyReturnPin || c.checkoutPin || '0000',
+                            key: 'Service Key',
+                            signature: c.signatureUrl,
+                            fullData: c,
+                            firebaseKey: key,
+                            dataType: 'contractor'
                         });
                     }
-                }
+                });
             }
 
             if (rows.length === 0) {
-                body.innerHTML = '<tr><td colspan="4" class="p-8 text-center text-slate-500 font-bold uppercase tracking-widest">No active keys issued.</td></tr>';
+                body.innerHTML = '<tr><td colspan="6" class="p-8 text-center text-slate-500 font-black uppercase tracking-widest">No active keys issued.</td></tr>';
                 return;
             }
 
-            body.innerHTML = rows.map(r => `
-                <tr class="hover:bg-white/5 border-b border-white/5 transition-colors">
-                    <td class="p-3 align-middle">
-                        <div class="font-black text-white text-sm uppercase tracking-wide">${r.name}</div>
-                        <div class="text-[10px] text-indigo-400 font-mono font-bold">ID: ${r.id}</div>
-                    </td>
-                    <td class="p-3 align-middle">
-                        <span class="inline-block px-2 py-0.5 rounded text-[9px] font-black uppercase mb-1 ${r.type === 'STAFF' ? 'bg-indigo-500/20 text-indigo-400' : r.type === 'VISITOR' ? 'bg-amber-500/20 text-amber-400' : 'bg-emerald-500/20 text-emerald-400'}">${r.type}</span>
-                        <div class="text-[10px] text-slate-300 font-medium truncate max-w-[150px]">${r.info}</div>
-                    </td>
-                    <td class="p-3 align-middle">
-                        <div class="text-[10px] text-amber-400 font-bold flex items-center gap-1">
-                            <i class="fa-solid fa-key text-[9px]"></i> ${r.key}
-                        </div>
-                    </td>
-                    <td class="p-3 text-center align-middle">
-                        <div class="inline-flex flex-col items-center">
-                            <span class="px-3 py-1.5 bg-emerald-500 text-white rounded-xl font-black text-xs shadow-md tracking-widest">
-                                🔑 PIN: ${r.pin}
-                            </span>
-                            <span class="text-[7px] text-emerald-400 font-bold uppercase mt-0.5">Required for Exit</span>
-                        </div>
-                    </td>
-                </tr>
-            `).join('');
+            body.innerHTML = rows.map(r => {
+                const sigHTML = (r.signature && r.signature.length > 30)
+                    ? `<img src="${r.signature}" class="h-8 w-14 object-contain bg-white rounded border border-slate-600 mx-auto cursor-pointer shadow-sm hover:scale-110 transition-all" onclick="window.openImageZoom('${r.signature}')" alt="Sig">`
+                    : `<span class="text-[8px] text-slate-500 italic">No Sig</span>`;
+
+                const typeColor = r.type === 'STAFF' ? 'bg-indigo-500/20 text-indigo-400' : r.type === 'VISITOR' ? 'bg-amber-500/20 text-amber-400' : 'bg-emerald-500/20 text-emerald-400';
+
+                return `
+                    <tr class="hover:bg-white/5 border-b border-white/5 transition-colors">
+                        <td class="p-4 align-middle font-black text-white uppercase text-xs">${r.name}</td>
+                        <td class="p-4 align-middle">
+                            <span class="inline-block px-2 py-0.5 rounded text-[8px] font-black uppercase ${typeColor}">${r.type}</span>
+                        </td>
+                        <td class="p-4 align-middle font-mono font-bold text-slate-400 text-xs">${r.id}</td>
+                        <td class="p-4 text-center align-middle">
+                            <div class="flex flex-col items-center">
+                                <span class="text-amber-500 font-bold text-[9px] flex items-center gap-1 mb-1">
+                                    <i class="fa-solid fa-key"></i> ${r.key}
+                                </span>
+                                <span class="px-2 py-1 bg-emerald-500 text-white rounded-lg font-black text-[10px] tracking-widest shadow-lg shadow-emerald-500/20">
+                                    PIN: ${r.pin}
+                                </span>
+                            </div>
+                        </td>
+                        <td class="p-4 text-center align-middle">${sigHTML}</td>
+                        <td class="p-4 text-center align-middle">
+                            <button onclick="window.openDetailedAuditModal('${r.dataType}', '${r.firebaseKey}')" class="w-10 h-10 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg active:scale-95 transition-all flex items-center justify-center mx-auto">
+                                <i class="fa-solid fa-eye text-sm"></i>
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
         } catch (e) {
             console.error("Error loading PIN control:", e);
         }

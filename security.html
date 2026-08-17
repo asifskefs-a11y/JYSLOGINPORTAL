@@ -92,9 +92,61 @@
             </div>
         </div>
 
+        <!-- RESTORED PROFESSIONAL PROFILE CARD -->
+        <div class="profile-card fade-in" id="security-profile-card">
+            <div class="school-header">
+                <div>
+                    <h1 class="font-black text-indigo-900 leading-tight uppercase flex items-center gap-2">
+                        <i class="fa-solid fa-school text-indigo-500 text-sm"></i>
+                        JERN YAFOOR SCHOOL
+                    </h1>
+                    <p class="text-[10px] font-black text-indigo-400 mt-0.5 tracking-wider uppercase">مدرسة جيرن يافور</p>
+                </div>
+                <div class="flex items-center gap-2">
+                    <span class="w-2 h-2 bg-emerald-400 rounded-full animate-pulse"></span>
+                    <span class="text-[9px] font-bold text-emerald-500 uppercase">Active</span>
+                </div>
+            </div>
+
+            <div class="user-row" id="user-profile-card">
+                <div class="avatar-wrapper">
+                    <div class="avatar h-16 w-16 overflow-hidden" id="user-avatar-container">
+                        <img src="" id="user-avatar" class="w-full h-full object-cover" alt="User">
+                    </div>
+                    <div class="avatar-status"></div>
+                </div>
+                <div class="user-details flex-1 min-w-0">
+                    <h3 class="name font-black text-indigo-900 flex flex-wrap items-center gap-2" id="user-name">Staff Member</h3>
+                    <p class="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-0.5" id="user-pass-id">ID: -</p>
+                    <div class="flex flex-wrap items-center gap-2 mt-1.5">
+                        <span class="role-badge" id="user-role">Security</span>
+                        <span class="text-[9px] font-bold text-slate-400 uppercase tracking-tighter flex items-center gap-1" id="user-branch">
+                            <i class="fa-solid fa-location-dot text-indigo-400"></i>
+                            School Location
+                        </span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="mt-4 flex items-center justify-between bg-slate-50 p-3 rounded-2xl border border-slate-200" id="attendance-controls">
+                <div>
+                    <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Security Shift Status</p>
+                    <p id="attendanceStatusText" class="text-xs font-black text-indigo-950">Active on Duty</p>
+                </div>
+                <div id="staff-action-container" class="flex gap-2">
+                    <button id="s-checkin-btn" class="hidden px-5 py-2.5 bg-emerald-600 text-white font-bold text-xs rounded-xl shadow-lg flex items-center gap-2 transition-all active:scale-95">
+                        <i class="fa-regular fa-check-circle"></i> Check In
+                    </button>
+                    <button id="s-checkout-btn" class="hidden px-5 py-2.5 bg-rose-600 text-white font-bold text-xs rounded-xl shadow-lg flex items-center gap-2 transition-all active:scale-95">
+                        <i class="fa-regular fa-circle-xmark"></i> Check Out
+                    </button>
+                </div>
+            </div>
+        </div>
+
         <!-- STATS GRID -->
-        <div class="grid grid-cols-2 gap-4 mb-6">
-            <div class="bg-white p-5 rounded-3xl shadow-xl border border-indigo-50 text-center">
+        <div class="grid grid-cols-2 gap-4 mb-6" id="tasks-summary-card">
+            <div class="bg-white p-5 rounded-3xl shadow-xl border border-indigo-50 text-center" id="visitor-log-section">
                 <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Visitors Today</p>
                 <p class="text-3xl font-black text-indigo-900" id="top-counter-visitors">0</p>
                 <div class="mt-2 flex items-center justify-center gap-1">
@@ -102,7 +154,7 @@
                     <span class="text-[8px] font-bold text-emerald-500 uppercase">Live Sync</span>
                 </div>
             </div>
-            <div class="bg-white p-5 rounded-3xl shadow-xl border border-indigo-50 text-center">
+            <div class="bg-white p-5 rounded-3xl shadow-xl border border-indigo-50 text-center" id="active-staff-grid">
                 <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Staff Present</p>
                 <p class="text-3xl font-black text-indigo-900" id="top-counter-staff">0</p>
                 <div class="mt-2 flex items-center justify-center gap-1">
@@ -124,10 +176,12 @@
                     <table class="w-full text-left text-[10px]">
                         <thead class="bg-indigo-950/70 text-indigo-300 font-extrabold uppercase text-[10px] tracking-wider">
                             <tr>
-                                <th class="p-3 text-left">Visitor / Contractor / Staff</th>
-                                <th class="p-3 text-left">Category & Details</th>
-                                <th class="p-3 text-left">Key Details</th>
-                                <th class="p-3 text-center">Checkout PIN</th>
+                                <th class="p-3 text-left">Name</th>
+                                <th class="p-3 text-left">Type</th>
+                                <th class="p-3 text-left">Pass / ID</th>
+                                <th class="p-3 text-center">Key Status / PIN</th>
+                                <th class="p-3 text-center">Signature</th>
+                                <th class="p-3 text-center">Action</th>
                             </tr>
                         </thead>
                         <tbody id="security-pin-list-body" class="divide-y divide-white/5 text-slate-300">

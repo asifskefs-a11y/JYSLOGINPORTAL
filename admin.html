@@ -924,6 +924,9 @@
                                     </button>
                                     <button onclick="window.bulkDeleteAssets()" class="px-4 py-2 bg-red-500 text-white rounded-xl text-[9px] font-black uppercase shadow-lg">Bulk Delete</button>
                                     <button onclick="window.downloadMasterAssetReport()" class="px-4 py-2 bg-cyan-600 text-white rounded-xl text-[9px] font-black uppercase shadow-lg">Export Assets</button>
+                                    <button id="btn-delete-all-assets" onclick="window.confirmAndDeleteAllAssets()" class="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs rounded-xl shadow-md flex items-center gap-2 transition-all active:scale-95">
+                                        <i class="fa-solid fa-trash-can"></i> Delete All Assets (Bulk Clear)
+                                    </button>
                                 </div>
                             </div>
                         </div>
