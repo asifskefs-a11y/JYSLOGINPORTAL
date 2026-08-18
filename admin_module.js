@@ -1,5 +1,5 @@
 import { db, UPLOAD_CONFIG } from './firebase_config.js';
-import { ref, get, set, update, remove, onValue, push, query, orderByChild, equalTo } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+import { ref, get, set, update, remove, onValue, push, query, orderByChild, equalTo, child } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
 // ================================================
 // ADMIN DASHBOARD CORE MODULE
@@ -14,7 +14,8 @@ window.appCache = {
     tasks: [],
     assets: [],
     attendance: [],
-    transfers: []
+    transfers: [],
+    disposalRequests: []
 };
 
 // Selection State for Bulk Actions
@@ -29,6 +30,68 @@ window.currentFilteredData = {
     assets: null,
     disposal: null,
     transfers: null
+};
+
+/**
+ * ⚡ FAST ASSET LOADER WITH LOCAL CACHING
+ * Loads from localStorage first, then syncs with Firebase delta updates
+ */
+window.loadAssetsCached = function() {
+    const cachedAssets = localStorage.getItem('cached_asset_register');
+    if (cachedAssets) {
+        try {
+            const assetArray = JSON.parse(cachedAssets);
+            window.appCache.assets = assetArray;
+            window.allAssets = assetArray;
+            console.log(`⚡ Admin: Loaded ${assetArray.length} assets from local cache.`);
+
+            // Render immediately if on assets tab
+            const activeTab = document.querySelector('.tab-section.active');
+            if (activeTab && activeTab.id === 'tab-assets') {
+                const detectedHeaders = assetArray.length > 0 ? Object.keys(assetArray[0]).filter(k => !['assetId', 'updatedAt', 'profilePicUrl', '_importBatch', '_forceId', '_importSource'].includes(k)) : [];
+                window.renderDynamicAssetTable(assetArray, detectedHeaders);
+            }
+        } catch (e) {
+            console.warn("⚠️ Admin: Local asset cache corrupted, clearing...");
+            localStorage.removeItem('cached_asset_register');
+        }
+    }
+
+    // Real-time delta sync
+    const assetsRef = ref(db, 'assets');
+    onValue(assetsRef, (snapshot) => {
+        if (snapshot.exists()) {
+            const data = snapshot.val();
+            const assetArray = Object.values(data);
+
+            // Save updated copy & update memory
+            localStorage.setItem('cached_asset_register', JSON.stringify(assetArray));
+            window.appCache.assets = assetArray;
+            window.allAssets = assetArray;
+
+            console.log(`✅ Admin: Assets synced. Total: ${assetArray.length}`);
+
+            // Refresh view if active
+            const activeTab = document.querySelector('.tab-section.active');
+            if (activeTab && activeTab.id === 'tab-assets') {
+                const detectedHeaders = assetArray.length > 0 ? Object.keys(assetArray[0]).filter(k => !['assetId', 'updatedAt', 'profilePicUrl', '_importBatch', '_forceId', '_importSource'].includes(k)) : [];
+                window.renderDynamicAssetTable(assetArray, detectedHeaders);
+            }
+
+            window.updateAdminKPIs();
+        }
+    });
+
+    // Disposal Requests Sync
+    onValue(ref(db, 'asset_disposal_requests'), (snapshot) => {
+        if (snapshot.exists()) {
+            window.appCache.disposalRequests = Object.values(snapshot.val());
+            const activeTab = document.querySelector('.tab-section.active');
+            if (activeTab && activeTab.id === 'tab-disposal') {
+                window.filterDisposalTable();
+            }
+        }
+    });
 };
 
 // ================================================
@@ -87,12 +150,11 @@ window.refreshDashboardData = async () => {
         console.log("🔄 Admin: Refreshing Data...");
         window.showGlobalSpinner("Fetching Remote Data...");
 
-        const [vSnap, cSnap, sSnap, tSnap, aSnap, attSnap, trSnap] = await Promise.all([
+        // ASSETS and TASKS are now handled by real-time cached listeners
+        const [vSnap, cSnap, sSnap, attSnap, trSnap] = await Promise.all([
             get(ref(db, 'visitors')),
             get(ref(db, 'contractors')),
             get(ref(db, 'staff')),
-            get(ref(db, 'tasks')),
-            get(ref(db, 'assets')),
             get(ref(db, 'staff_attendance')),
             get(ref(db, 'asset_transfers'))
         ]);
@@ -100,8 +162,6 @@ window.refreshDashboardData = async () => {
         window.appCache.visitors = vSnap.exists() ? Object.values(vSnap.val()) : [];
         window.appCache.contractors = cSnap.exists() ? Object.values(cSnap.val()) : [];
         window.appCache.staff = sSnap.exists() ? Object.values(sSnap.val()) : [];
-        window.appCache.tasks = tSnap.exists() ? Object.values(tSnap.val()) : [];
-        window.appCache.assets = aSnap.exists() ? Object.values(aSnap.val()) : [];
         window.appCache.attendance = attSnap.exists() ? Object.values(attSnap.val()) : [];
         window.appCache.transfers = trSnap.exists() ? Object.values(trSnap.val()) : [];
 
@@ -338,6 +398,7 @@ window.loadAdminVisitorRecords = function() {
 };
 
 window.loadAdminDashboard = () => {
+    window.loadAssetsCached(); // Start fast asset loader
     window.refreshDashboardData();
     window.initLiveTopCounters();
     window.loadAdminVisitorRecords();
@@ -474,7 +535,7 @@ window.renderTabFromAppCache = (tabId) => {
                     const detectedHeaders = assets.length > 0 ? Object.keys(assets[0]).filter(k => !['assetId', 'updatedAt', 'profilePicUrl', '_importBatch', '_forceId', '_importSource'].includes(k)) : [];
                     window.renderDynamicAssetTable(assets, detectedHeaders);
                     break;
-                case 'tab-disposal': window.renderStandardizedAssetTable(window.currentFilteredData.disposal || window.appCache.assets.filter(a => a.assetStatus === 'Disposed'), 'disposal'); break;
+                case 'tab-disposal': window.loadAdminDisposalTable(); break;
                 case 'tab-transfers': window.renderStandardizedAssetTable(window.currentFilteredData.transfers || window.appCache.transfers || [], 'transfers'); break;
                 case 'tab-settings': window.loadGoogleDriveConfig(); break;
                 case 'tab-my-tasks': if (typeof window.switchTaskTab === 'function') window.switchTaskTab('active'); break;
@@ -533,6 +594,11 @@ function renderVisitorLogs(visitors) {
                 <td class="p-4"><span class="status-badge ${v.status === 'SIGNED OUT' ? 'closed' : 'open'}">${v.status || "Active"}</span></td>
                 <td class="p-4 text-center">${keyHtml}</td>
                 <td class="p-4 text-center">${signatureTdHTML}</td>
+                <td class="p-4 text-center">
+                    <button onclick="window.openDetailedAuditModal('visitor', '${v.id}')" class="p-2 text-indigo-400 hover:text-white hover:bg-indigo-600/50 rounded-lg transition-all cursor-pointer">
+                        <i class="fa-solid fa-eye text-base"></i>
+                    </button>
+                </td>
             `;
             body.appendChild(tr);
         });
@@ -592,6 +658,11 @@ function renderContractorLogs(contractors) {
                 <td class="p-4"><span class="status-badge ${c.status === 'SIGNED OUT' ? 'closed' : 'open'}">${c.status || "Active"}</span></td>
                 <td class="p-4 text-center">${keyHtml}</td>
                 <td class="p-4 text-center">${signatureTdHTML}</td>
+                <td class="p-4 text-center">
+                    <button onclick="window.openDetailedAuditModal('contractor', '${c.id}')" class="p-2 text-indigo-400 hover:text-white hover:bg-indigo-600/50 rounded-lg transition-all cursor-pointer">
+                        <i class="fa-solid fa-eye text-base"></i>
+                    </button>
+                </td>
             `;
             body.appendChild(tr);
         });
@@ -745,7 +816,14 @@ window.renderStandardizedAssetTable = (data, target) => {
     const body = target === 'disposal' ? document.getElementById('admin-disposal-list-body') : document.getElementById('transfer-logs-body');
     if (!body) return;
     const getVal = (val) => (val === undefined || val === null || val === "" || val === "N/A" || val === "undefined") ? '-' : val;
-    const filtered = (data || []).filter(t => target === 'disposal' ? t.assetStatus === 'Disposed' : ['Transferred', 'In-Transit', 'Completed', 'Pending'].includes(t.status || t.assetStatus));
+
+    let filtered = [];
+    if (target === 'disposal') {
+        filtered = data || []; // Already filtered by filterDisposalTable
+    } else {
+        filtered = (data || []).filter(t => ['Transferred', 'In-Transit', 'Completed', 'Pending'].includes(t.status || t.assetStatus));
+    }
+
     filtered.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
     const paginator = target === 'disposal' ? window.adminPaginators.disposal : window.adminPaginators.transfers;
     paginator.init(filtered, (pageItems) => {
@@ -754,48 +832,81 @@ window.renderStandardizedAssetTable = (data, target) => {
         pageItems.forEach(t => {
             const tr = document.createElement('tr');
             tr.className = "hover:bg-slate-50 transition-colors border-b border-gray-100 text-[9px]";
-            const photo = t.auditPhoto || t.disposalPhotoUrl || t.auditPhotoUrl || t.photoUrl;
-            const photoHtml = (photo && photo !== 'N/A' && photo !== '-') ? `<img src="${window.getDirectDriveImageUrl(photo)}" class="h-8 w-8 object-cover rounded border cursor-pointer hover:scale-150 transition" onclick="window.openImageZoom('${photo}')">` : '<span class="px-2 py-0.5 bg-gray-50 text-gray-400 border border-gray-100 rounded-[4px] text-[7px] font-bold uppercase whitespace-nowrap">No Photo</span>';
-            const proof = t.transferPhotoUrl || t.afterPhotoUrl;
-            const proofHtml = (proof && proof !== 'N/A' && proof !== '-') ? `<img src="${window.getDirectDriveImageUrl(proof)}" class="h-8 w-8 object-cover rounded border cursor-pointer hover:scale-150 transition" onclick="window.openImageZoom('${proof}')">` : '<span class="px-2 py-0.5 bg-gray-50 text-gray-400 border border-gray-100 rounded-[4px] text-[7px] font-bold uppercase whitespace-nowrap">No Proof</span>';
-            const secSig = t.securitySignatureUrl;
-            const secSigHtml = (secSig && secSig !== 'N/A' && secSig !== '-') ? `<img src="${window.getDirectDriveImageUrl(secSig)}" class="h-8 mx-auto rounded border cursor-pointer hover:scale-150 transition" onclick="window.openImageZoom('${secSig}')">` : '<span class="px-2 py-0.5 bg-gray-50 text-gray-400 border border-gray-100 rounded-[4px] text-[7px] font-bold uppercase whitespace-nowrap">No Sig</span>';
-            const recSig = t.receivedSignatureUrl;
-            const recSigHtml = (recSig && recSig !== 'N/A' && recSig !== '-') ? `<img src="${window.getDirectDriveImageUrl(recSig)}" class="h-8 mx-auto rounded border cursor-pointer hover:scale-150 transition" onclick="window.openImageZoom('${recSig}')">` : '<span class="px-2 py-0.5 bg-gray-50 text-gray-400 border border-gray-100 rounded-[4px] text-[7px] font-bold uppercase whitespace-nowrap">No Sig</span>';
+
             const barcode = t.assetBarcode || t.barcode || '-';
-            tr.innerHTML = `
-                <td class="p-2 font-mono font-bold text-indigo-600">${getVal(barcode)}</td>
-                <td class="p-2 max-w-[120px] truncate font-medium">${getVal(t.assetDescription || t.description)}</td>
-                <td class="p-2">${getVal(t.assetVendorName || t.vendor)}</td>
-                <td class="p-2"><span class="px-2 py-0.5 bg-slate-100 rounded text-[8px] font-bold">${getVal(t.category)}</span></td>
-                <td class="p-2">${getVal(t.datePlaceInService || t.serviceDate)}</td>
-                <td class="p-2 max-w-[100px] truncate">${getVal(t.floorDiscretion || t.floorDesc)}</td>
-                <td class="p-2 text-center">${getVal(t.floorNo)}</td>
-                <td class="p-2 font-bold text-slate-700">${getVal(t.locationName || t.location)}</td>
-                <td class="p-2">${getVal(t.majorCategory)}</td>
-                <td class="p-2">${getVal(t.minorCategory || t.classification)}</td>
-                <td class="p-2 max-w-[120px] truncate">${getVal(t.schoolBuildingName || t.building)}</td>
-                <td class="p-2 font-bold">${getVal(t.roomNumber || t.roomNo)}</td>
-                <td class="p-2 max-w-[100px] truncate">${getVal(t.roomName)}</td>
-                <td class="p-2">${getVal(t.subMinorCategory)}</td>
-                <td class="p-2 text-center">${photoHtml}</td>
-                <td class="p-2 font-bold text-indigo-900">${getVal(t.collectorName)}</td>
-                <td class="p-2">${getVal(t.companyName)}</td>
-                <td class="p-2 font-mono">${getVal(t.date)}</td>
-                <td class="p-2">${getVal(t.securityName)}</td>
-                <td class="p-2">${getVal(t.receiverName)}</td>
-                <td class="p-2 text-center">${secSigHtml}</td>
-                <td class="p-2 text-center">${recSigHtml}</td>
-                <td class="p-2 text-center">${proofHtml}</td>
-                <td class="p-2 text-center">
-                    <div class="flex items-center justify-center gap-2">
-                        <button onclick="window.openTransferDetailsModal('${t.transferId || t.id}')" class="p-2 text-indigo-400 hover:text-white hover:bg-indigo-600/50 rounded-lg transition-all cursor-pointer" title="View Details"><i class="fa-solid fa-eye text-base"></i></button>
-                        <button onclick="window.revertAssetToRegister('${barcode}', '${t.transferId || ''}')" class="bg-indigo-50 text-indigo-600 px-2 py-1.5 rounded-lg font-bold text-[8px] hover:bg-indigo-600 hover:text-white transition shadow-sm uppercase flex items-center gap-1"><i class="fa-solid fa-rotate-left"></i> Revert</button>
-                        ${t.status === 'Pending' ? `
-                            <button onclick="window.approveTransfer('${t.transferId}')" class="bg-emerald-600 text-white px-2 py-1.5 rounded-lg font-bold text-[8px] hover:bg-emerald-700 transition shadow-sm uppercase">Approve</button>
-                        ` : ''}
-                    </div>
-                </td>`;
+            const asset = window.appCache.assets.find(a => a.barcode === barcode) || {};
+
+            const photo = t.disposalPhotoUrl || t.auditPhoto || t.auditPhotoUrl || t.photoUrl || asset.photoUrl;
+            const photoHtml = (photo && photo !== 'N/A' && photo !== '-') ? `<img src="${window.getDirectDriveImageUrl(photo)}" class="h-8 w-8 object-cover rounded border cursor-pointer hover:scale-150 transition" onclick="window.openImageZoom('${photo}')">` : '<span class="px-2 py-0.5 bg-gray-50 text-gray-400 border border-gray-100 rounded-[4px] text-[7px] font-bold uppercase whitespace-nowrap">No Photo</span>';
+
+            if (target === 'disposal') {
+                tr.innerHTML = `
+                    <td class="p-2 font-mono font-bold text-indigo-600">${getVal(barcode)}</td>
+                    <td class="p-2 max-w-[120px] truncate font-medium">${getVal(t.assetName || asset.assetDescription || asset.description)}</td>
+                    <td class="p-2">${getVal(asset.assetVendorName || asset.vendor)}</td>
+                    <td class="p-2"><span class="px-2 py-0.5 bg-slate-100 rounded text-[8px] font-bold">${getVal(asset.category)}</span></td>
+                    <td class="p-2">${getVal(asset.datePlaceInService || asset.serviceDate)}</td>
+                    <td class="p-2 max-w-[100px] truncate">${getVal(asset.floorDiscretion || asset.floorDesc)}</td>
+                    <td class="p-2 text-center">${getVal(asset.floorNo)}</td>
+                    <td class="p-2 font-bold text-slate-700">${getVal(t.location || asset.locationName || asset.location)}</td>
+                    <td class="p-2">${getVal(asset.majorCategory)}</td>
+                    <td class="p-2">${getVal(asset.minorCategory || asset.classification)}</td>
+                    <td class="p-2 max-w-[120px] truncate">${getVal(asset.schoolBuildingName || asset.building)}</td>
+                    <td class="p-2 font-bold">${getVal(asset.roomNumber || asset.roomNo)}</td>
+                    <td class="p-2 max-w-[100px] truncate">${getVal(asset.roomName)}</td>
+                    <td class="p-2">${getVal(asset.subMinorCategory)}</td>
+                    <td class="p-2 text-center">${photoHtml}</td>
+                    <td class="p-2 border text-center">
+                        <div class="flex items-center justify-center gap-1">
+                            ${t.status === 'Pending' ? `
+                                <button onclick="window.handleAdminDisposalAction('${t.requestId}', 'APPROVE')" class="px-2 py-1 bg-green-600 text-white rounded text-[8px] font-bold shadow-sm active:scale-95 transition">Approve</button>
+                                <button onclick="window.handleAdminDisposalAction('${t.requestId}', 'REJECT')" class="px-2 py-1 bg-red-600 text-white rounded text-[8px] font-bold shadow-sm active:scale-95 transition">Reject</button>
+                            ` : `<span class="font-bold text-[8px] uppercase ${t.status === 'Approved' ? 'text-green-600' : (t.status === 'Rejected' ? 'text-red-600' : 'text-gray-500')}">${t.status || t.assetStatus}</span>`}
+                        </div>
+                    </td>
+                `;
+            } else {
+                const proof = t.transferPhotoUrl || t.afterPhotoUrl;
+                const proofHtml = (proof && proof !== 'N/A' && proof !== '-') ? `<img src="${window.getDirectDriveImageUrl(proof)}" class="h-8 w-8 object-cover rounded border cursor-pointer hover:scale-150 transition" onclick="window.openImageZoom('${proof}')">` : '<span class="px-2 py-0.5 bg-gray-50 text-gray-400 border border-gray-100 rounded-[4px] text-[7px] font-bold uppercase whitespace-nowrap">No Proof</span>';
+                const secSig = t.securitySignatureUrl;
+                const secSigHtml = (secSig && secSig !== 'N/A' && secSig !== '-') ? `<img src="${window.getDirectDriveImageUrl(secSig)}" class="h-8 mx-auto rounded border cursor-pointer hover:scale-150 transition" onclick="window.openImageZoom('${secSig}')">` : '<span class="px-2 py-0.5 bg-gray-50 text-gray-400 border border-gray-100 rounded-[4px] text-[7px] font-bold uppercase whitespace-nowrap">No Sig</span>';
+                const recSig = t.receivedSignatureUrl;
+                const recSigHtml = (recSig && recSig !== 'N/A' && recSig !== '-') ? `<img src="${window.getDirectDriveImageUrl(recSig)}" class="h-8 mx-auto rounded border cursor-pointer hover:scale-150 transition" onclick="window.openImageZoom('${recSig}')">` : '<span class="px-2 py-0.5 bg-gray-50 text-gray-400 border border-gray-100 rounded-[4px] text-[7px] font-bold uppercase whitespace-nowrap">No Sig</span>';
+
+                tr.innerHTML = `
+                    <td class="p-2 font-mono font-bold text-indigo-600">${getVal(barcode)}</td>
+                    <td class="p-2 max-w-[120px] truncate font-medium">${getVal(t.assetDescription || t.description)}</td>
+                    <td class="p-2">${getVal(t.assetVendorName || t.vendor)}</td>
+                    <td class="p-2"><span class="px-2 py-0.5 bg-slate-100 rounded text-[8px] font-bold">${getVal(t.category)}</span></td>
+                    <td class="p-2">${getVal(t.datePlaceInService || t.serviceDate)}</td>
+                    <td class="p-2 max-w-[100px] truncate">${getVal(t.floorDiscretion || t.floorDesc)}</td>
+                    <td class="p-2 text-center">${getVal(t.floorNo)}</td>
+                    <td class="p-2 font-bold text-slate-700">${getVal(t.locationName || t.location)}</td>
+                    <td class="p-2">${getVal(t.majorCategory)}</td>
+                    <td class="p-2">${getVal(t.minorCategory || t.classification)}</td>
+                    <td class="p-2 max-w-[120px] truncate">${getVal(t.schoolBuildingName || t.building)}</td>
+                    <td class="p-2 font-bold">${getVal(t.roomNumber || t.roomNo)}</td>
+                    <td class="p-2 max-w-[100px] truncate">${getVal(t.roomName)}</td>
+                    <td class="p-2">${getVal(t.subMinorCategory)}</td>
+                    <td class="p-2 text-center">${photoHtml}</td>
+                    <td class="p-2 font-bold text-indigo-900">${getVal(t.collectorName)}</td>
+                    <td class="p-2">${getVal(t.companyName)}</td>
+                    <td class="p-2 font-mono">${getVal(t.date)}</td>
+                    <td class="p-2">${getVal(t.securityName)}</td>
+                    <td class="p-2">${getVal(t.receiverName)}</td>
+                    <td class="p-2 text-center">${secSigHtml}</td>
+                    <td class="p-2 text-center">${recSigHtml}</td>
+                    <td class="p-2 text-center">${proofHtml}</td>
+                    <td class="p-2 text-center">
+                        <div class="flex items-center justify-center gap-2">
+                            <button onclick="window.openTransferDetailsModal('${t.transferId || t.id}')" class="p-2 text-indigo-400 hover:text-white hover:bg-indigo-600/50 rounded-lg transition-all cursor-pointer" title="View Details"><i class="fa-solid fa-eye text-base"></i></button>
+                            <button onclick="window.revertAssetToRegister('${barcode}', '${t.transferId || ''}')" class="bg-indigo-50 text-indigo-600 px-2 py-1.5 rounded-lg font-bold text-[8px] hover:bg-indigo-600 hover:text-white transition shadow-sm uppercase flex items-center gap-1"><i class="fa-solid fa-rotate-left"></i> Revert</button>
+                            ${t.status === 'Pending' ? `
+                                <button onclick="window.approveTransfer('${t.transferId}')" class="bg-emerald-600 text-white px-2 py-1.5 rounded-lg font-bold text-[8px] hover:bg-emerald-700 transition shadow-sm uppercase">Approve</button>
+                            ` : ''}
+                        </div>
+                    </td>`;
+            }
             body.appendChild(tr);
         });
     });
@@ -906,6 +1017,239 @@ window.deleteAssetRecord = async (barcode) => {
 window.recoverDisposedAsset = async (barcode) => {
     if (!confirm(`Restore ${barcode}?`)) return;
     try { await update(ref(db, `assets/${barcode}`), { assetStatus: 'Active', disposalReason: null, disposalDate: null }); window.triggerSuccessPopup("Asset Restored!"); window.refreshDashboardData(); } catch (e) { alert(e.message); }
+};
+
+// 3. ADMIN DASHBOARD: APPROVE OR REJECT DISPOSAL REQUESTS
+window.handleAdminDisposalAction = async (requestId, action) => {
+    // action can be 'APPROVE' or 'REJECT'
+    if (!confirm(`Are you sure you want to ${action} this disposal request?`)) return;
+
+    if (window.showGlobalSpinner) window.showGlobalSpinner(`${action}ing Request...`);
+
+    try {
+        const reqSnap = await get(child(ref(db), `asset_disposal_requests/${requestId}`));
+        if (!reqSnap.exists()) throw new Error("Request not found!");
+
+        const reqData = reqSnap.val();
+        const barcode = reqData.assetBarcode;
+        const updates = {};
+
+        if (action === 'APPROVE') {
+            // Permanently mark asset as Disposed
+            updates[`assets/${barcode}/assetStatus`] = 'Disposed';
+            updates[`assets/${barcode}/disposedDate`] = new Date().toLocaleDateString();
+            updates[`assets/${barcode}/disposedBy`] = reqData.requestedBy;
+            updates[`assets/${barcode}/disposalReason`] = reqData.reason;
+            updates[`assets/${barcode}/disposalPhotoUrl`] = reqData.disposalPhotoUrl;
+
+            // Update Request Node
+            updates[`asset_disposal_requests/${requestId}/status`] = 'Approved';
+            updates[`asset_disposal_requests/${requestId}/approvedBy`] = "Admin";
+        } else if (action === 'REJECT') {
+            // Revert asset back to Active
+            updates[`assets/${barcode}/assetStatus`] = 'Active';
+
+            // Update Request Node
+            updates[`asset_disposal_requests/${requestId}/status`] = 'Rejected';
+            updates[`asset_disposal_requests/${requestId}/rejectedBy`] = "Admin";
+        }
+
+        await update(ref(db), updates);
+
+        if (window.hideGlobalSpinner) window.hideGlobalSpinner();
+        alert(`Disposal Request successfully ${action.toLowerCase()}d!`);
+
+        // Refresh Admin Excel/Disposal Table
+        if (window.loadAdminDisposalTable) window.loadAdminDisposalTable();
+    } catch (e) {
+        if (window.hideGlobalSpinner) window.hideGlobalSpinner();
+        alert("Action Error: " + e.message);
+    }
+};
+
+// 1. RENDER ADMIN DISPOSAL EXCEL TABLE WITH DYNAMIC MASTER REGISTER DATA
+window.loadAdminDisposalTable = async function() {
+    const tableBody = document.getElementById('admin-disposal-list-body') || document.querySelector('#asset-disposal-table tbody');
+    if (!tableBody) return;
+
+    tableBody.innerHTML = `<tr><td colspan="16" class="text-center p-6 text-white font-bold">Loading Disposal Records...</td></tr>`;
+
+    try {
+        // Fetch Master Assets and Disposal Requests simultaneously
+        const [assetsSnap, disposalsSnap] = await Promise.all([
+            get(child(ref(db), 'assets')),
+            get(child(ref(db), 'asset_disposal_requests'))
+        ]);
+
+        const masterAssets = assetsSnap.exists() ? assetsSnap.val() : {};
+        const disposalRequests = disposalsSnap.exists() ? disposalsSnap.val() : {};
+
+        let combinedRecords = [];
+
+        // Combine requests and disposed assets
+        Object.keys(disposalRequests).forEach(key => {
+            const req = disposalRequests[key];
+            const master = masterAssets[req.assetBarcode] || {};
+            combinedRecords.push({ ...master, ...req, keyId: key });
+        });
+
+        // Also include direct 'Disposed' assets if not present in requests
+        Object.keys(masterAssets).forEach(barcode => {
+            const asset = masterAssets[barcode];
+            if ((asset.assetStatus === 'Disposed' || asset.assetStatus === 'Pending_Disposal') &&
+                !combinedRecords.some(r => r.assetBarcode === barcode)) {
+                combinedRecords.push({ ...asset, assetBarcode: barcode, keyId: barcode });
+            }
+        });
+
+        if (combinedRecords.length === 0) {
+            tableBody.innerHTML = `<tr><td colspan="16" class="text-center p-8 text-gray-300 font-bold text-lg">No records found</td></tr>`;
+            return;
+        }
+
+        // Render Table Rows dynamically
+        tableBody.innerHTML = combinedRecords.map((item, index) => {
+            const barcode = item.assetBarcode || item.barcode || 'N/A';
+            const desc = item.assetName || item.description || 'N/A';
+            const vendor = item.vendorName || item.vendor || 'N/A';
+            const category = item.category || 'N/A';
+            const dateInService = item.dateInService || item.purchaseDate || 'N/A';
+            const floorDiscretion = item.floorDiscretion || 'N/A';
+            const floorNo = item.floorNo || item.floor || 'N/A';
+            const locationName = item.locationName || item.location || 'N/A';
+            const majorCat = item.majorCategory || item.category || 'N/A';
+            const minorCat = item.minorCategory || 'N/A';
+            const schoolBuilding = item.schoolBuilding || item.building || 'N/A';
+            const roomNo = item.roomNumber || item.roomNo || 'N/A';
+            const roomName = item.roomName || 'N/A';
+            const subMinorCat = item.subMinorCategory || 'N/A';
+
+            const photoUrl = item.disposalPhotoUrl || item.photoUrl || item.imageUrl || '';
+            const isPending = item.status === 'Pending' || item.assetStatus === 'Pending_Disposal';
+
+            return `
+                <tr class="border-b border-gray-700 hover:bg-slate-800/50 text-xs text-gray-200">
+                    <td class="p-3 font-mono font-bold text-yellow-400">${barcode}</td>
+                    <td class="p-3 font-bold">${desc}</td>
+                    <td class="p-3">${vendor}</td>
+                    <td class="p-3">${category}</td>
+                    <td class="p-3">${dateInService}</td>
+                    <td class="p-3">${floorDiscretion}</td>
+                    <td class="p-3">${floorNo}</td>
+                    <td class="p-2 font-bold text-slate-700">${locationName}</td>
+                    <td class="p-3">${majorCat}</td>
+                    <td class="p-3">${minorCat}</td>
+                    <td class="p-3">${schoolBuilding}</td>
+                    <td class="p-3 font-bold">${roomNo}</td>
+                    <td class="p-3">${roomName}</td>
+                    <td class="p-3">${subMinorCat}</td>
+
+                    <!-- AUDIT PHOTO COLUMN -->
+                    <td class="p-3 text-center">
+                        ${photoUrl ? `
+                            <button onclick="window.viewDisposalDetailsModal('${item.keyId}')" class="px-2 py-1 bg-indigo-600 hover:bg-indigo-500 text-white rounded text-[10px] font-bold shadow">
+                                📷 View Photo
+                            </button>
+                        ` : `<span class="text-gray-500 text-[10px]">No Photo</span>`}
+                    </td>
+
+                    <!-- ACTION COLUMN -->
+                    <td class="p-3 text-center whitespace-nowrap">
+                        <button onclick="window.viewDisposalDetailsModal('${item.keyId}')" class="px-3 py-1 bg-blue-600 hover:bg-blue-500 text-white rounded text-xs font-bold mr-1">
+                            ℹ️ Details
+                        </button>
+                        ${isPending ? `
+                            <button onclick="window.handleAdminDisposalAction('${item.keyId}', 'APPROVE')" class="px-2 py-1 bg-green-600 hover:bg-green-500 text-white rounded text-xs font-bold mr-1">Approve</button>
+                            <button onclick="window.handleAdminDisposalAction('${item.keyId}', 'REJECT')" class="px-2 py-1 bg-red-600 hover:bg-red-500 text-white rounded text-xs font-bold">Reject</button>
+                        ` : `<span class="font-bold text-xs ${item.status === 'Approved' || item.assetStatus === 'Disposed' ? 'text-green-400' : 'text-gray-400'}">${item.status || item.assetStatus}</span>`}
+                    </td>
+                </tr>
+            `;
+        }).join('');
+
+        // Store globally for quick modal lookup
+        window.currentDisposalRecords = combinedRecords;
+
+    } catch (e) {
+        console.error("Error loading admin disposal table:", e);
+        tableBody.innerHTML = `<tr><td colspan="16" class="text-center p-6 text-red-400 font-bold">Error loading disposal table!</td></tr>`;
+    }
+};
+
+// 2. AUDIT PHOTO & FULL DISPOSAL DETAILS POPUP MODAL
+window.viewDisposalDetailsModal = function(keyId) {
+    const record = (window.currentDisposalRecords || []).find(r => r.keyId === keyId || r.assetBarcode === keyId);
+    if (!record) return alert("Disposal record details not found!");
+
+    const photoUrl = record.disposalPhotoUrl || record.photoUrl || record.imageUrl || '';
+    const masterPhoto = record.auditMasterPhotoUrl || record.imageUrl || '';
+
+    // Create modal dynamically if not existing
+    let modal = document.getElementById('disposal-details-popup-modal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'disposal-details-popup-modal';
+        modal.className = 'fixed inset-0 bg-black/80 z-[9999] flex items-center justify-center p-4';
+        document.body.appendChild(modal);
+    }
+
+    modal.innerHTML = `
+        <div class="bg-slate-900 border border-slate-700 rounded-3xl p-6 max-w-lg w-full text-white space-y-5 shadow-2xl relative">
+            <button onclick="document.getElementById('disposal-details-popup-modal').classList.add('hidden')" class="absolute top-4 right-4 text-gray-400 hover:text-white text-xl font-bold">✕</button>
+
+            <div class="border-b border-slate-700 pb-3">
+                <span class="text-[10px] font-black uppercase text-red-400 tracking-wider">Asset Disposal Log</span>
+                <h3 class="text-xl font-black">${record.assetBarcode || 'N/A'}</h3>
+                <p class="text-xs text-gray-400">${record.assetName || record.description || 'N/A'}</p>
+            </div>
+
+            <div class="grid grid-cols-2 gap-3 text-xs bg-slate-800/60 p-3 rounded-2xl border border-slate-700">
+                <div>
+                    <span class="text-[9px] text-gray-400 uppercase block font-bold">Disposed / Requested By</span>
+                    <span class="font-black text-yellow-400">${record.requestedBy || record.disposedBy || 'N/A'}</span>
+                </div>
+                <div>
+                    <span class="text-[9px] text-gray-400 uppercase block font-bold">Role</span>
+                    <span class="font-black text-white">${record.requestedByRole || 'Staff'}</span>
+                </div>
+                <div>
+                    <span class="text-[9px] text-gray-400 uppercase block font-bold">Date</span>
+                    <span class="font-black text-white">${record.date || record.disposedDate || new Date(record.timestamp || Date.now()).toLocaleDateString()}</span>
+                </div>
+                <div>
+                    <span class="text-[9px] text-gray-400 uppercase block font-bold">Time</span>
+                    <span class="font-black text-white">${record.timestamp ? new Date(record.timestamp).toLocaleTimeString() : 'N/A'}</span>
+                </div>
+            </div>
+
+            <div>
+                <span class="text-[10px] text-gray-400 uppercase font-bold block mb-1">Disposal Reason</span>
+                <p class="text-xs bg-slate-800 p-3 rounded-xl border border-slate-700 font-semibold text-gray-200">${record.reason || record.disposalReason || 'No reason provided.'}</p>
+            </div>
+
+            <!-- PHOTOS DISPLAY -->
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <span class="text-[9px] text-gray-400 font-bold uppercase block mb-1">Captured Disposal Photo</span>
+                    ${photoUrl ? `
+                        <img src="${photoUrl}" class="w-full h-36 object-cover rounded-xl border border-slate-700 shadow-md">
+                    ` : `<div class="w-full h-36 bg-slate-800 rounded-xl border border-dashed border-slate-700 flex items-center justify-center text-xs text-gray-500 uppercase font-bold">No Photo</div>`}
+                </div>
+                <div>
+                    <span class="text-[9px] text-gray-400 font-bold uppercase block mb-1">Master Register Photo</span>
+                    ${masterPhoto && masterPhoto !== 'Not Available' ? `
+                        <img src="${masterPhoto}" class="w-full h-36 object-cover rounded-xl border border-slate-700 shadow-md">
+                    ` : `<div class="w-full h-36 bg-slate-800 rounded-xl border border-dashed border-slate-700 flex items-center justify-center text-xs text-gray-500 uppercase font-bold">Not Available</div>`}
+                </div>
+            </div>
+
+            <button onclick="document.getElementById('disposal-details-popup-modal').classList.add('hidden')" class="w-full py-3 bg-slate-800 hover:bg-slate-700 text-white rounded-xl font-bold text-xs uppercase transition">
+                Close Details
+            </button>
+        </div>
+    `;
+
+    modal.classList.remove('hidden');
 };
 
 window.updateAssetTableHeaders = (dynamicHeaders) => {
@@ -1421,9 +1765,27 @@ window.filterAssetTable = () => {
 
 window.filterDisposalTable = () => {
     const query = document.getElementById('disposal-search')?.value.toLowerCase();
-    let filtered = window.appCache.assets.filter(a => a.assetStatus === 'Disposed');
-    if (query) filtered = filtered.filter(a => Object.values(a).some(val => String(val).toLowerCase().includes(query)));
-    window.currentFilteredData.disposal = filtered; window.renderStandardizedAssetTable(filtered, 'disposal');
+
+    // Combine Pending requests and already Disposed assets
+    let requests = window.appCache.disposalRequests || [];
+    let disposedAssets = window.appCache.assets.filter(a => a.assetStatus === 'Disposed' && !requests.some(r => r.assetBarcode === a.barcode));
+
+    // Map disposed assets to request-like objects for unified rendering
+    let mappedDisposed = disposedAssets.map(a => ({
+        assetBarcode: a.barcode,
+        assetName: a.assetDescription || a.description,
+        status: 'Disposed',
+        reason: a.disposalReason,
+        disposalPhotoUrl: a.disposalPhotoUrl,
+        date: a.disposalDate || '-',
+        requestId: `OLD_${a.barcode}`
+    }));
+
+    let combined = [...requests, ...mappedDisposed];
+
+    if (query) combined = combined.filter(a => Object.values(a).some(val => String(val).toLowerCase().includes(query)));
+    window.currentFilteredData.disposal = combined;
+    window.renderStandardizedAssetTable(combined, 'disposal');
 };
 
 window.filterTransferTable = () => {

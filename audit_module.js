@@ -215,45 +215,70 @@ window.removeAuditPhoto = () => {
 window.resetAssetDisposalForm = () => {
     const fields = ['f1_disposal_barcode_input', 'disposal-reason', 'disposed-by-name', 'disposal-date', 'disposal-time'];
     fields.forEach(id => { const el = document.getElementById(id); if (el) el.value = ""; });
-    const previews = ['before-photo-preview', 'disposal-photo-preview', 'disposal-asset-preview'];
-    previews.forEach(id => { const el = document.getElementById(id); if (el) { el.classList.add('hidden'); if(id === 'disposal-asset-preview') el.innerHTML = ""; } });
-    initialAuditPhotoBase64 = ""; damageAuditPhotoBase64 = "";
+    const previews = ['before-photo-preview', 'disposal-photo-preview', 'disposal-asset-preview', 'audit-photo-preview-container'];
+    previews.forEach(id => { const el = document.getElementById(id); if (el) { el.classList.add('hidden'); if(id === 'disposal-asset-preview' || id === 'audit-photo-preview-container') el.innerHTML = ""; } });
+    initialAuditPhotoBase64 = ""; damageAuditPhotoBase64 = ""; window.disposalBeforePhotoBase64 = "";
     const submitBtn = document.getElementById('submit-disposal-btn');
     if (submitBtn) { submitBtn.disabled = true; }
 };
 
 window.submitAssetDisposal = async () => {
     const barcode = document.getElementById('f1_disposal_barcode_input')?.value.trim();
-    if (!barcode) return alert("Scan barcode first!");
     const reason = document.getElementById('disposal-reason')?.value.trim();
-    if (!reason || !initialAuditPhotoBase64 || !damageAuditPhotoBase64) return alert("Required fields missing!");
+    const disposalPhoto = window.disposalBeforePhotoBase64; // Photo captured by staff at disposal time
 
-    const btn = document.getElementById('submit-disposal-btn');
-    if (btn) btn.disabled = true;
-    window.showGlobalSpinner("Saving Disposal Record...");
+    if (!barcode) return alert("Please scan or enter an asset barcode!");
+    if (!reason) return alert("Please enter a reason for disposal!");
+    if (!disposalPhoto) return alert("Please capture the disposal photo!");
+
+    if (window.showGlobalSpinner) window.showGlobalSpinner("Submitting Disposal Request...");
 
     try {
-        const [urlBefore, urlAfter] = await Promise.all([
-            window.uploadToDrive({ category: UPLOAD_CONFIG.CATEGORIES.DISPOSAL, fileName: `Disp_Before_${barcode}.jpg`, image: initialAuditPhotoBase64 }).then(res => res.fileUrl || ""),
-            window.uploadToDrive({ category: UPLOAD_CONFIG.CATEGORIES.DISPOSAL, fileName: `Disp_After_${barcode}.jpg`, image: damageAuditPhotoBase64 }).then(res => res.fileUrl || "")
-        ]);
+        // Upload Staff's Disposal Photo to Drive
+        let photoUrl = "";
+        if (window.uploadToDrive) {
+            const uploadRes = await window.uploadToDrive({
+                category: 'DISPOSAL',
+                fileName: `Disposal_Request_${barcode}_${Date.now()}.jpg`,
+                image: disposalPhoto
+            });
+            photoUrl = uploadRes.fileUrl || "";
+        }
+
+        const requestId = `${barcode}_${Date.now()}`;
+        const masterPhoto = window.activeDisposalAsset?.imageUrl || window.activeDisposalAsset?.assetPhotoUrl || "Not Available";
 
         const updates = {};
-        updates[`assets/${barcode}/assetStatus`] = 'Disposed';
-        updates[`assets/${barcode}/disposalReason`] = reason;
-        updates[`assets/${barcode}/disposalPhotoUrl`] = urlAfter;
-        updates[`assets/${barcode}/beforePhotoUrl`] = urlBefore;
-        updates[`asset_disposals/${barcode}_${Date.now()}`] = {
-            assetBarcode: barcode, status: 'Disposed', reason, date: new Date().toLocaleDateString(), timestamp: Date.now(),
-            disposalPhotoUrl: urlAfter, beforePhotoUrl: urlBefore, disposedBy: window.currentStaff?.name || "System"
+
+        // A. Mark Asset Status as 'Pending_Disposal' (So staff sees it as pending)
+        updates[`assets/${barcode}/assetStatus`] = 'Pending_Disposal';
+
+        // B. Send Request to Admin Approval Node
+        updates[`asset_disposal_requests/${requestId}`] = {
+            requestId: requestId,
+            assetBarcode: barcode,
+            assetName: window.activeDisposalAsset?.assetName || "Unknown Asset",
+            location: window.activeDisposalAsset?.location || "N/A",
+            status: 'Pending',
+            reason: reason,
+            disposalPhotoUrl: photoUrl, // Staff captured photo
+            auditMasterPhotoUrl: masterPhoto, // Master register photo (or "Not Available")
+            requestedBy: window.currentStaff?.name || "Staff",
+            requestedByRole: window.currentStaff?.role || "Staff",
+            timestamp: new Date().toISOString(),
+            date: new Date().toLocaleDateString()
         };
+
         await update(ref(db), updates);
-        window.triggerSuccessPopup("Disposed!");
+
+        if (window.hideGlobalSpinner) window.hideGlobalSpinner();
+        if (window.triggerSuccessPopup) window.triggerSuccessPopup("Disposal Request Sent to Admin for Approval!");
+
         window.resetAssetDisposalForm();
         window.showStaffView('staff-dash-area');
-    } catch (e) { alert(e.message); } finally {
-        if (btn) { btn.disabled = false; btn.innerHTML = 'CONFIRM DISPOSAL'; }
-        window.hideGlobalSpinner();
+    } catch (e) {
+        if (window.hideGlobalSpinner) window.hideGlobalSpinner();
+        alert("Submission Error: " + e.message);
     }
 };
 
@@ -551,26 +576,131 @@ window.fetchAuditAssetDetails = async (barcode) => {
     }
 };
 
-window.fetchDisposalAssetDetails = async (barcode) => {
-    if (!barcode || barcode.length < 3) return;
+window.fetchDisposalAssetDetails = async function(barcode) {
+    const cleanBarcode = (barcode || '').toString().trim();
+    const previewArea = document.getElementById('disposal-asset-preview');
+    const auditPhotoArea = document.getElementById('audit-photo-preview-container');
+
+    if (!cleanBarcode || cleanBarcode.length < 2) {
+        if (previewArea) previewArea.innerHTML = '';
+        if (auditPhotoArea) auditPhotoArea.innerHTML = '';
+        return;
+    }
+
     try {
-        const snap = await get(child(ref(db), `assets/${barcode}`));
+        // Fetch full record from Master Asset Register
+        const snap = await get(child(ref(db), `assets/${cleanBarcode}`));
+
         if (snap.exists()) {
-            const data = snap.val();
-            localStorage.setItem(`asset_${barcode}`, JSON.stringify(data));
-            window.activeDisposalAsset = data;
-            window.renderSmartPreview('disposal-asset-preview', data, barcode, 'red');
-            document.getElementById('disposed-by-name').value = window.currentStaff?.name || "Staff";
+            const assetData = snap.val();
+            window.activeDisposalAsset = assetData;
+
+            // Auto-detect logged-in staff info
+            const currentStaff = window.currentStaff || JSON.parse(sessionStorage.getItem('active_staff_user') || '{}');
+            const staffName = currentStaff.name || currentStaff.fullName || "Auto-Detected Staff";
+            const staffRole = currentStaff.role || currentStaff.designation || "Staff";
+
+            // Populate Disposed-By fields automatically if present in HTML
+            const disposedByInput = document.getElementById('disposed-by-name');
+            if (disposedByInput) disposedByInput.value = staffName;
+
+            // 1. RENDER ALL MASTER ASSET REGISTER HEADERS IN PREVIEW CARD
+            if (previewArea) {
+                previewArea.innerHTML = `
+                    <div class="bg-red-50 border-2 border-red-200 rounded-3xl p-5 space-y-4 text-left shadow-sm">
+                        <!-- Top Header Bar -->
+                        <div class="flex justify-between items-center border-b border-red-200 pb-3">
+                            <div>
+                                <span class="text-[9px] font-black uppercase text-red-500 tracking-widest">Asset Barcode</span>
+                                <h3 class="text-lg font-black text-gray-900">${cleanBarcode}</h3>
+                            </div>
+                            <span class="px-3 py-1 text-xs font-black uppercase rounded-full bg-red-100 text-red-700 border border-red-300">
+                                ${assetData.assetStatus || assetData.status || 'Active'}
+                            </span>
+                        </div>
+
+                        <!-- All Asset Register Fields -->
+                        <div class="grid grid-cols-2 gap-2 text-xs">
+                            <div class="bg-white p-2 rounded-xl border border-red-100">
+                                <span class="text-[9px] font-bold text-gray-400 uppercase block">Asset Name</span>
+                                <span class="font-black text-gray-800">${assetData.assetName || assetData.name || 'N/A'}</span>
+                            </div>
+                            <div class="bg-white p-2 rounded-xl border border-red-100">
+                                <span class="text-[9px] font-bold text-gray-400 uppercase block">Category</span>
+                                <span class="font-black text-gray-800">${assetData.category || assetData.assetCategory || 'N/A'}</span>
+                            </div>
+                            <div class="bg-white p-2 rounded-xl border border-red-100">
+                                <span class="text-[9px] font-bold text-gray-400 uppercase block">Location / Room</span>
+                                <span class="font-black text-gray-800">${assetData.location || assetData.room || 'N/A'}</span>
+                            </div>
+                            <div class="bg-white p-2 rounded-xl border border-red-100">
+                                <span class="text-[9px] font-bold text-gray-400 uppercase block">Department</span>
+                                <span class="font-black text-gray-800">${assetData.department || 'N/A'}</span>
+                            </div>
+                            <div class="bg-white p-2 rounded-xl border border-red-100">
+                                <span class="text-[9px] font-bold text-gray-400 uppercase block">Brand / Model</span>
+                                <span class="font-black text-gray-800">${assetData.brand || assetData.model || 'N/A'}</span>
+                            </div>
+                            <div class="bg-white p-2 rounded-xl border border-red-100">
+                                <span class="text-[9px] font-bold text-gray-400 uppercase block">Serial Number</span>
+                                <span class="font-black text-gray-800">${assetData.serialNo || assetData.serialNumber || 'N/A'}</span>
+                            </div>
+                            <div class="bg-white p-2 rounded-xl border border-red-100">
+                                <span class="text-[9px] font-bold text-gray-400 uppercase block">Assigned Custodian</span>
+                                <span class="font-black text-gray-800">${assetData.assignedTo || assetData.custodian || 'Unassigned'}</span>
+                            </div>
+                            <div class="bg-white p-2 rounded-xl border border-red-100">
+                                <span class="text-[9px] font-bold text-gray-400 uppercase block">Current Condition</span>
+                                <span class="font-black text-gray-800">${assetData.condition || 'N/A'}</span>
+                            </div>
+                        </div>
+
+                        <!-- Auto-Detected Staff Banner -->
+                        <div class="bg-red-100/60 p-2.5 rounded-2xl border border-red-200 flex justify-between items-center text-xs">
+                            <span class="font-bold text-red-800">Auto-Detected Initiator:</span>
+                            <span class="font-black text-red-900">${staffName} (${staffRole})</span>
+                        </div>
+                    </div>
+                `;
+            }
+
+            // 2. MASTER REGISTER PHOTO AUTO-FETCH LOGIC
+            const registerPhoto = assetData.imageUrl || assetData.assetPhotoUrl || assetData.photoUrl;
+
+            if (auditPhotoArea) {
+                if (registerPhoto && registerPhoto !== 'N/A' && registerPhoto !== 'null' && registerPhoto !== '') {
+                    auditPhotoArea.innerHTML = `
+                        <div class="text-center w-full">
+                            <span class="text-[10px] font-bold text-gray-500 uppercase block mb-1">Master Register Photo</span>
+                            <img src="${registerPhoto}" class="w-full h-32 object-cover rounded-2xl border border-gray-300 shadow-sm mx-auto">
+                        </div>`;
+                } else {
+                    auditPhotoArea.innerHTML = `
+                        <div class="w-full h-32 bg-gray-100 rounded-2xl border-2 border-dashed border-gray-300 flex flex-col items-center justify-center text-center p-2">
+                            <i class="fa-solid fa-image-slash text-gray-400 text-xl mb-1"></i>
+                            <span class="text-xs font-bold text-gray-400 uppercase">No Photo Available</span>
+                        </div>`;
+                }
+            }
+
+            const submitBtn = document.getElementById('submit-disposal-btn');
+            if (submitBtn) submitBtn.disabled = false;
+
+        } else {
+            if (previewArea) {
+                previewArea.innerHTML = `
+                    <div class="p-4 bg-red-100 border border-red-300 rounded-2xl text-center">
+                        <span class="text-xs font-black text-red-600 uppercase">⚠️ Asset Barcode Not Found!</span>
+                    </div>`;
+            }
+            if (auditPhotoArea) auditPhotoArea.innerHTML = '';
+
+            const submitBtn = document.getElementById('submit-disposal-btn');
+            if (submitBtn) submitBtn.disabled = true;
         }
+
     } catch (e) {
-        const cached = localStorage.getItem(`asset_${barcode}`);
-        if (cached) {
-            const data = JSON.parse(cached);
-            window.activeDisposalAsset = data;
-            window.renderSmartPreview('disposal-asset-preview', data, barcode, 'red');
-            document.getElementById('disposed-by-name').value = window.currentStaff?.name || "Staff";
-            window.showWhatsAppToast("⚠️ Offline Mode", "Loaded from local cache.");
-        }
+        console.error("Error restoring disposal details preview:", e);
     }
 };
 
@@ -597,4 +727,22 @@ window.initTransferSigPads = () => {
             if (pad) pad._setupCanvas();
         }
     });
+};
+
+window.renderSmartPreview = (containerId, data, barcode, themeColor = 'indigo') => {
+    const el = document.getElementById(containerId);
+    if (!el) return;
+
+    el.classList.remove('hidden');
+    el.innerHTML = `
+        <div class="flex items-center gap-3">
+            <div class="w-10 h-10 bg-${themeColor}-100 rounded-lg flex items-center justify-center text-${themeColor}-600">
+                <i class="fa-solid fa-box"></i>
+            </div>
+            <div>
+                <p class="font-black text-slate-900 leading-tight uppercase">${data.assetName || data.assetDescription || data.description || 'Unknown Asset'}</p>
+                <p class="text-[8px] font-bold text-slate-400 uppercase tracking-widest">${barcode} | ${data.location || 'No Location'}</p>
+            </div>
+        </div>
+    `;
 };

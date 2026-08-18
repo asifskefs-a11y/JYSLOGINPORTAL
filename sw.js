@@ -1,130 +1,90 @@
-// JYS NATIVE WEB PUSH SERVICE WORKER & OFFLINE CACHE (v4.1)
-const CACHE_NAME = 'jys-offline-cache-v1';
+const CACHE_NAME = 'jys-portal-v4.0';
 const ASSETS_TO_CACHE = [
-    '/',
-    'index.html',
-    'admin.html',
-    'staff.html',
-    'visitor.html',
-    'staff-login.html',
-    'style.css',
-    'staff-ui.css',
-    'jys_Icon.png',
-    'schoollogo.png',
-    'manifest.json',
-    'app.js',
-    'init_module.js',
-    'auth_module.js',
-    'ui_module.js',
-    'firebase_config.js',
-    'field_normalizer.js',
-    'attendance_module.js',
-    'visitor_module.js',
-    'drive_module.js',
-    'tasks_module.js',
-    'admin_module.js',
-    'audit_module.js',
-    'export_module.js',
-    'import_module.js',
-    'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css',
+    './',
+    './index.html',
+    './admin.html',
+    './staff-login.html',
+    './visitor.html',
+    './style.css',
+    './staff-ui.css',
+    './schoollogo.png',
+    './jys_Icon.png',
+    './manifest.json',
+    './firebase_config.js',
+    './field_normalizer.js',
+    './drive_module.js',
+    './ui_module.js',
+    './import_module.js',
+    './export_module.js',
+    './audit_module.js',
+    './attendance_module.js',
+    './tasks_module.js',
+    './admin_module.js',
+    './visitor_module.js',
+    './init_module.js',
+    './contractor_module.js',
+    './staff_asset_module.js',
+    './asset_management.js',
     'https://cdn.tailwindcss.com',
-    'https://unpkg.com/html5-qrcode'
+    'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css',
+    'https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800;900&display=swap'
 ];
 
-// INSTALL: Cache app shell
-self.addEventListener('install', event => {
+// Install Event - Caching static assets
+self.addEventListener('install', (event) => {
     event.waitUntil(
-        caches.open(CACHE_NAME).then(cache => {
-            console.log('👷 Service Worker: Caching App Shell');
+        caches.open(CACHE_NAME).then((cache) => {
+            console.log('📦 PWA: Pre-caching static assets');
             return cache.addAll(ASSETS_TO_CACHE);
         })
     );
     self.skipWaiting();
 });
 
-// ACTIVATE: Cleanup old caches
-self.addEventListener('activate', event => {
+// Activate Event - Cleaning up old caches
+self.addEventListener('activate', (event) => {
     event.waitUntil(
-        caches.keys().then(keys => Promise.all(
-            keys.map(key => {
-                if (key !== CACHE_NAME) return caches.delete(key);
-            })
-        ))
+        caches.keys().then((cacheNames) => {
+            return Promise.all(
+                cacheNames.map((cache) => {
+                    if (cache !== CACHE_NAME) {
+                        console.log('🗑️ PWA: Clearing old cache', cache);
+                        return caches.delete(cache);
+                    }
+                })
+            );
+        })
     );
     self.clients.claim();
 });
 
-// FETCH: Cache-First, Network-Fallback strategy
-// Only intercept local GET requests, bypass external firebase/public wifi gateways
-self.addEventListener('fetch', event => {
-    if (event.request.method !== 'GET' || !event.request.url.startsWith('file:///')) {
+// Fetch Event - Stale-while-revalidate strategy
+self.addEventListener('fetch', (event) => {
+    // Skip Firebase and non-GET requests
+    if (event.request.url.includes('firebaseio.com') ||
+        event.request.url.includes('google-analytics') ||
+        event.request.method !== 'GET') {
         return;
     }
 
     event.respondWith(
-        caches.match(event.request).then(cachedResponse => {
-            if (cachedResponse) return cachedResponse;
-
-            return fetch(event.request).then(response => {
-                if (!response || response.status !== 200 || response.type === 'opaqueredirect') {
-                    return response;
+        caches.match(event.request).then((cachedResponse) => {
+            const fetchPromise = fetch(event.request).then((networkResponse) => {
+                // Update cache with new response
+                if (networkResponse && networkResponse.status === 200) {
+                    caches.open(CACHE_NAME).then((cache) => {
+                        cache.put(event.request, networkResponse.clone());
+                    });
                 }
-                const responseToCache = response.clone();
-                caches.open('v1-app-cache').then(cache => {
-                    cache.put(event.request, responseToCache);
-                });
-                return response;
-            }).catch(() => caches.match('/index.html'));
-        })
-    );
-});
+                return networkResponse;
+            });
 
-// JYS NATIVE WEB PUSH HANDLERS
-self.addEventListener('push', event => {
-    let data = {};
-    try {
-        data = event.data ? event.data.json() : {};
-    } catch (e) {
-        data = { title: 'School Alert', body: event.data.text() };
-    }
-
-    const title = data.title || 'Jern Yafoor School';
-
-    // RICH PAYLOAD COMPATIBILITY (Android, iOS, Desktop)
-    const options = {
-        body: data.body || 'New update from the school portal.',
-        icon: 'jys_Icon.png',
-        badge: 'jys_Icon.png',
-        image: data.image || null, // Rich media support for Asset Disposal
-        tag: data.tag || 'jys-default',
-        renotify: true,
-        vibrate: [200, 100, 200],
-        data: {
-            url: data.url || '/JYSLOGINPORTAL/index.html'
-        }
-    };
-
-    event.waitUntil(self.registration.showNotification(title, options));
-});
-
-// NATIVE CLICK-TO-APP NAVIGATION
-self.addEventListener('notificationclick', event => {
-    const notification = event.notification;
-    const urlToOpen = notification.data.url;
-
-    notification.close();
-
-    event.waitUntil(
-        clients.matchAll({ type: 'window', includeUncontrolled: true }).then(windowClients => {
-            // Check if there is already a window tab open with the same URL
-            for (let client of windowClients) {
-                if (client.url.includes('/JYSLOGINPORTAL/') && 'focus' in client) {
-                    return client.focus();
-                }
-            }
-            // If no window is open, open a new one
-            if (clients.openWindow) {
-                return clients.openWindow(urlToOpen);
+            // Return cached response if available, else wait for network
+            return cachedResponse || fetchPromise;
+        }).catch(() => {
+            // Offline fallback for HTML pages
+            if (event.request.mode === 'navigate') {
+                return caches.match('./index.html');
             }
         })
     );

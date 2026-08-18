@@ -392,6 +392,87 @@ const getFastLocation = () => {
 // DASHBOARD & ATTENDANCE CORE                                       */
 // ================================================================ */
 
+// FIX 2: Check-In Logic v4.4
+function triggerSignatureAndKeyModal(btn) {
+    if (typeof window.openSignatureModal === 'function') {
+        window.openSignatureModal("Staff Check-In", async (sigData) => {
+            const role = (window.currentStaff?.role || '').toLowerCase();
+            const isSecurityOrAdmin = (role === 'security' || role === 'admin');
+
+            if (!isSecurityOrAdmin) {
+                if (typeof window.openKeyCollectionModal === 'function') {
+                    window.openKeyCollectionModal(async (hasKey, keyCode) => {
+                        await proceedCheckIn(window.currentStaff, sigData, btn, hasKey, keyCode);
+                    });
+                } else {
+                    const hasKey = confirm("Did you collect a key for this shift?");
+                    await proceedCheckIn(window.currentStaff, sigData, btn, hasKey, null);
+                }
+            } else {
+                await proceedCheckIn(window.currentStaff, sigData, btn, false, null);
+            }
+        });
+    }
+}
+
+function initSecurityCheckInButton() {
+    const cinBtn = document.getElementById('s-checkin-btn');
+    if (!cinBtn) return;
+    const newCinBtn = cinBtn.cloneNode(true);
+    if (cinBtn.parentNode) cinBtn.parentNode.replaceChild(newCinBtn, cinBtn);
+    newCinBtn.onclick = async (e) => {
+        e.preventDefault();
+        try {
+            if (typeof window.openPasswordModal === 'function') {
+                window.openPasswordModal("Check-In Security", () => {
+                    triggerSignatureAndKeyModal(newCinBtn);
+                });
+            } else {
+                triggerSignatureAndKeyModal(newCinBtn);
+            }
+        } catch (err) {
+            console.error("Check-In Error:", err);
+        }
+    };
+}
+
+// FIX 3: Profile Photo Rendering v4.4
+function renderSecurityProfileCard(staff) {
+    const photoEl = document.getElementById('user-avatar');
+    if (photoEl) {
+        const fallbackAvatar = window.generateLocalAvatar ? window.generateLocalAvatar(staff.name || staff.fullName || 'U') : '';
+        const photoUrl = staff.profilePicUrl || staff.photo || staff.profilePic || staff.avatar || fallbackAvatar;
+        photoEl.src = window.getDirectDriveImageUrl ? window.getDirectDriveImageUrl(photoUrl) : photoUrl;
+        photoEl.classList.remove('hidden');
+    }
+}
+
+/**
+ * FIX: TOP BACK BUTTON INITIALIZER (v4.3)
+ * Restores navigation back to the main dashboard from any sub-module view.
+ */
+// 3. CONTEXT-AWARE BACK BUTTON NAVIGATION (DETERMINES ACTIVE PORTAL)
+window.initTopBackButton = function() {
+    const backBtns = document.querySelectorAll('.section-back-btn-circle, .top-back-btn, #btn-back-to-dashboard');
+
+    backBtns.forEach(backBtn => {
+        // Prevent duplicate listener buildup
+        const newBackBtn = backBtn.cloneNode(true);
+        if (backBtn.parentNode) backBtn.parentNode.replaceChild(newBackBtn, backBtn);
+
+        newBackBtn.onclick = (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+
+            // Detect if user belongs to Security or General Staff Portal
+            const isSecurityPortal = document.getElementById('security-main-container') !== null;
+            const targetDashboard = isSecurityPortal ? 'security-main-container' : 'staff-dash-area';
+
+            window.showStaffView(targetDashboard);
+        };
+    });
+};
+
 window.initUserDashboard = async (staff) => {
     console.log("📊 initUserDashboard: Initializing for", staff.name || staff.fullName);
     window.currentStaff = staff;
@@ -400,6 +481,9 @@ window.initUserDashboard = async (staff) => {
     if (staff.mobile) {
         localStorage.setItem('loggedStaffMobile', staff.mobile);
     }
+
+    // Initialize Back Button Navigation
+    window.initTopBackButton();
 
     const role = (staff.role || "Staff").toString().trim().toLowerCase();
     const isSecurity = (role === 'security');
@@ -425,7 +509,15 @@ window.initUserDashboard = async (staff) => {
         const el = document.getElementById(id);
         if (el) {
             // RESTORATION EXCEPTION: Don't hide core Security Dashboard features if the user is Security
-            if (isSecurity && (id === 'security-pin-control' || id === 'tasks-management-section')) return;
+            const isSecurityCore = (id === 'security-pin-control' || id === 'tasks-management-section' || id === 'asset-transfer-section' || id === 'asset-audit-section' || id === 'asset-disposal-section' || id === 'transfer-logs-section');
+            if (isSecurity && isSecurityCore) {
+                // Keep the primary sections like PIN control visible, but hide the workflow sections until clicked
+                if (id !== 'security-pin-control' && id !== 'tasks-management-section') {
+                    el.classList.add('hidden');
+                    el.style.display = 'none';
+                }
+                return;
+            }
 
             el.classList.add('hidden');
             el.style.display = 'none';
@@ -455,7 +547,10 @@ window.initUserDashboard = async (staff) => {
         window.applyRoleDashboardRules(role);
         const restrictedRoles = ['cleaner', 'bus musrif', 'bus_musrif', 'gardener', 'office boy', 'office_boy'];
         if (restrictedRoles.includes(role)) window.loadPersonalAttendance(staff.mobile);
-        if (role === 'security') window.loadSecurityPinControl();
+        if (role === 'security') {
+            window.loadSecurityPinControl();
+            if (window.enforceSecurityDashboardLayout) window.enforceSecurityDashboardLayout(role);
+        }
     }
 
     // FORCE RELOAD TASK STATS & VIEW (Handles counters)
@@ -477,15 +572,8 @@ window.initUserDashboard = async (staff) => {
     const branchEl = document.getElementById('user-branch');
     if (branchEl) branchEl.innerHTML = `<i class="fa-solid fa-location-dot text-indigo-400"></i> ${staff.branch || staff.school || "Jern Yafoor School"}`;
 
-    // SAFE AVATAR FALLBACK GENERATOR (SVG Data-URI)
-    const initials = (staff.name || staff.fullName || 'U').charAt(0).toUpperCase();
-    const fallbackAvatar = `data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='100' height='100' viewBox='0 0 100 100'><rect width='100%' height='100%' fill='%234F46E5'/><text x='50%' y='55%' dominant-baseline='middle' text-anchor='middle' fill='%23ffffff' font-size='40' font-family='sans-serif' font-weight='bold'>${initials}</text></svg>`;
-
-    const avatarImg = document.getElementById('user-avatar');
-    if (avatarImg) {
-        avatarImg.src = staff.profilePicUrl ? window.getDirectDriveImageUrl(staff.profilePicUrl) : fallbackAvatar;
-        avatarImg.onerror = () => { avatarImg.src = fallbackAvatar; };
-    }
+    // FIX 3: Profiles Photo Rendering
+    renderSecurityProfileCard(staff);
 
     // UPDATE STAT COUNTERS FROM FIREBASE TASKS
     const userRole = (staff.role || '').toLowerCase();
@@ -559,34 +647,11 @@ window.initUserDashboard = async (staff) => {
                 };
             }
         } else {
+            // FIX 2: Ensure Check-In Button is initialized correctly
+            initSecurityCheckInButton();
+
             if (cinBtn) {
                 cinBtn.classList.remove('hidden');
-                cinBtn.onclick = () => {
-                    // Step 1: Security Password
-                    window.openPasswordModal("Check-In Security", () => {
-                        // Step 2: Signature Modal
-                        window.openSignatureModal("Staff Check-In", async (sigData) => {
-                            const role = (staff.role || '').toLowerCase();
-                            const isSecurityOrAdmin = (role === 'security' || role === 'admin');
-
-                            // Step 3: Trigger Key Collection Modal for Non-Security Staff
-                            if (!isSecurityOrAdmin) {
-                                if (typeof window.openKeyCollectionModal === 'function') {
-                                    window.openKeyCollectionModal(async (hasKey, keyCode) => {
-                                        await proceedCheckIn(staff, sigData, cinBtn, hasKey, keyCode);
-                                    });
-                                } else {
-                                    // Fallback prompt if modal function is unavailable
-                                    const hasKey = confirm("Did you collect a key for this shift?");
-                                    const keyCode = hasKey ? prompt("Enter Key Code/ID:") : null;
-                                    await proceedCheckIn(staff, sigData, cinBtn, hasKey, keyCode);
-                                }
-                            } else {
-                                await proceedCheckIn(staff, sigData, cinBtn, false, null);
-                            }
-                        });
-                    });
-                };
             }
             if (coutBtn) coutBtn.classList.add('hidden');
             if (statusText) statusText.innerText = "Ready to check in";
@@ -712,6 +777,12 @@ async function proceedCheckOut(staff, session, btn, keyReturned) {
             window.triggerSuccessPopup(msg);
         } else alert("Checked out!");
 
+        // FIX 1: Ensure loadSecurityPinControl() is ONLY called if role === 'security'
+        const role = (staff.role || '').toLowerCase();
+        if (role === 'security') {
+            if (window.loadSecurityPinControl) window.loadSecurityPinControl();
+        }
+
     } catch (err) {
         console.error("❌ Check-Out Error:", err);
         alert("Error: " + err.message);
@@ -773,17 +844,21 @@ function renderAttendanceList(data, mobile, body, countEl) {
 }
 
 window.loadSecurityPinControl = () => {
-    const role = (window.currentStaff?.role || "").toString().trim().toLowerCase();
-    const container = document.getElementById('security-pin-control');
-    const body = document.getElementById('security-pin-list-body');
+    // FIX 1: Strict Role Guard
+    const currentUser = JSON.parse(sessionStorage.getItem('active_staff_user') || '{}');
+    const role = (currentUser.role || window.currentStaff?.role || '').toLowerCase();
 
-    if (role !== 'security' && (localStorage.getItem('isAdminLoggedIn') !== 'true')) {
+    if (role !== 'security' && role !== 'admin') {
+        const container = document.getElementById('security-pin-control') || document.getElementById('security-key-pin-section');
         if (container) {
             container.classList.add('hidden');
             container.style.display = 'none';
         }
         return;
     }
+
+    const container = document.getElementById('security-pin-control');
+    const body = document.getElementById('security-pin-list-body');
 
     if (container) {
         container.classList.remove('hidden');
@@ -908,6 +983,44 @@ window.loadSecurityPinControl = () => {
             }).join('');
         } catch (e) {
             console.error("Error loading PIN control:", e);
+        }
+    }
+};
+
+/**
+ * RESTORED: SECURITY DASHBOARD LAYOUT ENFORCER (v4.3)
+ * Strictly hides gate operations and ensures core modules are visible.
+ */
+window.enforceSecurityDashboardLayout = function(role) {
+    const cleanRole = (role || '').toLowerCase();
+    if (cleanRole === 'security') {
+        // 1. Hide Visitor & Contractor Gate Operation Buttons from Security View
+        const gateOpsSection = document.getElementById('gate-operations-section');
+        const visitorEntryBtn = document.getElementById('btn-visitor-entry');
+        const contractorEntryBtn = document.getElementById('btn-contractor-entry');
+        const checkInTopBtn = document.getElementById('top-btn-checkin');
+
+        if (gateOpsSection) gateOpsSection.style.display = 'none';
+        if (visitorEntryBtn) visitorEntryBtn.style.display = 'none';
+        if (contractorEntryBtn) contractorEntryBtn.style.display = 'none';
+        if (checkInTopBtn) checkInTopBtn.style.display = 'none';
+
+        // 2. Ensure Key PIN Control, Create Task, and Asset Modules are Visible
+        const keyPinSection = document.getElementById('security-pin-control') || document.getElementById('security-key-pin-section');
+        const createTaskBtn = document.getElementById('tab-btn-create-task') || document.getElementById('tab-btn-create');
+        const assetModule = document.getElementById('asset-management-section') || document.getElementById('menu-asset-section');
+
+        if (keyPinSection) {
+            keyPinSection.style.display = 'block';
+            keyPinSection.classList.remove('hidden');
+        }
+        if (createTaskBtn) {
+            createTaskBtn.style.display = 'inline-flex';
+            createTaskBtn.classList.remove('hidden');
+        }
+        if (assetModule) {
+            assetModule.style.display = 'block';
+            assetModule.classList.remove('hidden');
         }
     }
 };

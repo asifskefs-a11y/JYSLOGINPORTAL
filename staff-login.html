@@ -30,7 +30,10 @@
 
             <div class="menu-header-profile">
                  <div class="flex items-center gap-4">
-                     <div class="avatar h-16 w-16" id="menuAvatar">?</div>
+                     <div class="avatar h-16 w-16 overflow-hidden bg-indigo-600 rounded-full flex items-center justify-center shadow-lg" id="menuAvatar">
+                         <img id="sidebar-profile-img" src="" class="w-full h-full object-cover hidden" alt="Profile">
+                         <span id="sidebar-initials" class="text-white font-black text-xl">?</span>
+                     </div>
                      <div class="flex flex-col">
                          <h2 class="text-xl font-black leading-none text-white" id="menuUserName">Staff User</h2>
                          <p class="text-[10px] font-bold text-white/70 uppercase tracking-widest mt-1" id="menuUserRole">Staff</p>
@@ -51,13 +54,13 @@
                     </button>
 
                     <!-- ✅ Asset Audit - Accessible to ALL ROLES -->
-                    <button onclick="window.toggleSideMenu(); window.showStaffView('asset-audit-section')" class="menu-item-btn">
+                    <button id="menu-asset-audit" onclick="window.toggleSideMenu(); window.showStaffView('asset-audit-section')" class="menu-item-btn">
                         <i class="fa-solid fa-barcode"></i>
                         <span>Item Audit</span>
                     </button>
 
                     <!-- ✅ Asset Disposal - Accessible to ALL ROLES -->
-                    <button onclick="window.toggleSideMenu(); window.showStaffView('asset-disposal-section')" class="menu-item-btn">
+                    <button id="menu-asset-dispose" onclick="window.toggleSideMenu(); window.showStaffView('asset-disposal-section')" class="menu-item-btn">
                         <i class="fa-solid fa-trash-can"></i>
                         <span>Dispose Item</span>
                     </button>
@@ -575,24 +578,23 @@
                             </div>
                         </div>
                         <div id="disposal-asset-preview" class="min-h-[40px] bg-slate-50 rounded-xl p-4 border-2 border-dashed border-slate-200 text-[10px] space-y-1"></div>
-                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                            <div class="space-y-2">
-                                <label class="text-[10px] font-black text-red-500 uppercase tracking-wider flex items-center gap-2"><i class="fa-regular fa-image"></i> Before Photo *</label>
-                                <input type="file" id="disposal-before-photo-input" accept="image/*" capture="environment" class="hidden" onchange="window.handleDisposalBeforePhoto(event)">
-                                <button type="button" onclick="document.getElementById('disposal-before-photo-input').click()" class="w-full py-3 border-2 border-dashed border-red-200 rounded-xl text-red-500 font-bold flex items-center justify-center gap-2 text-[10px]"><i class="fa-solid fa-camera"></i> <span id="before-photo-btn-text">Take Before Photo</span></button>
-                                <div id="before-photo-preview" class="hidden mt-2 h-32 rounded-xl overflow-hidden border border-red-100 relative">
-                                    <img src="" class="w-full h-full object-cover">
-                                    <button type="button" onclick="window.removeDisposalBeforePhoto()" class="absolute top-2 right-2 bg-red-500 text-white w-7 h-7 rounded-full shadow-lg flex items-center justify-center active:scale-90 transition-transform"><i class="fa-solid fa-trash-can text-[10px]"></i></button>
-                                </div>
+
+                        <!-- PHOTO SECTION -->
+                        <div class="grid grid-cols-2 gap-4 my-4">
+                            <!-- 1. Master Register Photo (Auto-fetched, No camera required) -->
+                            <div id="audit-photo-preview-container" class="flex flex-col items-center justify-center hidden">
+                                <!-- JS Auto fills 'Master Photo' OR 'No Photo Available' -->
                             </div>
-                            <div class="space-y-2">
-                                <label class="text-[10px] font-black text-red-500 uppercase tracking-wider flex items-center gap-2"><i class="fa-regular fa-image"></i> Audit Photo (After) *</label>
-                                <input type="file" id="disposal-photo-input" accept="image/*" capture="environment" class="hidden" onchange="handleDisposalPhoto(event)">
-                                <button type="button" onclick="document.getElementById('disposal-photo-input').click()" class="w-full py-3 border-2 border-dashed border-red-200 rounded-xl text-red-500 font-bold flex items-center justify-center gap-2 text-[10px]"><i class="fa-solid fa-camera"></i> <span id="disposal-photo-btn-text">Take Audit Photo</span></button>
-                                <div id="disposal-photo-preview" class="hidden mt-2 h-32 rounded-xl overflow-hidden border border-red-100 relative">
-                                    <img src="" class="w-full h-full object-cover">
-                                    <button type="button" onclick="window.removeDisposalAfterPhoto()" class="absolute top-2 right-2 bg-red-500 text-white w-7 h-7 rounded-full shadow-lg flex items-center justify-center active:scale-90 transition-transform"><i class="fa-solid fa-trash-can text-[10px]"></i></button>
-                                </div>
+
+                            <!-- 2. Staff Capture Photo (Before Disposal) -->
+                            <div class="text-center">
+                                <span class="text-[10px] font-bold text-gray-500 uppercase block mb-1">Disposal Photo (Required)</span>
+                                <input type="file" id="disposal-photo-input" capture="environment" accept="image/*" class="hidden"
+                                       onchange="const f = event.target.files[0]; if(f){ const r = new FileReader(); r.onload = (e) => window.disposalBeforePhotoBase64 = e.target.result; r.readAsDataURL(f); }">
+                                <button type="button" onclick="document.getElementById('disposal-photo-input').click()"
+                                        class="w-full py-3 bg-red-600 text-white rounded-xl text-xs font-bold shadow-md flex items-center justify-center gap-1">
+                                    <i class="fa-solid fa-camera"></i> Take Photo
+                                </button>
                             </div>
                         </div>
                         <div class="grid grid-cols-2 gap-3">
@@ -1158,29 +1160,15 @@
             }
         };
 
-        window.showStaffView = function(viewId) {
-            // Hide the Auth area when showing any dashboard view
-            const authArea = document.getElementById('staff-auth-area');
-            if (authArea) authArea.classList.add('hidden');
 
-            const areas = ['staff-dash-area', 'tasks-management-section', 'asset-audit-section', 'asset-disposal-section', 'asset-transfer-section', 'transfer-logs-section'];
-            areas.forEach(id => {
-                const el = document.getElementById(id);
-                if (el) el.classList.add('hidden');
+        // PWA SERVICE WORKER REGISTRATION
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js')
+                    .then(reg => console.log('✅ PWA: Service Worker Registered', reg.scope))
+                    .catch(err => console.error('❌ PWA: Service Worker Error', err));
             });
-            const target = document.getElementById(viewId);
-            if (target) target.classList.remove('hidden');
-
-            // Re-load view data if needed
-            if (viewId === 'tasks-management-section' && window.loadRoleView) {
-                window.loadRoleView(window.currentStaff);
-            }
-            if (viewId === 'staff-dash-area' && window.renderDashboard && window.currentStaff) {
-                 // No need to full re-render, but update state if needed
-            }
-
-            window.scrollTo(0, 0);
-        };
+        }
     </script>
 
     <!-- ASSET DETAILS MODAL (👁️ VIEW FEATURE) -->

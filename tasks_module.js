@@ -482,10 +482,20 @@ window.loadRoleView = async (staff) => {
     // Check if either card containers or table bodies exist
     if (!activeContainer && !historyContainer && !activeTbody && !historyTbody) return;
 
+    // --- ⚡ LOAD FROM CACHE FIRST ---
+    const cachedTasks = localStorage.getItem('cached_tasks');
+    if (cachedTasks) {
+        try {
+            const data = JSON.parse(cachedTasks);
+            console.log("⚡ Tasks: Loaded from local cache.");
+            processTasksData(data, staff, isAdmin, isSecurity, role, activeContainer, historyContainer, activeTbody, historyTbody);
+        } catch(e) { console.warn("⚠️ Tasks: Cache corrupted."); }
+    }
+
     // --- STRICT ROLE-BASED TAB VISIBILITY ---
-    const createTabBtn = document.getElementById('tab-btn-create-task');
+    const createTabBtn = document.getElementById('tab-btn-create-task') || document.getElementById('tab-btn-create');
     if (createTabBtn) {
-        if (isSecurity) {
+        if (isSecurity || isAdmin) {
             createTabBtn.classList.remove('hidden');
             createTabBtn.style.display = 'inline-flex';
         } else {
@@ -514,46 +524,9 @@ window.loadRoleView = async (staff) => {
     taskListenerActive = true;
     onValue(ref(db, 'tasks'), (snap) => {
         if (snap.exists()) {
-            const allTasks = Object.values(snap.val());
-            localStorage.setItem('cached_tasks', JSON.stringify(snap.val()));
-
-            let userTasks = [];
-
-            if (isAdmin) {
-                // Admin sees EVERYTHING
-                userTasks = allTasks;
-            } else if (isSecurity) {
-                // Security sees tasks they raised
-                userTasks = allTasks.filter(t => t.raisedByMobile === staff?.mobile);
-            } else {
-                // Resolvers see tasks assigned to their role
-                userTasks = allTasks.filter(t => {
-                    const assignedRole = (t.assignedRole || "").toLowerCase().trim();
-                    return assignedRole === role || (role === 'cleaner leader' && assignedRole === 'cleaner');
-                });
-            }
-
-            // Update Dashboard Stats for this User
-            const total = userTasks.length;
-            const pending = userTasks.filter(t => t.status === 'Open' || t.status === 'Accepted').length;
-            const completed = userTasks.filter(t => t.status === 'Closed' || t.status === 'Rejected').length;
-
-            if (document.getElementById('total-tasks-count')) document.getElementById('total-tasks-count').innerText = total;
-            if (document.getElementById('pending-tasks-count')) document.getElementById('pending-tasks-count').innerText = pending;
-            if (document.getElementById('completed-tasks-count')) document.getElementById('completed-tasks-count').innerText = completed;
-
-            const activeTasks = userTasks.filter(t => t.status === 'Open' || t.status === 'Accepted');
-            const historyTasks = userTasks.filter(t => t.status === 'Closed' || t.status === 'Rejected');
-
-            // Render Tables (Admin Dashboard)
-            if (activeTbody) window.renderActiveTasksTable(activeTasks);
-            if (historyTbody) window.renderHistoryTasksTable(historyTasks);
-
-            // Render Cards (Staff Portal)
-            const isResolver = role === 'cleaner leader' || role === 'technician' || role === 'housekeeping';
-            if (activeContainer) renderTasksList(activeTasks, activeContainer, isResolver, 'active');
-            if (historyContainer) renderTasksList(historyTasks, historyContainer, isResolver, 'history');
-
+            const data = snap.val();
+            localStorage.setItem('cached_tasks', JSON.stringify(data));
+            processTasksData(data, staff, isAdmin, isSecurity, role, activeContainer, historyContainer, activeTbody, historyTbody);
         } else {
             const emptyMsg = `<p class="p-8 text-center text-slate-400 font-bold uppercase tracking-widest text-[10px]">No tasks found.</p>`;
             if (activeContainer) activeContainer.innerHTML = emptyMsg;
@@ -565,6 +538,47 @@ window.loadRoleView = async (staff) => {
         console.warn("⚠️ Task Loading Error:", error);
     });
 };
+
+/**
+ * HELPER: PROCESSES AND RENDERS TASKS DATA
+ */
+function processTasksData(data, staff, isAdmin, isSecurity, role, activeContainer, historyContainer, activeTbody, historyTbody) {
+    const allTasks = Object.values(data);
+    let userTasks = [];
+
+    if (isAdmin) {
+        userTasks = allTasks;
+    } else if (isSecurity) {
+        userTasks = allTasks.filter(t => t.raisedByMobile === staff?.mobile);
+    } else {
+        userTasks = allTasks.filter(t => {
+            const assignedRole = (t.assignedRole || "").toLowerCase().trim();
+            return assignedRole === role || (role === 'cleaner leader' && assignedRole === 'cleaner');
+        });
+    }
+
+    // Update Dashboard Stats for this User
+    const total = userTasks.length;
+    const pending = userTasks.filter(t => t.status === 'Open' || t.status === 'Accepted').length;
+    const completed = userTasks.filter(t => t.status === 'Closed' || t.status === 'Rejected').length;
+
+    if (document.getElementById('total-tasks-count')) document.getElementById('total-tasks-count').innerText = total;
+    if (document.getElementById('pending-tasks-count')) document.getElementById('pending-tasks-count').innerText = pending;
+    if (document.getElementById('completed-tasks-count')) document.getElementById('completed-tasks-count').innerText = completed;
+
+    const activeTasks = userTasks.filter(t => t.status === 'Open' || t.status === 'Accepted');
+    const historyTasks = userTasks.filter(t => t.status === 'Closed' || t.status === 'Rejected');
+
+    // Render Tables (Admin Dashboard)
+    if (activeTbody) window.renderActiveTasksTable(activeTasks);
+    if (historyTbody) window.renderHistoryTasksTable(historyTasks);
+
+    // Render Cards (Staff Portal)
+    const closureAllowedRoles = ['cleaner', 'cleaner leader', 'leader', 'technician', 'security', 'admin', 'housekeeping'];
+    const isResolver = closureAllowedRoles.includes(role);
+    if (activeContainer) renderTasksList(activeTasks, activeContainer, isResolver, 'active');
+    if (historyContainer) renderTasksList(historyTasks, historyContainer, isResolver, 'history');
+}
 
 window.filterStaffBySchoolAndRole = async () => {
     const school = document.getElementById('taskSchoolSelect')?.value;

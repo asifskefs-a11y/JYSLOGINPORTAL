@@ -246,61 +246,163 @@ window.showLoader = window.showGlobalSpinner;
 window.hideLoader = window.hideGlobalSpinner;
 
 /**
- * ROLE-BASED DASHBOARD RULES (v4.2)
+ * ROLE-BASED DASHBOARD RULES (v4.3)
  * Enforces precise permissions for Assets, Tasks, and Attendance.
  */
-window.applyRoleDashboardRules = (userRole) => {
-    const cleanRole = (userRole || '').toString().trim().toLowerCase();
+/**
+ * ROBUST VIEW SWITCHER (v4.3)
+ * Handles showing a specific view while hiding all other sibling views.
+ */
+// 1. SMART VIEW SWITCHER (HANDLES BOTH STAFF & SECURITY DASHBOARDS)
+window.showStaffView = function(viewId) {
+    console.log(`📂 Switching to view: ${viewId}`);
 
-    const taskCenterTab = document.getElementById('menu-tasks-btn') || document.getElementById('tab-btn-tasks');
-    const createTaskBtn = document.getElementById('menu-create-task-btn') || document.getElementById('tab-btn-create-task');
-    const assetSection = document.getElementById('menu-asset-section') || document.getElementById('tab-btn-assets');
-    const cleanerHistorySection = document.getElementById('cleaner-attendance-section') || document.getElementById('attendance-history-section');
-
-    console.log(`🛡️ Applying Rules for Role: [${cleanRole}]`);
-
-    // 1. Task Center Access (Cleaners, Leaders, Technicians, Security, Admin ONLY)
-    const taskAllowedRoles = ['cleaner', 'cleaner leader', 'leader', 'technician', 'security', 'admin', 'housekeeping'];
-    const hasTaskAccess = taskAllowedRoles.includes(cleanRole);
-
-    if (taskCenterTab) {
-        taskCenterTab.style.display = hasTaskAccess ? 'flex' : 'none';
-        taskCenterTab.classList.toggle('hidden', !hasTaskAccess);
+    // Hide Auth Area
+    const authArea = document.getElementById('staff-auth-area');
+    if (authArea) {
+        authArea.classList.add('hidden');
+        authArea.style.display = 'none';
     }
 
-    // 2. Create Task Permission (Security & Admin ONLY)
-    const canCreateTask = (cleanRole === 'security' || cleanRole === 'admin');
-    if (createTaskBtn) {
-        createTaskBtn.style.display = canCreateTask ? 'flex' : 'none';
-        createTaskBtn.classList.toggle('hidden', !canCreateTask);
+    // Comprehensive list of all top-level view containers & sub-modules
+    const views = [
+        'staff-dash-area',
+        'security-main-container',
+        'tasks-management-section',
+        'asset-audit-section',
+        'asset-disposal-section',
+        'asset-transfer-section',
+        'transfer-logs-section'
+    ];
+
+    views.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) {
+            el.classList.add('hidden');
+            el.style.display = 'none';
+        }
+    });
+
+    // Reveal Target View
+    const target = document.getElementById(viewId);
+    if (target) {
+        target.classList.remove('hidden');
+        target.style.display = 'block';
     }
 
-    const dashCreateBtn = document.getElementById('s-dash-create-task-btn');
-    if (dashCreateBtn) {
-        dashCreateBtn.style.display = canCreateTask ? 'flex' : 'none';
-        dashCreateBtn.classList.toggle('hidden', !canCreateTask);
+    // Module-specific initializations
+    if (viewId === 'tasks-management-section' && window.loadRoleView) {
+        window.loadRoleView(window.currentStaff);
     }
 
-    // 3. Asset Management Access (Office Boy, Security, Admin ONLY)
-    const assetAllowedRoles = ['office boy', 'office_boy', 'security', 'admin'];
+    // Auto-rebind Top Back Buttons after rendering sub-views
+    if (typeof window.initTopBackButton === 'function') {
+        window.initTopBackButton();
+    }
+
+    window.scrollTo(0, 0);
+};
+
+
+// 2. FIXED ROLE-BASED VISIBILITY (REMOVED FORCE-HIDE BUG ON CHECK-IN)
+window.applyRoleDashboardRules = function(userRole) {
+    // 1. Normalize Role String (Convert "Cleaner Leader" / "Cleaner_Leader" -> "cleaner_leader")
+    const rawRole = (userRole || '').toString().trim().toLowerCase();
+    const cleanRole = rawRole.replace(/[\s-]+/g, '_'); // Replaces spaces/hyphens with underscore
+
+    console.log(`👤 Normalizing Role for Sidebar Permissions: Original="${userRole}" -> Cleaned="${cleanRole}"`);
+
+    // 2. Define Granular Allowed Role Lists
+    const assetAllowedRoles = [
+        'security',
+        'technician',
+        'tech',
+        'office_boy',
+        'admin',
+        'leader',
+        'cleaner_leader',
+        'cleaning_leader'
+    ];
+
+    const taskAllowedRoles = [
+        'cleaner',
+        'cleaner_leader',
+        'cleaning_leader',
+        'leader',
+        'technician',
+        'tech',
+        'security',
+        'admin',
+        'office_boy'
+    ];
+
+    const taskCreateRoles = ['security', 'admin', 'cleaner_leader', 'leader'];
+
     const hasAssetAccess = assetAllowedRoles.includes(cleanRole);
+    const hasTaskAccess  = taskAllowedRoles.includes(cleanRole);
+    const canCreateTask  = taskCreateRoles.includes(cleanRole);
 
+    // 3. Asset Management Sidebar Section Toggle
+    const assetSection = document.getElementById('menu-asset-section');
     if (assetSection) {
-        assetSection.style.display = hasAssetAccess ? 'block' : 'none';
-        assetSection.classList.toggle('hidden', !hasAssetAccess);
+        if (hasAssetAccess) {
+            assetSection.classList.remove('hidden');
+            assetSection.style.display = 'block';
+        } else {
+            assetSection.classList.add('hidden');
+            assetSection.style.display = 'none';
+        }
     }
 
-    // 4. Attendance History (Visible to restricted roles: Cleaner, Bus Musrif, Gardener, Office Boy)
-    const showPersonalHistory = ['cleaner', 'bus musrif', 'bus_musrif', 'gardener', 'office boy', 'office_boy'].includes(cleanRole);
-    if (cleanerHistorySection) {
-        cleanerHistorySection.style.display = showPersonalHistory ? 'block' : 'none';
-        cleanerHistorySection.classList.toggle('hidden', !showPersonalHistory);
+    // 4. Ensure Individual Asset Sub-Buttons inside Sidebar are Explicitly Visible
+    const assetSubButtons = [
+        'menu-asset-transfer',
+        'menu-asset-audit',
+        'menu-asset-dispose',
+        'menu-movement-logs'
+    ];
+
+    assetSubButtons.forEach(btnId => {
+        const btnEl = document.getElementById(btnId);
+        if (btnEl) {
+            if (hasAssetAccess) {
+                btnEl.classList.remove('hidden');
+                btnEl.style.display = 'flex';
+            } else {
+                btnEl.classList.add('hidden');
+                btnEl.style.display = 'none';
+            }
+        }
+    });
+
+    // 5. Sidebar Task History & Create Task Buttons Toggle
+    const taskBtn = document.getElementById('menu-tasks-btn');
+    if (taskBtn) {
+        taskBtn.style.display = hasTaskAccess ? 'flex' : 'none';
     }
 
-    // Explicitly hide Tasks Center for Office Boy if not already covered
-    if (cleanRole === 'office_boy' || cleanRole === 'office boy') {
-        if (taskCenterTab) taskCenterTab.style.display = 'none';
-        if (createTaskBtn) createTaskBtn.style.display = 'none';
+    const createBtn = document.getElementById('menu-create-task-btn');
+    if (createBtn) {
+        if (canCreateTask) {
+            createBtn.classList.remove('hidden');
+            createBtn.style.display = 'flex';
+        } else {
+            createBtn.classList.add('hidden');
+            createBtn.style.display = 'none';
+        }
+    }
+
+    // 6. Force Reveal Check-In Buttons for Authorized Users
+    const checkinBtns = document.querySelectorAll('#s-checkin-btn, #btn-staff-checkin');
+    checkinBtns.forEach(btn => {
+        btn.classList.remove('hidden');
+        btn.style.display = 'inline-flex';
+    });
+
+    // 7. Sync Sidebar Profile Data
+    const activeUser = window.currentStaff || JSON.parse(sessionStorage.getItem('active_staff_user') || '{}');
+    if (typeof window.updateSideMenuProfile === 'function') {
+        window.updateSideMenuProfile(activeUser);
     }
 };
 
