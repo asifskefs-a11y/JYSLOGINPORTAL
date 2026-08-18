@@ -152,7 +152,8 @@ window.handleStaffLogin = async (e) => {
                 }
 
                 localStorage.setItem('loggedStaff', JSON.stringify(foundUser));
-                console.log("💾 Staff Login: Session stored in localStorage");
+                sessionStorage.setItem('active_staff_user', JSON.stringify(foundUser));
+                console.log("💾 Staff Login: Session stored in localStorage and sessionStorage");
 
                 if (window.triggerSuccessPopup) {
                     window.triggerSuccessPopup(`Welcome, ${foundUser.name}! 👋`);
@@ -324,10 +325,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
     try {
         const isAdmin = localStorage.getItem('isAdminLoggedIn') === 'true';
-        const loggedStaff = localStorage.getItem('loggedStaff');
+
+        // Require explicit local session check instead of persistent auth auto-login
+        const activeStaff = JSON.parse(sessionStorage.getItem('active_staff_user') || 'null');
+        const loggedStaff = activeStaff || JSON.parse(localStorage.getItem('loggedStaff') || 'null');
 
         console.log("🚀 SchoolLog Init: Current Path:", path);
-        console.log("🚀 SchoolLog Init: Auth State - Admin:", isAdmin, "| Staff:", !!loggedStaff);
+        console.log("🚀 SchoolLog Init: Auth State - Admin:", isAdmin, "| Staff Active:", !!activeStaff);
 
         // --- 1. ADMIN PAGE ROUTING ---
         if (path.includes('admin.html')) {
@@ -354,29 +358,30 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // --- 2. STAFF PAGE ROUTING ---
         if (path.includes('staff-login.html')) {
-            if (loggedStaff) {
-                console.log("🛡️ Staff: Active session found, rendering dashboard...");
+            if (activeStaff) {
+                console.log("🛡️ Staff: Verified active session found, rendering dashboard...");
                 try {
-                    const staffData = JSON.parse(loggedStaff);
                     if (window.initUserDashboard) {
-                        window.initUserDashboard(staffData);
+                        window.initUserDashboard(activeStaff);
                     } else if (window.renderDashboard) {
-                        window.renderDashboard(staffData);
+                        window.renderDashboard(activeStaff);
                     } else {
                         console.log("⏳ Staff: Waiting for attendance_module.js...");
                         setTimeout(() => {
-                            if (window.initUserDashboard) window.initUserDashboard(staffData);
-                            else if (window.renderDashboard) window.renderDashboard(staffData);
-                            else if (window.checkStaffAuth) window.checkStaffAuth();
+                            if (window.initUserDashboard) window.initUserDashboard(activeStaff);
+                            else if (window.renderDashboard) window.renderDashboard(activeStaff);
                         }, 1000);
                     }
                 } catch (e) {
                     console.error("❌ Staff: Session parse error, clearing...", e);
-                    localStorage.removeItem('loggedStaff');
+                    sessionStorage.removeItem('active_staff_user');
                 }
             } else {
-                console.log("🛡️ Staff: No active session, checking auth area...");
-                if (window.checkStaffAuth) window.checkStaffAuth();
+                console.log("🛡️ Staff: No active session, showing login area...");
+                const authArea = document.getElementById('staff-auth-area');
+                const dashArea = document.getElementById('staff-dash-area');
+                if (authArea) authArea.classList.remove('hidden');
+                if (dashArea) dashArea.classList.add('hidden');
             }
         }
 
@@ -412,16 +417,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
         window.checkStaffAuth = () => {
             try {
-                const saved = localStorage.getItem('loggedStaff');
+                const activeStaff = JSON.parse(sessionStorage.getItem('active_staff_user') || 'null');
                 const authArea = document.getElementById('staff-auth-area');
                 const dashArea = document.getElementById('staff-dash-area');
 
-                if (saved && dashArea) {
-                    console.log("🛡️ checkStaffAuth: Session found, loading dashboard");
-                    if (window.renderDashboard) window.renderDashboard(JSON.parse(saved));
-                } else if (authArea) {
-                    console.log("🛡️ checkStaffAuth: No session, ensuring login visible");
-                    authArea.classList.remove('hidden');
+                if (activeStaff && activeStaff.mobile && dashArea) {
+                    console.log("🛡️ checkStaffAuth: Active session found, loading dashboard");
+                    if (window.renderDashboard) window.renderDashboard(activeStaff);
+                    if (authArea) authArea.classList.add('hidden');
+                    dashArea.classList.remove('hidden');
+                } else {
+                    console.log("🛡️ checkStaffAuth: No active session, ensuring login visible");
+                    if (authArea) authArea.classList.remove('hidden');
                     if (dashArea) dashArea.classList.add('hidden');
                 }
             } catch (e) { console.error("Auth Check Error:", e); }

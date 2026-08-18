@@ -392,7 +392,14 @@
     };
 
     window.handleStaffCardClick = function() {
-        const loggedStaff = localStorage.getItem('loggedStaff');
+        // Clear stale session unless a verified active login token exists
+        const activeStaff = JSON.parse(sessionStorage.getItem('active_staff_user') || 'null');
+        if (!activeStaff || !activeStaff.mobile) {
+            sessionStorage.removeItem('active_staff_user');
+            localStorage.removeItem('loggedStaff'); // Also clear persistent if invalid
+        }
+
+        const loggedStaff = localStorage.getItem('loggedStaff') || sessionStorage.getItem('active_staff_user');
         if (loggedStaff) {
             if (!window.location.pathname.includes('staff-login.html')) {
                 window.location.href = 'staff-login.html';

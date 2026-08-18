@@ -246,64 +246,61 @@ window.showLoader = window.showGlobalSpinner;
 window.hideLoader = window.hideGlobalSpinner;
 
 /**
- * ROLE-BASED DASHBOARD RULES (v4.0)
- * Triggered ONLY IF user's role is strictly 'Cleaner'
+ * ROLE-BASED DASHBOARD RULES (v4.2)
+ * Enforces precise permissions for Assets, Tasks, and Attendance.
  */
 window.applyRoleDashboardRules = (userRole) => {
-    const role = (userRole || '').toString().trim().toLowerCase();
-    const isSecurity = (role === 'security');
-    const isAdmin = (role === 'admin');
-    const isResolver = (role === 'cleaner leader' || role === 'technician' || role === 'housekeeping');
+    const cleanRole = (userRole || '').toString().trim().toLowerCase();
 
-    console.log(`🛡️ Applying Rules for Role: [${role}]`);
+    const taskCenterTab = document.getElementById('menu-tasks-btn') || document.getElementById('tab-btn-tasks');
+    const createTaskBtn = document.getElementById('menu-create-task-btn') || document.getElementById('tab-btn-create-task');
+    const assetSection = document.getElementById('menu-asset-section') || document.getElementById('tab-btn-assets');
+    const cleanerHistorySection = document.getElementById('cleaner-attendance-section') || document.getElementById('attendance-history-section');
 
-    // Sidebar & Menu Elements
-    const restrictedMenuSections = ['menu-asset-section'];
-    const cleanerHistorySection = 'cleaner-attendance-section';
+    console.log(`🛡️ Applying Rules for Role: [${cleanRole}]`);
 
-    // 1. Sidebar 'Create Task' Button
-    const createBtn = document.getElementById('menu-create-task-btn');
-    if (createBtn) {
-        if (isSecurity) {
-            createBtn.classList.remove('hidden');
-        } else {
-            createBtn.classList.add('hidden');
-        }
+    // 1. Task Center Access (Cleaners, Leaders, Technicians, Security, Admin ONLY)
+    const taskAllowedRoles = ['cleaner', 'cleaner leader', 'leader', 'technician', 'security', 'admin', 'housekeeping'];
+    const hasTaskAccess = taskAllowedRoles.includes(cleanRole);
+
+    if (taskCenterTab) {
+        taskCenterTab.style.display = hasTaskAccess ? 'flex' : 'none';
+        taskCenterTab.classList.toggle('hidden', !hasTaskAccess);
     }
 
-    // 2. Dashboard 'Create Task' Button
+    // 2. Create Task Permission (Security & Admin ONLY)
+    const canCreateTask = (cleanRole === 'security' || cleanRole === 'admin');
+    if (createTaskBtn) {
+        createTaskBtn.style.display = canCreateTask ? 'flex' : 'none';
+        createTaskBtn.classList.toggle('hidden', !canCreateTask);
+    }
+
     const dashCreateBtn = document.getElementById('s-dash-create-task-btn');
     if (dashCreateBtn) {
-        if (isSecurity) {
-            dashCreateBtn.classList.remove('hidden');
-        } else {
-            dashCreateBtn.classList.add('hidden');
-        }
+        dashCreateBtn.style.display = canCreateTask ? 'flex' : 'none';
+        dashCreateBtn.classList.toggle('hidden', !canCreateTask);
     }
 
-    // 3. 'Tasks History' Menu Item
-    const taskBtn = document.getElementById('menu-tasks-btn');
-    if (taskBtn) {
-        // All roles can see task history/center
-        taskBtn.classList.remove('hidden');
+    // 3. Asset Management Access (Office Boy, Security, Admin ONLY)
+    const assetAllowedRoles = ['office boy', 'office_boy', 'security', 'admin'];
+    const hasAssetAccess = assetAllowedRoles.includes(cleanRole);
+
+    if (assetSection) {
+        assetSection.style.display = hasAssetAccess ? 'block' : 'none';
+        assetSection.classList.toggle('hidden', !hasAssetAccess);
     }
 
-    if (role === 'cleaner') {
-        // 🛑 CLEANER ROLE: Hide advanced menu sections and show history
-        restrictedMenuSections.forEach(id => {
-            const el = document.getElementById(id);
-            if (el) el.classList.add('hidden');
-        });
-        const historyEl = document.getElementById(cleanerHistorySection);
-        if (historyEl) historyEl.classList.remove('hidden');
-    } else {
-        // ✅ OTHERS: Show advanced menu sections and hide cleaner history
-        restrictedMenuSections.forEach(id => {
-            const el = document.getElementById(id);
-            if (el) el.classList.remove('hidden');
-        });
-        const historyEl = document.getElementById(cleanerHistorySection);
-        if (historyEl) historyEl.classList.add('hidden');
+    // 4. Attendance History (Visible to restricted roles: Cleaner, Bus Musrif, Gardener, Office Boy)
+    const showPersonalHistory = ['cleaner', 'bus musrif', 'bus_musrif', 'gardener', 'office boy', 'office_boy'].includes(cleanRole);
+    if (cleanerHistorySection) {
+        cleanerHistorySection.style.display = showPersonalHistory ? 'block' : 'none';
+        cleanerHistorySection.classList.toggle('hidden', !showPersonalHistory);
+    }
+
+    // Explicitly hide Tasks Center for Office Boy if not already covered
+    if (cleanRole === 'office_boy' || cleanRole === 'office boy') {
+        if (taskCenterTab) taskCenterTab.style.display = 'none';
+        if (createTaskBtn) createTaskBtn.style.display = 'none';
     }
 };
 

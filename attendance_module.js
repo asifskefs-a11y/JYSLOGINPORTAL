@@ -453,7 +453,8 @@ window.initUserDashboard = async (staff) => {
     // APPLY ROLE RULES (Side Menu & Restricted Sections)
     if (window.applyRoleDashboardRules) {
         window.applyRoleDashboardRules(role);
-        if (role === 'cleaner') window.loadPersonalAttendance(staff.mobile);
+        const restrictedRoles = ['cleaner', 'bus musrif', 'bus_musrif', 'gardener', 'office boy', 'office_boy'];
+        if (restrictedRoles.includes(role)) window.loadPersonalAttendance(staff.mobile);
         if (role === 'security') window.loadSecurityPinControl();
     }
 

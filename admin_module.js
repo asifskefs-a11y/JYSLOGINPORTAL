@@ -975,9 +975,12 @@ window.openAddStaffModal = () => {
                         <label class="block text-[11px] font-bold text-slate-500 uppercase mb-1">Staff Role *</label>
                         <select id="staff-role" required class="w-full p-3.5 bg-slate-50 border border-slate-300 rounded-xl text-slate-900 font-medium focus:outline-none focus:border-indigo-600 focus:bg-white transition-all">
                             <option value="Cleaner">Cleaner</option>
-                            <option value="Cleaner Leader">Cleaner Leader</option>
+                            <option value="cleaner_leader">Cleaner Leader</option>
                             <option value="Security">Security</option>
                             <option value="Technician">Technician</option>
+                            <option value="office_boy">Office Boy</option>
+                            <option value="bus_musrif">Bus Musrif</option>
+                            <option value="gardener">Gardener</option>
                             <option value="Admin">Admin</option>
                         </select>
                     </div>
@@ -1094,9 +1097,12 @@ window.openEditStaffModal = async (mobile) => {
                 </select>
                 <select id="edit-role" class="w-full p-4 bg-slate-50 border-2 rounded-2xl">
                     <option value="Cleaner" ${s.role==='Cleaner'?'selected':''}>Cleaner</option>
-                    <option value="Cleaner Leader" ${s.role==='Cleaner Leader'?'selected':''}>Cleaner Leader</option>
+                    <option value="cleaner_leader" ${s.role==='cleaner_leader'||s.role==='Cleaner Leader'?'selected':''}>Cleaner Leader</option>
                     <option value="Security" ${s.role==='Security'?'selected':''}>Security</option>
                     <option value="Technician" ${s.role==='Technician'?'selected':''}>Technician</option>
+                    <option value="office_boy" ${s.role==='office_boy'?'selected':''}>Office Boy</option>
+                    <option value="bus_musrif" ${s.role==='bus_musrif'?'selected':''}>Bus Musrif</option>
+                    <option value="gardener" ${s.role==='gardener'?'selected':''}>Gardener</option>
                     <option value="Admin" ${s.role==='Admin'?'selected':''}>Admin</option>
                 </select>
                 <input type="password" id="edit-password" placeholder="New Password (Optional)" class="w-full p-4 bg-slate-50 border-2 rounded-2xl">
@@ -1363,12 +1369,45 @@ window.openDetailedAuditModal = async (type, id) => {
 window.filterStaffTable = () => {
     const query = document.getElementById('staff-search')?.value.toLowerCase();
     const date = document.getElementById('staff-date-filter')?.value;
-    const role = document.getElementById('staff-role-filter')?.value;
+    const selectedRole = document.getElementById('staff-role-filter')?.value;
+
     let filtered = window.appCache.attendance;
-    if (query) filtered = filtered.filter(a => (a.name || '').toLowerCase().includes(query) || (a.mobile || '').includes(query));
-    if (date) filtered = filtered.filter(a => a.date === new Date(date).toLocaleDateString());
-    if (role) filtered = filtered.filter(a => (a.role || a.position || '').toLowerCase().includes(role));
-    window.currentFilteredData.staff = filtered; renderStaffAttendance(filtered);
+
+    if (query) {
+        filtered = filtered.filter(a => (a.name || '').toLowerCase().includes(query) || (a.mobile || '').includes(query));
+    }
+
+    if (date) {
+        filtered = filtered.filter(a => a.date === new Date(date).toLocaleDateString());
+    }
+
+    if (selectedRole && selectedRole !== 'all') {
+        const cleanFilter = selectedRole.toLowerCase().replace(/_/g, ' ');
+        filtered = filtered.filter(a => {
+            const staffRole = (a.role || a.position || '').toLowerCase().replace(/_/g, ' ');
+
+            // Explicit check for cleaner leader to handle multiple stored formats
+            if (selectedRole === 'cleaner_leader') {
+                return staffRole === 'cleaner leader' || staffRole === 'leader';
+            }
+
+            return staffRole === cleanFilter || staffRole.includes(cleanFilter);
+        });
+    }
+
+    window.currentFilteredData.staff = filtered;
+    renderStaffAttendance(filtered);
+};
+
+/**
+ * Alias for filterStaffTable to support external calls with position value
+ */
+window.filterAttendanceByPosition = function(selectedPosition) {
+    const filterEl = document.getElementById('staff-role-filter');
+    if (filterEl) {
+        filterEl.value = selectedPosition;
+        window.filterStaffTable();
+    }
 };
 
 window.filterAssetTable = () => {
@@ -1670,11 +1709,32 @@ window.submitAssetEdit = async (barcode) => {
 window.filterStaffDirectory = () => {
     const query = document.getElementById('directory-search')?.value.toLowerCase();
     const school = document.getElementById('directory-school-filter')?.value;
-    const role = document.getElementById('directory-role-filter')?.value;
+    const selectedRole = document.getElementById('directory-role-filter')?.value;
+
     let filtered = window.appCache.staff;
-    if (query) filtered = filtered.filter(s => (s.fullName || s.name || '').toLowerCase().includes(query) || (s.mobile || '').includes(query) || (s.companyId || '').toLowerCase().includes(query));
-    if (school) filtered = filtered.filter(s => (s.branch || s.school) === school);
-    if (role) filtered = filtered.filter(s => (s.role || s.position || '').toLowerCase().includes(role));
+
+    if (query) {
+        filtered = filtered.filter(s => (s.fullName || s.name || '').toLowerCase().includes(query) || (s.mobile || '').includes(query) || (s.companyId || '').toLowerCase().includes(query));
+    }
+
+    if (school) {
+        filtered = filtered.filter(s => (s.branch || s.school) === school);
+    }
+
+    if (selectedRole && selectedRole !== 'all') {
+        const cleanFilter = selectedRole.toLowerCase().replace(/_/g, ' ');
+        filtered = filtered.filter(s => {
+            const staffRole = (s.role || s.position || '').toLowerCase().replace(/_/g, ' ');
+
+            // Explicit check for cleaner leader to handle multiple stored formats
+            if (selectedRole === 'cleaner_leader') {
+                return staffRole === 'cleaner leader' || staffRole === 'leader';
+            }
+
+            return staffRole === cleanFilter || staffRole.includes(cleanFilter);
+        });
+    }
+
     renderStaffDirectory(filtered);
 };
 
