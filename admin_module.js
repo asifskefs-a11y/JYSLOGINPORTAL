@@ -131,9 +131,11 @@ window.updateAdminKPIs = function() {
     };
 
     safeUpdateText('kpi-visitors', visitorsToday);
+    safeUpdateText('top-counter-visitors', visitorsToday); // Support Security Dashboard
     safeUpdateText('kpi-contractors', contractorsToday);
     safeUpdateText('kpi-tasks', activeTasks);
     safeUpdateText('kpi-staff', staffPresent);
+    safeUpdateText('top-counter-staff', staffPresent); // Support Security Dashboard
     safeUpdateText('kpi-alerts', urgentAlerts);
 
     // 4. Staff Census Breakdown

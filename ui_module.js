@@ -609,33 +609,38 @@ window.logoutStaff = window.executeSecureLogout;
 // SIDEBAR PROFILE & RESTRICTIONS (FIXED v4.3)                    */
 // ================================================================ */
 
-window.initSidebarProfileAndRestrictions = function() {
-    const staff = window.currentStaff || JSON.parse(sessionStorage.getItem('active_staff_user') || '{}');
-    if (!staff || !staff.mobile) return;
+window.initSidebarProfileAndRestrictions = function(staffData) {
+    const staff = staffData || window.currentStaff || JSON.parse(sessionStorage.getItem('active_staff_user') || '{}');
+    const passId = staff.adekPass || staff.adekNumber || staff.adcPassNumber || staff.username || staff.mobile;
+
+    if (!staff || !passId) return;
 
     const role = (staff.role || '').toLowerCase().trim();
     const displayName = staff.fullName || staff.name || "Staff Member";
     const displayRole = staff.designation || staff.position || staff.role || "Employee";
 
+    console.log("👤 Syncing Side Menu Profile for:", displayName);
+
     const nameEl = document.getElementById('sidebar-user-name') || document.getElementById('menuUserName') || document.querySelector('.sidebar-user-name');
     const roleEl = document.getElementById('sidebar-user-role') || document.getElementById('menuUserRole') || document.querySelector('.sidebar-user-role');
     const imgEl = document.getElementById('sidebar-user-avatar') || document.getElementById('sidebar-profile-img') || document.querySelector('.sidebar-user-avatar');
+    const initialsEl = document.getElementById('sidebar-initials');
 
     if (nameEl) nameEl.innerText = displayName;
     if (roleEl) roleEl.innerText = displayRole;
 
     if (imgEl) {
-        const photo = staff.photoUrl || staff.profilePic || staff.imageUrl || staff.photo;
+        const photo = staff.photoUrl || staff.profilePic || staff.imageUrl || staff.photo || staff.profilePicUrl;
         if (photo && photo !== 'N/A' && photo !== '-') {
             imgEl.src = window.getDirectDriveImageUrl ? window.getDirectDriveImageUrl(photo) : photo;
             imgEl.classList.remove('hidden');
+            if (initialsEl) initialsEl.classList.add('hidden');
         } else {
-            imgEl.src = window.generateLocalAvatar ? window.generateLocalAvatar(displayName) : `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName.charAt(0))}&background=4f46e5&color=fff`;
+            const avatarUrl = window.generateLocalAvatar ? window.generateLocalAvatar(displayName) : `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName.charAt(0))}&background=f59e0b&color=fff`;
+            imgEl.src = avatarUrl;
             imgEl.classList.remove('hidden');
+            if (initialsEl) initialsEl.classList.add('hidden');
         }
-
-        const initialsEl = document.getElementById('sidebar-initials');
-        if (initialsEl) initialsEl.classList.add('hidden');
     }
 
     // Cleaner, Gardener & Bus Musrif specific restrictions
@@ -667,7 +672,11 @@ window.updateSideMenuProfile = window.initSidebarProfileAndRestrictions;
 
 window.renderDashboardProfile = function(staffData) {
     const staff = staffData || window.currentStaff || JSON.parse(sessionStorage.getItem('active_staff_user') || '{}');
-    if (!staff || !staff.mobile) {
+
+    // Expanded safety check to support ADEK Pass Number
+    const passId = staff.adekPass || staff.adekNumber || staff.adcPassNumber || staff.username || staff.mobile;
+
+    if (!staff || !passId) {
         console.warn("⚠️ renderDashboardProfile: No active staff data found.");
         return;
     }
@@ -676,25 +685,42 @@ window.renderDashboardProfile = function(staffData) {
 
     const nameEl = document.getElementById('user-name');
     const idEl = document.getElementById('user-pass-id');
+    const roleEl = document.getElementById('user-role') || document.getElementById('menuUserRole');
     const branchEl = document.getElementById('user-branch');
     const imgEl = document.getElementById('user-avatar');
 
     if (nameEl) nameEl.innerText = staff.fullName || staff.name || "Staff Member";
-    if (idEl) idEl.innerText = `ID: ${staff.adekPass || staff.adekNumber || '-'}`;
+    if (idEl) idEl.innerText = `ID: ${passId}`;
+
+    const displayRole = staff.designation || staff.position || staff.role || "Employee";
+    if (roleEl) roleEl.innerText = displayRole;
+
     if (branchEl) {
         branchEl.innerHTML = `<i class="fa-solid fa-location-dot text-indigo-400"></i> ${staff.school || staff.branch || 'Jern Yafoor School'}`;
     }
 
     if (imgEl) {
-        const photo = staff.profilePicUrl || staff.photoUrl || staff.photo;
+        const photo = staff.profilePicUrl || staff.photoUrl || staff.photo || staff.imageUrl;
         const displayName = staff.fullName || staff.name || "U";
+
         if (photo && photo !== 'N/A' && photo !== '-') {
             imgEl.src = window.getDirectDriveImageUrl ? window.getDirectDriveImageUrl(photo) : photo;
             imgEl.classList.remove('hidden');
+            const placeholder = document.getElementById('avatar-placeholder');
+            if (placeholder) placeholder.classList.add('hidden');
         } else {
-            imgEl.src = window.generateLocalAvatar ? window.generateLocalAvatar(displayName) : `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=4f46e5&color=fff`;
+            // Use locally generated avatar or UI-Avatars fallback
+            const fallback = window.generateLocalAvatar ? window.generateLocalAvatar(displayName) : `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=4f46e5&color=fff`;
+            imgEl.src = fallback;
             imgEl.classList.remove('hidden');
+            const placeholder = document.getElementById('avatar-placeholder');
+            if (placeholder) placeholder.classList.add('hidden');
         }
+    }
+
+    // ✅ CRITICAL: Also update the side menu profile
+    if (typeof window.initSidebarProfileAndRestrictions === 'function') {
+        window.initSidebarProfileAndRestrictions(staff);
     }
 };
 

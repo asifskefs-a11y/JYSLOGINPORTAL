@@ -76,19 +76,30 @@
 
         /* Responsive Adjustments */
         @media (max-width: 640px) {
+            .portal-container {
+                padding-left: 12px !important;
+                padding-right: 12px !important;
+            }
+
             .portal-card {
-                padding: 24px !important;
-                min-width: unset !important;
+                padding: 20px !important;
+                min-width: 100% !important; /* Fix long cards */
+                width: 100% !important;
             }
 
             .portal-card .w-20 {
-                width: 56px;
-                height: 56px;
+                width: 50px;
+                height: 50px;
             }
 
             .portal-card svg {
-                width: 28px;
-                height: 28px;
+                width: 24px;
+                height: 24px;
+            }
+
+            h1 {
+                font-size: 2rem !important; /* Prevent text cut-off */
+                word-wrap: break-word;
             }
         }
 
