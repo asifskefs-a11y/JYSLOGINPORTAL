@@ -1,23 +1,40 @@
 import { db, UPLOAD_CONFIG } from './firebase_config.js';
-import { ref, get, update, push, set, onValue } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+import { ref, get, update, push, set, onValue, off } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
 // ================================================
-// TASK MANAGEMENT MODULE (v4.3 - MATERIAL TRACKING)
+// TASK MANAGEMENT MODULE (v4.4 - FIXED)
 // ================================================
 
 let capturedTaskPhotoBase64 = "";
 let capturedAfterPhotoBase64 = "";
 let activeTaskIdForClosure = null;
-let currentTaskTab = 'create'; // 'create', 'active', 'history'
+let currentTaskTab = 'create';
 let taskListenerActive = false;
+let activeTaskListener = null;
+let isSubmittingClosure = false;
 
 /* --- PHOTO CAPTURE HANDLERS --- */
 
 window.handleTaskImageCapture = async (e) => {
-    const file = e.target.files[0]; if (!file) return;
-    capturedTaskPhotoBase64 = await window.compressImageFile(file);
-    const preview = document.getElementById('taskPhotoPreview');
-    if (preview) { preview.src = capturedTaskPhotoBase64; document.getElementById('taskPhotoPreviewContainer').classList.remove('hidden'); }
+    const file = e.target.files[0];
+    if (!file) return;
+
+    try {
+        window.showGlobalSpinner("Processing Photo...");
+        capturedTaskPhotoBase64 = await window.compressImageFile(file);
+
+        const preview = document.getElementById('taskPhotoPreview');
+        if (preview) {
+            preview.src = capturedTaskPhotoBase64;
+            document.getElementById('taskPhotoPreviewContainer').classList.remove('hidden');
+        }
+        document.getElementById('cameraBtnText').innerText = "Photo Captured ✅";
+    } catch (err) {
+        console.error("Photo capture error:", err);
+        alert("Failed to process photo. Please try again.");
+    } finally {
+        window.hideGlobalSpinner();
+    }
 };
 
 window.removeTaskPhoto = () => {
@@ -27,15 +44,19 @@ window.removeTaskPhoto = () => {
     const preview = document.getElementById('taskPhotoPreview');
     if (preview) preview.src = "";
     document.getElementById('taskPhotoPreviewContainer')?.classList.add('hidden');
+    document.getElementById('cameraBtnText').innerText = "Capture Problem Photo";
 };
 
+// ✅ FIXED: After photo capture with validation
 window.handleAfterPhotoCaptured = async (e) => {
-    const file = e.target.files[0]; if (!file) return;
-    window.showGlobalSpinner("Optimizing Proof...");
-    try {
-        capturedAfterPhotoBase64 = await window.compressImageFile(file);
+    const file = e.target.files[0];
+    if (!file) return;
 
-        // UI Feedback: Show preview
+    window.showGlobalSpinner("Optimizing Proof Photo...");
+    try {
+        capturedAfterPhotoBase64 = await window.compressImageFile(file, 800, 800, 0.7);
+
+        // Show preview
         const preview = document.getElementById('after-photo-preview');
         const container = document.getElementById('after-photo-preview-container');
         if (preview && container) {
@@ -44,19 +65,20 @@ window.handleAfterPhotoCaptured = async (e) => {
             document.getElementById('capture-proof-btn')?.classList.add('hidden');
         }
 
-        // AUTO-SUBMIT: If all required fields are entered before the photo, finalize now
-        const comment = document.getElementById('closure-comment').value.trim();
+        // ✅ FIXED: Auto-submit if all requirements are met
+        const comment = document.getElementById('closure-comment')?.value?.trim() || '';
         const material = document.getElementById('task-material-used')?.value;
-        const otherText = document.getElementById('task-material-other-text')?.value.trim();
+        const otherText = document.getElementById('task-material-other-text')?.value?.trim() || '';
 
         let isMaterialValid = material && (material !== 'Others' || otherText);
 
-        if (comment && isMaterialValid) {
-            console.log("🚀 Photo captured & requirements met. Finalizing closure automatically...");
-            window.executeFinalClosure();
+        if (comment && isMaterialValid && !isSubmittingClosure) {
+            console.log("🚀 Photo captured & requirements met. Finalizing closure...");
+            await window.executeFinalClosure();
         }
     } catch (err) {
         console.error("Photo process error:", err);
+        alert("Failed to process photo. Please try again.");
     } finally {
         window.hideGlobalSpinner();
     }
@@ -81,10 +103,16 @@ window.toggleMaterialOtherInput = (value) => {
 
     if (value === 'Others') {
         container.classList.remove('hidden');
-        if (otherInput) otherInput.focus();
+        if (otherInput) {
+            otherInput.focus();
+            otherInput.required = true;
+        }
     } else {
         container.classList.add('hidden');
-        if (otherInput) otherInput.value = "";
+        if (otherInput) {
+            otherInput.value = "";
+            otherInput.required = false;
+        }
     }
 };
 
@@ -96,49 +124,73 @@ window.closeClosureModal = () => {
     activeTaskIdForClosure = null;
     window.removeAfterPhoto();
     document.getElementById('closure-comment').value = "";
-
-    const matSelect = document.getElementById('task-material-used');
-    if (matSelect) matSelect.value = "";
+    document.getElementById('task-material-used').value = "";
     window.toggleMaterialOtherInput("");
+    isSubmittingClosure = false;
 };
 
+// ✅ FIXED: Close task with validation
 window.closeTaskAction = async (taskId) => {
+    if (!taskId) {
+        alert("Invalid task ID.");
+        return;
+    }
+
+    // Check if task is already closed
+    const task = window.allTasksCache[taskId];
+    if (task && (task.status === 'Closed' || task.status === 'Rejected')) {
+        alert("This task is already closed or rejected.");
+        return;
+    }
+
     activeTaskIdForClosure = taskId;
     const modal = document.getElementById('close-task-modal');
     if (modal) {
         modal.classList.remove('hidden');
-        // Reset state for clean start
+        // Reset state
         window.removeAfterPhoto();
         document.getElementById('closure-comment').value = "";
-        const matSelect = document.getElementById('task-material-used');
-        if (matSelect) matSelect.value = "";
+        document.getElementById('task-material-used').value = "";
         window.toggleMaterialOtherInput("");
+        isSubmittingClosure = false;
+        document.getElementById('final-submit-close-btn').disabled = false;
     }
 };
 
+// ✅ FIXED: Submit task closure with validation
 window.submitTaskClosure = function() {
+    // Prevent multiple submissions
+    if (isSubmittingClosure) {
+        console.warn("⚠️ Closure already in progress");
+        return;
+    }
+
     const commentInput = document.getElementById('closure-comment');
     const comment = commentInput ? commentInput.value.trim() : '';
     const matSelect = document.getElementById('task-material-used');
     const material = matSelect ? matSelect.value : '';
-    const otherText = document.getElementById('task-material-other-text')?.value.trim();
+    const otherText = document.getElementById('task-material-other-text')?.value?.trim() || '';
 
+    // ✅ FIXED: Validate all required fields
     if (!material) {
         alert("Please select the Material / Action used.");
+        matSelect?.focus();
         return;
     }
     if (material === 'Others' && !otherText) {
         alert("Please specify the other material used.");
+        document.getElementById('task-material-other-text')?.focus();
         return;
     }
     if (!comment) {
         alert("Please enter a resolution remark.");
+        commentInput?.focus();
         return;
     }
 
+    // ✅ FIXED: Validate photo requirement
     if (!capturedAfterPhotoBase64) {
-        // Trigger camera directly from user click event to satisfy browser security
-        console.log("📸 Requirements validated. Opening camera for proof...");
+        console.log("📸 No proof photo yet. Opening camera...");
         const camInput = document.getElementById('task-after-photo-input');
         if (camInput) {
             camInput.click();
@@ -152,66 +204,144 @@ window.submitTaskClosure = function() {
     window.executeFinalClosure();
 };
 
+// ✅ FIXED: Execute final closure with progress indicator
 window.executeFinalClosure = async () => {
-    const comment = document.getElementById('closure-comment').value.trim();
+    // Prevent duplicate submissions
+    if (isSubmittingClosure) return;
+    isSubmittingClosure = true;
+
+    const comment = document.getElementById('closure-comment')?.value?.trim() || '';
     const matSelect = document.getElementById('task-material-used');
     const material = matSelect ? matSelect.value : '';
-    const otherText = document.getElementById('task-material-other-text')?.value.trim();
+    const otherText = document.getElementById('task-material-other-text')?.value?.trim() || '';
     const taskId = activeTaskIdForClosure;
 
-    if (!taskId || !comment || !capturedAfterPhotoBase64) return;
+    // ✅ FIXED: Final validation
+    if (!taskId) {
+        alert("No task selected for closure.");
+        isSubmittingClosure = false;
+        return;
+    }
+    if (!comment) {
+        alert("Please enter a resolution remark.");
+        isSubmittingClosure = false;
+        return;
+    }
+    if (!capturedAfterPhotoBase64) {
+        alert("Please capture a proof photo first.");
+        isSubmittingClosure = false;
+        return;
+    }
 
-    let finalMaterial = material === 'Others' ? `Others: ${otherText}` : material;
+    const finalMaterial = material === 'Others' ? `Others: ${otherText}` : material;
+    const btn = document.getElementById('final-submit-close-btn');
+    const originalText = btn?.innerHTML || 'Capture Photo & Close';
 
-    window.showGlobalSpinner("Finalizing Closure...");
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Uploading & Closing...';
+    }
+
+    window.showGlobalSpinner("Uploading proof and closing task...");
+
     try {
-        const res = await window.uploadToDrive({
-            category: UPLOAD_CONFIG.CATEGORIES.TASK_PHOTOS,
-            fileName: `Task_After_${taskId}_${Date.now()}.jpg`,
-            image: capturedAfterPhotoBase64
-        });
+        // ✅ FIXED: Upload photo with retry
+        let photoUrl = '';
+        let uploadSuccess = false;
+        let retries = 3;
 
-        if (res.status === 'success') {
-            const updateData = {
-                status: 'Closed',
-                afterPhotoUrl: res.fileUrl || "",
-                completionPhoto: res.fileUrl || "",
-                completionComment: comment || "Resolved",
-                materialUsed: finalMaterial || "N/A",
-                solvedByName: window.currentStaff?.fullName || window.currentStaff?.name || "User",
-                solvedTimestamp: Date.now()
-            };
-
-            await update(ref(db, 'tasks/' + taskId), updateData);
-            window.triggerSuccessPopup("Task Completed & Closed! ✅");
-            window.closeClosureModal();
-            window.loadRoleView(window.currentStaff);
-        } else {
-            throw new Error(res.message || "Failed to upload photo");
+        while (retries > 0 && !uploadSuccess) {
+            try {
+                const res = await window.uploadToDrive({
+                    category: UPLOAD_CONFIG.CATEGORIES.TASK_PHOTOS,
+                    fileName: `Task_After_${taskId}_${Date.now()}.jpg`,
+                    image: capturedAfterPhotoBase64
+                });
+                if (res && res.status === 'success') {
+                    photoUrl = res.fileUrl || '';
+                    uploadSuccess = true;
+                    console.log("✅ Photo uploaded successfully");
+                } else {
+                    throw new Error(res?.message || "Upload failed");
+                }
+            } catch (uploadErr) {
+                retries--;
+                console.warn(`⚠️ Photo upload failed, ${retries} retries left:`, uploadErr);
+                if (retries > 0) {
+                    await new Promise(r => setTimeout(r, 1000));
+                } else {
+                    throw new Error("Failed to upload proof photo after multiple attempts");
+                }
+            }
         }
+
+        // ✅ FIXED: Update task with closure data
+        const updateData = {
+            status: 'Closed',
+            afterPhotoUrl: photoUrl || "",
+            completionPhoto: photoUrl || "",
+            completionComment: comment,
+            materialUsed: finalMaterial || "N/A",
+            solvedByName: window.currentStaff?.fullName || window.currentStaff?.name || "User",
+            solvedTimestamp: Date.now(),
+            closedAt: new Date().toISOString()
+        };
+
+        await update(ref(db, 'tasks/' + taskId), updateData);
+
+        window.triggerSuccessPopup("Task Completed & Closed! ✅");
+        window.closeClosureModal();
+
+        // ✅ FIXED: Refresh task views
+        if (window.loadRoleView) {
+            window.loadRoleView(window.currentStaff);
+        }
+
     } catch (err) {
+        console.error("Closure error:", err);
         alert("Error closing task: " + err.message);
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = originalText;
+        }
     } finally {
+        isSubmittingClosure = false;
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = originalText;
+        }
         window.hideGlobalSpinner();
     }
 };
 
+// ✅ FIXED: Reject task with validation
 window.rejectTaskAction = async (taskId) => {
+    if (!taskId) {
+        alert("Invalid task ID.");
+        return;
+    }
+
     const reason = prompt("Please enter reason for rejection:");
-    if (!reason) return;
+    if (!reason || reason.trim() === "") {
+        alert("Rejection reason is required.");
+        return;
+    }
 
     window.showGlobalSpinner("Rejecting Task...");
     try {
         await update(ref(db, 'tasks/' + taskId), {
             status: 'Rejected',
-            rejectionReason: reason || "No reason provided",
+            rejectionReason: reason.trim(),
             solvedByName: window.currentStaff?.fullName || window.currentStaff?.name || "User",
-            solvedTimestamp: Date.now()
+            solvedTimestamp: Date.now(),
+            rejectedAt: new Date().toISOString()
         });
         window.triggerSuccessPopup("Task Rejected.");
-        window.loadRoleView(window.currentStaff);
+        if (window.loadRoleView) {
+            window.loadRoleView(window.currentStaff);
+        }
     } catch (e) {
-        alert(e.message);
+        alert("Error rejecting task: " + e.message);
     } finally {
         window.hideGlobalSpinner();
     }
@@ -253,7 +383,10 @@ window.switchTaskTab = function(tabName) {
 };
 
 window.handleCreateTaskSubmit = async function(event) {
-    event.preventDefault();
+    if (event) {
+        event.preventDefault();
+        event.stopPropagation();
+    }
 
     const school = document.getElementById('taskSchoolSelect')?.value;
     const area = document.getElementById('areaNameInput')?.value;
@@ -261,21 +394,33 @@ window.handleCreateTaskSubmit = async function(event) {
     const targetRole = document.getElementById('taskRoleSelect')?.value;
     const specificStaff = document.getElementById('assignedStaffSelect')?.value;
 
-    if (!school || !area || !details || !targetRole) return alert("Required fields missing!");
+    if (!school || !area || !details || !targetRole) {
+        alert("Please fill in all required fields.");
+        return;
+    }
 
     const btn = document.getElementById('submitTaskBtn');
-    if (btn) btn.disabled = true;
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Creating Task...';
+    }
     window.showGlobalSpinner("Raising Task...");
 
     try {
         let photoUrl = "";
         if (capturedTaskPhotoBase64) {
-            const res = await window.uploadToDrive({
-                category: UPLOAD_CONFIG.CATEGORIES.TASK_PHOTOS,
-                fileName: `Task_${Date.now()}.jpg`,
-                image: capturedTaskPhotoBase64
-            });
-            if (res.status === 'success') photoUrl = res.fileUrl;
+            try {
+                const res = await window.uploadToDrive({
+                    category: UPLOAD_CONFIG.CATEGORIES.TASK_PHOTOS,
+                    fileName: `Task_Before_${Date.now()}.jpg`,
+                    image: capturedTaskPhotoBase64
+                });
+                if (res && res.status === 'success') {
+                    photoUrl = res.fileUrl || "";
+                }
+            } catch (uploadErr) {
+                console.warn("⚠️ Photo upload failed, continuing without photo:", uploadErr);
+            }
         }
 
         const taskId = "TASK-" + Date.now();
@@ -289,14 +434,14 @@ window.handleCreateTaskSubmit = async function(event) {
             assignedRole: targetRole || "General",
             assignedStaff: specificStaff || "Any",
             timestamp: Date.now(),
+            createdAt: new Date().toISOString(),
             raisedByMobile: window.currentStaff?.mobile || localStorage.getItem('loggedStaffMobile') || "Unknown",
             raisedByName: window.currentStaff?.fullName || window.currentStaff?.name || "Staff Member"
         };
 
         await set(ref(db, 'tasks/' + taskId), data);
 
-        // AUTO-RESET FEATURE
-        alert("✅ Task Created Successfully!");
+        window.triggerSuccessPopup("✅ Task Created Successfully!");
         const form = document.getElementById('raise-task-form');
         if (form) form.reset();
         window.removeTaskPhoto();
@@ -308,7 +453,10 @@ window.handleCreateTaskSubmit = async function(event) {
         console.error("Task Creation Error:", e);
         alert("❌ Failed to create task: " + e.message);
     } finally {
-        if (btn) btn.disabled = false;
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fa-solid fa-paper-plane text-lg"></i> CREATE & ROUTE TASK';
+        }
         window.hideGlobalSpinner();
     }
 };
@@ -396,7 +544,10 @@ window.renderHistoryTasksTable = function(tasks) {
 /* Open Task Inspector Modal */
 window.openTaskInspector = function(taskId) {
     const task = window.allTasksCache[taskId];
-    if (!task) return;
+    if (!task) {
+        alert("Task not found.");
+        return;
+    }
 
     const createdBy = task.raisedByName || task.createdBy || 'Unknown';
     const createdDate = task.timestamp ? new Date(task.timestamp).toLocaleString() : (task.createdAt || '-');
@@ -439,7 +590,7 @@ window.openTaskInspector = function(taskId) {
     const beforeImg = document.getElementById('insp-before-img');
     const noBefore = document.getElementById('insp-no-before');
     const bPhoto = task.beforePhotoUrl || task.photoURL || task.beforePhoto;
-    if (bPhoto) {
+    if (bPhoto && bPhoto !== 'N/A' && bPhoto !== '-') {
         beforeImg.src = window.getDirectDriveImageUrl ? window.getDirectDriveImageUrl(bPhoto) : bPhoto;
         beforeImg.classList.remove('hidden');
         noBefore.classList.add('hidden');
@@ -452,7 +603,7 @@ window.openTaskInspector = function(taskId) {
     const afterImg = document.getElementById('insp-after-img');
     const noAfter = document.getElementById('insp-no-after');
     const aPhoto = task.afterPhotoUrl || task.completionPhoto || task.afterPhoto;
-    if (aPhoto) {
+    if (aPhoto && aPhoto !== 'N/A' && aPhoto !== '-') {
         afterImg.src = window.getDirectDriveImageUrl ? window.getDirectDriveImageUrl(aPhoto) : aPhoto;
         afterImg.classList.remove('hidden');
         noAfter.classList.add('hidden');
@@ -468,6 +619,7 @@ window.closeTaskInspectorModal = function() {
     document.getElementById('task-inspector-modal').classList.add('hidden');
 };
 
+// ✅ FIXED: Load role view with listener cleanup
 window.loadRoleView = async (staff) => {
     const isActuallyAdmin = localStorage.getItem('isAdminLoggedIn') === 'true';
     const role = (staff?.role || "").toLowerCase().trim();
@@ -479,17 +631,25 @@ window.loadRoleView = async (staff) => {
     const activeTbody = document.getElementById('active-tasks-tbody');
     const historyTbody = document.getElementById('history-tasks-tbody');
 
-    // Check if either card containers or table bodies exist
     if (!activeContainer && !historyContainer && !activeTbody && !historyTbody) return;
 
-    // --- ⚡ LOAD FROM CACHE FIRST ---
+    // ✅ FIXED: Cleanup old listener before adding new one
+    if (activeTaskListener) {
+        off(activeTaskListener);
+        activeTaskListener = null;
+        taskListenerActive = false;
+    }
+
+    // --- LOAD FROM CACHE FIRST ---
     const cachedTasks = localStorage.getItem('cached_tasks');
     if (cachedTasks) {
         try {
             const data = JSON.parse(cachedTasks);
             console.log("⚡ Tasks: Loaded from local cache.");
             processTasksData(data, staff, isAdmin, isSecurity, role, activeContainer, historyContainer, activeTbody, historyTbody);
-        } catch(e) { console.warn("⚠️ Tasks: Cache corrupted."); }
+        } catch(e) {
+            console.warn("⚠️ Tasks: Cache corrupted.");
+        }
     }
 
     // --- STRICT ROLE-BASED TAB VISIBILITY ---
@@ -501,8 +661,6 @@ window.loadRoleView = async (staff) => {
         } else {
             createTabBtn.classList.add('hidden');
             createTabBtn.style.display = 'none';
-
-            // DEFAULT VIEW: If on 'create' but unauthorized, jump to 'active'
             if (currentTaskTab === 'create') {
                 console.log("🔒 Access Restricted: Switching unauthorized user to Active Tasks view.");
                 window.switchTaskTab('active');
@@ -510,7 +668,6 @@ window.loadRoleView = async (staff) => {
         }
     }
 
-    // Toggle Dashboard Create Task Button Visibility
     const dashCreateBtn = document.getElementById('s-dash-create-task-btn');
     if (dashCreateBtn) {
         if (isSecurity) {
@@ -520,9 +677,9 @@ window.loadRoleView = async (staff) => {
         }
     }
 
-    // Use onValue for real-time status sync
+    // ✅ FIXED: Use onValue with cleanup
     taskListenerActive = true;
-    onValue(ref(db, 'tasks'), (snap) => {
+    activeTaskListener = onValue(ref(db, 'tasks'), (snap) => {
         if (snap.exists()) {
             const data = snap.val();
             localStorage.setItem('cached_tasks', JSON.stringify(data));
@@ -539,9 +696,7 @@ window.loadRoleView = async (staff) => {
     });
 };
 
-/**
- * HELPER: PROCESSES AND RENDERS TASKS DATA
- */
+/* HELPER: PROCESSES AND RENDERS TASKS DATA */
 function processTasksData(data, staff, isAdmin, isSecurity, role, activeContainer, historyContainer, activeTbody, historyTbody) {
     const allTasks = Object.values(data);
     let userTasks = [];
@@ -557,7 +712,7 @@ function processTasksData(data, staff, isAdmin, isSecurity, role, activeContaine
         });
     }
 
-    // Update Dashboard Stats for this User
+    // Update Dashboard Stats
     const total = userTasks.length;
     const pending = userTasks.filter(t => t.status === 'Open' || t.status === 'Accepted').length;
     const completed = userTasks.filter(t => t.status === 'Closed' || t.status === 'Rejected').length;
@@ -652,14 +807,14 @@ function renderTasksList(tasks, container, isResolver, type) {
                     </div>
 
                     <div class="flex gap-2">
-                        ${beforePhoto ? `<img src="${window.getDirectDriveImageUrl(beforePhoto)}" class="w-12 h-12 rounded-xl object-cover border-2 border-indigo-50 shadow-sm" onclick="window.openImageZoom('${beforePhoto}')" title="Before Photo">` : ''}
-                        ${afterPhoto ? `<img src="${window.getDirectDriveImageUrl(afterPhoto)}" class="w-12 h-12 rounded-xl object-cover border-2 border-emerald-50 shadow-sm" onclick="window.openImageZoom('${afterPhoto}')" title="After Photo">` : ''}
+                        ${beforePhoto && beforePhoto !== 'N/A' && beforePhoto !== '-' ? `<img src="${window.getDirectDriveImageUrl(beforePhoto)}" class="w-12 h-12 rounded-xl object-cover border-2 border-indigo-50 shadow-sm" onclick="window.openImageZoom('${beforePhoto}')" title="Before Photo">` : ''}
+                        ${afterPhoto && afterPhoto !== 'N/A' && afterPhoto !== '-' ? `<img src="${window.getDirectDriveImageUrl(afterPhoto)}" class="w-12 h-12 rounded-xl object-cover border-2 border-emerald-50 shadow-sm" onclick="window.openImageZoom('${afterPhoto}')" title="After Photo">` : ''}
                     </div>
                 </div>
 
                 <p class="text-xs text-slate-600 font-medium leading-relaxed">${t.details || t.description || '-'}</p>
 
-                ${material ? `
+                ${material && material !== 'N/A' ? `
                     <div class="bg-indigo-50 border border-indigo-100 p-3 rounded-2xl text-[9px] text-indigo-900 font-black uppercase tracking-wider">
                         <i class="fa-solid fa-toolbox mr-1 text-indigo-500"></i> Material: ${material}
                     </div>
@@ -696,5 +851,4 @@ function renderTasksList(tasks, container, isResolver, type) {
     }).join('');
 }
 
-
-console.log("✅ tasks_module.js: v4.3 Clean Architecture Deployed");
+console.log("✅ tasks_module.js: v4.4 Clean Architecture Deployed");

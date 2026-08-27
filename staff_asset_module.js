@@ -2,10 +2,33 @@ import { db, UPLOAD_CONFIG } from './firebase_config.js';
 import { ref, get, update, push } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
 // ================================================
-// STAFF ASSET QUICK SEARCH & EDIT MODULE (v4.3)
+// STAFF ASSET QUICK SEARCH & EDIT MODULE (v4.3 FIXED)
 // ================================================
 
-/* Open/Close Modal */
+// ================================================================ */
+// ✅ FIXED: DOM READY CHECK - Wait for elements to exist          */
+// ================================================================ */
+
+function waitForElement(selector, timeout = 5000) {
+    return new Promise((resolve, reject) => {
+        const startTime = Date.now();
+        const checkInterval = setInterval(() => {
+            const element = document.querySelector(selector);
+            if (element) {
+                clearInterval(checkInterval);
+                resolve(element);
+            } else if (Date.now() - startTime > timeout) {
+                clearInterval(checkInterval);
+                reject(new Error(`Element ${selector} not found within ${timeout}ms`));
+            }
+        }, 100);
+    });
+}
+
+// ================================================================ */
+// OPEN/CLOSE MODAL                                                 */
+// ================================================================ */
+
 window.openAssetScannerModal = function() {
     const modal = document.getElementById('asset-quick-edit-modal');
     if (modal) {
@@ -14,6 +37,10 @@ window.openAssetScannerModal = function() {
     }
     document.getElementById('asset-edit-form').classList.add('hidden');
     document.getElementById('asset-search-input').value = '';
+
+    // ✅ FIXED: Reset form state
+    const formContainer = document.getElementById('dynamic-edit-fields-container');
+    if (formContainer) formContainer.innerHTML = '';
 };
 
 window.closeAssetScannerModal = function() {
@@ -25,14 +52,20 @@ window.closeAssetScannerModal = function() {
     if (window.stopCameraScanner) {
         window.stopCameraScanner();
     }
+
+    // ✅ FIXED: Reset state
+    const editForm = document.getElementById('asset-edit-form');
+    if (editForm) editForm.classList.add('hidden');
+    const searchInput = document.getElementById('asset-search-input');
+    if (searchInput) searchInput.value = '';
 };
 
-/**
- * RESTORED: 40-COLUMN DYNAMIC ASSET SEARCH
- * Correctly maps any attribute from master register.
- */
+// ================================================================ */
+// ✅ FIXED: SEARCH ASSET WITH BETTER ERROR HANDLING               */
+// ================================================================ */
+
 window.searchAssetByIdOrBarcode = async function(scannedCode) {
-    const queryTerm = (scannedCode || document.getElementById('asset-search-input').value).trim();
+    const queryTerm = (scannedCode || document.getElementById('asset-search-input')?.value || '').trim();
     if (!queryTerm) {
         alert("⚠️ Please enter or scan an Asset ID or Barcode.");
         return;
@@ -40,15 +73,19 @@ window.searchAssetByIdOrBarcode = async function(scannedCode) {
 
     window.showGlobalSpinner("Searching Master Register...");
 
-    // CLEAR PREVIOUS DATA TO PREVENT MIXED-UP RESULTS
+    // CLEAR PREVIOUS DATA
     const formContainer = document.getElementById('dynamic-edit-fields-container');
     if (formContainer) formContainer.innerHTML = '';
     document.getElementById('asset-display-id').innerText = '...';
     document.getElementById('asset-display-name').innerText = 'Searching...';
+    document.getElementById('asset-edit-form')?.classList.add('hidden');
 
     try {
+        // ✅ FIXED: Sanitize the query for Firebase key
+        const sanitizedQuery = queryTerm.replace(/[.#$\[\]]/g, '_');
+
         // Direct lookup by Barcode/ID Key
-        let assetRef = ref(db, `assets/${queryTerm}`);
+        let assetRef = ref(db, `assets/${sanitizedQuery}`);
         let snapshot = await get(assetRef);
 
         let foundAssetKey = null;
@@ -58,13 +95,14 @@ window.searchAssetByIdOrBarcode = async function(scannedCode) {
             foundAssetKey = snapshot.key;
             foundAssetData = snapshot.val();
         } else {
-            // Fallback: Full Register Scan (For 6000+ assets, direct key is faster)
+            // Fallback: Full Register Scan
             console.log("🔍 Direct key search missed, trying full register scan...");
             const allAssetsSnap = await get(ref(db, 'assets'));
             if (allAssetsSnap.exists()) {
                 allAssetsSnap.forEach((child) => {
                     const val = child.val();
-                    if (val.assetBarcode === queryTerm || val.barcode === queryTerm || val.assetId === queryTerm || child.key === queryTerm) {
+                    const barcode = val.assetBarcode || val.barcode || val.assetId || '';
+                    if (barcode && barcode.toString().toUpperCase() === queryTerm.toUpperCase()) {
                         foundAssetKey = child.key;
                         foundAssetData = val;
                     }
@@ -78,46 +116,76 @@ window.searchAssetByIdOrBarcode = async function(scannedCode) {
             return;
         }
 
-        // --- DYNAMIC FORM GENERATION (ALL 40+ COLUMNS) ---
+        // --- DYNAMIC FORM GENERATION ---
         if (formContainer) {
             // Hidden ID tracking
             document.getElementById('edit-asset-doc-id').value = foundAssetKey;
 
-            // Identity Header with multi-property fallbacks
+            // Identity Header
             document.getElementById('asset-display-id').innerText = foundAssetData.assetBarcode || foundAssetData.barcode || foundAssetData.assetId || foundAssetData.serialNo || foundAssetKey;
             document.getElementById('asset-display-name').innerText = foundAssetData.assetDescription || foundAssetData.name || foundAssetData.description || foundAssetData.itemName || 'Unnamed Asset';
             document.getElementById('asset-display-category').innerText = `${foundAssetData.category || foundAssetData.classification || foundAssetData.majorCategory || 'General'} | Category`;
 
+            // Photo
             const photoUrl = foundAssetData.photoURL || foundAssetData.photoUrl || foundAssetData.auditPhoto || foundAssetData.photo || foundAssetData.imageUrl;
-            document.getElementById('asset-display-img').src = window.getDirectDriveImageUrl ? window.getDirectDriveImageUrl(photoUrl) : (photoUrl || 'https://placehold.co/150x150/e2e8f0/64748b?text=No+Photo');
+            const imgEl = document.getElementById('asset-display-img');
+            if (imgEl) {
+                if (photoUrl && photoUrl !== 'N/A' && photoUrl !== '-') {
+                    imgEl.src = window.getDirectDriveImageUrl ? window.getDirectDriveImageUrl(photoUrl) : photoUrl;
+                } else {
+                    imgEl.src = 'https://placehold.co/150x150/e2e8f0/64748b?text=No+Photo';
+                }
+            }
 
-            // Iterate all keys in the asset object for the 40-column view
-            const ignoredKeys = ['assetId', 'updatedAt', 'profilePicUrl', '_importBatch', '_forceId', '_importSource', 'locationHistory', 'firebaseKey', 'photo', 'photoUrl', 'photoURL', 'auditPhoto'];
+            // ✅ FIXED: Clear container before generating fields
+            formContainer.innerHTML = '';
 
-            Object.keys(foundAssetData).forEach(key => {
-                if (ignoredKeys.includes(key)) return;
+            // Iterate all keys in the asset object
+            const ignoredKeys = [
+                'assetId', 'updatedAt', 'profilePicUrl', '_importBatch',
+                '_forceId', '_importSource', 'locationHistory', 'firebaseKey',
+                'photo', 'photoUrl', 'photoURL', 'auditPhoto', 'imageUrl'
+            ];
 
+            // ✅ FIXED: Sort keys for consistent display
+            const sortedKeys = Object.keys(foundAssetData).filter(k => !ignoredKeys.includes(k)).sort();
+
+            if (sortedKeys.length === 0) {
+                formContainer.innerHTML = `<p class="text-slate-400 text-center py-4">No editable fields found.</p>`;
+            }
+
+            sortedKeys.forEach(key => {
                 const val = (foundAssetData[key] !== undefined && foundAssetData[key] !== null) ? foundAssetData[key] : '';
                 const label = key.replace(/([A-Z])/g, ' $1').replace(/_/g, ' ').toUpperCase().trim();
 
                 const fieldGroup = document.createElement('div');
                 fieldGroup.className = 'space-y-1.5';
 
-                // Dropdown for Status/Condition
+                // ✅ FIXED: Special handling for status/condition fields
                 if (key.toLowerCase().includes('status') || key.toLowerCase().includes('condition')) {
+                    const statusOptions = ['OPERATIONAL', 'NEEDS_MAINTENANCE', 'DAMAGED', 'IN_TRANSIT', 'DISPOSED'];
+                    const currentVal = String(val).toUpperCase();
+
+                    let optionsHtml = statusOptions.map(opt => {
+                        const isSelected = currentVal === opt || (currentVal.includes(opt.substring(0, 3)) && opt !== 'OPERATIONAL');
+                        return `<option value="${opt}" ${isSelected ? 'selected' : ''}>${opt.replace(/_/g, ' ')}</option>`;
+                    }).join('');
+
                     fieldGroup.innerHTML = `
                         <label class="text-[9px] font-black uppercase text-indigo-900 ml-2 tracking-wider">${label}</label>
                         <select name="${key}" class="w-full px-4 py-3 bg-slate-50 border-2 border-slate-100 rounded-xl text-xs font-black text-slate-900 focus:border-indigo-600 outline-none">
-                            <option value="OPERATIONAL" ${String(val).toUpperCase() === 'OPERATIONAL' ? 'selected' : ''}>🟢 Operational</option>
-                            <option value="NEEDS_MAINTENANCE" ${String(val).toUpperCase() === 'NEEDS_MAINTENANCE' ? 'selected' : ''}>🟡 Needs Maintenance</option>
-                            <option value="DAMAGED" ${String(val).toUpperCase() === 'DAMAGED' ? 'selected' : ''}>🔴 Damaged / Scrapped</option>
-                            <option value="IN_TRANSIT" ${String(val).toUpperCase() === 'IN_TRANSIT' ? 'selected' : ''}>🔵 In Transit</option>
+                            ${optionsHtml}
                         </select>
                     `;
-                } else if (label.includes('DATE')) {
+                } else if (label.includes('DATE') || key.toLowerCase().includes('date')) {
                     fieldGroup.innerHTML = `
                         <label class="text-[9px] font-black uppercase text-indigo-900 ml-2 tracking-wider">${label}</label>
                         <input type="text" name="${key}" value="${val}" class="w-full px-4 py-3 bg-slate-50 border-2 border-slate-100 rounded-xl text-xs font-black text-slate-900 focus:border-indigo-600 outline-none" placeholder="YYYY-MM-DD">
+                    `;
+                } else if (typeof val === 'number') {
+                    fieldGroup.innerHTML = `
+                        <label class="text-[9px] font-black uppercase text-indigo-900 ml-2 tracking-wider">${label}</label>
+                        <input type="number" name="${key}" value="${val}" class="w-full px-4 py-3 bg-slate-50 border-2 border-slate-100 rounded-xl text-xs font-black text-slate-900 focus:border-indigo-600 outline-none" step="0.01">
                     `;
                 } else {
                     fieldGroup.innerHTML = `
@@ -140,15 +208,30 @@ window.searchAssetByIdOrBarcode = async function(scannedCode) {
     }
 };
 
-/* Save Updated Asset Details */
+// ================================================================ */
+// ✅ FIXED: SAVE ASSET UPDATES WITH VALIDATION & RETRY            */
+// ================================================================ */
+
 window.saveAssetLocationUpdate = async function(e) {
-    e.preventDefault();
+    if (e) {
+        e.preventDefault();
+        e.stopPropagation();
+    }
 
-    const docId = document.getElementById('edit-asset-doc-id').value;
-    if (!docId) return alert("Asset ID missing!");
+    const docId = document.getElementById('edit-asset-doc-id')?.value;
+    if (!docId) {
+        alert("Asset ID missing! Please search for an asset first.");
+        return;
+    }
 
-    const staffUser = window.currentStaff || JSON.parse(localStorage.getItem('loggedStaff')) || { name: 'Staff Member', role: 'Staff' };
+    const staffUser = window.currentStaff || JSON.parse(sessionStorage.getItem('active_staff_user') || '{}');
+    if (!staffUser || !staffUser.name) {
+        alert("Session error. Please logout and login again.");
+        return;
+    }
+
     const btn = document.getElementById('btn-save-asset');
+    const originalText = btn?.innerHTML || 'SAVE & SYNC MASTER REGISTER';
 
     if (btn) {
         btn.disabled = true;
@@ -158,32 +241,92 @@ window.saveAssetLocationUpdate = async function(e) {
     window.showGlobalSpinner("Updating Asset Database...");
 
     try {
-        const formData = new FormData(e.target);
+        const form = document.getElementById('form-asset-update');
+        if (!form) throw new Error("Form not found");
+
+        const formData = new FormData(form);
         const updateData = {};
 
+        // ✅ FIXED: Validate and collect form data
+        let hasValidData = false;
         formData.forEach((value, key) => {
-            updateData[key] = value.trim();
+            const trimmed = value.toString().trim();
+            if (trimmed) {
+                updateData[key] = trimmed;
+                hasValidData = true;
+            } else {
+                // Keep existing value if empty (we'll merge with existing)
+                updateData[key] = trimmed;
+            }
         });
+
+        // ✅ FIXED: Fetch existing data to merge
+        const existingSnap = await get(ref(db, `assets/${docId}`));
+        if (existingSnap.exists()) {
+            const existing = existingSnap.val();
+            // Only update fields that were in the form
+            Object.keys(updateData).forEach(key => {
+                if (updateData[key] === '') {
+                    // Keep existing value if field was left empty
+                    if (existing[key] !== undefined) {
+                        updateData[key] = existing[key];
+                    }
+                }
+            });
+        }
 
         // Audit Trail Fields
         updateData.lastUpdatedAt = new Date().toLocaleString();
         updateData.lastUpdatedBy = staffUser.fullName || staffUser.name || 'Staff';
         updateData.lastUpdatedRole = staffUser.role || 'Staff';
+        updateData.updatedTimestamp = Date.now();
 
-        // Update Firebase node
-        await update(ref(db, `assets/${docId}`), updateData);
+        // ✅ FIXED: Update Firebase with retry
+        let retries = 3;
+        let lastError = null;
+        let success = false;
 
-        // Record History
-        const historyRef = ref(db, `assets/${docId}/locationHistory`);
-        await push(historyRef, {
-            updatedBy: updateData.lastUpdatedBy,
-            updatedRole: updateData.lastUpdatedRole,
-            newLocation: updateData.locationName || updateData.roomName || updateData.location || 'N/A',
-            timestamp: updateData.lastUpdatedAt,
-            unixTimestamp: Date.now()
-        });
+        while (retries > 0 && !success) {
+            try {
+                await update(ref(db, `assets/${docId}`), updateData);
+                success = true;
+                console.log(`✅ Asset ${docId} updated successfully`);
+            } catch (err) {
+                lastError = err;
+                retries--;
+                console.warn(`⚠️ Update attempt failed, ${retries} retries left:`, err);
+                if (retries > 0) {
+                    await new Promise(r => setTimeout(r, 1000));
+                }
+            }
+        }
+
+        if (!success) {
+            throw new Error(lastError || "Failed to update asset after retries");
+        }
+
+        // ✅ FIXED: Record History
+        try {
+            const historyRef = ref(db, `assets/${docId}/locationHistory`);
+            await push(historyRef, {
+                updatedBy: updateData.lastUpdatedBy,
+                updatedRole: updateData.lastUpdatedRole,
+                newLocation: updateData.locationName || updateData.roomName || updateData.location || 'N/A',
+                timestamp: updateData.lastUpdatedAt,
+                unixTimestamp: Date.now()
+            });
+        } catch (histErr) {
+            console.warn("⚠️ History recording failed:", histErr);
+            // Continue - don't fail the main update
+        }
 
         window.triggerSuccessPopup("✅ Asset Master Updated! Live Sync Successful.");
+
+        // ✅ FIXED: Update the display with new data
+        setTimeout(() => {
+            window.searchAssetByIdOrBarcode(docId);
+        }, 500);
+
         window.closeAssetScannerModal();
 
     } catch (err) {
@@ -192,31 +335,86 @@ window.saveAssetLocationUpdate = async function(e) {
     } finally {
         if (btn) {
             btn.disabled = false;
-            btn.innerHTML = `<i class="fa-solid fa-cloud-arrow-up"></i> SAVE & SYNC MASTER REGISTER`;
+            btn.innerHTML = originalText;
         }
         window.hideGlobalSpinner();
     }
 };
 
-/* Camera Trigger using global scanner Modal */
+// ================================================================ */
+// ✅ FIXED: CAMERA SCANNER TRIGGER                                */
+// ================================================================ */
+
 window.startCameraQRScanner = function() {
-    if (window.startCameraScanner) {
-        window.startCameraScanner('asset-search-input');
-
-        const input = document.getElementById('asset-search-input');
-        const checkInterval = setInterval(() => {
-            if (input.value !== "") {
-                window.searchAssetByIdOrBarcode(input.value);
-                clearInterval(checkInterval);
-            }
-            if (document.getElementById('scannerModal').classList.contains('hidden')) {
-                clearInterval(checkInterval);
-            }
-        }, 500);
-
-    } else {
-        alert("Scanner engine not loaded.");
+    if (!window.startCameraScanner) {
+        alert("Scanner engine not loaded. Please refresh the page.");
+        return;
     }
+
+    // Ensure we have a target input
+    const input = document.getElementById('asset-search-input');
+    if (!input) {
+        alert("Search input not found.");
+        return;
+    }
+
+    // Start scanner with the input ID
+    window.startCameraScanner('asset-search-input');
+
+    // ✅ FIXED: Auto-detect when scan completes
+    const checkInterval = setInterval(() => {
+        if (input.value !== "") {
+            window.searchAssetByIdOrBarcode(input.value);
+            clearInterval(checkInterval);
+        }
+        // Check if scanner modal is closed
+        const scannerModal = document.getElementById('scannerModal');
+        if (scannerModal && scannerModal.classList.contains('hidden')) {
+            clearInterval(checkInterval);
+        }
+    }, 500);
 };
+
+// ================================================================ */
+// ✅ FIXED: INITIALIZATION - Wait for DOM to be ready             */
+// ================================================================ */
+
+document.addEventListener('DOMContentLoaded', function() {
+    console.log("🔧 staff_asset_module: Initializing...");
+
+    // Wait for the search input to be available
+    waitForElement('#asset-search-input', 3000)
+        .then(() => {
+            console.log("✅ Asset search input found");
+
+            // ✅ FIXED: Add keyboard support (Enter key to search)
+            const searchInput = document.getElementById('asset-search-input');
+            if (searchInput) {
+                searchInput.addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        window.searchAssetByIdOrBarcode();
+                    }
+                });
+            }
+
+            // ✅ FIXED: Auto-focus on modal open
+            const modal = document.getElementById('asset-quick-edit-modal');
+            if (modal) {
+                const observer = new MutationObserver(() => {
+                    if (!modal.classList.contains('hidden')) {
+                        setTimeout(() => {
+                            const input = document.getElementById('asset-search-input');
+                            if (input) input.focus();
+                        }, 300);
+                    }
+                });
+                observer.observe(modal, { attributes: true, attributeFilter: ['class'] });
+            }
+        })
+        .catch((err) => {
+            console.warn("⚠️ Asset search input not found (may not be on this page):", err);
+        });
+});
 
 console.log("✅ staff_asset_module.js (v4.3) loaded");

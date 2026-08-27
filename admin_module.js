@@ -1,27 +1,23 @@
 import { db, UPLOAD_CONFIG } from './firebase_config.js';
-import { ref, get, set, update, remove, onValue, push, query, orderByChild, equalTo, child } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+import { ref, get, set, update, remove, onValue, push, query, orderByChild, equalTo, child, off } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
-// ================================================
-// ADMIN DASHBOARD CORE MODULE
-// ================================================
+// ================================================================ */
+// ADMIN DASHBOARD CORE MODULE (FIXED v4.7 - REAL-TIME METRICS)     */
+// ================================================================ */
 
-// Global state within Admin Module scope
 window.appCache = {
     isInitialized: false,
     visitors: [],
     contractors: [],
-    staff: [],
+    staff: [], // Staff Directory
     tasks: [],
     assets: [],
-    attendance: [],
+    attendance: [], // Staff Attendance Logs
     transfers: [],
+    disposalRegistry: [],
     disposalRequests: []
 };
 
-// Selection State for Bulk Actions
-window.selectedAssetKeys = new Set();
-
-// Stores the currently filtered results for pagination
 window.currentFilteredData = {
     visitors: null,
     contractors: null,
@@ -32,717 +28,352 @@ window.currentFilteredData = {
     transfers: null
 };
 
-/**
- * ⚡ FAST ASSET LOADER WITH LOCAL CACHING
- * Loads from localStorage first, then syncs with Firebase delta updates
- */
-window.loadAssetsCached = function() {
-    const cachedAssets = localStorage.getItem('cached_asset_register');
-    if (cachedAssets) {
-        try {
-            const assetArray = JSON.parse(cachedAssets);
-            window.appCache.assets = assetArray;
-            window.allAssets = assetArray;
-            console.log(`⚡ Admin: Loaded ${assetArray.length} assets from local cache.`);
+// Selection State for Bulk Actions
+window.selectedAssetKeys = new Set();
 
-            // Render immediately if on assets tab
-            const activeTab = document.querySelector('.tab-section.active');
-            if (activeTab && activeTab.id === 'tab-assets') {
-                const detectedHeaders = assetArray.length > 0 ? Object.keys(assetArray[0]).filter(k => !['assetId', 'updatedAt', 'profilePicUrl', '_importBatch', '_forceId', '_importSource'].includes(k)) : [];
-                window.renderDynamicAssetTable(assetArray, detectedHeaders);
-            }
-        } catch (e) {
-            console.warn("⚠️ Admin: Local asset cache corrupted, clearing...");
-            localStorage.removeItem('cached_asset_register');
-        }
-    }
+// Track active listeners for cleanup
+let activeListeners = {
+    assets: null,
+    disposal: null,
+    visitors: null,
+    contractors: null,
+    staff_attendance: null,
+    staff_directory: null,
+    tasks: null,
+    disposal_requests: null
+};
 
-    // Real-time delta sync
-    const assetsRef = ref(db, 'assets');
-    onValue(assetsRef, (snapshot) => {
-        if (snapshot.exists()) {
-            const data = snapshot.val();
-            const assetArray = Object.values(data);
+// ================================================================ */
+// ✅ UTILITIES                                                     */
+// ================================================================ */
 
-            // Save updated copy & update memory
-            localStorage.setItem('cached_asset_register', JSON.stringify(assetArray));
-            window.appCache.assets = assetArray;
-            window.allAssets = assetArray;
+window.debounce = function(func, wait = 300) {
+    let timeout;
+    return function executedFunction(...args) {
+        const later = () => {
+            clearTimeout(timeout);
+            func.apply(this, args);
+        };
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+    };
+};
 
-            console.log(`✅ Admin: Assets synced. Total: ${assetArray.length}`);
-
-            // Refresh view if active
-            const activeTab = document.querySelector('.tab-section.active');
-            if (activeTab && activeTab.id === 'tab-assets') {
-                const detectedHeaders = assetArray.length > 0 ? Object.keys(assetArray[0]).filter(k => !['assetId', 'updatedAt', 'profilePicUrl', '_importBatch', '_forceId', '_importSource'].includes(k)) : [];
-                window.renderDynamicAssetTable(assetArray, detectedHeaders);
-            }
-
-            window.updateAdminKPIs();
-        }
-    });
-
-    // Disposal Requests Sync
-    onValue(ref(db, 'asset_disposal_requests'), (snapshot) => {
-        if (snapshot.exists()) {
-            window.appCache.disposalRequests = Object.values(snapshot.val());
-            const activeTab = document.querySelector('.tab-section.active');
-            if (activeTab && activeTab.id === 'tab-disposal') {
-                window.filterDisposalTable();
-            }
-        }
+window.filterActiveAssets = function(assets) {
+    if (!assets || !Array.isArray(assets)) return [];
+    return assets.filter(a => {
+        if (!a) return false;
+        const status = (a.assetStatus || a.status || '').toLowerCase();
+        return status !== 'disposed' && status !== 'pending_disposal' && status !== 'scrapped';
     });
 };
 
-// ================================================
-// SELECTION HANDLERS
-// ================================================
-window.toggleAllAssetCheckboxes = (master) => {
-    const isChecked = master.checked;
-    const checkboxes = document.querySelectorAll('.asset-checkbox');
-
-    checkboxes.forEach(cb => { cb.checked = isChecked; });
-
-    const currentData = window.currentFilteredData.assets || window.appCache.assets || [];
-    const activeAssets = currentData.filter(a => {
-        const status = (a.assetStatus || '').toLowerCase();
-        return !['disposed', 'transferred', 'in-transit', 'completed'].includes(status) && !a.disposalReason;
+window.cleanupAdminListeners = function() {
+    Object.keys(activeListeners).forEach(key => {
+        if (typeof activeListeners[key] === 'function') {
+            activeListeners[key](); // Call the Unsubscribe function
+            activeListeners[key] = null;
+        }
     });
+    console.log("🧹 Admin listeners cleaned up");
+};
 
-    if (isChecked) {
-        activeAssets.forEach(a => {
-            const barcode = a.assetBarcode || a['Asset Barcode'] || a.barcode;
-            if (barcode) window.selectedAssetKeys.add(barcode);
+// ================================================================ */
+// ✅ REAL-TIME METRICS & KPI LOGIC                                 */
+// ================================================================ */
+
+window.updateAdminKPIs = function() {
+    console.log("📊 Updating Dashboard KPI Metrics...");
+
+    // 1. Get Today's Date String
+    const todayStr = new Date().toLocaleDateString('en-US'); // M/D/YYYY
+
+    const normalizeDate = (d) => {
+        if (!d) return "";
+        return d.split('/').map(p => parseInt(p)).join('/');
+    };
+
+    // 2. Aggregate Metrics
+
+    // VISITORS TODAY
+    const visitorsToday = window.appCache.visitors.filter(v => {
+        return normalizeDate(v.date) === todayStr;
+    }).length;
+
+    // CONTRACTORS TODAY
+    const contractorsToday = window.appCache.contractors.filter(c => {
+        return normalizeDate(c.date) === todayStr;
+    }).length;
+
+    // ACTIVE TASKS
+    const activeTasks = window.appCache.tasks.filter(t => {
+        const s = (t.status || '').toLowerCase();
+        return s !== 'closed' && s !== 'completed' && s !== 'rejected';
+    }).length;
+
+    // STAFF PRESENT
+    const staffPresent = window.appCache.attendance.filter(a => {
+        const s = (a.status || '').toLowerCase();
+        return s === 'checked_in';
+    }).length;
+
+    // URGENT ALERTS
+    const urgentAlerts = window.appCache.tasks.filter(t => {
+        const p = (t.priority || '').toLowerCase();
+        const s = (t.status || '').toLowerCase();
+        return (p === 'high' || p === 'urgent' || p === 'critical') && s !== 'closed' && s !== 'completed';
+    }).length;
+
+    // 3. Update DOM Elements
+    const safeUpdateText = (id, val) => {
+        const el = document.getElementById(id);
+        if (el) el.innerText = val;
+    };
+
+    safeUpdateText('kpi-visitors', visitorsToday);
+    safeUpdateText('kpi-contractors', contractorsToday);
+    safeUpdateText('kpi-tasks', activeTasks);
+    safeUpdateText('kpi-staff', staffPresent);
+    safeUpdateText('kpi-alerts', urgentAlerts);
+
+    // 4. Staff Census Breakdown
+    const staffDir = window.appCache.staff;
+    const totalStaff = staffDir.length;
+
+    const countByRole = (roleKeywords) => {
+        return staffDir.filter(s => {
+            const role = (s.role || s.position || '').toLowerCase();
+            return roleKeywords.some(kw => role.includes(kw));
+        }).length;
+    };
+
+    const securityCount = countByRole(['security']);
+    const cleanerLeaderCount = countByRole(['cleaner leader', 'cleaner_leader', 'leader']);
+    const technicianCount = countByRole(['technician', 'tech']);
+    const cleanerCount = staffDir.filter(s => {
+        const role = (s.role || s.position || '').toLowerCase();
+        return role.includes('cleaner') && !role.includes('leader');
+    }).length;
+
+    safeUpdateText('cntTotalStaff', totalStaff);
+    safeUpdateText('cntSecurity', securityCount);
+    safeUpdateText('cntCleanerLeader', cleanerLeaderCount);
+    safeUpdateText('cntCleaner', cleanerCount);
+    safeUpdateText('cntTechnician', technicianCount);
+
+    // 5. Update Progress Bars
+    const updateBar = (id, val, max) => {
+        const el = document.getElementById(id);
+        if (el) el.style.width = Math.min(100, (val / (max || 1)) * 100) + '%';
+    };
+
+    updateBar('bar-visitors', visitorsToday, 50);
+    updateBar('bar-contractors', contractorsToday, 20);
+    updateBar('bar-tasks', activeTasks, 30);
+    updateBar('bar-staff', staffPresent, 30);
+    updateBar('bar-alerts', urgentAlerts, 10);
+};
+
+// ================================================================ */
+// ✅ REAL-TIME DATA LISTENERS                                      */
+// ================================================================ */
+
+window.initAdminRealTimeListeners = function() {
+    window.cleanupAdminListeners();
+    console.log("📡 Initializing Admin Real-Time Firebase Observers...");
+
+    const registerListener = (node, cacheKey, tabId = null, filterFunc = null) => {
+        activeListeners[node] = onValue(ref(db, node), (snapshot) => {
+            if (snapshot.exists()) {
+                const rawData = snapshot.val();
+                // ✅ Convert to array while PRESERVING Firebase keys for isolation and editing
+                if (rawData && typeof rawData === 'object') {
+                    window.appCache[cacheKey] = Object.entries(rawData).map(([key, val]) => {
+                        if (val && typeof val === 'object') {
+                            return { ...val, firebaseKey: key };
+                        }
+                        return val;
+                    });
+                } else {
+                    window.appCache[cacheKey] = [];
+                }
+            } else {
+                window.appCache[cacheKey] = [];
+            }
+
+            window.updateAdminKPIs();
+
+            // Auto-refresh visible tab if it matches
+            const activeTab = document.querySelector('.tab-section.active')?.id;
+            if (activeTab === tabId && filterFunc) {
+                filterFunc();
+            } else if (activeTab === tabId) {
+                window.renderTabFromAppCache(tabId);
+            }
         });
-    } else {
-        window.selectedAssetKeys.clear();
-    }
-    window.updateBulkDeleteUI();
+    };
+
+    registerListener('visitors', 'visitors', 'tab-visitor-logs', window.filterVisitorTable);
+    registerListener('contractors', 'contractors', 'tab-contractor-logs', window.filterContractorTable);
+    registerListener('staff_attendance', 'attendance', 'tab-staff-logs', window.filterStaffTable);
+    registerListener('tasks', 'tasks', 'tab-tasks');
+    registerListener('staff', 'staff', 'tab-staff-list', window.filterStaffDirectory);
+    registerListener('ASSET_DISPOSAL_REGISTRY', 'disposalRegistry', 'tab-disposal');
+    registerListener('asset_disposal_requests', 'disposalRequests', 'tab-disposal', window.filterDisposalTable);
+    registerListener('asset_transfers', 'transfers', 'tab-transfers', window.filterTransferTable);
+
+    // Assets needs special handling for local cache
+    activeListeners.assets = onValue(ref(db, 'assets'), (snapshot) => {
+        if (snapshot.exists()) {
+            window.appCache.assets = Object.values(snapshot.val());
+            localStorage.setItem('cached_asset_register', JSON.stringify(window.appCache.assets));
+            if (document.querySelector('.tab-section.active')?.id === 'tab-assets') {
+                window.filterAssetTable();
+            }
+        }
+    });
 };
 
-window.handleAssetCheckboxChange = (checkbox) => {
-    const barcode = checkbox.value;
-    if (checkbox.checked) {
-        window.selectedAssetKeys.add(barcode);
-    } else {
-        window.selectedAssetKeys.delete(barcode);
-        const master = document.querySelector('.selectAllAssets');
-        if (master) master.checked = false;
-    }
-    window.updateBulkDeleteUI();
-};
+// ================================================================ */
+// ✅ DASHBOARD CORE FLOWS                                          */
+// ================================================================ */
 
-window.updateBulkDeleteUI = () => {
-    const count = window.selectedAssetKeys.size;
-    const btn = document.querySelector('button[onclick="window.bulkDeleteAssets()"]');
-    if (btn) {
-        btn.innerHTML = count > 0 ? `<i class="fa-solid fa-trash-can mr-2"></i> Delete Selected (${count})` : 'Bulk Delete';
-        btn.classList.toggle('bg-red-600', count > 0);
-        btn.classList.toggle('bg-red-500', count === 0);
-    }
-};
-
-// ================================================
-// DATA AGGREGATOR & SYNC
-// ================================================
-window.refreshDashboardData = async () => {
-    try {
-        console.log("🔄 Admin: Refreshing Data...");
-        window.showGlobalSpinner("Fetching Remote Data...");
-
-        // ASSETS and TASKS are now handled by real-time cached listeners
-        const [vSnap, cSnap, sSnap, attSnap, trSnap] = await Promise.all([
-            get(ref(db, 'visitors')),
-            get(ref(db, 'contractors')),
-            get(ref(db, 'staff')),
-            get(ref(db, 'staff_attendance')),
-            get(ref(db, 'asset_transfers'))
-        ]);
-
-        window.appCache.visitors = vSnap.exists() ? Object.values(vSnap.val()) : [];
-        window.appCache.contractors = cSnap.exists() ? Object.values(cSnap.val()) : [];
-        window.appCache.staff = sSnap.exists() ? Object.values(sSnap.val()) : [];
-        window.appCache.attendance = attSnap.exists() ? Object.values(attSnap.val()) : [];
-        window.appCache.transfers = trSnap.exists() ? Object.values(trSnap.val()) : [];
-
-        // Save to local cache for offline/guest Wi-Fi mode
-        localStorage.setItem('admin_cache', JSON.stringify(window.appCache));
-
-        // Auto-migrate legacy data from Base64 to Drive
-        window.autoMigrateLegacyData();
-
-        window.adminData = [
-            ...window.appCache.visitors.map(v => ({ ...v, type: 'visitor' })),
-            ...window.appCache.contractors.map(c => ({ ...c, type: 'contractor' })),
-            ...window.appCache.attendance.map(s => ({ ...s, type: 'staff' }))
-        ];
-        window.allAssets = window.appCache.assets;
-
+window.loadAdminDashboard = () => {
+    window.initAdminRealTimeListeners();
+    window.updateAdminProfileHeader();
+    setTimeout(() => {
+        window.renderTabFromAppCache('tab-visitor-logs');
         window.appCache.isInitialized = true;
+    }, 1000);
+};
 
-        // Ensure currentStaff exists for Task rendering if in Admin mode
-        if (localStorage.getItem('isAdminLoggedIn') === 'true' && !window.currentStaff) {
-            window.currentStaff = { role: 'admin', name: 'System Admin' };
-        }
+window.refreshDashboardData = async () => {
+    window.loadAdminDashboard();
+};
 
-        window.updateAdminKPIs();
-        window.updateAdminProfileHeader();
+// ================================================================ */
+// ✅ RENDER ENGINE                                                 */
+// ================================================================ */
 
-        const activeTab = document.querySelector('.tab-section.active');
-        if (activeTab) {
-            window.renderTabFromAppCache(activeTab.id);
-        } else {
-            window.renderTabFromAppCache('tab-visitor-logs');
-        }
-
-    } catch (e) {
-        console.warn("⚠️ Restricted Wi-Fi mode: Loading admin dashboard from local cache.");
-        const cached = localStorage.getItem('admin_cache');
-        if (cached) {
-            const data = JSON.parse(cached);
-            Object.assign(window.appCache, data);
-            window.appCache.isInitialized = true;
-            window.updateAdminKPIs();
-
-            const activeTab = document.querySelector('.tab-section.active');
-            window.renderTabFromAppCache(activeTab ? activeTab.id : 'tab-visitor-logs');
-            window.showWhatsAppToast("⚠️ Offline Mode", "Loaded from local cache.");
-        } else {
-            console.error("❌ Refresh Dashboard Error:", e);
+window.renderTabFromAppCache = (tabId) => {
+    window.showGlobalSpinner("Syncing View...");
+    try {
+        switch (tabId) {
+            case 'tab-visitor-logs': renderVisitorLogs(window.currentFilteredData.visitors || window.appCache.visitors); break;
+            case 'tab-contractor-logs': renderContractorLogs(window.currentFilteredData.contractors || window.appCache.contractors); break;
+            case 'tab-staff-logs': renderStaffAttendance(window.currentFilteredData.staff || window.appCache.attendance); break;
+            case 'tab-tasks': renderGlobalTaskAudit(window.currentFilteredData.tasks || window.appCache.tasks); break;
+            case 'tab-staff-list': renderStaffDirectory(window.appCache.staff); break;
+            case 'tab-assets': window.filterAssetTable(); break;
+            case 'tab-disposal': window.loadAdminDisposalTable(); break;
+            case 'tab-transfers': window.renderStandardizedAssetTable(window.currentFilteredData.transfers || window.appCache.transfers, 'transfers'); break;
+            case 'tab-settings': if (window.loadGoogleDriveConfig) window.loadGoogleDriveConfig(); break;
         }
     } finally {
         window.hideGlobalSpinner();
     }
 };
 
-window.autoMigrateLegacyData = async () => {
-    // 1. Migrate Transfers
-    const transfers = window.appCache.transfers;
-    if (transfers && transfers.length > 0) {
-        let migrationCount = 0;
-        for (const t of transfers) {
-            const updates = {};
-            const fields = [
-                { key: 'securitySignatureUrl', cat: UPLOAD_CONFIG.CATEGORIES.ASSET_TRANSFER_SIGNATURES, name: 'Migrated_Sig_Sec' },
-                { key: 'receivedSignatureUrl', cat: UPLOAD_CONFIG.CATEGORIES.ASSET_TRANSFER_SIGNATURES, name: 'Migrated_Sig_Rec' },
-                { key: 'transferPhotoUrl', cat: UPLOAD_CONFIG.CATEGORIES.ASSET_TRANSFER_PHOTOS, name: 'Migrated_Proof' }
-            ];
-
-            for (const f of fields) {
-                const val = t[f.key];
-                if (val && typeof val === 'string' && val.startsWith('data:image')) {
-                    try {
-                        const res = await window.uploadToDrive({ folderCategory: f.cat, fileName: `${f.name}_${t.assetBarcode}_${Date.now()}.png`, image: val });
-                        if (res.status === 'success') { updates[f.key] = res.fileUrl; migrationCount++; }
-                    } catch (err) {}
-                }
-            }
-            if (Object.keys(updates).length > 0) {
-                const trId = t.transferId || t.id;
-                if (trId) await update(ref(db, `asset_transfers/${trId}`), updates);
-            }
-        }
-        if (migrationCount > 0) console.log(`✅ Migrated ${migrationCount} legacy transfer items to Drive.`);
-    }
-
-    // 2. Migrate Staff Profiles
-    const staffList = window.appCache.staff;
-    if (staffList && staffList.length > 0) {
-        let staffMigrationCount = 0;
-        for (const s of staffList) {
-            const val = s.profilePicUrl || s.photoUrl;
-            if (val && typeof val === 'string' && val.startsWith('data:image')) {
-                try {
-                    const res = await window.uploadToDrive({
-                        folderCategory: UPLOAD_CONFIG.CATEGORIES.PROFILE_PHOTOS,
-                        fileName: `Migrated_Profile_${s.mobile || s.adekPass}_${Date.now()}.jpg`,
-                        image: val
-                    });
-                    if (res.status === 'success') {
-                        const updates = { profilePicUrl: res.fileUrl };
-                        const mobile = s.mobile || s.mobileNumber;
-                        if (mobile) {
-                            await update(ref(db, `staff/${mobile}`), updates);
-                            await update(ref(db, `users/${mobile}`), updates);
-                            staffMigrationCount++;
-                        }
-                    }
-                } catch (err) {}
-            }
-        }
-        if (staffMigrationCount > 0) console.log(`✅ Migrated ${staffMigrationCount} legacy staff profiles to Drive.`);
-    }
-
-    // 3. Migrate Legacy Logs (visitor_logs -> visitors, contractor_logs -> contractors)
-    try {
-        const [oldVisSnap, oldConSnap] = await Promise.all([
-            get(ref(db, 'visitor_logs')),
-            get(ref(db, 'contractor_logs'))
-        ]);
-
-        if (oldVisSnap.exists()) {
-            console.log("🚚 Migrating legacy visitor_logs...");
-            const updates = {};
-            Object.entries(oldVisSnap.val()).forEach(([key, val]) => {
-                updates[`visitors/${key}`] = val;
-                updates[`visitor_logs/${key}`] = null;
-            });
-            await update(ref(db), updates);
-            console.log("✅ Visitor migration complete.");
-        }
-
-        if (oldConSnap.exists()) {
-            console.log("🚚 Migrating legacy contractor_logs...");
-            const updates = {};
-            Object.entries(oldConSnap.val()).forEach(([key, val]) => {
-                updates[`contractors/${key}`] = val;
-                updates[`contractor_logs/${key}`] = null;
-            });
-            await update(ref(db), updates);
-            console.log("✅ Contractor migration complete.");
-        }
-    } catch (e) { console.error("Migration Error:", e); }
-};
-
-const getNormalizedDate = (entry) => {
-    let raw = entry.date || '';
-    if (!raw && entry.checkInTime && entry.checkInTime.includes('/')) {
-        const parts = entry.checkInTime.split(' ');
-        if (parts[0].includes('/')) raw = parts[0];
-    }
-    if (!raw && entry.timestamp) {
-        raw = new Date(entry.timestamp).toLocaleDateString('en-US');
-    }
-    if (!raw) return '';
-    // Normalize format to M/D/YYYY by removing leading zeros
-    return raw.split('/').map(p => parseInt(p)).join('/');
-};
-
-/* 1. REALTIME TOP SUMMARY COUNTERS (STAFF & VISITORS) */
-window.initLiveTopCounters = function() {
-
-    // LIVE VISITOR COUNTER
-    const visitorsRef = ref(db, 'visitors');
-    onValue(visitorsRef, (snapshot) => {
-        let totalTodayVisitors = 0;
-        const todayStr = new Date().toLocaleDateString('en-US').split('/').map(p => parseInt(p)).join('/');
-
-        if (snapshot.exists()) {
-            snapshot.forEach((child) => {
-                const data = child.val();
-                if (getNormalizedDate(data) === todayStr) {
-                    totalTodayVisitors++;
-                }
-            });
-        }
-
-        const updateUI = (id, val) => {
-            const el = document.getElementById(id);
-            if (el) el.innerText = val;
-        };
-
-        updateUI('top-counter-visitors', totalTodayVisitors);
-        updateUI('admin-top-visitor-count', totalTodayVisitors);
-        updateUI('summary-visitor-badge', totalTodayVisitors);
-        updateUI('kpi-visitors', totalTodayVisitors);
-    });
-
-    // LIVE STAFF ATTENDANCE COUNTER
-    const staffRef = ref(db, 'staff_attendance');
-    onValue(staffRef, (snapshot) => {
-        let presentStaffCount = 0;
-        const todayStr = new Date().toLocaleDateString('en-US').split('/').map(p => parseInt(p)).join('/');
-
-        if (snapshot.exists()) {
-            snapshot.forEach((child) => {
-                const data = child.val();
-                const status = (data.status || '').toLowerCase();
-                if (getNormalizedDate(data) === todayStr && (status === 'checked_in' || status === 'present')) {
-                    presentStaffCount++;
-                }
-            });
-        }
-
-        const updateUI = (id, val) => {
-            const el = document.getElementById(id);
-            if (el) el.innerText = val;
-        };
-
-        updateUI('top-counter-staff', presentStaffCount);
-        updateUI('admin-top-staff-count', presentStaffCount);
-        updateUI('kpi-staff', presentStaffCount);
-    });
-};
-
-/* 2. FETCH & RENDER ALL VISITOR RECORDS (INCLUDING PAST ONES) IN ADMIN DASHBOARD */
-window.loadAdminVisitorRecords = function() {
-    const tableBody = document.getElementById('visitor-logs-body');
-    if (!tableBody) return;
-
-    const visitorsRef = ref(db, 'visitors');
-    onValue(visitorsRef, (snapshot) => {
-        const visitors = [];
-        if (snapshot.exists()) {
-            snapshot.forEach((child) => {
-                visitors.push({ id: child.key, ...child.val() });
-            });
-        }
-
-        // Use existing render function or user's simple one if preferred.
-        // User wants signatures and details properly.
-        // The existing renderVisitorLogs is quite comprehensive.
-        // I'll ensure it's called with the new data.
-        window.appCache.visitors = visitors;
-        renderVisitorLogs(visitors);
-    });
-};
-
-window.loadAdminDashboard = () => {
-    window.loadAssetsCached(); // Start fast asset loader
-    window.refreshDashboardData();
-    window.initLiveTopCounters();
-    window.loadAdminVisitorRecords();
-};
-
-// ================================================
-// KPI LOGIC
-// ================================================
-window.updateAdminKPIs = async () => {
-    try {
-        const todayStr = new Date().toLocaleDateString('en-US').split('/').map(p => parseInt(p)).join('/');
-        const visitorsToday = window.appCache.visitors.filter(v => getNormalizedDate(v) === todayStr).length;
-        const contractorsToday = window.appCache.contractors.filter(c => getNormalizedDate(c) === todayStr).length;
-        const activeTasks = window.appCache.tasks.filter(t => t.status === 'Open' || t.status === 'Accepted').length;
-
-        const staffPresent = window.appCache.attendance.filter(a => {
-            const status = (a.status || '').toLowerCase();
-            return getNormalizedDate(a) === todayStr && (status === 'checked_in' || status === 'present');
-        }).length;
-
-        const urgentAlerts = window.appCache.tasks.filter(t => t.priority === 'High' && t.status !== 'Closed').length;
-
-        const stats = {
-            'kpi-visitors': { value: visitorsToday, pct: Math.min(100, (visitorsToday / 50) * 100) },
-            'kpi-contractors': { value: contractorsToday, pct: Math.min(100, (contractorsToday / 20) * 100) },
-            'kpi-tasks': { value: activeTasks, pct: Math.min(100, (activeTasks / 20) * 100) },
-            'kpi-staff': { value: staffPresent, pct: Math.min(100, (staffPresent / 30) * 100) },
-            'kpi-alerts': { value: urgentAlerts, pct: Math.min(100, (urgentAlerts / 10) * 100) }
-        };
-        if (window.updateKPIStats) window.updateKPIStats(stats);
-
-        // TRIGGER DYNAMIC STAFF CENSUS UPDATE
-        window.updateStaffCensusCounters(window.appCache.staff);
-
-    } catch (e) { console.error("KPI Error:", e); }
-};
-
-window.updateStaffCensusCounters = function(staffList) {
-    if (!staffList) return;
-    if (!Array.isArray(staffList)) staffList = Object.values(staffList || {});
-
-    let total = staffList.length;
-    let securityCount = 0;
-    let cleanerLeaderCount = 0;
-    let cleanerCount = 0;
-    let technicianCount = 0;
-
-    staffList.forEach(staff => {
-        const pos = (staff.position || staff.role || '').toString().toUpperCase().trim();
-        if (pos.includes('SECURITY')) {
-            securityCount++;
-        } else if (pos.includes('CLEANER LEADER') || pos === 'LEADER') {
-            cleanerLeaderCount++;
-        } else if (pos === 'CLEANER') {
-            cleanerCount++;
-        } else if (pos.includes('TECHNICIAN') || pos.includes('TECH')) {
-            technicianCount++;
-        }
-    });
-
-    // Update UI Elements safely
-    if (document.getElementById('cntTotalStaff')) document.getElementById('cntTotalStaff').textContent = total;
-    if (document.getElementById('cntSecurity')) document.getElementById('cntSecurity').textContent = securityCount;
-    if (document.getElementById('cntCleanerLeader')) document.getElementById('cntCleanerLeader').textContent = cleanerLeaderCount;
-    if (document.getElementById('cntCleaner')) document.getElementById('cntCleaner').textContent = cleanerCount;
-    if (document.getElementById('cntTechnician')) document.getElementById('cntTechnician').textContent = technicianCount;
-};
-
-window.updateAdminProfileHeader = async () => {
-    try {
-        const adminMobile = '961486864461';
-        let adminData = window.appCache.staff.find(s => (s.mobile || s.mobileNumber) === adminMobile);
-
-        if (!adminData) {
-            const snap = await get(ref(db, `users/${adminMobile}`));
-            if (snap.exists()) adminData = snap.val();
-        }
-
-        const profilePic = document.getElementById('adminProfileHeaderPic');
-        if (profilePic && adminData && adminData.profilePicUrl) {
-            profilePic.src = window.getDirectDriveImageUrl(adminData.profilePicUrl);
-        }
-    } catch (e) {
-        console.error("Error updating admin profile header:", e);
-    }
-};
-
-async function updateVisitorsTodayCount() {
-    try {
-        const todayStr = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
-        const vRef = ref(db, 'visitors');
-
-        onValue(vRef, (snapshot) => {
-            let count = 0;
-            if (snapshot.exists()) {
-                const data = snapshot.val();
-                Object.values(data).forEach(visitor => {
-                    const vDate = visitor.date;
-                    const vTimestamp = visitor.timestamp;
-                    let isToday = false;
-                    if(vDate) {
-                        const d = new Date(vDate);
-                        isToday = d.toISOString().split('T')[0] === todayStr;
-                    } else if(vTimestamp) {
-                        isToday = new Date(vTimestamp).toISOString().split('T')[0] === todayStr;
-                    }
-                    if (isToday) count++;
-                });
-            }
-            const counterElement = document.getElementById('visitors-today-count') || document.getElementById('visitorsCount');
-            if (counterElement) counterElement.innerText = count.toString();
-        });
-    } catch (err) {
-        console.error("Error updating today's visitor count:", err);
-    }
-}
-window.updateVisitorsTodayCount = updateVisitorsTodayCount;
-
-// ================================================
-// TAB RENDERING ENGINE
-// ================================================
-window.renderTabFromAppCache = (tabId) => {
-    window.showGlobalSpinner("Loading Dashboard...");
-    setTimeout(() => {
-        try {
-            switch (tabId) {
-                case 'tab-visitor-logs': renderVisitorLogs(window.currentFilteredData.visitors || window.appCache.visitors || []); break;
-                case 'tab-contractor-logs': renderContractorLogs(window.currentFilteredData.contractors || window.appCache.contractors || []); break;
-                case 'tab-staff-logs': renderStaffAttendance(window.currentFilteredData.staff || window.appCache.attendance || []); break;
-                case 'tab-tasks': renderGlobalTaskAudit(window.currentFilteredData.tasks || window.appCache.tasks || []); break;
-                case 'tab-staff-list': renderStaffDirectory(window.appCache.staff || []); break;
-                case 'tab-assets':
-                    const assets = window.currentFilteredData.assets || window.appCache.assets || [];
-                    const detectedHeaders = assets.length > 0 ? Object.keys(assets[0]).filter(k => !['assetId', 'updatedAt', 'profilePicUrl', '_importBatch', '_forceId', '_importSource'].includes(k)) : [];
-                    window.renderDynamicAssetTable(assets, detectedHeaders);
-                    break;
-                case 'tab-disposal': window.loadAdminDisposalTable(); break;
-                case 'tab-transfers': window.renderStandardizedAssetTable(window.currentFilteredData.transfers || window.appCache.transfers || [], 'transfers'); break;
-                case 'tab-settings': window.loadGoogleDriveConfig(); break;
-                case 'tab-my-tasks': if (typeof window.switchTaskTab === 'function') window.switchTaskTab('active'); break;
-            }
-        } finally {
-            window.hideGlobalSpinner();
-        }
-    }, 100);
-};
-
-// RENDER FUNCTIONS
 function renderVisitorLogs(visitors) {
     const body = document.getElementById('visitor-logs-body');
     if (!body) return;
-
-    // Filter and sort completed entries
-    const data = (visitors || [])
-        .filter(v => v.status === 'active' || v.status === 'SIGNED OUT')
-        .sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
-
+    const data = (visitors || []).sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
     window.adminPaginators.visitors.init(data, (pageItems, startIndex) => {
-        body.innerHTML = '';
-        if (pageItems.length === 0) {
-            body.innerHTML = '<tr><td colspan="12" class="p-8 text-center text-gray-400">No records found</td></tr>';
-            return;
-        }
-        pageItems.forEach((v, index) => {
-            const displaySeq = startIndex + index + 1; // Gapless sequence
-            const tr = document.createElement('tr');
-            tr.className = "hover:bg-slate-50 transition-colors border-b border-gray-100 text-[10px]";
-
-            let keyHtml = `<span class="inline-flex items-center justify-center gap-1 px-3 py-1 text-[9px] font-bold rounded-full bg-rose-500/15 text-rose-400 border border-rose-500/30 whitespace-nowrap"><span>❌</span> <span>NO KEY</span></span>`;
-            if (v.keyCollected === true || v.keyCollected === 'YES') {
-                keyHtml = v.status === 'SIGNED OUT'
-                    ? `<span class="inline-flex items-center justify-center gap-1 px-3 py-1 text-[9px] font-bold rounded-full bg-emerald-500/15 text-emerald-500 border border-emerald-500/30 whitespace-nowrap"><span>✅</span> <span>RETURNED</span></span>`
-                    : `<span class="inline-flex items-center justify-center gap-1 px-3 py-1 text-[9px] font-bold rounded-full bg-amber-500/15 text-amber-600 border border-amber-500/30 whitespace-nowrap"><span>🔑</span> <span>HELD</span></span>`;
-            }
-
-            const sigData = v.signatureUrl || v.signatureData || v.signature || '';
-            const isValidSig = sigData && (sigData.startsWith('data:image') || sigData.startsWith('http'));
-
-            const signatureTdHTML = isValidSig
-                ? `<img src="${sigData}" class="h-8 w-16 object-contain bg-white rounded border border-slate-600 mx-auto cursor-pointer shadow-sm hover:scale-105 transition-transform" onclick="window.openImageZoom('${sigData}')" alt="Sig">`
-                : `<span class="text-xs text-slate-400 italic">No Sig</span>`;
-
-            tr.innerHTML = `
-                <td class="p-4 font-black text-indigo-900">#${displaySeq}</td>
+        body.innerHTML = pageItems.length ? pageItems.map((v, i) => `
+            <tr class="hover:bg-slate-50 transition-colors border-b text-[10px]">
+                <td class="p-4 font-black text-indigo-900 uppercase">${v.type || "VISITOR"}</td>
                 <td class="p-4 font-mono font-bold">${v.id || "-"}</td>
                 <td class="p-4 font-bold text-slate-800">${v.name || "-"}</td>
                 <td class="p-4">${v.mobile || "-"}</td>
                 <td class="p-4">${v.company || "-"}</td>
-                <td class="p-4 max-w-[120px] truncate">${v.purpose || "-"}</td>
+                <td class="p-4 truncate max-w-[120px]">${v.purpose || "-"}</td>
                 <td class="p-4">${v.date || "-"}</td>
                 <td class="p-4 text-emerald-600 font-bold">${v.timeIn || "-"}</td>
                 <td class="p-4 text-red-500 font-bold">${v.outTime || "-"}</td>
                 <td class="p-4"><span class="status-badge ${v.status === 'SIGNED OUT' ? 'closed' : 'open'}">${v.status || "Active"}</span></td>
-                <td class="p-4 text-center">${keyHtml}</td>
-                <td class="p-4 text-center">${signatureTdHTML}</td>
-                <td class="p-4 text-center">
-                    <button onclick="window.openDetailedAuditModal('visitor', '${v.id}')" class="p-2 text-indigo-400 hover:text-white hover:bg-indigo-600/50 rounded-lg transition-all cursor-pointer">
-                        <i class="fa-solid fa-eye text-base"></i>
-                    </button>
-                </td>
-            `;
-            body.appendChild(tr);
-        });
+                <td class="p-4 text-center">${(v.keyCollected === 'YES' || v.keyCollected === true) ? '🔑 HELD' : '❌ NO'}</td>
+                <td class="p-4 text-center">${v.signatureUrl ? `<img src="${v.signatureUrl}" class="h-6 mx-auto rounded border shadow-sm" onclick="window.openImageZoom('${v.signatureUrl}')">` : 'No Sig'}</td>
+                <td class="p-4 text-center"><button onclick="window.openDetailedAuditModal('visitor', '${v.id}')" class="text-indigo-600 hover:scale-110"><i class="fa-solid fa-eye"></i></button></td>
+            </tr>`).join('') : '<tr><td colspan="13" class="p-8 text-center text-gray-400">No records found</td></tr>';
     });
 }
 
 function renderContractorLogs(contractors) {
     const body = document.getElementById('contractor-logs-body');
     if (!body) return;
-
-    // Filter and sort completed entries
-    const data = (contractors || [])
-        .filter(c => c.status === 'active' || c.status === 'SIGNED OUT')
-        .sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
-
-    // Ensure we have a paginator for contractors if not already initialized
-    if (!window.adminPaginators.contractors) {
-        window.adminPaginators.contractors = new TablePaginator('contractor-logs-pagination');
-    }
-
+    const data = (contractors || []).sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
     window.adminPaginators.contractors.init(data, (pageItems, startIndex) => {
-        body.innerHTML = '';
-        if (pageItems.length === 0) {
-            body.innerHTML = '<tr><td colspan="11" class="p-8 text-center text-gray-400">No contractor records found</td></tr>';
-            return;
-        }
-        pageItems.forEach((c, index) => {
-            const displaySeq = startIndex + index + 1; // Gapless sequence
-            const tr = document.createElement('tr');
-            tr.className = "hover:bg-slate-50 transition-colors border-b border-gray-100 text-[10px]";
-
-            let keyHtml = `<span class="inline-flex items-center justify-center gap-1 px-3 py-1 text-[9px] font-bold rounded-full bg-rose-500/15 text-rose-400 border border-rose-500/30 whitespace-nowrap"><span>❌</span> <span>NO KEY</span></span>`;
-            if (c.keyCollected === true || c.keyCollected === 'YES') {
-                keyHtml = c.status === 'SIGNED OUT'
-                    ? `<span class="inline-flex items-center justify-center gap-1 px-3 py-1 text-[9px] font-bold rounded-full bg-emerald-500/15 text-emerald-500 border border-emerald-500/30 whitespace-nowrap"><span>✅</span> <span>RETURNED</span></span>`
-                    : `<span class="inline-flex items-center justify-center gap-1 px-3 py-1 text-[9px] font-bold rounded-full bg-amber-500/15 text-amber-600 border border-amber-500/30 whitespace-nowrap"><span>🔑</span> <span>HELD</span></span>`;
-            }
-
-            const sigData = c.signatureUrl || c.signatureData || c.signature || '';
-            const isValidSig = sigData && (sigData.startsWith('data:image') || sigData.startsWith('http'));
-
-            const signatureTdHTML = isValidSig
-                ? `<img src="${sigData}" class="h-8 w-16 object-contain bg-white rounded border border-slate-600 mx-auto cursor-pointer shadow-sm hover:scale-105 transition-transform" onclick="window.openImageZoom('${sigData}')" alt="Sig">`
-                : `<span class="text-xs text-slate-400 italic">No Sig</span>`;
-
-            tr.innerHTML = `
-                <td class="p-4 font-black text-indigo-900">#${displaySeq}</td>
+        body.innerHTML = pageItems.length ? pageItems.map((c, i) => `
+            <tr class="hover:bg-slate-50 border-b text-[10px]">
                 <td class="p-4 font-mono font-bold text-emerald-600">${c.id || "-"}</td>
                 <td class="p-4 font-bold text-slate-800">${c.name || "-"}</td>
                 <td class="p-4">${c.mobile || "-"}</td>
                 <td class="p-4 font-bold text-indigo-600">${c.company || "-"}</td>
-                <td class="p-4 max-w-[150px] truncate">${c.purpose || "-"}</td>
+                <td class="p-4 truncate max-w-[150px]">${c.purpose || "-"}</td>
                 <td class="p-4 font-mono text-slate-500">${c.contractorId || "-"}</td>
                 <td class="p-4">${c.date || "-"}</td>
                 <td class="p-4 text-emerald-600 font-bold">${c.timeIn || "-"}</td>
                 <td class="p-4 text-red-500 font-bold">${c.outTime || "-"}</td>
                 <td class="p-4"><span class="status-badge ${c.status === 'SIGNED OUT' ? 'closed' : 'open'}">${c.status || "Active"}</span></td>
-                <td class="p-4 text-center">${keyHtml}</td>
-                <td class="p-4 text-center">${signatureTdHTML}</td>
-                <td class="p-4 text-center">
-                    <button onclick="window.openDetailedAuditModal('contractor', '${c.id}')" class="p-2 text-indigo-400 hover:text-white hover:bg-indigo-600/50 rounded-lg transition-all cursor-pointer">
-                        <i class="fa-solid fa-eye text-base"></i>
-                    </button>
-                </td>
-            `;
-            body.appendChild(tr);
-        });
+                <td class="p-4 text-center">${(c.keyCollected === 'YES' || c.keyCollected === true) ? '🔑 HELD' : '❌ NO'}</td>
+                <td class="p-4 text-center">${c.signatureUrl ? `<img src="${c.signatureUrl}" class="h-6 mx-auto rounded border shadow-sm">` : 'No Sig'}</td>
+                <td class="p-4 text-center"><button onclick="window.openDetailedAuditModal('contractor', '${c.id}')" class="text-emerald-600 hover:scale-110"><i class="fa-solid fa-eye"></i></button></td>
+            </tr>`).join('') : '<tr><td colspan="13" class="p-8 text-center text-gray-400">No records found</td></tr>';
     });
 }
 
 function renderStaffAttendance(attendance) {
     const body = document.getElementById('staff-attendance-body');
     if (!body) return;
-
-    const data = (attendance || []).sort((a, b) => new Date(b.date + ' ' + (b.timeIn || '00:00')) - new Date(a.date + ' ' + (a.timeIn || '00:00')));
-
+    const data = (attendance || []).sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
     window.adminPaginators.attendance.init(data, (pageItems) => {
-        body.innerHTML = '';
-        if (pageItems.length === 0) {
-            body.innerHTML = '<tr><td colspan="14" class="p-8 text-center text-gray-400">No records found</td></tr>';
-            return;
-        }
-
-        pageItems.forEach(a => {
-            const tr = document.createElement('tr');
-            tr.className = "hover:bg-slate-50 transition-colors border-b border-gray-100 text-[10px]";
-
-            const sig = a.signatureUrl || a.signatureData || a.signature || '';
-            const sigHTML = (sig && sig.length > 30)
-                ? `<img src="${sig}" class="w-12 h-7 object-contain bg-white rounded border border-slate-600 mx-auto cursor-pointer shadow-sm hover:scale-105" onclick="window.openImageZoom('${sig}')" alt="Sig">`
-                : `<span class="text-xs text-slate-400 italic">No Sig</span>`;
-
-            let keyHtml = `<span class="inline-flex items-center justify-center gap-1 px-3 py-1 text-[9px] font-bold rounded-full bg-rose-500/15 text-rose-400 border border-rose-500/30 whitespace-nowrap"><span>❌</span> <span>NO KEY</span></span>`;
-            if (a.keyStatus === 'HELD' || a.keyStatus === 'ISSUED_PENDING_RETURN') {
-                keyHtml = `<span class="inline-flex items-center justify-center gap-1 px-3 py-1 text-[9px] font-bold rounded-full bg-amber-500/15 text-amber-600 border border-amber-500/30 whitespace-nowrap"><span>🔑</span> <span>HELD</span></span>`;
-            } else if (a.keyStatus === 'RETURNED' || a.keyStatus === 'RETURNED_VERIFIED') {
-                keyHtml = `<span class="inline-flex items-center justify-center gap-1 px-3 py-1 text-[9px] font-bold rounded-full bg-emerald-500/15 text-emerald-500 border border-emerald-500/30 whitespace-nowrap"><span>✅</span> <span>RETURNED</span></span>`;
-            }
-
-            const role = (a.role || a.position || '').toLowerCase();
-            let roleClass = 'role-default';
-            if (role.includes('security')) roleClass = 'role-security';
-            else if (role.includes('leader')) roleClass = 'role-cleaner-leader';
-            else if (role.includes('tech')) roleClass = 'role-technician';
-
-            tr.innerHTML = `
+        body.innerHTML = pageItems.length ? pageItems.map(a => `
+            <tr class="hover:bg-slate-50 border-b text-[10px]">
                 <td class="p-4 font-black text-indigo-900 uppercase">${a.name || "-"}</td>
-                <td class="p-4 font-mono font-bold text-slate-500">${a.companyId || "-"}</td>
-                <td class="p-4 font-mono text-slate-500">${a.mobile || "-"}</td>
-                <td class="p-4 font-bold text-indigo-600 uppercase truncate max-w-[120px]">${a.companyName || "N/A"}</td>
-                <td class="p-4 font-mono text-indigo-400">${a.companyId || "N/A"}</td>
-                <td class="p-4 font-bold text-slate-600 truncate max-w-[120px]">${a.branch || a.school || "N/A"}</td>
-                <td class="p-4 text-center"><span class="role-badge ${roleClass}">${a.role || a.position || "-"}</span></td>
-                <td class="p-4 font-mono font-bold text-slate-500">${a.adekPass || "-"}</td>
-                <td class="p-4 text-slate-400 font-bold whitespace-nowrap">${a.date || "-"}</td>
+                <td class="p-4 font-mono text-slate-500">${a.id || "-"}</td>
+                <td class="p-4">${a.mobile || "-"}</td>
+                <td class="p-4 font-bold text-indigo-600">${a.companyName || "N/A"}</td>
+                <td class="p-4">${a.companyId || "N/A"}</td>
+                <td class="p-4 font-bold text-slate-600">${a.branch || a.school || "N/A"}</td>
+                <td class="p-4 text-center"><span class="role-badge role-default">${a.role || "-"}</span></td>
+                <td class="p-4 font-mono text-slate-400">${a.adekPass || "-"}</td>
+                <td class="p-4 font-mono text-slate-400">${a.date || "-"}</td>
                 <td class="p-4 text-emerald-600 font-black">${a.timeIn || "-"}</td>
                 <td class="p-4 text-red-500 font-black">${a.checkOutTime || "-"}</td>
-                <td class="p-4 text-center">${keyHtml}</td>
-                <td class="p-4 text-center">${sigHTML}</td>
-                <td class="p-4 text-center sticky-action-col">
-                    <button onclick="window.openAttendanceDetailModal('${a.mobile}_${a.timestamp}')" class="p-2 text-indigo-300 hover:text-white hover:bg-indigo-600/50 rounded-lg transition-all cursor-pointer">
+                <td class="p-4 text-center font-bold">${a.keyStatus || "NONE"}</td>
+                <td class="p-4 text-center">${a.signatureUrl ? `<img src="${a.signatureUrl}" class="h-6 mx-auto rounded border shadow-sm" onclick="window.openImageZoom('${a.signatureUrl}')">` : 'No Sig'}</td>
+                <td class="p-4 text-center">
+                    <button onclick="window.openAttendanceDetailModal('${a.mobile}_${a.timestamp}')" class="text-indigo-600 hover:scale-110 transition-transform">
                         <i class="fa-solid fa-eye text-base"></i>
                     </button>
                 </td>
-            `;
-            body.appendChild(tr);
-        });
+            </tr>`).join('') : '<tr><td colspan="14" class="p-8 text-center text-gray-400">No records found</td></tr>';
     });
 }
 
 function renderGlobalTaskAudit(tasks) {
     const body = document.getElementById('admin-task-list-body');
     if (!body) return;
-    const data = (tasks || []).sort((a, b) => new Date(b.raisedTimestamp || 0) - new Date(a.raisedTimestamp || 0));
+    const data = (tasks || []).sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
     window.adminPaginators.tasks.init(data, (pageItems) => {
-        body.innerHTML = '';
-        if (pageItems.length === 0) { body.innerHTML = '<tr><td colspan="10" class="p-8 text-center text-gray-400">No tasks found</td></tr>'; return; }
-        pageItems.forEach(t => {
-            const bImg = window.getDirectDriveImageUrl(t.beforePhotoUrl || t.beforePhoto);
-            const aImg = window.getDirectDriveImageUrl(t.afterPhotoUrl || t.afterPhoto);
-            const tr = document.createElement('tr');
-            tr.innerHTML = `<td class="p-3 font-mono text-indigo-600 font-bold">${t.id?.split('-')[1] || t.id || "-"}</td><td class="p-3">${t.assignedSchool || "-"}</td><td class="p-3 font-bold">${t.location || "-"}</td><td class="p-3 max-w-[150px] truncate">${t.details || "-"}</td><td class="p-3 uppercase text-[8px] font-black">${t.assignedRole || "-"}</td><td class="p-3"><div class="flex flex-col"><span class="font-bold">${t.raisedByName || "Admin"}</span><span class="text-[7px] opacity-50">${t.timestamp || ""}</span></div></td><td class="p-3 font-bold text-emerald-600">${t.solvedByName || "-"}</td><td class="p-3"><span class="status-badge ${(t.status || 'Open').toLowerCase()}">${t.status || "Open"}</span></td><td class="p-3 italic text-[8px]">${t.rejectionReason || "-"}</td><td class="p-3 text-center"><div class="flex gap-1 justify-center">${bImg.includes('http') ? `<img src="${bImg}" class="h-8 w-8 object-cover rounded border cursor-pointer" onclick="window.openImageZoom('${bImg}')">` : '<span class="text-gray-300 text-[8px]">No</span>'}${t.afterPhotoUrl ? `<img src="${aImg}" class="h-8 w-8 object-cover rounded border border-emerald-200 cursor-pointer" onclick="window.openImageZoom('${aImg}')">` : ''}</div></td>`;
-            body.appendChild(tr);
-        });
+        body.innerHTML = pageItems.length ? pageItems.map(t => `
+            <tr class="text-[10px] border-b hover:bg-slate-50 transition-colors cursor-pointer" onclick="window.openTaskInspector('${t.id}')">
+                <td class="p-3 font-mono text-indigo-600 font-bold">${t.id || "-"}</td>
+                <td class="p-3">${t.assignedSchool || "-"}</td>
+                <td class="p-3 font-bold">${t.location || "-"}</td>
+                <td class="p-3 truncate max-w-[150px]">${t.details || "-"}</td>
+                <td class="p-3 uppercase text-[8px] font-black">${t.assignedRole || "-"}</td>
+                <td class="p-3 font-bold">${t.raisedByName || "Admin"}</td>
+                <td class="p-3 font-bold text-emerald-600">${t.solvedByName || "-"}</td>
+                <td class="p-3"><span class="status-badge ${(t.status || 'Open').toLowerCase()}">${t.status || "Open"}</span></td>
+                <td class="p-3 italic text-slate-500">${t.completionComment || t.rejectionReason || "-"}</td>
+                <td class="p-3 text-center">
+                    <div class="flex items-center justify-center gap-1">
+                        ${t.beforePhotoUrl ? '<i class="fa-solid fa-camera text-amber-500" title="Before Photo"></i>' : ''}
+                        ${t.afterPhotoUrl ? '<i class="fa-solid fa-camera-retro text-emerald-500" title="After Photo"></i>' : ''}
+                    </div>
+                </td>
+            </tr>`).join('') : '<tr><td colspan="10" class="p-8 text-center text-gray-400">No tasks found</td></tr>';
     });
 }
 
@@ -750,1354 +381,957 @@ function renderStaffDirectory(staff) {
     const body = document.getElementById('admin-staff-list-body');
     if (!body) return;
     window.adminPaginators.directory.init(staff || [], (pageItems) => {
-        body.innerHTML = '';
-        if (pageItems.length === 0) { body.innerHTML = '<tr><td colspan="10" class="p-8 text-center text-gray-400">No staff members found</td></tr>'; return; }
-        pageItems.forEach(s => {
-            const profileImg = window.getDirectDriveImageUrl(s.profilePicUrl);
-            const tr = document.createElement('tr');
-            tr.className = "hover:bg-slate-50 transition-colors border-b border-gray-100 text-[10px]";
-
-            const role = (s.role || s.position || '').toLowerCase();
-            let roleClass = 'role-default';
-            if (role.includes('security')) roleClass = 'role-security';
-            else if (role.includes('leader')) roleClass = 'role-cleaner-leader';
-            else if (role.includes('tech')) roleClass = 'role-technician';
-
-            tr.innerHTML = `
-                <td class="p-4 text-center">
-                    <div class="w-10 h-10 rounded-full bg-slate-100 border overflow-hidden mx-auto shadow-sm">
-                        <img src="${profileImg}" class="w-full h-full object-cover" onerror="this.src=window.generateLocalAvatar('${s.fullName || s.name || 'U'}')">
-                    </div>
-                </td>
+        body.innerHTML = pageItems.length ? pageItems.map(s => `
+            <tr class="hover:bg-slate-50 border-b text-[10px]">
+                <td class="p-4 text-center"><img src="${s.profilePicUrl || ''}" class="w-8 h-8 rounded-full border shadow-sm mx-auto" onerror="this.src=window.generateLocalAvatar('${s.fullName || 'U'}')"></td>
                 <td class="p-4 font-black text-indigo-900 uppercase">${s.fullName || s.name || "-"}</td>
-                <td class="p-4 font-mono font-bold text-slate-400">${s.password || "-"}</td>
-                <td class="p-4 font-mono font-bold text-slate-500">${s.adekPass || s.adcPassNumber || "-"}</td>
-                <td class="p-4 font-bold text-slate-600 truncate max-w-[120px]">${s.branch || s.school || "-"}</td>
-                <td class="p-4 text-center"><span class="role-badge ${roleClass}">${s.role || s.position || "-"}</span></td>
-                <td class="p-4 font-bold text-slate-700 truncate max-w-[120px]">${s.companyName || "-"}</td>
+                <td class="p-4 font-mono text-slate-400">${s.password || "-"}</td>
+                <td class="p-4 font-mono text-slate-500">${s.adekPass || "-"}</td>
+                <td class="p-4 font-bold text-slate-600">${s.school || s.branch || "-"}</td>
+                <td class="p-4 text-center"><span class="role-badge role-default">${s.role || s.position || "-"}</span></td>
+                <td class="p-4 font-bold text-slate-700">${s.companyName || "-"}</td>
                 <td class="p-4 font-mono text-indigo-600 font-bold">${s.companyId || "-"}</td>
-                <td class="p-4 font-mono font-bold text-slate-500">${s.mobile || "-"}</td>
-                <td class="p-4 text-center sticky-action-col">
-                    <div class="flex items-center justify-center gap-2">
-                        <button onclick="window.openStaffProfileModal('${s.mobile}')" class="p-2 text-indigo-300 hover:text-white hover:bg-indigo-600/50 rounded-lg transition-all cursor-pointer" title="View Profile"><i class="fa-solid fa-eye text-base"></i></button>
-                        <button onclick="window.openEditStaffModal('${s.mobile}')" class="p-2 text-indigo-400 hover:text-indigo-600 transition-colors" title="Edit Staff"><i class="fa-solid fa-user-pen"></i></button>
-                    </div>
-                </td>`;
-            body.appendChild(tr);
-        });
+                <td class="p-4 font-mono text-slate-500">${s.mobile || "-"}</td>
+                <td class="p-4 text-center"><button onclick="window.openEditStaffModal('${s.firebaseKey || s.mobile}')" class="text-indigo-400 hover:text-indigo-600"><i class="fa-solid fa-user-pen"></i></button></td>
+            </tr>`).join('') : '<tr><td colspan="10" class="p-8 text-center text-gray-400">No staff found</td></tr>';
     });
 }
 
-function renderTransferLogs(transfers) {
-    const body = document.getElementById('transfer-logs-body');
-    if (!body) return;
-    body.innerHTML = '';
-    transfers.sort((a,b) => b.timestamp - a.timestamp).forEach(t => {
-        const tr = document.createElement('tr');
-        const isPending = t.status === 'Pending';
-        tr.innerHTML = `
-            <td class="p-4">${t.assetBarcode}</td>
-            <td class="p-4">${t.collectorName}</td>
-            <td class="p-4 font-bold ${isPending ? 'text-amber-600' : 'text-emerald-600'}">${t.status}</td>
-            <td class="p-4">
-                ${isPending ? `
-                    <div class="flex gap-2">
-                        <button onclick="window.approveTransfer('${t.transferId}')" class="bg-emerald-600 text-white px-3 py-1 rounded">Approve</button>
-                        <button onclick="window.rejectTransfer('${t.transferId}')" class="bg-red-600 text-white px-3 py-1 rounded">Reject</button>
-                    </div>
-                ` : 'N/A'}
-            </td>
-        `;
-        body.appendChild(tr);
-    });
-}
+// ================================================================ */
+// ✅ FILTER LOGIC                                                  */
+// ================================================================ */
 
-window.renderStandardizedAssetTable = (data, target) => {
-    const body = target === 'disposal' ? document.getElementById('admin-disposal-list-body') : document.getElementById('transfer-logs-body');
-    if (!body) return;
-    const getVal = (val) => (val === undefined || val === null || val === "" || val === "N/A" || val === "undefined") ? '-' : val;
+window.filterVisitorTable = window.debounce(() => {
+    const q = document.getElementById('visitor-search')?.value?.toLowerCase() || '';
+    const d = document.getElementById('visitor-date-filter')?.value;
+    let f = window.appCache.visitors;
+    if (q) f = f.filter(v => (v.name||'').toLowerCase().includes(q) || (v.id||'').toLowerCase().includes(q) || (v.mobile||'').includes(q));
+    if (d) f = f.filter(v => v.date === new Date(d).toLocaleDateString('en-US'));
+    window.currentFilteredData.visitors = f; renderVisitorLogs(f);
+}, 300);
 
-    let filtered = [];
-    if (target === 'disposal') {
-        filtered = data || []; // Already filtered by filterDisposalTable
-    } else {
-        filtered = (data || []).filter(t => ['Transferred', 'In-Transit', 'Completed', 'Pending'].includes(t.status || t.assetStatus));
-    }
+window.filterContractorTable = window.debounce(() => {
+    const q = document.getElementById('contractor-search')?.value?.toLowerCase() || '';
+    const d = document.getElementById('contractor-date-filter')?.value;
+    let f = window.appCache.contractors;
+    if (q) f = f.filter(c => (c.name||'').toLowerCase().includes(q) || (c.company||'').toLowerCase().includes(q));
+    if (d) f = f.filter(c => c.date === new Date(d).toLocaleDateString('en-US'));
+    window.currentFilteredData.contractors = f; renderContractorLogs(f);
+}, 300);
 
-    filtered.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
-    const paginator = target === 'disposal' ? window.adminPaginators.disposal : window.adminPaginators.transfers;
-    paginator.init(filtered, (pageItems) => {
-        body.innerHTML = '';
-        if (pageItems.length === 0) { body.innerHTML = '<tr><td colspan="26" class="p-8 text-center text-gray-400">No records found</td></tr>'; return; }
-        pageItems.forEach(t => {
-            const tr = document.createElement('tr');
-            tr.className = "hover:bg-slate-50 transition-colors border-b border-gray-100 text-[9px]";
+window.filterStaffTable = window.debounce(() => {
+    const q = document.getElementById('staff-search')?.value?.toLowerCase() || '';
+    const d = document.getElementById('staff-date-filter')?.value;
+    const r = document.getElementById('staff-role-filter')?.value;
+    let f = window.appCache.attendance;
+    if (q) f = f.filter(a => (a.name||'').toLowerCase().includes(q) || (a.mobile||'').includes(q));
+    if (d) f = f.filter(a => a.date === new Date(d).toLocaleDateString());
+    if (r && r !== 'all') f = f.filter(a => (a.role||'').toLowerCase().includes(r.replace('_',' ')));
+    window.currentFilteredData.staff = f; renderStaffAttendance(f);
+}, 300);
 
-            const barcode = t.assetBarcode || t.barcode || '-';
-            const asset = window.appCache.assets.find(a => a.barcode === barcode) || {};
-
-            const photo = t.disposalPhotoUrl || t.auditPhoto || t.auditPhotoUrl || t.photoUrl || asset.photoUrl;
-            const photoHtml = (photo && photo !== 'N/A' && photo !== '-') ? `<img src="${window.getDirectDriveImageUrl(photo)}" class="h-8 w-8 object-cover rounded border cursor-pointer hover:scale-150 transition" onclick="window.openImageZoom('${photo}')">` : '<span class="px-2 py-0.5 bg-gray-50 text-gray-400 border border-gray-100 rounded-[4px] text-[7px] font-bold uppercase whitespace-nowrap">No Photo</span>';
-
-            if (target === 'disposal') {
-                tr.innerHTML = `
-                    <td class="p-2 font-mono font-bold text-indigo-600">${getVal(barcode)}</td>
-                    <td class="p-2 max-w-[120px] truncate font-medium">${getVal(t.assetName || asset.assetDescription || asset.description)}</td>
-                    <td class="p-2">${getVal(asset.assetVendorName || asset.vendor)}</td>
-                    <td class="p-2"><span class="px-2 py-0.5 bg-slate-100 rounded text-[8px] font-bold">${getVal(asset.category)}</span></td>
-                    <td class="p-2">${getVal(asset.datePlaceInService || asset.serviceDate)}</td>
-                    <td class="p-2 max-w-[100px] truncate">${getVal(asset.floorDiscretion || asset.floorDesc)}</td>
-                    <td class="p-2 text-center">${getVal(asset.floorNo)}</td>
-                    <td class="p-2 font-bold text-slate-700">${getVal(t.location || asset.locationName || asset.location)}</td>
-                    <td class="p-2">${getVal(asset.majorCategory)}</td>
-                    <td class="p-2">${getVal(asset.minorCategory || asset.classification)}</td>
-                    <td class="p-2 max-w-[120px] truncate">${getVal(asset.schoolBuildingName || asset.building)}</td>
-                    <td class="p-2 font-bold">${getVal(asset.roomNumber || asset.roomNo)}</td>
-                    <td class="p-2 max-w-[100px] truncate">${getVal(asset.roomName)}</td>
-                    <td class="p-2">${getVal(asset.subMinorCategory)}</td>
-                    <td class="p-2 text-center">${photoHtml}</td>
-                    <td class="p-2 border text-center">
-                        <div class="flex items-center justify-center gap-1">
-                            ${t.status === 'Pending' ? `
-                                <button onclick="window.handleAdminDisposalAction('${t.requestId}', 'APPROVE')" class="px-2 py-1 bg-green-600 text-white rounded text-[8px] font-bold shadow-sm active:scale-95 transition">Approve</button>
-                                <button onclick="window.handleAdminDisposalAction('${t.requestId}', 'REJECT')" class="px-2 py-1 bg-red-600 text-white rounded text-[8px] font-bold shadow-sm active:scale-95 transition">Reject</button>
-                            ` : `<span class="font-bold text-[8px] uppercase ${t.status === 'Approved' ? 'text-green-600' : (t.status === 'Rejected' ? 'text-red-600' : 'text-gray-500')}">${t.status || t.assetStatus}</span>`}
-                        </div>
-                    </td>
-                `;
-            } else {
-                const proof = t.transferPhotoUrl || t.afterPhotoUrl;
-                const proofHtml = (proof && proof !== 'N/A' && proof !== '-') ? `<img src="${window.getDirectDriveImageUrl(proof)}" class="h-8 w-8 object-cover rounded border cursor-pointer hover:scale-150 transition" onclick="window.openImageZoom('${proof}')">` : '<span class="px-2 py-0.5 bg-gray-50 text-gray-400 border border-gray-100 rounded-[4px] text-[7px] font-bold uppercase whitespace-nowrap">No Proof</span>';
-                const secSig = t.securitySignatureUrl;
-                const secSigHtml = (secSig && secSig !== 'N/A' && secSig !== '-') ? `<img src="${window.getDirectDriveImageUrl(secSig)}" class="h-8 mx-auto rounded border cursor-pointer hover:scale-150 transition" onclick="window.openImageZoom('${secSig}')">` : '<span class="px-2 py-0.5 bg-gray-50 text-gray-400 border border-gray-100 rounded-[4px] text-[7px] font-bold uppercase whitespace-nowrap">No Sig</span>';
-                const recSig = t.receivedSignatureUrl;
-                const recSigHtml = (recSig && recSig !== 'N/A' && recSig !== '-') ? `<img src="${window.getDirectDriveImageUrl(recSig)}" class="h-8 mx-auto rounded border cursor-pointer hover:scale-150 transition" onclick="window.openImageZoom('${recSig}')">` : '<span class="px-2 py-0.5 bg-gray-50 text-gray-400 border border-gray-100 rounded-[4px] text-[7px] font-bold uppercase whitespace-nowrap">No Sig</span>';
-
-                tr.innerHTML = `
-                    <td class="p-2 font-mono font-bold text-indigo-600">${getVal(barcode)}</td>
-                    <td class="p-2 max-w-[120px] truncate font-medium">${getVal(t.assetDescription || t.description)}</td>
-                    <td class="p-2">${getVal(t.assetVendorName || t.vendor)}</td>
-                    <td class="p-2"><span class="px-2 py-0.5 bg-slate-100 rounded text-[8px] font-bold">${getVal(t.category)}</span></td>
-                    <td class="p-2">${getVal(t.datePlaceInService || t.serviceDate)}</td>
-                    <td class="p-2 max-w-[100px] truncate">${getVal(t.floorDiscretion || t.floorDesc)}</td>
-                    <td class="p-2 text-center">${getVal(t.floorNo)}</td>
-                    <td class="p-2 font-bold text-slate-700">${getVal(t.locationName || t.location)}</td>
-                    <td class="p-2">${getVal(t.majorCategory)}</td>
-                    <td class="p-2">${getVal(t.minorCategory || t.classification)}</td>
-                    <td class="p-2 max-w-[120px] truncate">${getVal(t.schoolBuildingName || t.building)}</td>
-                    <td class="p-2 font-bold">${getVal(t.roomNumber || t.roomNo)}</td>
-                    <td class="p-2 max-w-[100px] truncate">${getVal(t.roomName)}</td>
-                    <td class="p-2">${getVal(t.subMinorCategory)}</td>
-                    <td class="p-2 text-center">${photoHtml}</td>
-                    <td class="p-2 font-bold text-indigo-900">${getVal(t.collectorName)}</td>
-                    <td class="p-2">${getVal(t.companyName)}</td>
-                    <td class="p-2 font-mono">${getVal(t.date)}</td>
-                    <td class="p-2">${getVal(t.securityName)}</td>
-                    <td class="p-2">${getVal(t.receiverName)}</td>
-                    <td class="p-2 text-center">${secSigHtml}</td>
-                    <td class="p-2 text-center">${recSigHtml}</td>
-                    <td class="p-2 text-center">${proofHtml}</td>
-                    <td class="p-2 text-center">
-                        <div class="flex items-center justify-center gap-2">
-                            <button onclick="window.openTransferDetailsModal('${t.transferId || t.id}')" class="p-2 text-indigo-400 hover:text-white hover:bg-indigo-600/50 rounded-lg transition-all cursor-pointer" title="View Details"><i class="fa-solid fa-eye text-base"></i></button>
-                            <button onclick="window.revertAssetToRegister('${barcode}', '${t.transferId || ''}')" class="bg-indigo-50 text-indigo-600 px-2 py-1.5 rounded-lg font-bold text-[8px] hover:bg-indigo-600 hover:text-white transition shadow-sm uppercase flex items-center gap-1"><i class="fa-solid fa-rotate-left"></i> Revert</button>
-                            ${t.status === 'Pending' ? `
-                                <button onclick="window.approveTransfer('${t.transferId}')" class="bg-emerald-600 text-white px-2 py-1.5 rounded-lg font-bold text-[8px] hover:bg-emerald-700 transition shadow-sm uppercase">Approve</button>
-                            ` : ''}
-                        </div>
-                    </td>`;
-            }
-            body.appendChild(tr);
-        });
-    });
+window.filterStaffDirectory = () => {
+    const q = document.getElementById('directory-search')?.value?.toLowerCase() || '';
+    const r = document.getElementById('directory-role-filter')?.value;
+    let f = window.appCache.staff;
+    if (q) f = f.filter(s => (s.fullName||'').toLowerCase().includes(q) || (s.mobile||'').includes(q));
+    if (r && r !== 'all') f = f.filter(s => (s.role||'').toLowerCase().includes(r.replace('_',' ')));
+    renderStaffDirectory(f);
 };
 
-// ================================================
-// SYSTEM CONFIGURATION: GOOGLE DRIVE
-// ================================================
-window.loadGoogleDriveConfig = async () => {
-    const input = document.getElementById('driveUrlInput');
-    const statusText = document.getElementById('driveStatusText');
-    const statusDot = document.getElementById('driveStatusDot');
-    if (!input || !statusText || !statusDot) return;
+// ================================================================ */
+// ✅ MISC HANDLERS & ASSET MGMT                                    */
+// ================================================================ */
+
+window.updateAdminProfileHeader = async () => {
     try {
-        statusText.innerText = "Status: Fetching...";
-        const config = await window.driveConfigCache.getConfig(true);
-        if (config && config.url) {
-            input.value = config.url;
-            statusText.innerText = config.enabled ? "Status: Connected" : "Status: Disabled";
-            statusDot.className = config.enabled ? "w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_#10b981]" : "w-2 h-2 rounded-full bg-amber-500";
-        } else {
-            statusText.innerText = "Status: Not Configured";
-            statusDot.className = "w-2 h-2 rounded-full bg-slate-300";
+        const mobile = '961486864461';
+        const snap = await get(ref(db, `users/${mobile}`));
+        if (snap.exists()) {
+            const pic = document.getElementById('adminProfileHeaderPic');
+            if (pic && snap.val().profilePicUrl) pic.src = window.getDirectDriveImageUrl(snap.val().profilePicUrl);
         }
-    } catch (e) { statusText.innerText = "Status: Error Loading"; }
+    } catch (e) {}
 };
 
-window.saveGoogleDriveConfig = async () => {
-    const url = document.getElementById('driveUrlInput')?.value.trim();
-    if (!url || !url.startsWith('https://script.google.com/')) return alert("Invalid URL.");
-    window.showLoader();
-    try {
-        await set(ref(db, UPLOAD_CONFIG.DRIVE_CONFIG_PATH), url);
-        window.driveConfigCache.invalidate();
-        alert("✅ Google Drive Link Updated Successfully!");
-        window.loadGoogleDriveConfig();
-    } catch (e) { alert("Failed to save config: " + e.message); }
-    finally { window.hideLoader(); }
-};
+window.filterAssetTable = window.debounce(() => {
+    const q = document.getElementById('asset-search')?.value?.toLowerCase() || '';
+    let f = window.filterActiveAssets(window.appCache.assets || []);
+    if (q) f = f.filter(a => Object.values(a).some(v => String(v).toLowerCase().includes(q)));
+    window.currentFilteredData.assets = f;
+    if (typeof window.renderDynamicAssetTable === 'function') {
+        const headers = f.length ? Object.keys(f[0]).filter(k => !['assetId', 'updatedAt', '_raw', '_key'].includes(k)) : [];
+        window.renderDynamicAssetTable(f, headers);
+    }
+}, 300);
 
-// ================================================
-// BULK DELETE & RECOVERY
-// ================================================
+// ================================================================ */
+// ✅ BULK ACTIONS                                                  */
+// ================================================================ */
 
-/**
- * RESTORED: Bulk Clear Asset Register
- * High-integrity deletion with verification
- */
 window.confirmAndDeleteAllAssets = async function() {
-    const confirmFirst = confirm("⚠️ WARNING: Are you sure you want to DELETE ALL ASSETS from the database? This action CANNOT be undone!");
-    if (!confirmFirst) return;
-
-    const verification = prompt("To confirm bulk deletion of all 6,000+ assets, type 'DELETE ALL' below:");
-    if (verification !== "DELETE ALL") {
-        alert("❌ Deletion canceled. Verification word did not match.");
-        return;
-    }
-
-    window.showGlobalSpinner("Clearing entire asset database...");
-
-    try {
-        // Single batch remove for instantaneous Firebase clearing
-        await set(ref(db, 'assets'), null);
-
-        window.appCache.assets = [];
-        window.selectedAssetKeys.clear();
-
-        alert("✅ All assets have been successfully deleted from the register.");
-
-        // Refresh local UI
-        if (window.renderTabFromAppCache) window.renderTabFromAppCache('tab-assets');
-        if (window.updateAdminKPIs) window.updateAdminKPIs();
-
-    } catch (err) {
-        console.error("Bulk delete error:", err);
-        alert("❌ Failed to clear assets: " + err.message);
-    } finally {
-        window.hideGlobalSpinner();
-    }
+    const v = prompt("Type 'DELETE ALL' to confirm:");
+    if (v !== "DELETE ALL") return;
+    window.showGlobalSpinner("Clearing database...");
+    try { await set(ref(db, 'assets'), null); window.appCache.assets = []; alert("Success."); window.filterAssetTable(); }
+    catch (e) { alert(e.message); } finally { window.hideGlobalSpinner(); }
 };
 
 window.bulkDeleteAssets = async () => {
-    const selectedCount = window.selectedAssetKeys.size;
-    if (selectedCount === 0) return alert("Please select assets to delete.");
-    if (!confirm(`⚠️ Delete ${selectedCount} assets?`)) return;
+    if (window.selectedAssetKeys.size === 0) return alert("Select assets.");
+    if (!confirm(`Delete ${window.selectedAssetKeys.size} assets?`)) return;
     window.showLoader();
     try {
-        const barcodes = Array.from(window.selectedAssetKeys);
-        const BATCH_SIZE = 400;
-        for (let i = 0; i < barcodes.length; i += BATCH_SIZE) {
-            const chunk = barcodes.slice(i, i + BATCH_SIZE);
-            const updates = {};
-            chunk.forEach(barcode => { updates[`assets/${barcode}`] = null; });
-            await update(ref(db), updates);
-        }
-        window.triggerSuccessPopup(`${selectedCount} Assets Deleted!`);
-        window.selectedAssetKeys.clear();
-        await window.refreshDashboardData();
-    } catch (e) { alert("Batch deletion failed: " + e.message); }
-    finally { window.hideLoader(); }
-};
-
-window.deleteAssetRecord = async (barcode) => {
-    if (!confirm(`Delete asset ${barcode}?`)) return;
-    try { await remove(ref(db, `assets/${barcode}`)); window.triggerSuccessPopup("Asset Deleted!"); window.refreshDashboardData(); } catch (e) { alert(e.message); }
-};
-
-window.recoverDisposedAsset = async (barcode) => {
-    if (!confirm(`Restore ${barcode}?`)) return;
-    try { await update(ref(db, `assets/${barcode}`), { assetStatus: 'Active', disposalReason: null, disposalDate: null }); window.triggerSuccessPopup("Asset Restored!"); window.refreshDashboardData(); } catch (e) { alert(e.message); }
-};
-
-// 3. ADMIN DASHBOARD: APPROVE OR REJECT DISPOSAL REQUESTS
-window.handleAdminDisposalAction = async (requestId, action) => {
-    // action can be 'APPROVE' or 'REJECT'
-    if (!confirm(`Are you sure you want to ${action} this disposal request?`)) return;
-
-    if (window.showGlobalSpinner) window.showGlobalSpinner(`${action}ing Request...`);
-
-    try {
-        const reqSnap = await get(child(ref(db), `asset_disposal_requests/${requestId}`));
-        if (!reqSnap.exists()) throw new Error("Request not found!");
-
-        const reqData = reqSnap.val();
-        const barcode = reqData.assetBarcode;
         const updates = {};
-
-        if (action === 'APPROVE') {
-            // Permanently mark asset as Disposed
-            updates[`assets/${barcode}/assetStatus`] = 'Disposed';
-            updates[`assets/${barcode}/disposedDate`] = new Date().toLocaleDateString();
-            updates[`assets/${barcode}/disposedBy`] = reqData.requestedBy;
-            updates[`assets/${barcode}/disposalReason`] = reqData.reason;
-            updates[`assets/${barcode}/disposalPhotoUrl`] = reqData.disposalPhotoUrl;
-
-            // Update Request Node
-            updates[`asset_disposal_requests/${requestId}/status`] = 'Approved';
-            updates[`asset_disposal_requests/${requestId}/approvedBy`] = "Admin";
-        } else if (action === 'REJECT') {
-            // Revert asset back to Active
-            updates[`assets/${barcode}/assetStatus`] = 'Active';
-
-            // Update Request Node
-            updates[`asset_disposal_requests/${requestId}/status`] = 'Rejected';
-            updates[`asset_disposal_requests/${requestId}/rejectedBy`] = "Admin";
-        }
-
+        Array.from(window.selectedAssetKeys).forEach(b => { updates[`assets/${b.replace(/[.#$\[\]/]/g, '_')}`] = null; });
         await update(ref(db), updates);
-
-        if (window.hideGlobalSpinner) window.hideGlobalSpinner();
-        alert(`Disposal Request successfully ${action.toLowerCase()}d!`);
-
-        // Refresh Admin Excel/Disposal Table
-        if (window.loadAdminDisposalTable) window.loadAdminDisposalTable();
-    } catch (e) {
-        if (window.hideGlobalSpinner) window.hideGlobalSpinner();
-        alert("Action Error: " + e.message);
-    }
+        window.selectedAssetKeys.clear();
+        alert("Deleted.");
+    } catch (e) { alert(e.message); } finally { window.hideLoader(); }
 };
+// ================================================================ */
+// ✅ STAFF MANAGEMENT LOGIC (PHOTO + DRIVE + FIREBASE)             */
+// ================================================================ */
 
-// 1. RENDER ADMIN DISPOSAL EXCEL TABLE WITH DYNAMIC MASTER REGISTER DATA
-window.loadAdminDisposalTable = async function() {
-    const tableBody = document.getElementById('admin-disposal-list-body') || document.querySelector('#asset-disposal-table tbody');
-    if (!tableBody) return;
+let staffPhotoBase64 = ""; // Global variable to store selected image
 
-    tableBody.innerHTML = `<tr><td colspan="16" class="text-center p-6 text-white font-bold">Loading Disposal Records...</td></tr>`;
-
-    try {
-        // Fetch Master Assets and Disposal Requests simultaneously
-        const [assetsSnap, disposalsSnap] = await Promise.all([
-            get(child(ref(db), 'assets')),
-            get(child(ref(db), 'asset_disposal_requests'))
-        ]);
-
-        const masterAssets = assetsSnap.exists() ? assetsSnap.val() : {};
-        const disposalRequests = disposalsSnap.exists() ? disposalsSnap.val() : {};
-
-        let combinedRecords = [];
-
-        // Combine requests and disposed assets
-        Object.keys(disposalRequests).forEach(key => {
-            const req = disposalRequests[key];
-            const master = masterAssets[req.assetBarcode] || {};
-            combinedRecords.push({ ...master, ...req, keyId: key });
-        });
-
-        // Also include direct 'Disposed' assets if not present in requests
-        Object.keys(masterAssets).forEach(barcode => {
-            const asset = masterAssets[barcode];
-            if ((asset.assetStatus === 'Disposed' || asset.assetStatus === 'Pending_Disposal') &&
-                !combinedRecords.some(r => r.assetBarcode === barcode)) {
-                combinedRecords.push({ ...asset, assetBarcode: barcode, keyId: barcode });
-            }
-        });
-
-        if (combinedRecords.length === 0) {
-            tableBody.innerHTML = `<tr><td colspan="16" class="text-center p-8 text-gray-300 font-bold text-lg">No records found</td></tr>`;
-            return;
-        }
-
-        // Render Table Rows dynamically
-        tableBody.innerHTML = combinedRecords.map((item, index) => {
-            const barcode = item.assetBarcode || item.barcode || 'N/A';
-            const desc = item.assetName || item.description || 'N/A';
-            const vendor = item.vendorName || item.vendor || 'N/A';
-            const category = item.category || 'N/A';
-            const dateInService = item.dateInService || item.purchaseDate || 'N/A';
-            const floorDiscretion = item.floorDiscretion || 'N/A';
-            const floorNo = item.floorNo || item.floor || 'N/A';
-            const locationName = item.locationName || item.location || 'N/A';
-            const majorCat = item.majorCategory || item.category || 'N/A';
-            const minorCat = item.minorCategory || 'N/A';
-            const schoolBuilding = item.schoolBuilding || item.building || 'N/A';
-            const roomNo = item.roomNumber || item.roomNo || 'N/A';
-            const roomName = item.roomName || 'N/A';
-            const subMinorCat = item.subMinorCategory || 'N/A';
-
-            const photoUrl = item.disposalPhotoUrl || item.photoUrl || item.imageUrl || '';
-            const isPending = item.status === 'Pending' || item.assetStatus === 'Pending_Disposal';
-
-            return `
-                <tr class="border-b border-gray-700 hover:bg-slate-800/50 text-xs text-gray-200">
-                    <td class="p-3 font-mono font-bold text-yellow-400">${barcode}</td>
-                    <td class="p-3 font-bold">${desc}</td>
-                    <td class="p-3">${vendor}</td>
-                    <td class="p-3">${category}</td>
-                    <td class="p-3">${dateInService}</td>
-                    <td class="p-3">${floorDiscretion}</td>
-                    <td class="p-3">${floorNo}</td>
-                    <td class="p-2 font-bold text-slate-700">${locationName}</td>
-                    <td class="p-3">${majorCat}</td>
-                    <td class="p-3">${minorCat}</td>
-                    <td class="p-3">${schoolBuilding}</td>
-                    <td class="p-3 font-bold">${roomNo}</td>
-                    <td class="p-3">${roomName}</td>
-                    <td class="p-3">${subMinorCat}</td>
-
-                    <!-- AUDIT PHOTO COLUMN -->
-                    <td class="p-3 text-center">
-                        ${photoUrl ? `
-                            <button onclick="window.viewDisposalDetailsModal('${item.keyId}')" class="px-2 py-1 bg-indigo-600 hover:bg-indigo-500 text-white rounded text-[10px] font-bold shadow">
-                                📷 View Photo
-                            </button>
-                        ` : `<span class="text-gray-500 text-[10px]">No Photo</span>`}
-                    </td>
-
-                    <!-- ACTION COLUMN -->
-                    <td class="p-3 text-center whitespace-nowrap">
-                        <button onclick="window.viewDisposalDetailsModal('${item.keyId}')" class="px-3 py-1 bg-blue-600 hover:bg-blue-500 text-white rounded text-xs font-bold mr-1">
-                            ℹ️ Details
-                        </button>
-                        ${isPending ? `
-                            <button onclick="window.handleAdminDisposalAction('${item.keyId}', 'APPROVE')" class="px-2 py-1 bg-green-600 hover:bg-green-500 text-white rounded text-xs font-bold mr-1">Approve</button>
-                            <button onclick="window.handleAdminDisposalAction('${item.keyId}', 'REJECT')" class="px-2 py-1 bg-red-600 hover:bg-red-500 text-white rounded text-xs font-bold">Reject</button>
-                        ` : `<span class="font-bold text-xs ${item.status === 'Approved' || item.assetStatus === 'Disposed' ? 'text-green-400' : 'text-gray-400'}">${item.status || item.assetStatus}</span>`}
-                    </td>
-                </tr>
-            `;
-        }).join('');
-
-        // Store globally for quick modal lookup
-        window.currentDisposalRecords = combinedRecords;
-
-    } catch (e) {
-        console.error("Error loading admin disposal table:", e);
-        tableBody.innerHTML = `<tr><td colspan="16" class="text-center p-6 text-red-400 font-bold">Error loading disposal table!</td></tr>`;
-    }
-};
-
-// 2. AUDIT PHOTO & FULL DISPOSAL DETAILS POPUP MODAL
-window.viewDisposalDetailsModal = function(keyId) {
-    const record = (window.currentDisposalRecords || []).find(r => r.keyId === keyId || r.assetBarcode === keyId);
-    if (!record) return alert("Disposal record details not found!");
-
-    const photoUrl = record.disposalPhotoUrl || record.photoUrl || record.imageUrl || '';
-    const masterPhoto = record.auditMasterPhotoUrl || record.imageUrl || '';
-
-    // Create modal dynamically if not existing
-    let modal = document.getElementById('disposal-details-popup-modal');
-    if (!modal) {
-        modal = document.createElement('div');
-        modal.id = 'disposal-details-popup-modal';
-        modal.className = 'fixed inset-0 bg-black/80 z-[9999] flex items-center justify-center p-4';
-        document.body.appendChild(modal);
-    }
-
-    modal.innerHTML = `
-        <div class="bg-slate-900 border border-slate-700 rounded-3xl p-6 max-w-lg w-full text-white space-y-5 shadow-2xl relative">
-            <button onclick="document.getElementById('disposal-details-popup-modal').classList.add('hidden')" class="absolute top-4 right-4 text-gray-400 hover:text-white text-xl font-bold">✕</button>
-
-            <div class="border-b border-slate-700 pb-3">
-                <span class="text-[10px] font-black uppercase text-red-400 tracking-wider">Asset Disposal Log</span>
-                <h3 class="text-xl font-black">${record.assetBarcode || 'N/A'}</h3>
-                <p class="text-xs text-gray-400">${record.assetName || record.description || 'N/A'}</p>
-            </div>
-
-            <div class="grid grid-cols-2 gap-3 text-xs bg-slate-800/60 p-3 rounded-2xl border border-slate-700">
-                <div>
-                    <span class="text-[9px] text-gray-400 uppercase block font-bold">Disposed / Requested By</span>
-                    <span class="font-black text-yellow-400">${record.requestedBy || record.disposedBy || 'N/A'}</span>
-                </div>
-                <div>
-                    <span class="text-[9px] text-gray-400 uppercase block font-bold">Role</span>
-                    <span class="font-black text-white">${record.requestedByRole || 'Staff'}</span>
-                </div>
-                <div>
-                    <span class="text-[9px] text-gray-400 uppercase block font-bold">Date</span>
-                    <span class="font-black text-white">${record.date || record.disposedDate || new Date(record.timestamp || Date.now()).toLocaleDateString()}</span>
-                </div>
-                <div>
-                    <span class="text-[9px] text-gray-400 uppercase block font-bold">Time</span>
-                    <span class="font-black text-white">${record.timestamp ? new Date(record.timestamp).toLocaleTimeString() : 'N/A'}</span>
-                </div>
-            </div>
-
-            <div>
-                <span class="text-[10px] text-gray-400 uppercase font-bold block mb-1">Disposal Reason</span>
-                <p class="text-xs bg-slate-800 p-3 rounded-xl border border-slate-700 font-semibold text-gray-200">${record.reason || record.disposalReason || 'No reason provided.'}</p>
-            </div>
-
-            <!-- PHOTOS DISPLAY -->
-            <div class="grid grid-cols-2 gap-3">
-                <div>
-                    <span class="text-[9px] text-gray-400 font-bold uppercase block mb-1">Captured Disposal Photo</span>
-                    ${photoUrl ? `
-                        <img src="${photoUrl}" class="w-full h-36 object-cover rounded-xl border border-slate-700 shadow-md">
-                    ` : `<div class="w-full h-36 bg-slate-800 rounded-xl border border-dashed border-slate-700 flex items-center justify-center text-xs text-gray-500 uppercase font-bold">No Photo</div>`}
-                </div>
-                <div>
-                    <span class="text-[9px] text-gray-400 font-bold uppercase block mb-1">Master Register Photo</span>
-                    ${masterPhoto && masterPhoto !== 'Not Available' ? `
-                        <img src="${masterPhoto}" class="w-full h-36 object-cover rounded-xl border border-slate-700 shadow-md">
-                    ` : `<div class="w-full h-36 bg-slate-800 rounded-xl border border-dashed border-slate-700 flex items-center justify-center text-xs text-gray-500 uppercase font-bold">Not Available</div>`}
-                </div>
-            </div>
-
-            <button onclick="document.getElementById('disposal-details-popup-modal').classList.add('hidden')" class="w-full py-3 bg-slate-800 hover:bg-slate-700 text-white rounded-xl font-bold text-xs uppercase transition">
-                Close Details
-            </button>
-        </div>
-    `;
-
-    modal.classList.remove('hidden');
-};
-
-window.updateAssetTableHeaders = (dynamicHeaders) => {
-    const head = document.querySelector('#asset-master-table thead tr');
-    if (!head) return;
-    let html = '<th class="p-4 text-center sticky left-0 bg-slate-50 z-20 border-b-2 border-r shadow-sm"><input type="checkbox" onchange="window.toggleAllAssetCheckboxes(this)" class="selectAllAssets"></th>';
-    dynamicHeaders.forEach(h => {
-        let label = h.replace(/^_+/, '').replace(/_/g, ' ');
-        label = label.charAt(0).toUpperCase() + label.slice(1).replace(/([A-Z])/g, ' $1').trim();
-        html += `<th class="p-4 whitespace-nowrap text-[10px] font-black uppercase text-indigo-600 border-b-2 border-r shadow-sm">${label}</th>`;
-    });
-    html += '<th class="p-4 text-center border-b-2 shadow-sm">Action</th>';
-    head.innerHTML = html;
-};
-
-// ================================================
-// STAFF MANAGEMENT
-// ================================================
-window.openAddStaffModal = () => {
+/**
+ * 1. Open Modal and Inject HTML Form
+ */
+window.openAddStaffModal = function() {
     const modal = document.getElementById('add-staff-modal');
     if (!modal) return;
-    modal.classList.remove('hidden');
-    modal.style.display = 'flex';
+
     modal.innerHTML = `
-        <div class="bg-white w-full max-w-lg rounded-3xl overflow-hidden shadow-2xl border border-slate-100 flex flex-col max-h-[90vh]">
-            <div class="p-5 bg-slate-800 text-white flex justify-between items-center flex-shrink-0">
-                <h3 class="text-base font-bold uppercase tracking-wider flex items-center gap-2">
-                    <i class="fa-solid fa-user-plus text-indigo-400"></i> Add New Staff
-                </h3>
-                <button type="button" onclick="document.getElementById('add-staff-modal').style.display='none'; document.getElementById('add-staff-modal').classList.add('hidden');" class="w-8 h-8 rounded-full bg-slate-700 hover:bg-slate-600 flex items-center justify-center transition-colors">
-                    <i class="fa-solid fa-xmark text-lg"></i>
-                </button>
+        <div class="bg-white w-full max-w-xl rounded-[40px] overflow-hidden shadow-2xl p-10 relative">
+            <div class="flex justify-between items-center mb-8">
+                <h3 class="text-2xl font-black text-indigo-900 uppercase tracking-tight">Register New Staff</h3>
+                <button onclick="window.closeStaffModal('add')" class="w-10 h-10 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center hover:bg-red-50 hover:text-red-500 transition-all">&times;</button>
             </div>
-            <form id="add-staff-form" class="p-6 space-y-4 overflow-y-auto flex-1" onsubmit="event.preventDefault(); event.stopPropagation(); if(window.submitAddStaff) window.submitAddStaff(event); return false;">
-                <div class="flex items-center gap-4 p-4 bg-slate-50 border border-slate-200 rounded-2xl">
-                    <div id="add-staff-photo-preview" class="w-16 h-16 rounded-full bg-slate-200 overflow-hidden flex-shrink-0 border-2 border-white shadow-md flex items-center justify-center">
-                        <i class="fa-solid fa-user text-slate-400 text-2xl"></i>
+
+            <form id="add-staff-form" class="space-y-6" onsubmit="event.preventDefault(); window.handleStaffSubmit('add')">
+
+                <!-- ✅ CRITICAL: Hidden field to track unique record key -->
+                <input type="hidden" id="staff-db-key" value="">
+
+                <!-- Profile Photo Picker -->
+                <div class="flex flex-col items-center mb-6">
+                    <div class="relative group">
+                        <div class="w-28 h-28 rounded-full bg-slate-100 border-4 border-white shadow-xl overflow-hidden flex items-center justify-center">
+                            <img id="staff-photo-preview" src="" class="w-full h-full object-cover hidden">
+                            <i id="staff-photo-icon" class="fa-solid fa-camera text-4xl text-slate-300"></i>
+                        </div>
+                        <input type="file" id="staff-photo-input" accept="image/*" class="absolute inset-0 opacity-0 cursor-pointer" onchange="window.previewStaffPhoto(this)">
                     </div>
-                    <div class="flex-1">
-                        <label class="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1">Profile Photo (Optional)</label>
-                        <input type="file" id="staff-photo-input" accept="image/*" class="w-full text-xs text-slate-500 file:mr-3 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-bold file:bg-indigo-50 file:text-indigo-600 hover:file:bg-indigo-100 cursor-pointer" onchange="window.previewStaffPhoto(this, 'add-staff-photo-preview')">
-                    </div>
+                    <p class="text-[10px] font-black text-indigo-500 uppercase mt-3 tracking-widest">Upload Profile Image</p>
                 </div>
-                <div>
-                    <label class="block text-[11px] font-bold text-slate-500 uppercase mb-1">Full Name *</label>
-                    <input type="text" id="staff-fullname" placeholder="Enter Full Name" required class="w-full p-3.5 bg-slate-50 border border-slate-300 rounded-xl text-slate-900 font-medium focus:outline-none focus:border-indigo-600 focus:bg-white transition-all">
+
+                <div class="grid grid-cols-2 gap-4">
+                    <input type="text" id="staff-name" placeholder="Full Name" required class="p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl outline-none focus:border-indigo-500 text-sm font-bold">
+                    <input type="tel" id="staff-mobile" placeholder="Mobile (Login ID)" required class="p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl outline-none focus:border-indigo-500 text-sm font-bold">
                 </div>
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                        <label class="block text-[11px] font-bold text-slate-500 uppercase mb-1">Mobile Number *</label>
-                        <input type="tel" id="staff-mobile" placeholder="e.g. 0501234567" required class="w-full p-3.5 bg-slate-50 border border-slate-300 rounded-xl text-slate-900 font-medium focus:outline-none focus:border-indigo-600 focus:bg-white transition-all">
-                    </div>
-                    <div>
-                        <label class="block text-[11px] font-bold text-slate-500 uppercase mb-1">ADEK Pass Number *</label>
-                        <input type="text" id="staff-adek" placeholder="ADEK-2024-001" required class="w-full p-3.5 bg-slate-50 border border-slate-300 rounded-xl text-slate-900 font-medium focus:outline-none focus:border-indigo-600 focus:bg-white transition-all">
-                    </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <input type="text" id="staff-adek" placeholder="ADEK Pass No" required class="p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl outline-none focus:border-indigo-500 text-sm font-bold">
+                    <input type="text" id="staff-pass" placeholder="Login Password" required class="p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl outline-none focus:border-indigo-500 text-sm font-bold">
                 </div>
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                        <label class="block text-[11px] font-bold text-slate-500 uppercase mb-1">Assigned School *</label>
-                        <select id="staff-school" required class="w-full p-3.5 bg-slate-50 border border-slate-300 rounded-xl text-slate-900 font-medium focus:outline-none focus:border-indigo-600 focus:bg-white transition-all">
-                            <option value="Jern Yafoor School 1">Jern Yafoor School 1</option>
-                            <option value="Jern Yafoor School 2">Jern Yafoor School 2</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label class="block text-[11px] font-bold text-slate-500 uppercase mb-1">Staff Role *</label>
-                        <select id="staff-role" required class="w-full p-3.5 bg-slate-50 border border-slate-300 rounded-xl text-slate-900 font-medium focus:outline-none focus:border-indigo-600 focus:bg-white transition-all">
-                            <option value="Cleaner">Cleaner</option>
-                            <option value="cleaner_leader">Cleaner Leader</option>
-                            <option value="Security">Security</option>
-                            <option value="Technician">Technician</option>
-                            <option value="office_boy">Office Boy</option>
-                            <option value="bus_musrif">Bus Musrif</option>
-                            <option value="gardener">Gardener</option>
-                            <option value="Admin">Admin</option>
-                        </select>
-                    </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <select id="staff-role" required class="p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl outline-none focus:border-indigo-500 text-sm font-bold">
+                        <option value="">Select Role</option>
+                        <option value="Security">Security</option>
+                        <option value="Cleaner">Cleaner</option>
+                        <option value="Cleaner Leader">Cleaner Leader</option>
+                        <option value="Technician">Technician</option>
+                        <option value="Gardener">Gardener</option>
+                        <option value="Admin">Admin</option>
+                    </select>
+                    <select id="staff-school" required class="p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl outline-none focus:border-indigo-500 text-sm font-bold">
+                        <option value="">Select School</option>
+                        <option value="Jern Yafoor School 1">Jern Yafoor School 1</option>
+                        <option value="Jern Yafoor School 2">Jern Yafoor School 2</option>
+                    </select>
                 </div>
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                        <label class="block text-[11px] font-bold text-slate-500 uppercase mb-1">Company Name</label>
-                        <input type="text" id="staff-company-name" placeholder="Enter Company Name" class="w-full p-3.5 bg-slate-50 border border-slate-300 rounded-xl text-slate-900 font-medium focus:outline-none focus:border-indigo-600 focus:bg-white transition-all">
-                    </div>
-                    <div>
-                        <label class="block text-[11px] font-bold text-slate-500 uppercase mb-1">Company ID</label>
-                        <input type="text" id="staff-company-id" placeholder="Enter Company ID" class="w-full p-3.5 bg-slate-50 border border-slate-300 rounded-xl text-slate-900 font-medium focus:outline-none focus:border-indigo-600 focus:bg-white transition-all">
-                    </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <input type="text" id="staff-company" placeholder="Company Name" class="p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl outline-none focus:border-indigo-500 text-sm font-bold">
+                    <input type="text" id="staff-comp-id" placeholder="Company ID" class="p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl outline-none focus:border-indigo-500 text-sm font-bold">
                 </div>
-                <div>
-                    <label class="block text-[11px] font-bold text-slate-500 uppercase mb-1">Password *</label>
-                    <input type="password" id="staff-password" placeholder="Set Access Password" required minlength="6" class="w-full p-3.5 bg-slate-50 border border-slate-300 rounded-xl text-slate-900 font-medium focus:outline-none focus:border-indigo-600 focus:bg-white transition-all">
-                </div>
-                <div class="pt-2">
-                    <button type="submit" id="add-staff-submit-btn" class="w-full py-4 bg-indigo-600 hover:bg-indigo-700 active:scale-[0.99] text-white rounded-xl font-bold uppercase tracking-wider shadow-lg shadow-indigo-200 transition-all flex items-center justify-center gap-2">
-                        <i class="fa-solid fa-check"></i> Register Staff
-                    </button>
-                </div>
+
+                <button type="submit" id="staff-save-btn" class="w-full py-5 bg-indigo-600 text-white rounded-2xl font-black text-sm uppercase tracking-[0.2em] shadow-2xl shadow-indigo-500/30 active:scale-95 transition-all">
+                    Register Staff Member
+                </button>
             </form>
         </div>
     `;
+    modal.classList.remove('hidden');
+    modal.style.display = 'flex';
+    staffPhotoBase64 = ""; // Reset image on open
 };
 
-window.previewStaffPhoto = (input, previewId) => {
-    const preview = document.getElementById(previewId);
+/**
+ * 2. Preview Selected Photo
+ */
+window.previewStaffPhoto = function(input) {
     if (input.files && input.files[0]) {
         const reader = new FileReader();
-        reader.onload = (e) => { preview.innerHTML = `<img src="${e.target.result}" class="w-full h-full object-cover">`; };
+        reader.onload = function(e) {
+            const preview = document.getElementById('staff-photo-preview');
+            const icon = document.getElementById('staff-photo-icon');
+            if (preview) {
+                preview.src = e.target.result;
+                preview.classList.remove('hidden');
+                if (icon) icon.classList.add('hidden');
+                staffPhotoBase64 = e.target.result; // Store for upload
+            }
+        };
         reader.readAsDataURL(input.files[0]);
     }
 };
 
-async function submitAddStaff(event) {
-    if (event) event.preventDefault();
-    const submitBtn = document.getElementById('add-staff-submit-btn');
-    if (submitBtn) submitBtn.disabled = true;
+/**
+ * 3. Handle Submit (Drive Upload + Firebase Save)
+ */
+window.handleStaffSubmit = async function(type) {
+    const btn = document.getElementById('staff-save-btn');
+    const mobile = document.getElementById('staff-mobile').value.trim();
+    const existingKey = document.getElementById('staff-db-key')?.value || "";
+
+    if (btn) btn.disabled = true;
+    window.showGlobalSpinner("Saving Data & Uploading Photo...");
+
     try {
-        const fullName = document.getElementById('staff-fullname')?.value.trim();
-        const mobile = document.getElementById('staff-mobile')?.value.trim();
-        const adek = document.getElementById('staff-adek')?.value.trim();
-        const school = document.getElementById('staff-school')?.value;
-        const role = document.getElementById('staff-role')?.value;
-        const companyName = document.getElementById('staff-company-name')?.value.trim();
-        const companyId = document.getElementById('staff-company-id')?.value.trim();
-        const password = document.getElementById('staff-password')?.value;
-        const photoInput = document.getElementById('staff-photo-input');
-        let profilePicUrl = "";
-        if (photoInput && photoInput.files && photoInput.files[0]) {
-            try {
-                const file = photoInput.files[0];
-                const base64Image = await new Promise((resolve) => {
-                    const reader = new FileReader();
-                    reader.onload = (e) => resolve(e.target.result);
-                    reader.readAsDataURL(file);
-                });
-                if (window.uploadToDrive) {
-                    const uploadRes = await window.uploadToDrive({ image: base64Image, category: 'PROFILE_PHOTOS', fileName: `staff_${Date.now()}.png` });
-                    if (uploadRes && uploadRes.status === 'success') profilePicUrl = uploadRes.fileUrl;
-                }
-            } catch (imgErr) { console.error("⚠️ Image upload process crashed:", imgErr); }
-        }
-        const staffId = 'STAFF_' + Date.now();
-        const staffData = { staffId, fullName, mobile, adekPass: adek, school, branch: school, role, position: role, companyName, companyId, password, profilePicUrl, createdAt: new Date().toISOString() };
+        let finalPhotoUrl = "";
 
-        // CRITICAL FIX: Use staffId as unique key to prevent overwriting same-role staff
-        await set(ref(db, 'staff/' + staffId), staffData);
-        // Also update users node if needed for auth, using mobile or staffId?
-        // Typically users node uses mobile for login lookup.
-        await set(ref(db, 'users/' + mobile), staffData);
-        alert("✅ Staff Registered Successfully!");
-        document.getElementById('add-staff-form')?.reset();
-        const modal = document.getElementById('add-staff-modal');
-        if (modal) { modal.style.display = 'none'; modal.classList.add('hidden'); }
-        window.refreshDashboardData();
-    } catch (error) { console.error("❌ Registration Error:", error); alert("Registration Failed: " + error.message); } finally { if (submitBtn) submitBtn.disabled = false; }
-}
-window.submitAddStaff = submitAddStaff;
-
-window.openEditStaffModal = async (mobile) => {
-    const snap = await get(ref(db, 'staff/' + mobile));
-    if (!snap.exists()) return alert("Staff not found");
-    const s = snap.val();
-    const modal = document.getElementById('edit-staff-modal');
-    if (!modal) return;
-    modal.classList.remove('hidden');
-    modal.style.display = 'flex';
-    const profileImg = window.getDirectDriveImageUrl(s.profilePicUrl);
-    modal.innerHTML = `
-        <div class="bg-white w-full max-w-lg rounded-[40px] overflow-hidden shadow-2xl">
-            <div class="p-6 bg-indigo-600 text-white flex justify-between items-center">
-                <h3 class="text-lg font-bold uppercase tracking-tight">Edit Staff</h3>
-                <button onclick="document.getElementById('edit-staff-modal').classList.add('hidden')"><i class="fa-solid fa-xmark text-xl"></i></button>
-            </div>
-            <form id="edit-staff-form" class="p-8 space-y-4" onsubmit="event.preventDefault(); event.stopPropagation(); if(window.submitEditStaff) window.submitEditStaff(event, '${mobile}'); return false;">
-                <div class="flex items-center gap-4 p-4 bg-slate-50 border-2 rounded-2xl">
-                    <div id="edit-staff-photo-preview" class="w-16 h-16 rounded-full bg-slate-200 overflow-hidden flex-shrink-0 border-2 border-white shadow-sm">
-                        <img src="${profileImg}" class="w-full h-full object-cover" onerror="this.src=window.generateLocalAvatar('${s.fullName || s.name || 'U'}')">
-                    </div>
-                    <div class="flex-1">
-                        <label class="block text-[10px] font-black text-slate-400 uppercase mb-1">Change Profile Photo</label>
-                        <input type="file" id="edit-staff-photo-input" accept="image/*" class="text-xs text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-black file:bg-indigo-50 file:text-indigo-600 hover:file:bg-indigo-100" onchange="window.previewStaffPhoto(this, 'edit-staff-photo-preview')">
-                    </div>
-                </div>
-                <input type="text" id="edit-fullname" value="${s.fullName || s.name || ''}" required class="w-full p-4 bg-slate-50 border-2 rounded-2xl">
-                <input type="text" id="edit-adek" value="${s.adekPass || s.adcPassNumber || ''}" required class="w-full p-4 bg-slate-50 border-2 rounded-2xl">
-                <select id="edit-school" class="w-full p-4 bg-slate-50 border-2 rounded-2xl">
-                    <option value="Jern Yafoor School 1" ${s.branch==='Jern Yafoor School 1'?'selected':''}>Jern Yafoor School 1</option>
-                    <option value="Jern Yafoor School 2" ${s.branch==='Jern Yafoor School 2'?'selected':''}>Jern Yafoor School 2</option>
-                </select>
-                <select id="edit-role" class="w-full p-4 bg-slate-50 border-2 rounded-2xl">
-                    <option value="Cleaner" ${s.role==='Cleaner'?'selected':''}>Cleaner</option>
-                    <option value="cleaner_leader" ${s.role==='cleaner_leader'||s.role==='Cleaner Leader'?'selected':''}>Cleaner Leader</option>
-                    <option value="Security" ${s.role==='Security'?'selected':''}>Security</option>
-                    <option value="Technician" ${s.role==='Technician'?'selected':''}>Technician</option>
-                    <option value="office_boy" ${s.role==='office_boy'?'selected':''}>Office Boy</option>
-                    <option value="bus_musrif" ${s.role==='bus_musrif'?'selected':''}>Bus Musrif</option>
-                    <option value="gardener" ${s.role==='gardener'?'selected':''}>Gardener</option>
-                    <option value="Admin" ${s.role==='Admin'?'selected':''}>Admin</option>
-                </select>
-                <input type="password" id="edit-password" placeholder="New Password (Optional)" class="w-full p-4 bg-slate-50 border-2 rounded-2xl">
-                <button type="submit" id="edit-staff-submit-btn" class="w-full py-4 bg-indigo-600 text-white rounded-2xl font-black uppercase tracking-widest">Update Staff</button>
-            </form>
-        </div>
-    `;
-};
-
-window.submitEditStaff = async (e, mobile) => {
-    e.preventDefault();
-    window.showLoader();
-    const updates = {
-        fullName: document.getElementById('edit-fullname').value,
-        adekPass: document.getElementById('edit-adek').value,
-        branch: document.getElementById('edit-school').value,
-        role: document.getElementById('edit-role').value,
-        position: document.getElementById('edit-role').value,
-        updatedAt: new Date().toISOString()
-    };
-    const newPass = document.getElementById('edit-password').value;
-    if (newPass) updates.password = newPass;
-    const photoInput = document.getElementById('edit-staff-photo-input');
-    try {
-        if (photoInput.files && photoInput.files[0]) {
-            const base64 = await window.compressImageFile(photoInput.files[0], 500, 500, 0.7);
-            const uploadRes = await window.uploadToDrive({ category: UPLOAD_CONFIG.CATEGORIES.PROFILE_PHOTOS, fileName: `Profile_${mobile}.jpg`, image: base64 });
-            if (uploadRes.status === 'success' && uploadRes.fileUrl) updates.profilePicUrl = uploadRes.fileUrl;
-        }
-        await update(ref(db, 'staff/' + mobile), updates);
-        await update(ref(db, 'users/' + mobile), updates);
-        alert("✅ Staff record updated successfully!");
-        document.getElementById('edit-staff-modal').classList.add('hidden');
-        window.refreshDashboardData();
-    } catch (e) { console.error("Update Error:", e); alert("❌ Update Error: " + e.message); } finally { window.hideLoader(); }
-};
-
-window.openStaffDetailsModal = async (mobile) => {
-    const snap = await get(ref(db, 'staff/' + mobile));
-    if (!snap.exists()) return alert("Staff record not found");
-    const s = snap.val();
-    const modal = document.getElementById('view-staff-modal');
-    if (!modal) return;
-    modal.classList.remove('hidden');
-    modal.style.display = 'flex';
-    const profileImg = window.getDirectDriveImageUrl(s.profilePicUrl);
-    modal.innerHTML = `
-        <div class="bg-white w-full max-w-2xl rounded-[40px] overflow-hidden shadow-2xl border border-slate-100 flex flex-col max-h-[90vh] fade-in">
-            <div class="p-6 bg-gradient-to-r from-indigo-600 to-indigo-800 text-white flex justify-between items-center flex-shrink-0">
-                <div><h3 class="text-xl font-black uppercase tracking-tight">Staff Profile</h3><p class="text-[10px] text-white/60 font-bold uppercase tracking-widest mt-1">Full Detailed Identity</p></div>
-                <button onclick="document.getElementById('view-staff-modal').classList.add('hidden');" class="w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors"><i class="fa-solid fa-xmark text-lg"></i></button>
-            </div>
-            <div class="p-8 overflow-y-auto flex-1 bg-slate-50">
-                <div class="flex flex-col md:flex-row gap-8 items-start">
-                    <div class="w-full md:w-48 flex-shrink-0">
-                        <div class="w-48 h-48 rounded-[32px] overflow-hidden border-4 border-white shadow-xl bg-white mx-auto"><img src="${profileImg}" class="w-full h-full object-cover" onerror="this.src=window.generateLocalAvatar('${s.fullName || s.name || 'U'}')"></div>
-                    </div>
-                    <div class="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <div class="bg-white p-4 rounded-2xl border shadow-sm"><label class="text-[9px] font-black text-indigo-400 uppercase tracking-widest block">Full Name</label><p class="text-sm font-black text-indigo-900">${s.fullName || s.name || "-"}</p></div>
-                        <div class="bg-white p-4 rounded-2xl border shadow-sm"><label class="text-[9px] font-black text-indigo-400 uppercase tracking-widest block">Staff ID</label><p class="text-sm font-black text-slate-700 font-mono">${s.companyId || "-"}</p></div>
-                        <div class="bg-white p-4 rounded-2xl border shadow-sm"><label class="text-[9px] font-black text-indigo-400 uppercase tracking-widest block">Mobile Number</label><p class="text-sm font-black text-slate-700 font-mono">${s.mobile || "-"}</p></div>
-                        <div class="bg-white p-4 rounded-2xl border shadow-sm"><label class="text-[9px] font-black text-indigo-400 uppercase tracking-widest block">ADEK Pass</label><p class="text-sm font-black text-slate-700 font-mono">${s.adekPass || "-"}</p></div>
-                        <div class="bg-white p-4 rounded-2xl border shadow-sm"><label class="text-[9px] font-black text-indigo-400 uppercase tracking-widest block">Assigned School</label><p class="text-sm font-black text-slate-700">${s.branch || s.school || "-"}</p></div>
-                        <div class="bg-white p-4 rounded-2xl border shadow-sm"><label class="text-[9px] font-black text-indigo-400 uppercase tracking-widest block">Designation / Role</label><p class="text-sm font-black text-slate-700 uppercase">${s.role || s.position || "-"}</p></div>
-                        <div class="bg-white p-4 rounded-2xl border shadow-sm"><label class="text-[9px] font-black text-indigo-400 uppercase tracking-widest block">Company Name</label><p class="text-sm font-black text-slate-700">${s.companyName || "-"}</p></div>
-                        <div class="bg-white p-4 rounded-2xl border shadow-sm"><label class="text-[9px] font-black text-indigo-400 uppercase tracking-widest block">Company ID</label><p class="text-sm font-black text-slate-700 font-mono">${s.companyId || "-"}</p></div>
-                    </div>
-                </div>
-            </div>
-            <div class="p-6 border-t bg-white flex justify-end"><button onclick="document.getElementById('view-staff-modal').classList.add('hidden');" class="px-8 py-3 bg-indigo-600 text-white rounded-xl font-black text-xs uppercase shadow-lg active:scale-95 transition-all">Close</button></div>
-        </div>
-    `;
-};
-
-window.openAttendanceDetailModal = async (id) => {
-    window.showGlobalSpinner("Loading details...");
-    try {
-        const [mobile, ts] = id.split('_');
-        const snap = await get(ref(db, 'staff_attendance'));
-        if (!snap.exists()) throw new Error("Record not found.");
-        const all = Object.values(snap.val());
-        const data = all.find(a => a.mobile === mobile && String(a.timestamp) === ts);
-        if (!data) throw new Error("Record not found.");
-
-        let modal = document.getElementById('view-staff-modal');
-        modal.classList.remove('hidden'); modal.style.display = 'flex';
-
-        const profileImg = window.getDirectDriveImageUrl(data.signatureUrl);
-        const getVal = (v) => v || '-';
-        let keyStatusHtml = '<span class="text-slate-400 font-bold">❌ NO KEY</span>';
-        if (data.keyStatus === 'HELD') keyStatusHtml = '<span class="text-amber-500 font-bold">🔑 KEY HELD</span>';
-        else if (data.keyStatus === 'RETURNED' || data.keyStatus === 'RETURNED_VERIFIED') keyStatusHtml = '<span class="text-emerald-500 font-bold">✅ KEY RETURNED</span>';
-
-        modal.innerHTML = `
-            <div class="bg-white w-full max-w-2xl rounded-[40px] overflow-hidden shadow-2xl border border-slate-100 flex flex-col max-h-[90vh] fade-in">
-                <div class="p-6 bg-emerald-600 text-white flex justify-between items-center">
-                    <div><h3 class="text-xl font-black uppercase tracking-tight">Attendance Detail</h3><p class="text-[10px] text-white/60 font-bold uppercase mt-1">ID: ${id}</p></div>
-                    <button onclick="document.getElementById('view-staff-modal').classList.add('hidden');"><i class="fa-solid fa-xmark text-lg"></i></button>
-                </div>
-                <div class="p-8 overflow-y-auto flex-1 bg-slate-50">
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-                        <div class="space-y-4">
-                            <h4 class="text-emerald-600 font-black text-xs uppercase tracking-widest border-b pb-2">Identity Info</h4>
-                            <div class="p-4 bg-white rounded-2xl border shadow-sm flex flex-col gap-3 text-gray-800">
-                                <div><label class="text-[8px] font-black text-slate-400 uppercase block">Name</label><p class="text-sm font-black text-indigo-900">${getVal(data.name)}</p></div>
-                                <div><label class="text-[8px] font-black text-slate-400 uppercase block">Mobile</label><p class="text-xs font-bold text-slate-700">${getVal(data.mobile)}</p></div>
-                                <div><label class="text-[8px] font-black text-slate-400 uppercase block">Company</label><p class="text-xs font-bold text-slate-700">${getVal(data.companyName)}</p></div>
-                                <div><label class="text-[8px] font-black text-slate-400 uppercase block">Role</label><p class="text-xs font-bold text-slate-700">${getVal(data.role)}</p></div>
-                                <div><label class="text-[8px] font-black text-slate-400 uppercase block">ADEK Pass</label><p class="text-xs font-bold text-slate-700 font-mono">${getVal(data.adekPass)}</p></div>
-                            </div>
-                        </div>
-                        <div class="space-y-4">
-                            <h4 class="text-emerald-600 font-black text-xs uppercase tracking-widest border-b pb-2">Logistics</h4>
-                            <div class="p-4 bg-white rounded-2xl border shadow-sm flex flex-col gap-3 text-gray-800">
-                                <div><label class="text-[8px] font-black text-slate-400 uppercase block">Location</label><p class="text-xs font-bold text-slate-700">${getVal(data.branch)}</p></div>
-                                <div><label class="text-[8px] font-black text-slate-400 uppercase block">Date</label><p class="text-xs font-bold text-slate-700 font-mono">${getVal(data.date)}</p></div>
-                                <div class="grid grid-cols-2 gap-2">
-                                    <div><label class="text-[8px] font-black text-slate-400 uppercase block">Time In</label><p class="text-xs font-black text-emerald-600">${getVal(data.timeIn)}</p></div>
-                                    <div><label class="text-[8px] font-black text-slate-400 uppercase block">Time Out</label><p class="text-xs font-black text-red-500">${getVal(data.checkOutTime)}</p></div>
-                                </div>
-                                <div><label class="text-[8px] font-black text-slate-400 uppercase block">Key Status</label>${keyStatusHtml}</div>
-                            </div>
-                        </div>
-                        <div class="col-span-full space-y-2 text-center">
-                            <label class="text-[8px] font-black text-slate-400 uppercase block">Digital Verification</label>
-                            <div class="h-40 bg-white rounded-3xl border flex items-center justify-center p-4 overflow-hidden"><img src="${profileImg}" class="max-w-full max-h-full object-contain cursor-pointer" onclick="window.openImageZoom('${profileImg}')" onerror="this.src='https://placehold.co/400x200/f1f5f9/64748b?text=No+Sig'"></div>
-                        </div>
-                    </div>
-                    <!-- NEW VERIFICATION CONTAINER -->
-                    <div class="mt-4 p-3 bg-slate-900/50 rounded-xl border border-slate-700/50 text-center">
-                        <p class="text-xs font-semibold text-slate-400 mb-2 uppercase">Verification Signature</p>
-                        <img src="${profileImg}" class="max-h-24 mx-auto object-contain bg-white rounded-lg p-1 shadow-inner" alt="Verification Signature" onclick="window.openImageZoom('${profileImg}')">
-                    </div>
-                </div>
-                <div class="p-6 border-t bg-white flex justify-end"><button onclick="document.getElementById('view-staff-modal').classList.add('hidden');" class="px-8 py-3 bg-emerald-600 text-white rounded-xl font-black text-xs uppercase shadow-lg active:scale-95 transition-all">Close View</button></div>
-            </div>
-        `;
-    } catch (e) { alert("Error: " + e.message); } finally { window.hideGlobalSpinner(); }
-};
-
-window.openStaffProfileModal = async (mobile) => {
-    window.showGlobalSpinner("Loading Profile...");
-    try {
-        const snap = await get(ref(db, 'staff/' + mobile));
-        if (!snap.exists()) throw new Error("Staff record not found");
-        const s = snap.val();
-
-        let modal = document.getElementById('view-staff-modal');
-        modal.classList.remove('hidden'); modal.style.display = 'flex';
-        const profileImg = window.getDirectDriveImageUrl(s.profilePicUrl);
-
-        modal.innerHTML = `
-            <div class="bg-white w-full max-w-2xl rounded-[40px] overflow-hidden shadow-2xl border border-slate-100 flex flex-col max-h-[90vh] fade-in">
-                <div class="p-6 bg-indigo-600 text-white flex justify-between items-center">
-                    <div><h3 class="text-xl font-black uppercase tracking-tight">Staff Profile</h3><p class="text-[10px] text-white/60 font-bold uppercase mt-1">Mobile: ${mobile}</p></div>
-                    <button onclick="document.getElementById('view-staff-modal').classList.add('hidden');"><i class="fa-solid fa-xmark text-lg"></i></button>
-                </div>
-                <div class="p-8 overflow-y-auto flex-1 bg-slate-50">
-                    <div class="flex flex-col md:flex-row gap-8 items-start">
-                        <div class="w-full md:w-48 flex-shrink-0">
-                            <div class="w-48 h-48 rounded-[32px] overflow-hidden border-4 border-white shadow-xl bg-white mx-auto"><img src="${profileImg}" class="w-full h-full object-cover" onerror="this.src=window.generateLocalAvatar('${s.fullName || s.name || 'U'}')"></div>
-                        </div>
-                        <div class="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-4 text-gray-800">
-                            <div class="bg-white p-4 rounded-2xl border shadow-sm"><label class="text-[9px] font-black text-indigo-400 uppercase tracking-widest block">Full Name</label><p class="text-sm font-black text-indigo-900">${s.fullName || s.name || "-"}</p></div>
-                            <div class="bg-white p-4 rounded-2xl border shadow-sm"><label class="text-[9px] font-black text-indigo-400 uppercase tracking-widest block">Mobile Number</label><p class="text-sm font-black text-slate-700 font-mono">${s.mobile || "-"}</p></div>
-                            <div class="bg-white p-4 rounded-2xl border shadow-sm"><label class="text-[9px] font-black text-indigo-400 uppercase tracking-widest block">Company Name</label><p class="text-sm font-black text-slate-700">${s.companyName || "-"}</p></div>
-                            <div class="bg-white p-4 rounded-2xl border shadow-sm"><label class="text-[9px] font-black text-indigo-400 uppercase tracking-widest block">Company ID</label><p class="text-sm font-black text-slate-700 font-mono">${s.companyId || "-"}</p></div>
-                            <div class="bg-white p-4 rounded-2xl border shadow-sm"><label class="text-[9px] font-black text-indigo-400 uppercase tracking-widest block">Position / Role</label><p class="text-sm font-black text-slate-700 uppercase">${s.role || s.position || "-"}</p></div>
-                            <div class="bg-white p-4 rounded-2xl border shadow-sm"><label class="text-[9px] font-black text-indigo-400 uppercase tracking-widest block">ADEK Pass</label><p class="text-sm font-black text-slate-700 font-mono">${s.adekPass || "-"}</p></div>
-                            <div class="bg-white p-4 rounded-2xl border shadow-sm col-span-full"><label class="text-[9px] font-black text-indigo-400 uppercase tracking-widest block">Account Password</label><p class="text-sm font-black text-indigo-600 font-mono">${s.password || "-"}</p></div>
-                        </div>
-                    </div>
-                </div>
-                <div class="p-6 border-t bg-white flex justify-end"><button onclick="document.getElementById('view-staff-modal').classList.add('hidden');" class="px-8 py-3 bg-indigo-600 text-white rounded-xl font-black text-xs uppercase shadow-lg active:scale-95 transition-all">Close Profile</button></div>
-            </div>
-        `;
-    } catch (e) { alert("Error: " + e.message); } finally { window.hideGlobalSpinner(); }
-};
-
-window.filterVisitorTable = () => {
-    const query = document.getElementById('visitor-search')?.value.toLowerCase();
-    const date = document.getElementById('visitor-date-filter')?.value;
-    let filtered = window.appCache.visitors;
-    if (query) filtered = filtered.filter(v => (v.name || '').toLowerCase().includes(query) || (v.id || '').toLowerCase().includes(query) || (v.mobile || '').includes(query));
-    if (date) filtered = filtered.filter(v => v.date === new Date(date).toLocaleDateString('en-US'));
-    window.currentFilteredData.visitors = filtered; renderVisitorLogs(filtered);
-};
-
-window.filterContractorTable = () => {
-    const query = document.getElementById('contractor-search')?.value.toLowerCase();
-    const date = document.getElementById('contractor-date-filter')?.value;
-    let filtered = window.appCache.contractors;
-    if (query) filtered = filtered.filter(c => (c.name || '').toLowerCase().includes(query) || (c.contractorId || '').toLowerCase().includes(query) || (c.mobile || '').includes(query) || (c.company || '').toLowerCase().includes(query));
-    if (date) filtered = filtered.filter(c => c.date === new Date(date).toLocaleDateString('en-US'));
-    window.currentFilteredData.contractors = filtered; renderContractorLogs(filtered);
-};
-
-window.openDetailedAuditModal = async (type, id) => {
-    window.showGlobalSpinner("Loading details...");
-    try {
-        const dbPath = type === 'contractor' ? 'contractor_logs' : 'visitors';
-        const snap = await get(ref(db, `${dbPath}/${id}`));
-        if (!snap.exists()) throw new Error("Record not found.");
-        const data = snap.val();
-
-        let modal = document.getElementById('view-staff-modal'); // Reusing staff modal
-        modal.classList.remove('hidden'); modal.style.display = 'flex';
-
-        const sigImg = window.getDirectDriveImageUrl(data.signatureUrl);
-        const getVal = (v) => v || '-';
-        let keyStatusHtml = '<span class="text-slate-400 font-bold">❌ NO KEY</span>';
-        if (data.keyCollected === 'YES' || data.keyCollected === true) {
-            keyStatusHtml = data.status === 'SIGNED OUT' ? '<span class="text-emerald-500 font-bold">✅ KEY RETURNED</span>' : '<span class="text-amber-500 font-bold">🔑 KEY HELD</span>';
-        }
-
-        const headerColor = type === 'contractor' ? 'bg-emerald-600' : 'bg-indigo-600';
-
-        modal.innerHTML = `
-            <div class="bg-white w-full max-w-2xl rounded-[40px] overflow-hidden shadow-2xl border border-slate-100 flex flex-col max-h-[90vh] fade-in text-gray-800">
-                <div class="p-6 ${headerColor} text-white flex justify-between items-center">
-                    <div><h3 class="text-xl font-black uppercase tracking-tight">${type} Detail</h3><p class="text-[10px] text-white/60 font-bold uppercase mt-1">ID: ${id}</p></div>
-                    <button onclick="document.getElementById('view-staff-modal').classList.add('hidden');"><i class="fa-solid fa-xmark text-lg"></i></button>
-                </div>
-                <div class="p-8 overflow-y-auto flex-1 bg-slate-50">
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-                        <div class="space-y-4">
-                            <h4 class="${type === 'contractor' ? 'text-emerald-600' : 'text-indigo-600'} font-black text-xs uppercase tracking-widest border-b pb-2">Personal Info</h4>
-                            <div class="p-4 bg-white rounded-2xl border shadow-sm flex flex-col gap-3">
-                                <div><label class="text-[8px] font-black text-slate-400 uppercase block">Name</label><p class="text-sm font-black text-indigo-900">${getVal(data.name)}</p></div>
-                                <div><label class="text-[8px] font-black text-slate-400 uppercase block">Mobile</label><p class="text-xs font-bold text-slate-700">${getVal(data.mobile)}</p></div>
-                                <div><label class="text-[8px] font-black text-slate-400 uppercase block">Company</label><p class="text-xs font-bold text-slate-700">${getVal(data.company)}</p></div>
-                                ${type === 'contractor' ? `<div><label class="text-[8px] font-black text-slate-400 uppercase block">Badge No</label><p class="text-xs font-bold text-slate-700 font-mono">${getVal(data.contractorId)}</p></div>` : ''}
-                            </div>
-                        </div>
-                        <div class="space-y-4">
-                            <h4 class="${type === 'contractor' ? 'text-emerald-600' : 'text-indigo-600'} font-black text-xs uppercase tracking-widest border-b pb-2">Visit Details</h4>
-                            <div class="p-4 bg-white rounded-2xl border shadow-sm flex flex-col gap-3">
-                                <div><label class="text-[8px] font-black text-slate-400 uppercase block">Purpose</label><p class="text-xs font-bold text-slate-700">${getVal(data.purpose)}</p></div>
-                                <div><label class="text-[8px] font-black text-slate-400 uppercase block">Date</label><p class="text-xs font-bold text-slate-700 font-mono">${getVal(data.date)}</p></div>
-                                <div class="grid grid-cols-2 gap-2">
-                                    <div><label class="text-[8px] font-black text-slate-400 uppercase block">Time In</label><p class="text-xs font-black text-emerald-600">${getVal(data.timeIn)}</p></div>
-                                    <div><label class="text-[8px] font-black text-slate-400 uppercase block">Time Out</label><p class="text-xs font-black text-red-500">${getVal(data.outTime)}</p></div>
-                                </div>
-                                <div><label class="text-[8px] font-black text-slate-400 uppercase block">Key Status</label>${keyStatusHtml}</div>
-                            </div>
-                        </div>
-                        <div class="col-span-full space-y-2 text-center">
-                            <label class="text-[8px] font-black text-slate-400 uppercase block">Digital Signature</label>
-                            <div class="h-40 bg-white rounded-3xl border flex items-center justify-center p-4 overflow-hidden"><img id="modalSignaturePreview" src="${sigImg}" class="max-w-full max-h-full object-contain cursor-pointer" onclick="window.openImageZoom('${sigImg}')" onerror="this.src='https://placehold.co/400x200/f1f5f9/64748b?text=No+Sig'"></div>
-                        </div>
-                    </div>
-                    <!-- NEW VERIFICATION CONTAINER -->
-                    <div class="mt-4 p-3 bg-slate-900/50 rounded-xl border border-slate-700/50 text-center">
-                        <p class="text-xs font-semibold text-slate-400 mb-2 uppercase">Verification Signature</p>
-                        <img src="${sigImg}" class="max-h-24 mx-auto object-contain bg-white rounded-lg p-1 shadow-inner" alt="Verification Signature" onclick="window.openImageZoom('${sigImg}')">
-                    </div>
-                </div>
-                <div class="p-6 border-t bg-white flex justify-end"><button onclick="document.getElementById('view-staff-modal').classList.add('hidden');" class="px-8 py-3 ${headerColor} text-white rounded-xl font-black text-xs uppercase shadow-lg active:scale-95 transition-all">Close</button></div>
-            </div>
-        `;
-    } catch (e) { alert("Error: " + e.message); } finally { window.hideGlobalSpinner(); }
-};
-
-window.filterStaffTable = () => {
-    const query = document.getElementById('staff-search')?.value.toLowerCase();
-    const date = document.getElementById('staff-date-filter')?.value;
-    const selectedRole = document.getElementById('staff-role-filter')?.value;
-
-    let filtered = window.appCache.attendance;
-
-    if (query) {
-        filtered = filtered.filter(a => (a.name || '').toLowerCase().includes(query) || (a.mobile || '').includes(query));
-    }
-
-    if (date) {
-        filtered = filtered.filter(a => a.date === new Date(date).toLocaleDateString());
-    }
-
-    if (selectedRole && selectedRole !== 'all') {
-        const cleanFilter = selectedRole.toLowerCase().replace(/_/g, ' ');
-        filtered = filtered.filter(a => {
-            const staffRole = (a.role || a.position || '').toLowerCase().replace(/_/g, ' ');
-
-            // Explicit check for cleaner leader to handle multiple stored formats
-            if (selectedRole === 'cleaner_leader') {
-                return staffRole === 'cleaner leader' || staffRole === 'leader';
+        // STEP A: Upload to Google Drive if image is selected
+        if (staffPhotoBase64 && window.uploadToDrive) {
+            const uploadRes = await window.uploadToDrive({
+                category: UPLOAD_CONFIG.CATEGORIES.STAFF_PHOTOS || 'STAFF_PHOTOS',
+                fileName: `Staff_Profile_${mobile}_${Date.now()}.jpg`,
+                image: staffPhotoBase64
+            });
+            if (uploadRes && uploadRes.status === 'success') {
+                finalPhotoUrl = uploadRes.fileUrl;
             }
+        }
 
-            return staffRole === cleanFilter || staffRole.includes(cleanFilter);
-        });
+        // STEP B: Prepare Database Object
+        const staffData = {
+            fullName: document.getElementById('staff-name').value.trim(),
+            mobile: mobile,
+            adekPass: document.getElementById('staff-adek').value.trim(),
+            password: document.getElementById('staff-pass').value.trim(),
+            role: document.getElementById('staff-role').value,
+            school: document.getElementById('staff-school').value,
+            companyName: document.getElementById('staff-company').value.trim() || "N/A",
+            companyId: document.getElementById('staff-comp-id').value.trim() || "N/A",
+            updatedAt: Date.now()
+        };
+
+        if (finalPhotoUrl) {
+            staffData.profilePicUrl = finalPhotoUrl;
+        }
+
+        // 🚨 CRITICAL FIX: To prevent overwriting, we use unique keys
+        // If existingKey is present, it's an EDIT (update existing node)
+        // If existingKey is EMPTY, it's a NEW staff (use push() for unique ID)
+
+        if (existingKey) {
+            console.log("💾 Updating existing staff record:", existingKey);
+            await update(ref(db, `staff/${existingKey}`), staffData);
+        } else {
+            console.log("🆕 Creating new unique staff record");
+            await push(ref(db, 'staff'), staffData);
+        }
+
+        alert("✅ Staff Member Successfully Registered!");
+        window.closeStaffModal(type);
+
+        // Refresh the list if the function exists
+        if (window.filterStaffDirectory) window.filterStaffDirectory();
+
+    } catch (error) {
+        console.error("Staff Save Error:", error);
+        alert("❌ Error: " + error.message);
+    } finally {
+        if (btn) btn.disabled = false;
+        window.hideGlobalSpinner();
     }
-
-    window.currentFilteredData.staff = filtered;
-    renderStaffAttendance(filtered);
 };
 
 /**
- * Alias for filterStaffTable to support external calls with position value
+ * 4. Close Modals
  */
-window.filterAttendanceByPosition = function(selectedPosition) {
-    const filterEl = document.getElementById('staff-role-filter');
-    if (filterEl) {
-        filterEl.value = selectedPosition;
-        window.filterStaffTable();
+window.closeStaffModal = function(type) {
+    const modalId = type === 'add' ? 'add-staff-modal' : 'edit-staff-modal';
+    const modal = document.getElementById(modalId);
+    if (modal) {
+        modal.classList.add('hidden');
+        modal.style.display = 'none';
     }
 };
 
-window.filterAssetTable = () => {
-    const query = document.getElementById('asset-search')?.value.toLowerCase();
-    let filtered = window.appCache.assets;
-    if (query) filtered = filtered.filter(a => Object.values(a).some(val => String(val).toLowerCase().includes(query)));
-    window.currentFilteredData.assets = filtered;
-    const detectedHeaders = filtered.length > 0 ? Object.keys(filtered[0]).filter(k => !['assetId', 'updatedAt', 'profilePicUrl', '_importBatch', '_forceId', '_importSource'].includes(k)) : [];
-    window.renderDynamicAssetTable(filtered, detectedHeaders);
+/**
+ * 5. Edit Staff Logic (Loads existing data)
+ */
+window.openEditStaffModal = async function(dbKey) {
+    try {
+        const snap = await get(ref(db, `staff/${dbKey}`));
+        if (!snap.exists()) return alert("Staff record not found.");
+
+        const s = snap.val();
+        window.openAddStaffModal(); // Open UI First
+
+        // Update Title and Button text for Edit mode
+        const title = document.querySelector('#add-staff-modal h3');
+        if (title) title.innerText = "Edit Staff Member";
+        const saveBtn = document.getElementById('staff-save-btn');
+        if (saveBtn) saveBtn.innerText = "Update Staff Details";
+
+        // Set the hidden database key
+        const keyInput = document.getElementById('staff-db-key');
+        if (keyInput) keyInput.value = dbKey;
+
+        // Fill Form Fields
+        document.getElementById('staff-name').value = s.fullName || s.name || "";
+        document.getElementById('staff-mobile').value = s.mobile || "";
+        document.getElementById('staff-mobile').readOnly = true; // Mobile cannot be changed
+        document.getElementById('staff-adek').value = s.adekPass || "";
+        document.getElementById('staff-pass').value = s.password || "";
+        document.getElementById('staff-role').value = s.role || "";
+        document.getElementById('staff-school').value = s.school || s.branch || "";
+        document.getElementById('staff-company').value = s.companyName || "";
+        document.getElementById('staff-comp-id').value = s.companyId || "";
+
+        // Load Existing Photo Preview
+        if (s.profilePicUrl) {
+            const preview = document.getElementById('staff-photo-preview');
+            const icon = document.getElementById('staff-photo-icon');
+            if (preview) {
+                preview.src = window.getDirectDriveImageUrl ? window.getDirectDriveImageUrl(s.profilePicUrl) : s.profilePicUrl;
+                preview.classList.remove('hidden');
+                if (icon) icon.classList.add('hidden');
+            }
+        }
+
+    } catch (e) {
+        console.error("Edit Staff Load Error:", e);
+        alert("Failed to load staff details.");
+    }
 };
+console.log("✅ admin_module.js Deployed - v4.7 Real-time Metrics Engine Active");
 
-window.filterDisposalTable = () => {
-    const query = document.getElementById('disposal-search')?.value.toLowerCase();
+// ================================================================ */
+// ✅ DETAILED MODAL HANDLERS (FIXED v4.8)                          */
+// ================================================================ */
 
-    // Combine Pending requests and already Disposed assets
-    let requests = window.appCache.disposalRequests || [];
-    let disposedAssets = window.appCache.assets.filter(a => a.assetStatus === 'Disposed' && !requests.some(r => r.assetBarcode === a.barcode));
+/**
+ * 1. Open Attendance Detail Modal (Staff)
+ */
+window.openAttendanceDetailModal = function(staffKey) {
+    if (!staffKey) return;
 
-    // Map disposed assets to request-like objects for unified rendering
-    let mappedDisposed = disposedAssets.map(a => ({
-        assetBarcode: a.barcode,
-        assetName: a.assetDescription || a.description,
-        status: 'Disposed',
-        reason: a.disposalReason,
-        disposalPhotoUrl: a.disposalPhotoUrl,
-        date: a.disposalDate || '-',
-        requestId: `OLD_${a.barcode}`
-    }));
-
-    let combined = [...requests, ...mappedDisposed];
-
-    if (query) combined = combined.filter(a => Object.values(a).some(val => String(val).toLowerCase().includes(query)));
-    window.currentFilteredData.disposal = combined;
-    window.renderStandardizedAssetTable(combined, 'disposal');
-};
-
-window.filterTransferTable = () => {
-    const query = document.getElementById('transfer-search')?.value.toLowerCase();
-    let filtered = window.appCache.transfers;
-    if (query) filtered = filtered.filter(t => Object.values(t).some(val => String(val).toLowerCase().includes(query)));
-    window.currentFilteredData.transfers = filtered; window.renderStandardizedAssetTable(filtered, 'transfers');
-};
-
-// ================================================
-// DYNAMIC ASSET DETAILS MODAL (👁️ VIEW FEATURE)
-// ================================================
-window.openAssetDetailsModal = async function(assetIdentifier) {
-    if (!assetIdentifier) {
-        alert("❌ Error: Invalid or Missing Asset Identifier.");
+    // Find record in cache
+    const record = window.appCache.attendance.find(a => `${a.mobile}_${a.timestamp}` === staffKey);
+    if (!record) {
+        alert("Attendance record not found in cache.");
         return;
     }
 
-    if (typeof window.showGlobalSpinner === 'function') {
-        window.showGlobalSpinner("Fetching Asset Details...");
-    }
+    const modal = document.getElementById('view-staff-modal');
+    if (!modal) return;
 
+    modal.innerHTML = `
+        <div class="bg-white w-full max-w-xl rounded-[40px] overflow-hidden shadow-2xl p-8 sm:p-10 relative fade-in">
+            <div class="flex justify-between items-center mb-8 border-b border-slate-100 pb-5">
+                <div>
+                    <h3 class="text-2xl font-black text-indigo-900 uppercase tracking-tight">Attendance Record</h3>
+                    <p class="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] mt-1">Detailed Shift Log</p>
+                </div>
+                <button onclick="document.getElementById('view-staff-modal').classList.add('hidden')" class="w-10 h-10 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center hover:bg-red-50 hover:text-red-500 transition-all text-xl">&times;</button>
+            </div>
+
+            <div class="space-y-6 text-gray-800">
+                <!-- Profile Header -->
+                <div class="flex items-center gap-5 bg-indigo-50 p-5 rounded-[2rem] border border-indigo-100 shadow-sm">
+                    <div class="w-20 h-20 bg-indigo-600 rounded-3xl flex items-center justify-center text-white text-3xl font-black shadow-lg shadow-indigo-200">
+                        ${record.name ? record.name.charAt(0).toUpperCase() : '?'}
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <h4 class="font-black text-indigo-950 uppercase text-lg truncate">${record.name || 'Unknown Staff'}</h4>
+                        <div class="flex flex-wrap gap-2 mt-1">
+                            <span class="px-3 py-1 bg-indigo-100 text-indigo-700 text-[9px] font-black rounded-lg uppercase">${record.role || 'Staff'}</span>
+                            <span class="px-3 py-1 bg-white/60 text-slate-500 text-[9px] font-bold rounded-lg border border-indigo-100">${record.mobile || 'No Mobile'}</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Timing Grid -->
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200 shadow-inner">
+                        <span class="text-[9px] font-black text-emerald-600 uppercase block mb-1 tracking-wider"><i class="fa-solid fa-right-to-bracket mr-1"></i> Checked In</span>
+                        <span class="font-black text-slate-900 text-sm">${record.timeIn || '--:--'}</span>
+                    </div>
+                    <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200 shadow-inner">
+                        <span class="text-[9px] font-black text-rose-500 uppercase block mb-1 tracking-wider"><i class="fa-solid fa-right-from-bracket mr-1"></i> Checked Out</span>
+                        <span class="font-black text-slate-900 text-sm">${record.checkOutTime || '--:--'}</span>
+                    </div>
+                </div>
+
+                <!-- Info Grid -->
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm">
+                        <span class="text-[9px] font-black text-slate-400 uppercase block mb-1">Date of Shift</span>
+                        <span class="font-bold text-slate-700 text-xs">${record.date || '-'}</span>
+                    </div>
+                    <div class="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm">
+                        <span class="text-[9px] font-black text-slate-400 uppercase block mb-1">Key Status</span>
+                        <span class="font-black text-indigo-600 text-xs">${record.keyStatus || 'NONE'}</span>
+                    </div>
+                </div>
+
+                <!-- Signatures -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+                    <div class="text-center bg-white p-5 rounded-3xl border border-slate-100 shadow-sm">
+                        <span class="text-[9px] font-black text-indigo-400 uppercase block mb-3 tracking-widest underline decoration-2 underline-offset-4">Entry Signature</span>
+                        <div class="h-24 flex items-center justify-center bg-slate-50 rounded-2xl border border-dashed border-slate-200">
+                            ${record.signatureUrl ? `<img src="${window.getDirectDriveImageUrl(record.signatureUrl)}" class="max-h-20 object-contain mix-blend-multiply" onclick="window.openImageZoom('${record.signatureUrl}')">` : '<span class="text-[10px] font-bold text-slate-300 uppercase">No Signature</span>'}
+                        </div>
+                    </div>
+                    <div class="text-center bg-white p-5 rounded-3xl border border-slate-100 shadow-sm">
+                        <span class="text-[9px] font-black text-rose-400 uppercase block mb-3 tracking-widest underline decoration-2 underline-offset-4">Exit Signature</span>
+                        <div class="h-24 flex items-center justify-center bg-slate-50 rounded-2xl border border-dashed border-slate-200">
+                            ${record.checkOutSignatureUrl ? `<img src="${window.getDirectDriveImageUrl(record.checkOutSignatureUrl)}" class="max-h-20 object-contain mix-blend-multiply" onclick="window.openImageZoom('${record.checkOutSignatureUrl}')">` : '<span class="text-[10px] font-bold text-slate-300 uppercase">No Signature</span>'}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <button onclick="document.getElementById('view-staff-modal').classList.add('hidden')" class="w-full mt-10 py-5 bg-indigo-900 text-white rounded-2xl font-black text-sm uppercase tracking-[0.2em] shadow-2xl shadow-indigo-950/20 active:scale-95 transition-all">Close Shift Audit</button>
+        </div>
+    `;
+    modal.classList.remove('hidden');
+    modal.style.display = 'flex';
+};
+
+// ================================================================ */
+// ✅ ASSET MANAGEMENT MODALS & ACTIONS                             */
+// ================================================================ */
+
+window.openAssetDetailsModal = async function(barcode) {
+    if (!barcode) return;
+    const sanitized = barcode.replace(/[.#$\[\]/]/g, '_');
+
+    window.showGlobalSpinner("Loading Asset Details...");
     try {
-        let asset = null;
-
-        // Fetch from Firebase (Direct ID lookup or Barcode query fallback)
-        const directSnap = await get(ref(db, `assets/${assetIdentifier}`));
-
-        if (directSnap.exists()) {
-            asset = directSnap.val();
-        } else {
-            const assetsRef = ref(db, 'assets');
-            const barcodeQuery = query(assetsRef, orderByChild('assetBarcode'), equalTo(assetIdentifier));
-            const querySnap = await get(barcodeQuery);
-
-            if (querySnap.exists()) {
-                const data = querySnap.val();
-                const firstKey = Object.keys(data)[0];
-                asset = data[firstKey];
-            }
+        const snap = await get(ref(db, `assets/${sanitized}`));
+        if (!snap.exists()) {
+            alert("Asset not found in database.");
+            return;
         }
 
-        if (asset) {
-            // 1. RENDER PHOTO
-            const photoUrl = asset.photoURL || asset.photoUrl || asset.auditPhoto || asset.photo || asset['Photo Link'];
-            const imgEl = document.getElementById('modal-asset-photo');
-            const placeholderEl = document.getElementById('modal-photo-placeholder');
+        const data = snap.val();
+        const modal = document.getElementById('asset-details-modal');
+        const grid = document.getElementById('dynamic-asset-fields-grid');
+        const img = document.getElementById('modal-asset-photo');
+        const placeholder = document.getElementById('modal-photo-placeholder');
 
-            if (imgEl && photoUrl && String(photoUrl).trim() !== '') {
-                imgEl.src = window.getDirectDriveImageUrl ? window.getDirectDriveImageUrl(photoUrl) : photoUrl;
-                imgEl.style.display = 'inline-block';
-                if (placeholderEl) placeholderEl.style.display = 'none';
-            } else if (imgEl) {
-                imgEl.style.display = 'none';
-                if (placeholderEl) placeholderEl.style.display = 'block';
-            }
+        if (!modal || !grid) return;
 
-            // 2. DYNAMICALLY RENDER ALL EXCEL HEADERS AND VALUES
-            const gridContainer = document.getElementById('dynamic-asset-fields-grid');
-            if (gridContainer) {
-                gridContainer.innerHTML = ''; // Clear previous fields
+        grid.innerHTML = "";
 
-                // Filter out photo keys from text list if needed, or keep all
-                const ignoredKeys = ['photoURL', 'photoUrl', 'photo', 'auditPhoto', 'id', 'firebaseKey', '_importBatch', '_forceId', '_importSource', 'updatedAt'];
-
-                // Get all object keys (headers)
-                Object.keys(asset).forEach(key => {
-                    if (ignoredKeys.includes(key)) return;
-
-                    const rawValue = asset[key];
-                    const displayValue = (rawValue !== undefined && rawValue !== null && String(rawValue).trim() !== '')
-                        ? String(rawValue)
-                        : '-';
-
-                    // Convert key format (e.g., 'assetBarcode' -> 'ASSET BARCODE')
-                    const formattedHeader = key.replace(/([A-Z])/g, ' $1').replace(/_/g, ' ').toUpperCase().trim();
-
-                    // Create Dynamic Card
-                    const fieldCard = document.createElement('div');
-
-                    // Distinct soft background with clear border for each box
-                    fieldCard.className = 'bg-slate-50 p-3.5 rounded-2xl border border-slate-300 shadow-sm hover:border-indigo-400 hover:bg-white transition-all';
-
-                    fieldCard.innerHTML = `
-                        <!-- HEADER LABEL: Bright Indigo / Medium Size / Uppercase -->
-                        <label class="text-[10px] font-black text-indigo-600 uppercase tracking-wider block mb-1 truncate" title="${formattedHeader}">
-                            ${formattedHeader}
-                        </label>
-
-                        <!-- DETAIL VALUE: Deep Slate Dark / Larger Bold Text -->
-                        <span class="text-sm font-black text-slate-900 break-words block leading-tight">
-                            ${displayValue}
-                        </span>
-                    `;
-                    gridContainer.appendChild(fieldCard);
-                });
-            }
-
-            // 3. DISPLAY MODAL
-            const modalEl = document.getElementById('asset-details-modal');
-            if (modalEl) {
-                modalEl.classList.remove('hidden');
-                modalEl.classList.add('flex');
-                modalEl.style.display = 'flex';
-            }
+        // Show Photo if exists
+        const photoUrl = data.photoURL || data.photoUrl || data.auditPhoto || data.photo || data.imageUrl;
+        if (photoUrl && photoUrl !== 'N/A' && photoUrl !== '-') {
+            img.src = window.getDirectDriveImageUrl ? window.getDirectDriveImageUrl(photoUrl) : photoUrl;
+            img.style.display = 'block';
+            if (placeholder) placeholder.style.display = 'none';
         } else {
-            alert("❌ Asset record not found in database.");
+            img.style.display = 'none';
+            if (placeholder) placeholder.style.display = 'flex';
         }
-    } catch (error) {
-        console.error("Error loading dynamic asset details:", error);
-        alert("❌ Failed to load asset details.");
+
+        // Exclude internal keys
+        const ignored = ['_id', '_row', '_rawBarcode', '_version', 'importedAt', 'updatedAt', 'assetId', 'locationHistory', 'photoURL', 'photoUrl', 'auditPhoto', 'photo', 'imageUrl'];
+
+        Object.entries(data).forEach(([key, val]) => {
+            if (ignored.includes(key)) return;
+
+            const label = key.replace(/([A-Z])/g, ' $1').replace(/_/g, ' ').toUpperCase();
+            const card = document.createElement('div');
+            card.className = "bg-white p-3 rounded-xl border border-slate-100 shadow-sm";
+            card.innerHTML = `
+                <label class="text-[8px] font-black text-indigo-400 uppercase block mb-1 tracking-wider">${label}</label>
+                <span class="text-[10px] font-bold text-slate-700 break-words">${val || '-'}</span>
+            `;
+            grid.appendChild(card);
+        });
+
+        modal.classList.remove('hidden');
+        modal.style.display = 'flex';
+    } catch (e) {
+        console.error("Detail Error:", e);
+        alert("Failed to load details.");
     } finally {
-        if (typeof window.hideGlobalSpinner === 'function') {
-            window.hideGlobalSpinner();
-        }
+        window.hideGlobalSpinner();
     }
 };
 
 window.closeAssetDetailsModal = function() {
-    const modalEl = document.getElementById('asset-details-modal');
-    if (modalEl) {
-        modalEl.classList.add('hidden');
-        modalEl.classList.remove('flex');
-        modalEl.style.display = 'none';
+    const modal = document.getElementById('asset-details-modal');
+    if (modal) {
+        modal.classList.add('hidden');
+        modal.style.display = 'none';
     }
 };
 
-window.printAssetCard = (barcode) => {
-    window.open(`https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${barcode}`, '_blank');
-};
+window.openEditAssetModal = async function(barcode) {
+    if (!barcode) return;
+    const sanitized = barcode.replace(/[.#$\[\]/]/g, '_');
 
-// ================================================
-// DYNAMIC ASSET FORM HANDLERS
-// ================================================
-window.openEditAssetModal = async (barcode) => {
-    window.showGlobalSpinner("Loading Asset Details...");
+    window.showGlobalSpinner("Unlocking Master Record...");
     try {
-        const snap = await get(ref(db, 'assets/' + barcode));
-        if (!snap.exists()) return alert("Asset not found");
-        const asset = snap.val();
+        const snap = await get(ref(db, `assets/${sanitized}`));
+        if (!snap.exists()) return alert("Asset not found in Master Register.");
 
-        const modal = document.getElementById('asset-edit-modal');
-        if (!modal) return;
-        modal.classList.remove('hidden');
-        modal.style.display = 'flex';
+        const data = snap.val();
+        const container = document.getElementById('admin-dynamic-edit-fields');
+        const barcodeInput = document.getElementById('edit-barcode');
 
-        // DYNAMIC FORM GENERATION
-        let fieldsHtml = '';
-        const fields = window.ALL_EXPECTED_FIELDS || [];
-
-        fields.forEach(field => {
-            const label = field.replace(/([A-Z])/g, ' $1').toUpperCase();
-            fieldsHtml += `
-                <div class="form-group mb-3">
-                    <label class="block text-[9px] font-black text-slate-400 uppercase mb-1">${label}</label>
-                    <input type="text" id="edit-field-${field}" value="${asset[field] || ''}" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs outline-none focus:border-indigo-500">
-                </div>
-            `;
-        });
-
-        // INJECT PHOTO FIELD
-        fieldsHtml += `
-            <div class="form-group mt-6 p-4 bg-indigo-50/50 rounded-2xl border border-indigo-100">
-                <label class="block text-[10px] font-black text-indigo-600 uppercase mb-2">📸 Asset Photo / Proof</label>
-                <input type="file" id="asset-photo-upload" accept="image/*" capture="environment" class="w-full text-[10px] text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-[10px] file:font-black file:bg-indigo-600 file:text-white hover:file:bg-indigo-700 cursor-pointer">
-                ${(asset.photoURL || asset.auditPhoto) ? `
-                    <div class="mt-3 flex items-center gap-3">
-                        <img src="${window.getDirectDriveImageUrl(asset.photoURL || asset.auditPhoto)}" class="h-16 w-16 object-cover rounded-xl border-2 border-white shadow-sm">
-                        <span class="text-[8px] font-bold text-slate-400 uppercase">Existing Photo</span>
-                    </div>
-                ` : ''}
-            </div>
-        `;
-
-        modal.innerHTML = `
-            <div class="bg-white w-full max-w-2xl rounded-[40px] overflow-hidden shadow-2xl flex flex-col max-h-[90vh] fade-in">
-                <div class="p-6 bg-indigo-900 text-white flex justify-between items-center flex-shrink-0">
-                    <div>
-                        <h3 class="text-xl font-black uppercase tracking-tight">Edit Asset Master</h3>
-                        <p class="text-[10px] font-bold text-indigo-400 uppercase tracking-widest mt-1">Barcode: ${barcode}</p>
-                    </div>
-                    <button onclick="document.getElementById('asset-edit-modal').classList.add('hidden'); document.getElementById('asset-edit-modal').style.display='none';" class="w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors">
-                        <i class="fa-solid fa-xmark text-lg"></i>
-                    </button>
-                </div>
-                <form id="edit-asset-dynamic-form" class="p-8 overflow-y-auto flex-1 bg-slate-50 space-y-1">
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-4">
-                        ${fieldsHtml}
-                    </div>
-                    <div class="pt-6 pb-2">
-                        <button type="submit" id="save-asset-btn" class="w-full py-5 bg-gradient-to-r from-indigo-600 to-indigo-800 text-white rounded-2xl font-black uppercase tracking-widest shadow-xl shadow-indigo-500/30 active:scale-[0.98] transition-all flex items-center justify-center gap-3">
-                            <i class="fa-solid fa-cloud-arrow-up text-lg"></i> Save Combined Data
-                        </button>
-                    </div>
-                </form>
-            </div>
-        `;
-
-        document.getElementById('edit-asset-dynamic-form').onsubmit = async (e) => {
-            e.preventDefault();
-            await window.submitAssetEdit(barcode);
-        };
-
-    } catch (err) {
-        alert("Error loading asset: " + err.message);
-    } finally {
-        window.hideGlobalSpinner();
-    }
-};
-
-window.submitAssetEdit = async (barcode) => {
-    const btn = document.getElementById('save-asset-btn');
-    if (btn) {
-        btn.disabled = true;
-        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Processing...';
-    }
-
-    window.showGlobalSpinner("Uploading & Saving Combined Data...");
-
-    try {
-        const data = {};
-        const fields = window.ALL_EXPECTED_FIELDS || [];
-
-        fields.forEach(field => {
-            const input = document.getElementById(`edit-field-${field}`);
-            if (input) data[field] = input.value.trim();
-        });
-
-        // 1. HANDLE PHOTO UPLOAD (FIRST) - DIRECT TO GOOGLE DRIVE
-        const photoInput = document.getElementById('asset-photo-upload');
-        if (photoInput && photoInput.files && photoInput.files[0]) {
-            try {
-                console.log("📸 Uploading photo to Google Drive...");
-                const file = photoInput.files[0];
-                const base64 = await window.compressImageFile(file, 800, 800, 0.7);
-
-                if (window.uploadToDrive) {
-                    const res = await window.uploadToDrive({
-                        category: UPLOAD_CONFIG.CATEGORIES.ASSET_PHOTOS || 'ASSET_PHOTOS',
-                        fileName: `Asset_${barcode}_${Date.now()}.jpg`,
-                        image: base64
-                    });
-                    if (res && res.status === 'success' && res.fileUrl) {
-                        data.photoURL = res.fileUrl;
-                        data.auditPhoto = res.fileUrl;
-                        console.log("✅ Drive upload complete:", res.fileUrl);
-                    }
-                }
-            } catch (driveErr) {
-                console.error("⚠️ Drive upload failed:", driveErr);
-            }
+        if (!container || !barcodeInput) {
+            console.error("Editor elements missing in DOM");
+            return;
         }
 
-        // 2. SAVE TO DATABASE (ONLY AFTER UPLOAD ATTEMPT)
-        data.updatedAt = new Date().toISOString();
-        data.assetBarcode = barcode;
+        container.innerHTML = "";
+        barcodeInput.value = barcode;
 
-        await update(ref(db, 'assets/' + barcode), data);
-        console.log("✅ Database record updated.");
+        // Exclude purely internal or read-only keys
+        const ignored = ['assetId', 'locationHistory', 'updatedAt', 'importedAt', '_version', '_raw', '_id', '_row', '_rawBarcode', 'profilePicUrl'];
 
-        window.triggerSuccessPopup("Asset Data & Photo Updated! ✅");
+        // Sort keys to maintain a professional, consistent layout
+        const keys = Object.keys(data).filter(k => !ignored.includes(k)).sort();
+
+        keys.forEach(key => {
+            const val = (data[key] !== undefined && data[key] !== null) ? data[key] : "";
+            const label = key.replace(/([A-Z])/g, ' $1').replace(/_/g, ' ').toUpperCase();
+
+            const fieldGroup = document.createElement('div');
+            fieldGroup.className = 'space-y-1 bg-white p-3 rounded-2xl border border-slate-100 shadow-sm';
+
+            let inputHtml = "";
+
+            // Intelligence: Identify if it should be a select dropdown
+            if (key.toLowerCase().includes('condition') || key.toLowerCase().includes('status')) {
+                const options = ['Active', 'Existing', 'Good', 'Excellent', 'Fair', 'Poor', 'Damaged', 'Pending_Disposal', 'DISPOSED', 'Scrapped', 'Operational'];
+                const currentVal = String(val);
+
+                inputHtml = `<select name="${key}" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-indigo-500 text-xs font-bold text-slate-800">`;
+
+                // Add current value if it's unique
+                const normalizedOptions = options.map(o => o.toLowerCase());
+                if (!normalizedOptions.includes(currentVal.toLowerCase()) && currentVal) {
+                    inputHtml += `<option value="${currentVal}" selected>${currentVal.replace(/_/g, ' ')}</option>`;
+                }
+
+                options.forEach(opt => {
+                    inputHtml += `<option value="${opt}" ${currentVal.toLowerCase() === opt.toLowerCase() ? 'selected' : ''}>${opt.replace(/_/g, ' ')}</option>`;
+                });
+                inputHtml += `</select>`;
+            } else if (key.toLowerCase().includes('date')) {
+                inputHtml = `<input type="text" name="${key}" value="${val}" placeholder="YYYY-MM-DD" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-indigo-500 text-xs font-bold text-slate-800">`;
+            } else {
+                // Default to standard text input
+                inputHtml = `<input type="text" name="${key}" value="${val}" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-indigo-500 text-xs font-bold text-slate-800">`;
+            }
+
+            fieldGroup.innerHTML = `
+                <label class="text-[8px] font-black text-indigo-400 uppercase ml-1 tracking-widest block mb-1">${label}</label>
+                ${inputHtml}
+            `;
+            container.appendChild(fieldGroup);
+        });
 
         const modal = document.getElementById('asset-edit-modal');
         if (modal) {
-            modal.classList.add('hidden');
-            modal.style.display = 'none';
+            modal.classList.remove('hidden');
+            modal.style.display = 'flex';
         }
-
-        if (window.refreshDashboardData) window.refreshDashboardData();
-
-    } catch (error) {
-        console.error("❌ Submission Error:", error);
-        alert("❌ Failed to save asset data. Please check connection and try again.\nError: " + error.message);
+    } catch (e) {
+        console.error("Editor Load Error:", e);
+        alert("Failed to load comprehensive editor.");
     } finally {
-        if (btn) {
-            btn.disabled = false;
-            btn.innerHTML = '<i class="fa-solid fa-cloud-arrow-up text-lg"></i> Save Combined Data';
-        }
         window.hideGlobalSpinner();
     }
 };
 
-window.filterStaffDirectory = () => {
-    const query = document.getElementById('directory-search')?.value.toLowerCase();
-    const school = document.getElementById('directory-school-filter')?.value;
-    const selectedRole = document.getElementById('directory-role-filter')?.value;
+// Bind the save button for Comprehensive Asset Edit Modal
+document.addEventListener('DOMContentLoaded', () => {
+    const saveBtn = document.getElementById('save-asset-edit-btn');
+    if (saveBtn) {
+        const newSaveBtn = saveBtn.cloneNode(true);
+        saveBtn.parentNode.replaceChild(newSaveBtn, saveBtn);
 
-    let filtered = window.appCache.staff;
+        newSaveBtn.onclick = async (e) => {
+            e.preventDefault();
+            const form = document.getElementById('edit-asset-form');
+            const barcode = document.getElementById('edit-barcode').value;
+            const sanitized = barcode.replace(/[.#$\[\]/]/g, '_');
 
-    if (query) {
-        filtered = filtered.filter(s => (s.fullName || s.name || '').toLowerCase().includes(query) || (s.mobile || '').includes(query) || (s.companyId || '').toLowerCase().includes(query));
-    }
+            if (!form) return;
 
-    if (school) {
-        filtered = filtered.filter(s => (s.branch || s.school) === school);
-    }
+            const formData = new FormData(form);
+            const updates = {};
+            formData.forEach((value, key) => {
+                updates[key] = value.toString().trim();
+            });
 
-    if (selectedRole && selectedRole !== 'all') {
-        const cleanFilter = selectedRole.toLowerCase().replace(/_/g, ' ');
-        filtered = filtered.filter(s => {
-            const staffRole = (s.role || s.position || '').toLowerCase().replace(/_/g, ' ');
+            updates.updatedAt = new Date().toISOString();
+            updates.lastEditedBy = "Admin";
 
-            // Explicit check for cleaner leader to handle multiple stored formats
-            if (selectedRole === 'cleaner_leader') {
-                return staffRole === 'cleaner leader' || staffRole === 'leader';
+            window.showGlobalSpinner("Syncing All Properties...");
+            try {
+                await update(ref(db, `assets/${sanitized}`), updates);
+                alert("✅ Master Register Updated Successfully! All changes synced.");
+                document.getElementById('asset-edit-modal').classList.add('hidden');
+
+                // Trigger live UI refresh
+                if (window.filterAssetTable) window.filterAssetTable();
+            } catch (err) {
+                console.error("Sync Error:", err);
+                alert("Master Sync Failed: " + err.message);
+            } finally {
+                window.hideGlobalSpinner();
             }
-
-            return staffRole === cleanFilter || staffRole.includes(cleanFilter);
-        });
+        };
     }
+});
 
-    renderStaffDirectory(filtered);
+window.deleteAssetRecord = async function(barcode) {
+    if (!confirm(`Are you sure you want to permanently delete asset ${barcode}?`)) return;
+
+    const sanitized = barcode.replace(/[.#$\[\]/]/g, '_');
+    window.showGlobalSpinner("Deleting Record...");
+    try {
+        await remove(ref(db, `assets/${sanitized}`));
+        alert("Record deleted.");
+        window.filterAssetTable();
+    } catch (e) {
+        alert("Delete failed.");
+    } finally {
+        window.hideGlobalSpinner();
+    }
 };
 
-console.log("✅ admin_module.js finalized");
+// ================================================================ */
+// ✅ DISPOSAL & TRANSFER LOGIC                                     */
+// ================================================================ */
+
+window.loadAdminDisposalTable = function() {
+    const body = document.getElementById('admin-disposal-list-body');
+    if (!body) return;
+
+    const data = (window.appCache.disposalRequests || []).sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+
+    window.adminPaginators.disposal.init(data, (pageItems) => {
+        body.innerHTML = pageItems.length ? pageItems.map(d => `
+            <tr class="hover:bg-red-50 border-b text-[10px]">
+                <td class="p-3 font-mono font-bold text-red-600">${d.assetBarcode || "-"}</td>
+                <td class="p-3 font-bold">${d.assetName || "-"}</td>
+                <td class="p-3">${d.assetVendor || "-"}</td>
+                <td class="p-3">${d.assetCategory || "-"}</td>
+                <td class="p-3">${d.date || "-"}</td>
+                <td class="p-3">${d.assetFloor || "-"}</td>
+                <td class="p-3">${d.assetFloor || "-"}</td>
+                <td class="p-3">${d.assetLocation || "-"}</td>
+                <td class="p-3">${d.assetCategory || "-"}</td>
+                <td class="p-3">${d.assetCategory || "-"}</td>
+                <td class="p-3">${d.assetBuilding || "-"}</td>
+                <td class="p-3">${d.assetRoom || "-"}</td>
+                <td class="p-3">${d.assetRoom || "-"}</td>
+                <td class="p-3">${d.assetCategory || "-"}</td>
+                <td class="p-3 text-center">${d.disposalPhotoUrl ? `<img src="${window.getDirectDriveImageUrl(d.disposalPhotoUrl)}" class="h-6 mx-auto rounded shadow-sm" onclick="window.openImageZoom('${d.disposalPhotoUrl}')">` : 'No Photo'}</td>
+                <td class="p-3 text-center">
+                    <button onclick="window.approveDisposal('${d.requestId}')" class="text-emerald-600 hover:scale-110"><i class="fa-solid fa-check-circle"></i></button>
+                    <button onclick="window.rejectDisposal('${d.requestId}')" class="text-red-600 hover:scale-110 ml-2"><i class="fa-solid fa-circle-xmark"></i></button>
+                </td>
+            </tr>`).join('') : '<tr><td colspan="16" class="p-8 text-center text-gray-400">No pending requests</td></tr>';
+    });
+};
+
+window.filterDisposalTable = () => {
+    const q = document.getElementById('disposal-search')?.value?.toLowerCase() || '';
+    let f = window.appCache.disposalRequests;
+    if (q) f = f.filter(d => (d.assetName||'').toLowerCase().includes(q) || (d.assetBarcode||'').includes(q));
+    window.currentFilteredData.disposal = f;
+    window.loadAdminDisposalTable();
+};
+
+window.approveDisposal = async function(requestId) {
+    if (!confirm("Are you sure you want to APPROVE this disposal? This will move the item to the Permanent Scrap Registry.")) return;
+
+    window.showGlobalSpinner("Processing Approval...");
+    try {
+        const reqRef = ref(db, `asset_disposal_requests/${requestId}`);
+        const snap = await get(reqRef);
+        if (!snap.exists()) throw new Error("Request not found.");
+
+        const data = snap.val();
+        const barcode = data.assetBarcode;
+        const sanitizedBarcode = barcode.replace(/[.#$\[\]/]/g, '_');
+
+        const updates = {};
+        // 1. Mark as DISPOSED in master registry
+        updates[`assets/${sanitizedBarcode}/assetStatus`] = "DISPOSED";
+        updates[`assets/${sanitizedBarcode}/disposedAt`] = Date.now();
+
+        // 2. Add to permanent registry
+        updates[`ASSET_DISPOSAL_REGISTRY/${requestId}`] = {
+            ...data,
+            status: "APPROVED",
+            approvedAt: Date.now(),
+            approvedBy: "Admin"
+        };
+
+        // 3. Remove from pending requests
+        updates[`asset_disposal_requests/${requestId}`] = null;
+
+        await update(ref(db), updates);
+        alert("✅ Disposal Approved & Registered.");
+        window.loadAdminDisposalTable();
+    } catch (e) {
+        alert("Approval failed: " + e.message);
+    } finally {
+        window.hideGlobalSpinner();
+    }
+};
+
+window.rejectDisposal = async function(requestId) {
+    const reason = prompt("Enter reason for rejection:");
+    if (reason === null) return;
+
+    window.showGlobalSpinner("Processing Rejection...");
+    try {
+        const reqRef = ref(db, `asset_disposal_requests/${requestId}`);
+        const snap = await get(reqRef);
+        if (!snap.exists()) throw new Error("Request not found.");
+
+        const data = snap.val();
+        const barcode = data.assetBarcode;
+        const sanitizedBarcode = barcode.replace(/[.#$\[\]/]/g, '_');
+
+        const updates = {};
+        updates[`assets/${sanitizedBarcode}/assetStatus`] = "Active"; // Restore status
+        updates[`asset_disposal_requests/${requestId}`] = null;
+
+        // Log rejection in history? (Optional)
+
+        await update(ref(db), updates);
+        alert("❌ Disposal Request Rejected.");
+        window.loadAdminDisposalTable();
+    } catch (e) {
+        alert("Rejection failed.");
+    } finally {
+        window.hideGlobalSpinner();
+    }
+};
+
+window.deleteTransferLog = async function(key) {
+    if (!confirm("Delete this movement log entry permanently?")) return;
+
+    window.showGlobalSpinner("Deleting Log...");
+    try {
+        await remove(ref(db, `asset_transfers/${key}`));
+        alert("Log entry removed.");
+        window.filterTransferTable();
+    } catch (e) {
+        alert("Delete failed.");
+    } finally {
+        window.hideGlobalSpinner();
+    }
+};
+
+window.renderStandardizedAssetTable = function(data, type) {
+    const body = document.getElementById('transfer-logs-body');
+    if (!body) return;
+
+    const sortedData = (data || []).sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+
+    window.adminPaginators.transfers.init(sortedData, (pageItems) => {
+        body.innerHTML = pageItems.length ? pageItems.map(t => `
+            <tr class="hover:bg-slate-50 border-b text-[9px] whitespace-nowrap">
+                <td class="p-2 font-mono font-bold">${t.assetBarcode || "-"}</td>
+                <td class="p-2">${t.assetDescription || "-"}</td>
+                <td class="p-2">${t.assetVendorName || "-"}</td>
+                <td class="p-2">${t.category || "-"}</td>
+                <td class="p-2">${t.datePlaceInService || "-"}</td>
+                <td class="p-2">${t.floorDiscretion || "-"}</td>
+                <td class="p-2">${t.floorNo || "-"}</td>
+                <td class="p-2">${t.locationName || "-"}</td>
+                <td class="p-2">${t.majorCategory || "-"}</td>
+                <td class="p-2">${t.minorCategory || "-"}</td>
+                <td class="p-2">${t.schoolBuildingName || "-"}</td>
+                <td class="p-2">${t.roomNumber || "-"}</td>
+                <td class="p-2">${t.roomName || "-"}</td>
+                <td class="p-2">${t.subMinorCategory || "-"}</td>
+                <td class="p-2 text-center">${t.auditPhoto ? `<img src="${window.getDirectDriveImageUrl(t.auditPhoto)}" class="h-6 mx-auto rounded" onclick="window.openImageZoom('${t.auditPhoto}')">` : '-'}</td>
+                <td class="p-2 font-bold">${t.collectorName || "-"}</td>
+                <td class="p-2">${t.companyName || "-"}</td>
+                <td class="p-2">${t.collectionDate || "-"}</td>
+                <td class="p-2">${t.securityName || "-"}</td>
+                <td class="p-2">${t.receivedName || "-"}</td>
+                <td class="p-2 text-center">${t.securitySig ? `<img src="${t.securitySig}" class="h-5 mx-auto bg-white" onclick="window.openImageZoom('${t.securitySig}')">` : '-'}</td>
+                <td class="p-2 text-center">${t.receivedSig ? `<img src="${t.receivedSig}" class="h-5 mx-auto bg-white" onclick="window.openImageZoom('${t.receivedSig}')">` : '-'}</td>
+                <td class="p-2 text-center">${t.proofPhoto ? `<img src="${window.getDirectDriveImageUrl(t.proofPhoto)}" class="h-6 mx-auto rounded" onclick="window.openImageZoom('${t.proofPhoto}')">` : '-'}</td>
+                <td class="p-2 text-center">
+                    <button onclick="window.deleteTransferLog('${t.firebaseKey}')" class="text-red-500 hover:scale-110"><i class="fa-solid fa-trash-can"></i></button>
+                </td>
+            </tr>`).join('') : '<tr><td colspan="24" class="p-8 text-center text-gray-400">No logs found</td></tr>';
+    });
+};
+
+// ================================================================ */
+// ✅ TASK INSPECTOR                                                */
+// ================================================================ */
+
+window.openTaskInspector = function(taskId) {
+    const task = window.appCache.tasks.find(t => t.id === taskId);
+    if (!task) return;
+
+    const modal = document.getElementById('task-inspector-modal');
+    if (!modal) return;
+
+    document.getElementById('insp-created-by').innerText = task.raisedByName || "Admin";
+    document.getElementById('insp-created-at').innerText = task.raisedAt || "-";
+    document.getElementById('insp-dept').innerText = task.assignedRole || "-";
+    document.getElementById('insp-location').innerText = task.location || "-";
+    document.getElementById('insp-closed-by').innerText = task.solvedByName || "-";
+    document.getElementById('insp-closed-at').innerText = task.closedAt || "-";
+    document.getElementById('insp-desc').innerText = task.details || "No description.";
+
+    const matBox = document.getElementById('insp-material-box');
+    if (task.completionMaterial) {
+        document.getElementById('insp-material-text').innerText = task.completionMaterial;
+        matBox.classList.remove('hidden');
+    } else matBox.classList.add('hidden');
+
+    const comBox = document.getElementById('insp-comment-box');
+    if (task.completionComment || task.rejectionReason) {
+        document.getElementById('insp-comment-text').innerText = task.completionComment || task.rejectionReason;
+        comBox.classList.remove('hidden');
+    } else comBox.classList.add('hidden');
+
+    const beforeImg = document.getElementById('insp-before-img');
+    const noBefore = document.getElementById('insp-no-before');
+    if (task.beforePhotoUrl) {
+        beforeImg.src = window.getDirectDriveImageUrl(task.beforePhotoUrl);
+        beforeImg.classList.remove('hidden');
+        noBefore.classList.add('hidden');
+    } else {
+        beforeImg.classList.add('hidden');
+        noBefore.classList.remove('hidden');
+    }
+
+    const afterImg = document.getElementById('insp-after-img');
+    const noAfter = document.getElementById('insp-no-after');
+    if (task.afterPhotoUrl) {
+        afterImg.src = window.getDirectDriveImageUrl(task.afterPhotoUrl);
+        afterImg.classList.remove('hidden');
+        noAfter.classList.add('hidden');
+    } else {
+        afterImg.classList.add('hidden');
+        noAfter.classList.remove('hidden');
+    }
+
+    modal.classList.remove('hidden');
+    modal.style.display = 'flex';
+};
+
+window.closeTaskInspectorModal = function() {
+    const modal = document.getElementById('task-inspector-modal');
+    if (modal) {
+        modal.classList.add('hidden');
+        modal.style.display = 'none';
+    }
+};
+
+window.openDetailedAuditModal = function(type, id) {
+    if (!id) return;
+
+    let record = null;
+    if (type === 'visitor') {
+        record = window.appCache.visitors.find(v => v.id === id);
+    } else if (type === 'contractor') {
+        record = window.appCache.contractors.find(c => c.id === id);
+    }
+
+    if (!record) {
+        alert(`${type} record not found in cache.`);
+        return;
+    }
+
+    const modal = document.getElementById('view-staff-modal');
+    if (!modal) return;
+
+    const accentColor = type === 'visitor' ? 'indigo' : 'emerald';
+    const accentHex = type === 'visitor' ? '#4f46e5' : '#10b981';
+
+    modal.innerHTML = `
+        <div class="bg-white w-full max-w-xl rounded-[40px] overflow-hidden shadow-2xl p-8 sm:p-10 relative fade-in">
+            <div class="flex justify-between items-center mb-8 border-b border-slate-100 pb-5">
+                <div>
+                    <h3 class="text-2xl font-black text-${accentColor}-900 uppercase tracking-tight">${type} Detailed Entry</h3>
+                    <p class="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] mt-1">Verification Log</p>
+                </div>
+                <button onclick="document.getElementById('view-staff-modal').classList.add('hidden')" class="w-10 h-10 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center hover:bg-red-50 hover:text-red-500 transition-all text-xl">&times;</button>
+            </div>
+
+            <div class="space-y-6 text-gray-800">
+                <!-- Identity Card -->
+                <div class="flex items-center gap-5 bg-${accentColor}-50 p-5 rounded-[2.5rem] border border-${accentColor}-100 shadow-sm">
+                    <div class="w-20 h-20 bg-${accentColor}-600 rounded-[2rem] flex items-center justify-center text-white text-3xl font-black shadow-lg">
+                        ${record.name ? record.name.charAt(0).toUpperCase() : '?'}
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <h4 class="font-black text-slate-900 uppercase text-lg truncate">${record.name || 'Unknown'}</h4>
+                        <p class="text-[11px] font-black text-${accentColor}-600 uppercase tracking-widest mt-0.5">${record.company || 'Private Entry'}</p>
+                        <div class="flex gap-2 mt-2">
+                             <span class="px-2.5 py-0.5 bg-white text-slate-500 text-[8px] font-black rounded-lg border border-${accentColor}-100 uppercase">${record.id || 'N/A'}</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Timing Grid -->
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200">
+                        <span class="text-[9px] font-black text-emerald-600 uppercase block mb-1">Check-In</span>
+                        <span class="font-black text-slate-900 text-sm">${record.timeIn || '--:--'}</span>
+                    </div>
+                    <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200">
+                        <span class="text-[9px] font-black text-rose-500 uppercase block mb-1">Check-Out</span>
+                        <span class="font-black text-slate-900 text-sm">${record.outTime || '--:--'}</span>
+                    </div>
+                </div>
+
+                <!-- Purpose Box -->
+                <div class="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-inner">
+                    <span class="text-[9px] font-black text-indigo-400 uppercase block mb-2 tracking-widest">Purpose of Visit</span>
+                    <p class="text-xs font-bold text-slate-700 leading-relaxed">${record.purpose || 'No details provided.'}</p>
+                </div>
+
+                <!-- Signature Section -->
+                <div class="text-center bg-white p-6 rounded-[2.5rem] border border-slate-100 shadow-sm relative overflow-hidden">
+                    <div class="absolute top-0 left-0 w-1 h-full bg-${accentColor}-500"></div>
+                    <span class="text-[9px] font-black text-${accentColor}-400 uppercase block mb-4 tracking-[0.3em]">Authorized Signature</span>
+                    <div class="h-32 flex items-center justify-center bg-slate-50 rounded-2xl border border-dashed border-slate-200">
+                        ${record.signatureUrl ? `<img src="${window.getDirectDriveImageUrl(record.signatureUrl)}" class="max-h-28 object-contain mix-blend-multiply" onclick="window.openImageZoom('${record.signatureUrl}')">` : '<span class="text-xs font-bold text-slate-300 uppercase">Not Provided</span>'}
+                    </div>
+                </div>
+            </div>
+
+            <button onclick="document.getElementById('view-staff-modal').classList.add('hidden')" class="w-full mt-10 py-5 bg-${accentColor}-600 text-white rounded-2xl font-black text-sm uppercase tracking-[0.2em] shadow-xl shadow-${accentColor}-500/20 active:scale-95 transition-all">Close Audit View</button>
+        </div>
+    `;
+    modal.classList.remove('hidden');
+    modal.style.display = 'flex';
+};

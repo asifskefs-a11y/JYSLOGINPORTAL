@@ -60,6 +60,11 @@ self.addEventListener('activate', (event) => {
 
 // Fetch Event - Stale-while-revalidate strategy
 self.addEventListener('fetch', (event) => {
+    // 🛡️ PROTOCOL FILTER: Only handle HTTP/HTTPS. Skip chrome-extension, data, etc.
+    if (!event.request.url.startsWith('http')) {
+        return;
+    }
+
     // Skip Firebase and non-GET requests
     if (event.request.url.includes('firebaseio.com') ||
         event.request.url.includes('google-analytics') ||

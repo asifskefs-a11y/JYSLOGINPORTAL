@@ -111,7 +111,12 @@ function getCompressedSignature(canvas) {
 // Ensure global availability for init_module.js
 window.getCompressedSignature = getCompressedSignature;
 
+// ✅ FIXED: Using SignaturePadEngine's isEmpty check
 function isCanvasBlank(canvasId) {
+    if (window.sigPadManager) {
+        const pad = window.sigPadManager.getPad(canvasId);
+        return pad ? pad.isEmpty() : true;
+    }
     const canvas = document.getElementById(canvasId);
     if (!canvas) return true;
     const blank = document.createElement('canvas');
@@ -128,7 +133,10 @@ window.isCanvasBlank = isCanvasBlank;
 window.initVisitorCanvas = () => {
     if (document.getElementById('v-sig-pad') && window.sigPadManager) {
         const pad = window.sigPadManager.getPad('v-sig-pad');
-        if (pad) pad._setupCanvas();
+        // Ensure pad is initialized but keep locked status from HTML/UI
+        if (pad && typeof pad._setupCanvas === 'function') {
+             // We don't call unlock here, the UI overlay handles it.
+        }
     }
 };
 
@@ -201,8 +209,9 @@ window.checkVisitorSession = () => {
                     liveStoredPin = (data.keyReturnPin || data.checkoutPin || data.pin || "").toString().trim();
                 }
                 // 2. MOBILE-SAFE PIN PROMPT LOGIC
-                // If key was issued or if a PIN is stored in DB
-                const keyIssued = data.keyCollected === 'YES' || data.keyCollected === 'Yes' || data.keyCollected === true || data.keyStatus === 'HELD' || (liveStoredPin !== "" && liveStoredPin !== null);
+                // ✅ Check if key was issued. If 'NO', skip PIN verification.
+                const keyIssued = (data.keyCollected === 'YES' || data.keyCollected === 'Yes' || data.keyCollected === true);
+
                 if (keyIssued) {
                     // Use a standard prompt with clean string trimming
                     const userEntered = prompt(`🔑 KEY RETURN PIN REQUIRED\n\nPlease enter the 4-digit PIN shown on Security Dashboard:`);
@@ -213,12 +222,14 @@ window.checkVisitorSession = () => {
                     }
                     const enteredPin = userEntered.toString().trim();
                     if (!liveStoredPin || enteredPin === "" || enteredPin !== liveStoredPin) {
-                        alert(`❌ Invalid PIN!\n\nSystem Expected: [${liveStoredPin || 'No PIN found'}]\nYou Entered: [${enteredPin || 'Empty'}]\n\nPlease enter the exact 4-digit PIN displayed on the Security Dashboard.`);
+                        alert(`❌ Invalid PIN!\n\nPlease enter the exact 4-digit PIN displayed on the Security Dashboard. Contact Security if you do not have it.`);
                         return;
                     }
                 }
                 // 3. EXECUTE SIGN OUT
-                window.showGlobalSpinner("Finalizing Exit...");
+                // ✅ Show Processing Spinner first
+                if (window.showGlobalSpinner) window.showGlobalSpinner("Processing Check-Out...");
+
                 try {
                     const now = new Date();
                     const outTime = now.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', hour12: true});
@@ -229,13 +240,29 @@ window.checkVisitorSession = () => {
                         keyReturned: 'YES'
                     });
 
-                    // REMOVE FROM SECURITY KEY CONTROL (RESTORED)
-                    await remove(ref(db, `security_key_control/${data.mobile || data.id}`));
+                    // ✅ REMOVE FROM SECURITY KEY CONTROL (RESTORED)
+                    // Uses exact same identifier logic as init_module.js
+                    const securityRefId = data.mobile || data.id;
+                    await remove(ref(db, `security_key_control/${securityRefId}`));
 
                     localStorage.removeItem('vActive');
-                    window.triggerSuccessPopup("Signed Out Successfully! 👋");
-                    window.checkVisitorSession();
+
+                    // ✅ Hide Processing Spinner
+                    if (window.hideGlobalSpinner) window.hideGlobalSpinner();
+
+                    if (window.showPortalAnimation) {
+                        window.showPortalAnimation('exit');
+                        setTimeout(() => {
+                            window.hidePortalAnimation();
+                            window.triggerSuccessPopup("Signed Out Successfully! 👋");
+                            window.checkVisitorSession();
+                        }, 2000);
+                    } else {
+                        window.triggerSuccessPopup("Signed Out Successfully! 👋");
+                        window.checkVisitorSession();
+                    }
                 } catch (e) {
+                    if (window.hidePortalAnimation) window.hidePortalAnimation();
                     alert("Error during sign-out: " + e.message);
                 } finally {
                     window.hideGlobalSpinner();
@@ -253,7 +280,27 @@ window.checkVisitorSession = () => {
 window.initVisitorForm = async () => {
     const vId = document.getElementById('v-id');
     const vDate = document.getElementById('v-date');
+    const vName = document.getElementById('v-name');
+    const vMobile = document.getElementById('v-mobile');
+    const vCompany = document.getElementById('v-company');
+    const vPurpose = document.getElementById('v-purpose');
+    const contractorId = document.getElementById('contractorId');
+
     if (!vId || !vDate) return;
+
+    // ✅ FIXED: Clear all previous data for new entry
+    if (vName) vName.value = '';
+    if (vMobile) vMobile.value = '';
+    if (vCompany) vCompany.value = '';
+    if (vPurpose) vPurpose.value = '';
+    if (contractorId) contractorId.value = '';
+
+    // Reset Key Buttons to "NO"
+    window.toggleVisitorKey(false);
+
+    // Reset Signature
+    window.clearVisitorSig();
+
     const now = new Date();
     const mode = window.portalMode || 'visitor';
 
@@ -268,4 +315,45 @@ window.initVisitorForm = async () => {
     vDate.parentElement.style.display = "block";
 
     setTimeout(window.initVisitorCanvas, 50);
+};
+
+/**
+ * PROFESSIONAL SCHOOL ANIMATION OVERLAY
+ */
+window.showPortalAnimation = function(type = 'verify') {
+    const overlay = document.getElementById('portal-animation-overlay');
+    const icon = document.getElementById('anim-icon');
+    const text = document.getElementById('anim-text');
+    const subtext = document.getElementById('anim-subtext');
+
+    if (!overlay) return;
+
+    if (type === 'entry') {
+        icon.className = "fa-solid fa-shield-check text-emerald-500 text-6xl animate-bounce";
+        text.innerText = "ACCESS GRANTED";
+        subtext.innerText = "Welcome to Jern Yafoor School";
+    } else if (type === 'exit') {
+        icon.className = "fa-solid fa-door-open text-orange-500 text-6xl animate-pulse";
+        text.innerText = "DEPARTURE LOGGED";
+        subtext.innerText = "Thank you for visiting";
+    } else {
+        icon.className = "fa-solid fa-user-shield text-indigo-500 text-6xl animate-pulse";
+        text.innerText = "VERIFYING IDENTITY";
+        subtext.innerText = "School Security Protocol Active";
+    }
+
+    overlay.classList.remove('hidden');
+    overlay.style.display = 'flex';
+};
+
+window.hidePortalAnimation = function() {
+    const overlay = document.getElementById('portal-animation-overlay');
+    if (overlay) {
+        overlay.style.opacity = '0';
+        setTimeout(() => {
+            overlay.classList.add('hidden');
+            overlay.style.display = 'none';
+            overlay.style.opacity = '1';
+        }, 500);
+    }
 };

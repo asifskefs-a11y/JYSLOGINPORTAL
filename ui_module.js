@@ -1,162 +1,198 @@
+import { db } from './firebase_config.js';
+import { ref, get, child } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+
 // ================================================================ */
-// WHATSAPP-STYLE TOAST ENGINE (NEW v4.1)                           */
+// WHATSAPP-STYLE TOAST ENGINE (FIXED v4.2)                        */
 // ================================================================ */
+
 window.showWhatsAppToast = (title, message, type = 'info') => {
     let container = document.getElementById('toast-notification-container');
     if (!container) {
         container = document.createElement('div');
         container.id = 'toast-notification-container';
         container.className = 'fixed top-4 right-4 z-[9999999] flex flex-col gap-3 max-w-sm w-full pointer-events-none';
+        container.style.maxHeight = '80vh';
+        container.style.overflowY = 'auto';
         document.body.appendChild(container);
     }
+
+    // Direct removal to prevent DOM lag on rapid notifications
+    while (container.children.length >= 3) {
+        if (container.firstChild) {
+            container.firstChild.remove();
+        }
+    }
+
     const toast = document.createElement('div');
-    toast.className = 'pointer-events-auto bg-slate-900/95 border-l-4 border-emerald-500 text-white p-4 rounded-xl shadow-2xl backdrop-blur-md transition-all duration-300 transform translate-x-full flex flex-col gap-1';
+    const bgColor = type === 'error' ? 'border-red-500' :
+                    type === 'warning' ? 'border-amber-500' :
+                    'border-emerald-500';
+    const iconColor = type === 'error' ? 'text-red-400' :
+                     type === 'warning' ? 'text-amber-400' :
+                     'text-emerald-400';
+    const icon = type === 'error' ? 'fa-circle-exclamation' :
+                type === 'warning' ? 'fa-triangle-exclamation' :
+                'fa-bell';
+
+    toast.className = `pointer-events-auto bg-slate-900/95 border-l-4 ${bgColor} text-white p-4 rounded-xl shadow-2xl backdrop-blur-md transition-all duration-300 transform translate-x-full flex flex-col gap-1`;
     toast.innerHTML = `
         <div class="flex items-center justify-between">
-            <span class="font-bold text-xs uppercase tracking-wider text-emerald-400 flex items-center gap-2">
-                <i class="fa-solid fa-bell animate-bounce"></i> ${title}
+            <span class="font-bold text-xs uppercase tracking-wider ${iconColor} flex items-center gap-2">
+                <i class="fa-solid ${icon} animate-bounce"></i> ${title}
             </span>
             <button onclick="this.parentElement.parentElement.remove()" class="text-slate-400 hover:text-white text-xs">&times;</button>
         </div>
         <p class="text-xs text-slate-200 mt-1">${message}</p>
     `;
     container.appendChild(toast);
+
+    // Trigger entrance animation
     setTimeout(() => toast.classList.remove('translate-x-full'), 50);
+
+    // Auto-remove after 5 seconds
     setTimeout(() => {
-        toast.classList.add('translate-x-full');
-        setTimeout(() => toast.remove(), 300);
+        if (toast.parentElement) {
+            toast.classList.add('translate-x-full');
+            setTimeout(() => toast.remove(), 300);
+        }
     }, 5000);
 };
 
-// ================================================================ */
-// UI UTILITIES & INTERFACE HELPERS                                 */
-// ================================================================ */
+window.showNotification = window.showWhatsAppToast;
 
 // ================================================================ */
-// SIGNATURE PAD ENGINE (PREMIUM v3.6.0 - EVENT ISOLATION FIX)      */
+// SIGNATURE PAD ENGINE (FIXED v4.3)                               */
 // ================================================================ */
+
 class SignaturePadEngine {
     constructor(canvasId) {
         this.canvasId = canvasId;
         this.canvas = document.getElementById(canvasId);
+        this.ctx = null;
         this.isDrawing = false;
+        this.hasDrawn = false;
         this.isLocked = true;
+        this.lastPos = { x: 0, y: 0 };
+        this._handlers = {};
 
         if (this.canvas) {
             this.ctx = this.canvas.getContext('2d', { alpha: false });
             this._setupCanvas();
-            this._bindEvents();
         }
-
-        window.addEventListener('resize', () => {
-            // Debounced resize to avoid precision loss during active drawing
-            clearTimeout(this.resizeTimer);
-            this.resizeTimer = setTimeout(() => this._setupCanvas(), 250);
-        });
     }
 
+    _setupCanvas() {
+        if (!this.canvas || !this.canvas.offsetParent) return;
 
-_setupCanvas() {
-    if (!this.canvas) {
-        this.canvas = document.getElementById(this.canvasId);
+        const ratio = Math.max(window.devicePixelRatio || 1, 1);
+        const parent = this.canvas.parentElement;
+        const width = parent.clientWidth;
+        const height = parent.clientHeight;
+
+        if (width > 0 && height > 0) {
+            this.canvas.width = width * ratio;
+            this.canvas.height = height * ratio;
+            this.ctx.resetTransform();
+            this.ctx.scale(ratio, ratio);
+
+            this.ctx.lineCap = 'round';
+            this.ctx.lineJoin = 'round';
+            this.ctx.lineWidth = 3;
+            this.ctx.strokeStyle = '#1E1B4B';
+            this.ctx.fillStyle = '#FFFFFF';
+            this.ctx.fillRect(0, 0, width, height);
+            this.hasDrawn = false;
+        }
     }
 
-    if (!this.canvas) {
-        console.warn(`⚠️ Signature Canvas [${this.canvasId}] not found in DOM yet. Skipping setup.`);
-        return;
+    _getPos(e) {
+        const rect = this.canvas.getBoundingClientRect();
+        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+        const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+        return { x: clientX - rect.left, y: clientY - rect.top };
     }
 
-    // Check if element is hidden in a tab
-    if (this.canvas.offsetParent === null && !this.canvas.clientWidth) {
-        console.warn("⚠️ Canvas is currently hidden/invisible. Setup deferred.");
-        return;
+    _handleStart(e) {
+        if (this.isLocked) return;
+        if (e.type === 'touchstart') e.preventDefault();
+        this.isDrawing = true;
+        this.hasDrawn = true;
+        this.lastPos = this._getPos(e);
+        this.ctx.beginPath();
+        this.ctx.moveTo(this.lastPos.x, this.lastPos.y);
     }
 
-    const rect = this.canvas.getBoundingClientRect();
-    const ratio = window.devicePixelRatio || 1;
-
-    if (!this.ctx) {
-        this.ctx = this.canvas.getContext('2d', { alpha: false });
+    _handleMove(e) {
+        if (!this.isDrawing || this.isLocked) return;
+        if (e.type === 'touchmove') e.preventDefault();
+        const currentPos = this._getPos(e);
+        this.ctx.lineTo(currentPos.x, currentPos.y);
+        this.ctx.stroke();
+        this.lastPos = currentPos;
     }
 
-    if (rect.width > 0 && this.ctx) {
-        this.canvas.width = rect.width * ratio;
-        this.canvas.height = rect.height * ratio;
-        this.ctx.resetTransform();
-        this.ctx.scale(ratio, ratio);
-        this.ctx.lineWidth = 3;
-        this.ctx.lineCap = 'round';
-        this.ctx.strokeStyle = '#1E1B4B';
-        this.ctx.fillStyle = '#FFFFFF';
-        this.ctx.fillRect(0, 0, this.canvas.width / ratio, this.canvas.height / ratio);
+    _handleEnd() {
+        if (this.isDrawing) {
+            this.ctx.closePath();
+            this.isDrawing = false;
+        }
     }
-}
 
-_getPosition(e) {
-    const rect = this.canvas.getBoundingClientRect();
-    let clientX = e.touches ? e.touches[0].clientX : e.clientX;
-    let clientY = e.touches ? e.touches[0].clientY : e.clientY;
-    return { x: clientX - rect.left, y: clientY - rect.top };
-}
+    unlock() {
+        if (!this.canvas) return;
 
-_handleStart(e) {
-    if (this.isLocked) return;
-    e.preventDefault();
-    e.stopPropagation(); // Prevents modal auto-close
-    const pos = this._getPosition(e);
-    this.isDrawing = true;
-    this.ctx.beginPath();
-    this.ctx.moveTo(pos.x, pos.y);
-}
+        // Clean up old listeners
+        this.lock();
 
-_handleMove(e) {
-    if (!this.isDrawing || this.isLocked) return;
-    e.preventDefault();
-    e.stopPropagation();
-    const pos = this._getPosition(e);
-    this.ctx.lineTo(pos.x, pos.y);
-    this.ctx.stroke();
-}
+        this._handlers.start = this._handleStart.bind(this);
+        this._handlers.move = this._handleMove.bind(this);
+        this._handlers.end = this._handleEnd.bind(this);
 
-_handleEnd(e) {
-    if (this.isDrawing) {
-        e?.stopPropagation();
+        this.canvas.addEventListener('mousedown', this._handlers.start);
+        this.canvas.addEventListener('mousemove', this._handlers.move);
+        window.addEventListener('mouseup', this._handlers.end);
+
+        this.canvas.addEventListener('touchstart', this._handlers.start, { passive: false });
+        this.canvas.addEventListener('touchmove', this._handlers.move, { passive: false });
+        this.canvas.addEventListener('touchend', this._handlers.end, { passive: false });
+
+        this.canvas.style.touchAction = 'none';
+        this.canvas.style.pointerEvents = 'auto';
+        this.isLocked = false;
+        this._setupCanvas();
+    }
+
+    lock() {
+        if (this._handlers.start) {
+            this.canvas.removeEventListener('mousedown', this._handlers.start);
+            this.canvas.removeEventListener('mousemove', this._handlers.move);
+            window.removeEventListener('mouseup', this._handlers.end);
+            this.canvas.removeEventListener('touchstart', this._handlers.start);
+            this.canvas.removeEventListener('touchmove', this._handlers.move);
+            this.canvas.removeEventListener('touchend', this._handlers.end);
+        }
+        this.isLocked = true;
         this.isDrawing = false;
-        this.ctx.closePath();
     }
-}
 
-_bindEvents() {
-    const c = this.canvas;
-    const wrapper = c.closest('.canvas-wrapper') || c.parentElement;
+    clear() {
+        this._setupCanvas();
+    }
 
-    // Prevent touch events from bubbling up to Modal / Backdrop Close Listeners
-    ['pointerdown', 'touchstart', 'mousedown'].forEach(evt => {
-        c.addEventListener(evt, (e) => {
-            e.stopPropagation();
-        }, { passive: false });
+    isEmpty() {
+        return !this.hasDrawn;
+    }
 
-        if (wrapper) {
-            wrapper.addEventListener(evt, (e) => {
-                e.stopPropagation();
-            }, { passive: false });
-        }
-    });
-
-    c.addEventListener('pointerdown', this._handleStart.bind(this));
-    c.addEventListener('pointermove', this._handleMove.bind(this));
-    window.addEventListener('pointerup', this._handleEnd.bind(this));
-    c.style.touchAction = 'none';
-}
-
-unlock() { this.isLocked = false; return this; }
-lock() { this.isLocked = true; return this; }
-clear() { this._setupCanvas(); }
-toDataURL() { return this.canvas.toDataURL("image/png"); }
+    toDataURL() {
+        return this.canvas ? this.canvas.toDataURL("image/png") : null;
+    }
 }
 
 class SignaturePadManager {
-    constructor() { this.pads = new Map(); }
+    constructor() {
+        this.pads = new Map();
+    }
+
     getPad(id) {
         if (!this.pads.has(id)) {
             const pad = new SignaturePadEngine(id);
@@ -169,67 +205,217 @@ class SignaturePadManager {
 window.sigPadManager = new SignaturePadManager();
 window.getCanvasBase64 = (id) => window.sigPadManager.getPad(id).toDataURL();
 
+// ✅ FIXED: Clear hone par canvas locked nahi hoga
 window.clearSignaturePad = (id) => {
     const pad = window.sigPadManager.getPad(id);
     if (pad) {
         pad.clear();
-        pad.lock();
+        pad.unlock();
     }
-    const canvas = document.getElementById(id);
-    const wrapper = canvas?.closest('.canvas-wrapper');
-    if (wrapper) wrapper.classList.remove('unlocked');
 };
 
 window.unlockCanvas = (el, event) => {
-    if (event) {
-        event.preventDefault();
-        event.stopPropagation();
-    }
-    const wrapper = el.closest('.canvas-wrapper') || el;
-    const canvas = wrapper?.querySelector('canvas') || wrapper;
-    if (wrapper) wrapper.classList.add('unlocked');
+    console.log("🔓 unlockCanvas Triggered", el);
 
-    if (canvas) {
+    if (event) {
+        if (typeof event.stopPropagation === 'function') event.stopPropagation();
+        if (typeof event.preventDefault === 'function') event.preventDefault();
+    }
+
+    // 1. Identify Wrapper
+    const wrapper = el.closest('.canvas-wrapper') || el.parentElement;
+    if (!wrapper) {
+        console.error("❌ unlockCanvas: Wrapper not found");
+        return;
+    }
+
+    // 2. Identify Elements
+    const canvas = wrapper.querySelector('canvas');
+    const overlay = wrapper.querySelector('.sig-lock-overlay') || el;
+
+    if (!canvas) {
+        console.error("❌ unlockCanvas: Canvas not found");
+        return;
+    }
+
+    // 3. Force Visual State
+    wrapper.classList.add('unlocked');
+    if (overlay) {
+        overlay.style.display = 'none';
+        overlay.style.visibility = 'hidden';
+        overlay.style.pointerEvents = 'none';
+        overlay.classList.add('hidden');
+    }
+
+    // 4. Force Canvas Pointer State
+    canvas.style.pointerEvents = 'auto';
+    canvas.style.touchAction = 'none';
+    canvas.style.zIndex = '50';
+
+    // 5. Initialize Drawing Engine
+    if (window.sigPadManager && canvas.id) {
         const pad = window.sigPadManager.getPad(canvas.id);
         if (pad) {
             pad.unlock();
-            // Setup dimensions safely without clearing active path
-            pad._setupCanvas();
+            // Use small timeout to ensure layout has reflowed for hidden containers
+            setTimeout(() => {
+                if (typeof pad._setupCanvas === 'function') pad._setupCanvas();
+            }, 50);
         }
+    } else {
+        console.warn("⚠️ sigPadManager not ready or canvas has no ID:", canvas.id);
     }
 };
 
 window.initVisitorCanvas = () => window.sigPadManager.getPad('v-sig-pad');
 
+// ================================================================ */
+// ASSET PREVIEW MODAL (FIXED v4.3)                                */
+// ================================================================ */
+
+window.openAssetPreviewModal = function(assetData) {
+    if (!assetData) return;
+
+    let modal = document.getElementById('asset-details-preview-modal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'asset-details-preview-modal';
+        modal.className = 'fixed inset-0 bg-black/80 z-[999999] hidden items-center justify-center p-4 backdrop-blur-sm';
+        document.body.appendChild(modal);
+    }
+
+    // Safely parse JSON or string
+    let data = assetData;
+    if (typeof assetData === 'string') {
+        try {
+            data = JSON.parse(decodeURIComponent(assetData));
+        } catch (e) {
+            try {
+                data = JSON.parse(assetData);
+            } catch (err) {
+                console.error("❌ Invalid assetData format:", err);
+                return;
+            }
+        }
+    }
+
+    // Support both normalized and raw formats
+    const photo = data.photoUrl || data.imageUrl || data.photoURL || data.auditPhoto || data.photo || data["AUDIT PHOTO"];
+    const barcode = data.barcode || data.assetBarcode || data["ASSET BARCODE"] || data.id || 'N/A';
+    const desc = data.description || data.assetDescription || data.assetName || data["ASSET DESCRIPTION"] || data.name || 'N/A';
+    const category = data.category || data["CATEGORY"] || 'N/A';
+    const building = data.building || data.schoolBuildingName || data["SCHOOL BUILDING NAME"] || 'N/A';
+    const location = data.location || data.locationName || data["LOCATION NAME"] || data.roomName || 'N/A';
+    const status = data.assetStatus || data.status || data["STATUS"] || 'Active';
+
+    modal.innerHTML = `
+        <div class="bg-indigo-950 border border-white/10 rounded-[2.5rem] p-8 max-w-md w-full text-white space-y-6 shadow-2xl animate-fade-in">
+            <div class="flex justify-between items-center border-b border-white/5 pb-5">
+                <h3 class="text-xl font-black text-amber-400 uppercase tracking-tight">📦 Asset Details</h3>
+                <button onclick="window.closeAssetPreviewModal()" class="w-10 h-10 bg-white/10 rounded-full flex items-center justify-center text-white/60 hover:text-white transition-colors text-2xl font-bold">×</button>
+            </div>
+            <div class="space-y-4 text-xs">
+                ${(photo && photo !== 'N/A' && photo !== '-') ? `
+                    <img src="${window.getDirectDriveImageUrl ? window.getDirectDriveImageUrl(photo) : photo}" class="w-full h-48 object-cover rounded-3xl border border-white/10 mb-4 shadow-inner cursor-pointer" onclick="window.openImageZoom('${photo}')"/>
+                ` : `
+                    <div class="w-full h-32 bg-white/5 rounded-3xl flex flex-col items-center justify-center text-white/20 border-2 border-dashed border-white/5">
+                        <i class="fa-solid fa-image text-3xl mb-2"></i>
+                        <span class="font-black uppercase tracking-widest text-[8px]">No Photo Available</span>
+                    </div>
+                `}
+                <div class="grid grid-cols-1 gap-3">
+                    <div class="bg-white/5 p-3 rounded-2xl border border-white/5 flex justify-between items-center">
+                        <span class="text-white/40 uppercase font-black tracking-widest text-[8px]">Asset Tag</span>
+                        <span class="font-bold text-white">${barcode}</span>
+                    </div>
+                    <div class="bg-white/5 p-3 rounded-2xl border border-white/5 flex justify-between items-center">
+                        <span class="text-white/40 uppercase font-black tracking-widest text-[8px]">Description</span>
+                        <span class="font-bold text-white text-right ml-4">${desc}</span>
+                    </div>
+                    <div class="bg-white/5 p-3 rounded-2xl border border-white/5 flex justify-between items-center">
+                        <span class="text-white/40 uppercase font-black tracking-widest text-[8px]">Category</span>
+                        <span class="font-bold text-white">${category}</span>
+                    </div>
+                    <div class="bg-white/5 p-3 rounded-2xl border border-white/5 flex justify-between items-center">
+                        <span class="text-white/40 uppercase font-black tracking-widest text-[8px]">Building</span>
+                        <span class="font-bold text-white">${building}</span>
+                    </div>
+                    <div class="bg-white/5 p-3 rounded-2xl border border-white/5 flex justify-between items-center">
+                        <span class="text-white/40 uppercase font-black tracking-widest text-[8px]">Location</span>
+                        <span class="font-bold text-white">${location}</span>
+                    </div>
+                    <div class="bg-white/5 p-3 rounded-2xl border border-white/5 flex justify-between items-center">
+                        <span class="text-white/40 uppercase font-black tracking-widest text-[8px]">Status</span>
+                        <span class="px-2 py-0.5 bg-amber-500/20 text-amber-400 rounded-lg font-black uppercase tracking-widest text-[8px] border border-amber-500/30">${status}</span>
+                    </div>
+                </div>
+            </div>
+            <button onclick="window.closeAssetPreviewModal()" class="w-full py-4 bg-white/5 hover:bg-white/10 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] transition-all border border-white/5">Close Preview</button>
+        </div>
+    `;
+    modal.classList.remove('hidden');
+    modal.style.display = 'flex';
+};
+
+window.closeAssetPreviewModal = function() {
+    const modal = document.getElementById('asset-details-preview-modal');
+    if (modal) {
+        modal.classList.add('hidden');
+        modal.style.display = 'none';
+    }
+};
+
 // --- GLOBAL SUCCESS POPUP ---
 window.triggerSuccessPopup = (msg) => {
-    alert(msg || "Action completed successfully!");
+    window.showWhatsAppToast("✅ Success", msg || "Action completed successfully!", "success");
 };
 
 // ================================================================ */
-// GLOBAL LOADING SPINNER (v4.0 - UNIVERSAL LOGO LOADER)            */
+// GLOBAL LOADING SPINNER (FIXED v4.3)                             */
 // ================================================================ */
+
 let spinnerTimeout = null;
+let spinnerActive = false;
 
 window.showGlobalSpinner = (message = "Loading...") => {
-    const spinner = document.getElementById('universal-logo-loader');
-    const spText = document.getElementById('universal-loader-text');
+    let spinner = document.getElementById('universal-logo-loader');
 
-    if (spinner) {
-        if (spText && message) spText.innerText = message;
-        spinner.style.display = 'flex';
-        spinner.classList.remove('hidden');
-
-        // Use Pulse instead of Spin
-        const img = spinner.querySelector('img');
-        if (img) img.className = "w-28 h-28 object-contain rounded-2xl logo-pulse-anim";
-
-        // Safety Auto-Hide after 15 seconds max
-        if (spinnerTimeout) clearTimeout(spinnerTimeout);
-        spinnerTimeout = setTimeout(() => {
-            window.hideGlobalSpinner();
-        }, 15000);
+    // Auto-create element if missing from DOM
+    if (!spinner) {
+        spinner = document.createElement('div');
+        spinner.id = 'universal-logo-loader';
+        spinner.className = 'fixed inset-0 z-[9999999] bg-slate-950/80 backdrop-blur-md flex flex-col items-center justify-center hidden';
+        spinner.innerHTML = `
+            <div class="flex flex-col items-center justify-center space-y-4">
+                <div class="relative flex items-center justify-center">
+                    <div class="w-16 h-16 border-4 border-indigo-500/20 border-t-indigo-500 rounded-full animate-spin"></div>
+                    <i class="fa-solid fa-cube text-amber-400 absolute text-xl"></i>
+                </div>
+                <p id="universal-loader-text" class="text-xs font-black uppercase tracking-widest text-amber-400 animate-pulse">${message}</p>
+            </div>
+        `;
+        document.body.appendChild(spinner);
     }
+
+    const spText = document.getElementById('universal-loader-text');
+    if (spText && message) spText.innerText = message;
+
+    spinner.style.display = 'flex';
+    spinner.classList.remove('hidden');
+    spinnerActive = true;
+
+    // Pulse animation logic if an img element exists
+    const img = spinner.querySelector('img');
+    if (img) img.className = "w-28 h-28 object-contain rounded-2xl logo-pulse-anim";
+
+    // Extended timeout to 30 seconds for large operations
+    if (spinnerTimeout) clearTimeout(spinnerTimeout);
+    spinnerTimeout = setTimeout(() => {
+        if (spinnerActive) {
+            console.warn("⚠️ Spinner auto-closed after 30 seconds timeout");
+            window.hideGlobalSpinner();
+        }
+    }, 30000);
 };
 
 window.hideGlobalSpinner = () => {
@@ -237,112 +423,78 @@ window.hideGlobalSpinner = () => {
     if (spinner) {
         spinner.style.display = 'none';
         spinner.classList.add('hidden');
+        spinnerActive = false;
     }
-    if (spinnerTimeout) clearTimeout(spinnerTimeout);
+    if (spinnerTimeout) {
+        clearTimeout(spinnerTimeout);
+        spinnerTimeout = null;
+    }
 };
 
 // Aliases for backward compatibility
 window.showLoader = window.showGlobalSpinner;
 window.hideLoader = window.hideGlobalSpinner;
+// ================================================================ */
+// AVATAR GENERATOR (FIXED v4.3)                                   */
+// ================================================================ */
 
-/**
- * ROLE-BASED DASHBOARD RULES (v4.3)
- * Enforces precise permissions for Assets, Tasks, and Attendance.
- */
-/**
- * ROBUST VIEW SWITCHER (v4.3)
- * Handles showing a specific view while hiding all other sibling views.
- */
-// 1. SMART VIEW SWITCHER (HANDLES BOTH STAFF & SECURITY DASHBOARDS)
-window.showStaffView = function(viewId) {
-    console.log(`📂 Switching to view: ${viewId}`);
+window.generateLocalAvatar = function(name, background = "4f46e5", color = "fff") {
+    try {
+        if (!name) name = "User";
 
-    // Hide Auth Area
-    const authArea = document.getElementById('staff-auth-area');
-    if (authArea) {
-        authArea.classList.add('hidden');
-        authArea.style.display = 'none';
-    }
+        // Remove '#' if accidentally passed to prevent '##' in SVG
+        const cleanBg = String(background).replace('#', '');
+        const cleanColor = String(color).replace('#', '');
 
-    // Comprehensive list of all top-level view containers & sub-modules
-    const views = [
-        'staff-dash-area',
-        'security-main-container',
-        'tasks-management-section',
-        'asset-audit-section',
-        'asset-disposal-section',
-        'asset-transfer-section',
-        'transfer-logs-section'
-    ];
+        // Safe splitting to handle extra spaces
+        const initials = name.trim().split(/\s+/).map(n => n[0]).join('').substring(0, 2).toUpperCase();
 
-    views.forEach(id => {
-        const el = document.getElementById(id);
-        if (el) {
-            el.classList.add('hidden');
-            el.style.display = 'none';
+        if (!initials) {
+            return 'data:image/svg+xml;utf8,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128"><rect width="100%" height="100%" fill="#4f46e5"/><text x="50%" y="50%" dominant-baseline="central" text-anchor="middle" fill="#ffffff" font-family="Arial, sans-serif" font-size="50" font-weight="bold">?</text></svg>');
         }
-    });
 
-    // Reveal Target View
-    const target = document.getElementById(viewId);
-    if (target) {
-        target.classList.remove('hidden');
-        target.style.display = 'block';
+        const svg = `
+            <svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">
+                <rect width="100%" height="100%" fill="#${cleanBg}"/>
+                <text x="50%" y="50%" dominant-baseline="central" text-anchor="middle"
+                      fill="#${cleanColor}" font-family="Arial, sans-serif" font-size="50" font-weight="bold">
+                    ${initials}
+                </text>
+            </svg>
+        `;
+        return 'data:image/svg+xml;utf8,' + encodeURIComponent(svg);
+    } catch (e) {
+        console.error("Avatar generation error:", e);
+        return 'data:image/svg+xml;utf8,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128"><rect width="100%" height="100%" fill="#4f46e5"/><text x="50%" y="50%" dominant-baseline="central" text-anchor="middle" fill="#ffffff" font-family="Arial, sans-serif" font-size="50" font-weight="bold">U</text></svg>');
     }
-
-    // Module-specific initializations
-    if (viewId === 'tasks-management-section' && window.loadRoleView) {
-        window.loadRoleView(window.currentStaff);
-    }
-
-    // Auto-rebind Top Back Buttons after rendering sub-views
-    if (typeof window.initTopBackButton === 'function') {
-        window.initTopBackButton();
-    }
-
-    window.scrollTo(0, 0);
 };
 
+// ================================================================ */
+// ROLE-BASED DASHBOARD RULES (FIXED v4.3)                         */
+// ================================================================ */
 
-// 2. FIXED ROLE-BASED VISIBILITY (REMOVED FORCE-HIDE BUG ON CHECK-IN)
 window.applyRoleDashboardRules = function(userRole) {
-    // 1. Normalize Role String (Convert "Cleaner Leader" / "Cleaner_Leader" -> "cleaner_leader")
     const rawRole = (userRole || '').toString().trim().toLowerCase();
-    const cleanRole = rawRole.replace(/[\s-]+/g, '_'); // Replaces spaces/hyphens with underscore
+    const cleanRole = rawRole.replace(/[\s-]+/g, '_');
 
     console.log(`👤 Normalizing Role for Sidebar Permissions: Original="${userRole}" -> Cleaned="${cleanRole}"`);
 
-    // 2. Define Granular Allowed Role Lists
     const assetAllowedRoles = [
-        'security',
-        'technician',
-        'tech',
-        'office_boy',
-        'admin',
-        'leader',
-        'cleaner_leader',
-        'cleaning_leader'
+        'security', 'technician', 'tech', 'office_boy', 'admin',
+        'leader', 'cleaner_leader', 'cleaning_leader', 'leader_technician'
     ];
 
     const taskAllowedRoles = [
-        'cleaner',
-        'cleaner_leader',
-        'cleaning_leader',
-        'leader',
-        'technician',
-        'tech',
-        'security',
-        'admin',
-        'office_boy'
+        'cleaner', 'cleaner_leader', 'cleaning_leader', 'leader',
+        'technician', 'tech', 'security', 'admin', 'office_boy', 'leader_technician'
     ];
 
-    const taskCreateRoles = ['security', 'admin', 'cleaner_leader', 'leader'];
+    const taskCreateRoles = ['security', 'admin'];
 
     const hasAssetAccess = assetAllowedRoles.includes(cleanRole);
-    const hasTaskAccess  = taskAllowedRoles.includes(cleanRole);
-    const canCreateTask  = taskCreateRoles.includes(cleanRole);
+    const hasTaskAccess = taskAllowedRoles.includes(cleanRole);
+    const canCreateTask = taskCreateRoles.includes(cleanRole);
 
-    // 3. Asset Management Sidebar Section Toggle
     const assetSection = document.getElementById('menu-asset-section');
     if (assetSection) {
         if (hasAssetAccess) {
@@ -354,12 +506,9 @@ window.applyRoleDashboardRules = function(userRole) {
         }
     }
 
-    // 4. Ensure Individual Asset Sub-Buttons inside Sidebar are Explicitly Visible
     const assetSubButtons = [
-        'menu-asset-transfer',
-        'menu-asset-audit',
-        'menu-asset-dispose',
-        'menu-movement-logs'
+        'menu-asset-transfer', 'menu-asset-audit',
+        'menu-asset-dispose', 'menu-movement-logs'
     ];
 
     assetSubButtons.forEach(btnId => {
@@ -375,87 +524,491 @@ window.applyRoleDashboardRules = function(userRole) {
         }
     });
 
-    // 5. Sidebar Task History & Create Task Buttons Toggle
     const taskBtn = document.getElementById('menu-tasks-btn');
     if (taskBtn) {
-        taskBtn.style.display = hasTaskAccess ? 'flex' : 'none';
-    }
-
-    const createBtn = document.getElementById('menu-create-task-btn');
-    if (createBtn) {
-        if (canCreateTask) {
-            createBtn.classList.remove('hidden');
-            createBtn.style.display = 'flex';
+        if (hasTaskAccess) {
+            taskBtn.classList.remove('hidden');
+            taskBtn.style.display = 'flex';
         } else {
-            createBtn.classList.add('hidden');
-            createBtn.style.display = 'none';
+            taskBtn.classList.add('hidden');
+            taskBtn.style.display = 'none';
         }
     }
 
-    // 6. Force Reveal Check-In Buttons for Authorized Users
+    const createBtns = ['menu-create-task-btn', 's-dash-create-task-btn', 'tab-btn-create-task'];
+    createBtns.forEach(id => {
+        const btn = document.getElementById(id);
+        if (btn) {
+            if (canCreateTask) {
+                btn.classList.remove('hidden');
+                btn.style.display = (id === 'tab-btn-create-task') ? 'inline-flex' : 'flex';
+            } else {
+                btn.classList.add('hidden');
+                btn.style.display = 'none';
+            }
+        }
+    });
+
     const checkinBtns = document.querySelectorAll('#s-checkin-btn, #btn-staff-checkin');
     checkinBtns.forEach(btn => {
         btn.classList.remove('hidden');
-        btn.style.display = 'inline-flex';
+        // Keep CSS layout flexible instead of forcing inline-flex
+        if (btn.style.display === 'none') {
+            btn.style.display = '';
+        }
     });
 
-    // 7. Sync Sidebar Profile Data
-    const activeUser = window.currentStaff || JSON.parse(sessionStorage.getItem('active_staff_user') || '{}');
-    if (typeof window.updateSideMenuProfile === 'function') {
-        window.updateSideMenuProfile(activeUser);
+    if (typeof window.initSidebarProfileAndRestrictions === 'function') {
+        window.initSidebarProfileAndRestrictions();
     }
 };
 
-// --- AUTOMATIC SPINNER ATTACHMENT (FORCE FIX) ---
-document.addEventListener('DOMContentLoaded', () => {
-    // Auto-catch all form submit events
-    document.addEventListener('submit', (e) => {
-        window.showGlobalSpinner("Saving Data...");
-    }, true);
+// ================================================================ */
+// LOGOUT FUNCTION (FIXED v4.3)                                    */
+// ================================================================ */
 
-    // Auto-catch all primary action buttons
-    const attachButtonListeners = () => {
-        document.querySelectorAll('button[type="submit"], .btn-primary, .submit-btn, .btn-submit-transfer').forEach(btn => {
-            if (!btn.dataset.spinnerBound) {
-                btn.addEventListener('click', () => {
-                    setTimeout(() => {
-                        const form = btn.closest('form');
-                        if (!form || form.checkValidity()) {
-                            window.showGlobalSpinner("Please wait...");
-                        }
-                    }, 10);
-                });
-                btn.dataset.spinnerBound = "true";
+window.executeSecureLogout = function() {
+    try {
+        // Safe cleanup for listeners
+        if (typeof window.cleanupAdminListeners === 'function') {
+            window.cleanupAdminListeners();
+        }
+
+        // Firebase v9/v10 Listener Cleanup Check
+        if (window._visitorLogsListener) {
+            if (typeof window._visitorLogsListener === 'function') {
+                window._visitorLogsListener(); // Unsubscribe function
+            } else if (typeof window._visitorLogsListener.off === 'function') {
+                window._visitorLogsListener.off();
             }
+            window._visitorLogsListener = null;
+        }
+
+        if (window.activeSessionListener) {
+            if (typeof window.activeSessionListener === 'function') {
+                window.activeSessionListener(); // Unsubscribe function
+            } else if (typeof window.activeSessionListener.off === 'function') {
+                window.activeSessionListener.off();
+            }
+            window.activeSessionListener = null;
+        }
+    } catch (e) {
+        console.warn("⚠️ Listener cleanup error on logout:", e);
+    }
+
+    // Clear Sessions
+    sessionStorage.clear();
+    localStorage.clear();
+
+    // Direct redirect to Login Page
+    window.location.href = 'staff-login.html';
+};
+
+window.logoutStaff = window.executeSecureLogout;
+// ================================================================ */
+// SIDEBAR PROFILE & RESTRICTIONS (FIXED v4.3)                    */
+// ================================================================ */
+
+window.initSidebarProfileAndRestrictions = function() {
+    const staff = window.currentStaff || JSON.parse(sessionStorage.getItem('active_staff_user') || '{}');
+    if (!staff || !staff.mobile) return;
+
+    const role = (staff.role || '').toLowerCase().trim();
+    const displayName = staff.fullName || staff.name || "Staff Member";
+    const displayRole = staff.designation || staff.position || staff.role || "Employee";
+
+    const nameEl = document.getElementById('sidebar-user-name') || document.getElementById('menuUserName') || document.querySelector('.sidebar-user-name');
+    const roleEl = document.getElementById('sidebar-user-role') || document.getElementById('menuUserRole') || document.querySelector('.sidebar-user-role');
+    const imgEl = document.getElementById('sidebar-user-avatar') || document.getElementById('sidebar-profile-img') || document.querySelector('.sidebar-user-avatar');
+
+    if (nameEl) nameEl.innerText = displayName;
+    if (roleEl) roleEl.innerText = displayRole;
+
+    if (imgEl) {
+        const photo = staff.photoUrl || staff.profilePic || staff.imageUrl || staff.photo;
+        if (photo && photo !== 'N/A' && photo !== '-') {
+            imgEl.src = window.getDirectDriveImageUrl ? window.getDirectDriveImageUrl(photo) : photo;
+            imgEl.classList.remove('hidden');
+        } else {
+            imgEl.src = window.generateLocalAvatar ? window.generateLocalAvatar(displayName) : `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName.charAt(0))}&background=4f46e5&color=fff`;
+            imgEl.classList.remove('hidden');
+        }
+
+        const initialsEl = document.getElementById('sidebar-initials');
+        if (initialsEl) initialsEl.classList.add('hidden');
+    }
+
+    // Cleaner, Gardener & Bus Musrif specific restrictions
+    if (role === 'cleaner' || role === 'gardener' || role === 'bus musrif' || role === 'bus_musrif') {
+        const scanAssetBtns = document.querySelectorAll('#scan-edit-asset-btn, .scan-asset-btn, [data-action="scan-asset"]');
+        scanAssetBtns.forEach(b => {
+            b.style.display = 'none';
+            b.classList.add('hidden');
         });
+
+        const taskHistoryMenuItem = document.getElementById('menu-task-history') || document.getElementById('menu-tasks-btn') || document.querySelector('[data-menu="task-history"]');
+        if (taskHistoryMenuItem && !taskHistoryMenuItem.dataset.modified) {
+            taskHistoryMenuItem.dataset.modified = "true";
+            taskHistoryMenuItem.innerHTML = `
+                <div onclick="if(window.toggleSideMenu) window.toggleSideMenu(); if(window.openAttendanceHistoryModal) window.openAttendanceHistoryModal();" class="flex items-center gap-3 p-4 bg-white/5 rounded-2xl text-white/80 hover:bg-white/10 transition-all cursor-pointer">
+                    <i class="fa-solid fa-calendar-days text-amber-400"></i>
+                    <span>Attendance History</span>
+                </div>
+            `;
+        }
+    }
+};
+
+window.updateSideMenuProfile = window.initSidebarProfileAndRestrictions;
+
+// ================================================================ */
+// DASHBOARD PROFILE HEADER RENDERER (FIXED v4.4)                 */
+// ================================================================ */
+
+window.renderDashboardProfile = function(staffData) {
+    const staff = staffData || window.currentStaff || JSON.parse(sessionStorage.getItem('active_staff_user') || '{}');
+    if (!staff || !staff.mobile) {
+        console.warn("⚠️ renderDashboardProfile: No active staff data found.");
+        return;
+    }
+
+    console.log("👤 Syncing Dashboard Profile Header for:", staff.fullName || staff.name);
+
+    const nameEl = document.getElementById('user-name');
+    const idEl = document.getElementById('user-pass-id');
+    const branchEl = document.getElementById('user-branch');
+    const imgEl = document.getElementById('user-avatar');
+
+    if (nameEl) nameEl.innerText = staff.fullName || staff.name || "Staff Member";
+    if (idEl) idEl.innerText = `ID: ${staff.adekPass || staff.adekNumber || '-'}`;
+    if (branchEl) {
+        branchEl.innerHTML = `<i class="fa-solid fa-location-dot text-indigo-400"></i> ${staff.school || staff.branch || 'Jern Yafoor School'}`;
+    }
+
+    if (imgEl) {
+        const photo = staff.profilePicUrl || staff.photoUrl || staff.photo;
+        const displayName = staff.fullName || staff.name || "U";
+        if (photo && photo !== 'N/A' && photo !== '-') {
+            imgEl.src = window.getDirectDriveImageUrl ? window.getDirectDriveImageUrl(photo) : photo;
+            imgEl.classList.remove('hidden');
+        } else {
+            imgEl.src = window.generateLocalAvatar ? window.generateLocalAvatar(displayName) : `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=4f46e5&color=fff`;
+            imgEl.classList.remove('hidden');
+        }
+    }
+};
+
+window.renderDashboard = window.renderDashboardProfile; // Alias for compatibility
+
+// ================================================================ */
+// ATTENDANCE HISTORY MODAL (FIXED v4.3)                           */
+// ================================================================ */
+
+window.openAttendanceHistoryModal = async function() {
+    let modal = document.getElementById('attendance-history-modal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'attendance-history-modal';
+        modal.className = 'fixed inset-0 bg-black/80 z-[999999] hidden items-center justify-center p-4 backdrop-blur-sm';
+        document.body.appendChild(modal);
+    }
+
+    const staff = window.currentStaff || JSON.parse(sessionStorage.getItem('active_staff_user') || '{}');
+    const staffName = staff.fullName || staff.name || 'Staff';
+
+    modal.innerHTML = `
+        <div class="bg-indigo-950 border border-white/10 rounded-[2.5rem] p-8 max-w-lg w-full text-white space-y-6 shadow-2xl max-h-[90vh] flex flex-col fade-in">
+            <div class="flex justify-between items-center border-b border-white/5 pb-5">
+                <div>
+                    <h3 class="text-xl font-black text-amber-400 uppercase tracking-tight">📅 Attendance History</h3>
+                    <p class="text-[10px] font-bold text-white/40 uppercase tracking-widest mt-1">${staffName} • ${staff.role || 'User'}</p>
+                </div>
+                <button onclick="window.closeAttendanceHistoryModal()" class="w-10 h-10 bg-white/5 rounded-full flex items-center justify-center text-white/60 hover:text-white transition-colors">&times;</button>
+            </div>
+
+            <div id="attendance-modal-logs" class="overflow-y-auto space-y-3 pr-2 flex-1 no-scrollbar">
+                <div class="flex flex-col items-center justify-center py-12 space-y-4">
+                    <i class="fa-solid fa-spinner fa-spin text-amber-400 text-3xl"></i>
+                    <p class="text-[10px] font-black uppercase tracking-widest text-white/40">Loading Logs...</p>
+                </div>
+            </div>
+
+            <button onclick="window.closeAttendanceHistoryModal()" class="w-full py-4 bg-white/5 hover:bg-white/10 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] transition-all">Close History</button>
+        </div>
+    `;
+
+    modal.classList.remove('hidden');
+    modal.style.display = 'flex';
+
+    // Declared outside try-catch to ensure availability in catch block
+    const logsContainer = document.getElementById('attendance-modal-logs');
+
+    try {
+        const snap = await get(ref(db, 'staff_attendance'));
+
+        if (snap.exists() && staff.mobile) {
+            const allRecords = snap.val();
+            const myLogs = Object.values(allRecords).filter(r => r && r.mobile === staff.mobile);
+
+            if (myLogs.length === 0) {
+                if (logsContainer) {
+                    logsContainer.innerHTML = `
+                        <div class="text-center py-12">
+                            <i class="fa-solid fa-calendar-xmark text-white/10 text-5xl mb-4"></i>
+                            <p class="text-[10px] font-black uppercase tracking-widest text-white/40">No records found</p>
+                        </div>`;
+                }
+                return;
+            }
+
+            myLogs.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+
+            if (logsContainer) {
+                logsContainer.innerHTML = myLogs.map(log => `
+                    <div class="bg-white/5 p-4 rounded-2xl border border-white/5 flex justify-between items-center group hover:bg-white/10 transition-all">
+                        <div class="space-y-1">
+                            <span class="font-black text-xs text-white block uppercase tracking-tight">${log.date || 'N/A'}</span>
+                            <div class="flex items-center gap-2 text-[9px] font-bold text-white/40 uppercase tracking-widest">
+                                <span class="text-emerald-400">IN: ${log.timeIn || '--'}</span>
+                                <span class="w-1 h-1 bg-white/10 rounded-full"></span>
+                                <span class="text-rose-400">OUT: ${log.checkOutTime || log.timeOut || '--'}</span>
+                            </div>
+                        </div>
+                        <div class="text-right">
+                             <span class="px-3 py-1 rounded-lg text-[8px] font-black uppercase tracking-widest ${
+                                 log.status === 'checked_in' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-white/10 text-white/40'
+                             }">
+                                ${log.status === 'checked_in' ? 'On Duty' : 'Shift End'}
+                            </span>
+                        </div>
+                    </div>
+                `).join('');
+            }
+        } else {
+            if (logsContainer) {
+                logsContainer.innerHTML = `<div class="text-center py-12"><p class="text-[10px] font-black uppercase tracking-widest text-white/40">No attendance data</p></div>`;
+            }
+        }
+    } catch (e) {
+        console.error("Attendance History Error:", e);
+        if (logsContainer) {
+            logsContainer.innerHTML = `<div class="text-center py-12"><p class="text-[10px] font-black text-rose-400 uppercase tracking-widest">Error Loading Data</p></div>`;
+        }
+    }
+};
+
+window.closeAttendanceHistoryModal = function() {
+    const modal = document.getElementById('attendance-history-modal');
+    if (modal) {
+        modal.classList.add('hidden');
+        modal.style.display = 'none';
+    }
+};
+
+// ================================================================ */
+// MEDIA RENDERING & FALLBACKS (FIXED v4.3)                        */
+// ================================================================ */
+
+window.getDirectDriveImageUrl = (driveUrl) => {
+    if (!driveUrl || driveUrl === 'N/A' || driveUrl === '-' || driveUrl === 'null' || driveUrl === 'undefined') {
+        return 'https://placehold.co/400x300/e2e8f0/64748b?text=No+Photo';
+    }
+
+    // Direct Data URLs and already formatted links
+    if (driveUrl.startsWith('data:image')) return driveUrl;
+    if (driveUrl.startsWith('https://lh3.googleusercontent.com')) return driveUrl;
+
+    // Standard HTTP/HTTPS Non-Drive URLs
+    if (!driveUrl.includes('drive.google.com') && !driveUrl.includes('docs.google.com') && driveUrl.startsWith('http')) {
+        return driveUrl;
+    }
+
+    // Google Drive Specific Parsing
+    let fileId = null;
+    const match = driveUrl.match(/\/file\/d\/([a-zA-Z0-9_-]+)/) ||
+                  driveUrl.match(/[?&]id=([a-zA-Z0-9_-]+)/) ||
+                  driveUrl.match(/([a-zA-Z0-9_-]{28,})/);
+
+    if (match) fileId = match[1];
+
+    return fileId ? `https://lh3.googleusercontent.com/d/${fileId}` : driveUrl;
+};
+
+window.formatDriveImageUrl = window.getDirectDriveImageUrl;
+
+window.openImageZoom = (url) => {
+    if (!url || url.includes('placeholder') || url.includes('No+Photo')) return;
+    const directUrl = window.getDirectDriveImageUrl(url);
+    window.open(directUrl, '_blank');
+};
+
+// ================================================================ */
+// COMPRESSION & IMAGE HELPERS (FIXED v4.3 - WITH RETRY & SAFARI BUGFIX) */
+// ================================================================ */
+
+window.compressImageFile = async (file, maxWidth = 1000, maxHeight = 1000, quality = 0.7) => {
+    return new Promise((resolve, reject) => {
+        try {
+            if (!file) {
+                return reject(new Error("No file provided for compression"));
+            }
+
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const img = new Image();
+                img.onload = () => {
+                    try {
+                        const canvas = document.createElement('canvas');
+                        let w = img.width;
+                        let h = img.height;
+
+                        // Calculate aspect ratio with Math.floor to avoid fractional canvas bounds
+                        if (w > h) {
+                            if (w > maxWidth) {
+                                h = Math.round(h * (maxWidth / w));
+                                w = maxWidth;
+                            }
+                        } else {
+                            if (h > maxHeight) {
+                                w = Math.round(w * (maxHeight / h));
+                                h = maxHeight;
+                            }
+                        }
+
+                        canvas.width = Math.max(1, w);
+                        canvas.height = Math.max(1, h);
+
+                        const ctx = canvas.getContext('2d');
+                        if (!ctx) {
+                            return reject(new Error("Failed to get 2D context"));
+                        }
+
+                        ctx.imageSmoothingEnabled = true;
+                        ctx.imageSmoothingQuality = 'high';
+                        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+                        const compressedDataUrl = canvas.toDataURL("image/jpeg", quality);
+
+                        // Cleanup Canvas memory context
+                        canvas.width = 0;
+                        canvas.height = 0;
+
+                        resolve(compressedDataUrl);
+                    } catch (err) {
+                        reject(err);
+                    }
+                };
+
+                img.onerror = () => reject(new Error("Failed to decode image data"));
+                img.src = e.target.result;
+            };
+
+            reader.onerror = () => reject(new Error("Failed to read image file"));
+            reader.readAsDataURL(file);
+        } catch (err) {
+            reject(err);
+        }
+    });
+};
+
+// ✅ FIXED: Compress with retry and exponential fallback
+window.compressImageWithRetry = async (file, maxWidth = 800, maxHeight = 800, quality = 0.7, retries = 3) => {
+    let lastError = null;
+    for (let i = 0; i < retries; i++) {
+        try {
+            // Quality downgrade on retry attempts to ensure success on memory-constrained devices
+            const currentQuality = Math.max(0.4, quality - (i * 0.1));
+            return await window.compressImageFile(file, maxWidth, maxHeight, currentQuality);
+        } catch (err) {
+            lastError = err;
+            console.warn(`⚠️ Compression attempt ${i + 1} failed:`, err);
+            await new Promise(r => setTimeout(r, 400 * (i + 1)));
+        }
+    }
+    throw lastError || new Error("Image compression failed after retries");
+};
+
+// ================================================================ */
+// APP LAUNCH VIDEO LOGIC (FIXED v4.3)                             */
+// ================================================================ */
+
+window.handleLaunchVideo = () => {
+    const overlay = document.getElementById('launchVideoOverlay');
+    const video = document.getElementById('appLaunchVideo');
+    const skipBtn = document.getElementById('skipVideoBtn');
+
+    if (!overlay || !video) return;
+
+    if (sessionStorage.getItem('videoPlayedThisSession') === 'true') {
+        overlay.remove();
+        return;
+    }
+
+    overlay.classList.remove('hidden');
+    overlay.style.display = 'flex';
+
+    let hasHidden = false;
+    let safetyTimeout = null;
+
+    const hideOverlay = () => {
+        if (hasHidden) return;
+        hasHidden = true;
+
+        if (safetyTimeout) clearTimeout(safetyTimeout);
+        sessionStorage.setItem('videoPlayedThisSession', 'true');
+
+        overlay.style.transition = 'opacity 0.6s ease-out';
+        overlay.style.opacity = '0';
+
+        setTimeout(() => {
+            if (overlay && overlay.parentNode) {
+                overlay.remove();
+            }
+        }, 600);
     };
 
-    attachButtonListeners();
-    const observer = new MutationObserver(attachButtonListeners);
-    observer.observe(document.body, { childList: true, subtree: true });
+    // Auto-hide fallback after 6 seconds if video gets stuck or is too long
+    safetyTimeout = setTimeout(hideOverlay, 6000);
+
+    video.onended = hideOverlay;
+    video.onerror = hideOverlay;
+
+    if (skipBtn) {
+        skipBtn.onclick = hideOverlay;
+    }
+
+    video.play().catch((err) => {
+        console.warn("⚠️ Autoplay restricted or failed, hiding video overlay:", err);
+        hideOverlay();
+    });
+};
+
+document.addEventListener('DOMContentLoaded', window.handleLaunchVideo);
+
+window.addEventListener('load', () => {
+    setTimeout(() => {
+        const o = document.getElementById('launchVideoOverlay');
+        if (o) {
+            o.style.transition = 'opacity 0.5s ease-out';
+            o.style.opacity = '0';
+            setTimeout(() => o.remove(), 500);
+        }
+    }, 6500);
 });
 
-// Aliases for backward compatibility with previous step
-window.showLoader = window.showGlobalSpinner;
-window.hideLoader = window.hideGlobalSpinner;
+// ================================================================ */
+// UNIVERSAL TABLE PAGINATOR (FIXED v4.3 - RESPONSIVE)            */
+// ================================================================ */
 
-/**
- * UNIVERSAL TABLE PAGINATOR (v4.0)
- * Handles client-side pagination for all dashboard tables
- */
 class TablePaginator {
     constructor(containerId, itemsPerPage = 20) {
-        this.containerId = containerId; // ID of the <div> where controls go
+        this.containerId = containerId;
         this.itemsPerPage = itemsPerPage;
         this.currentPage = 1;
         this.data = [];
         this.renderCallback = null;
     }
 
-    /**
-     * @param {Array} dataArray - The full dataset to paginate
-     * @param {Function} renderRowCallback - (pageItems, startIndex) => void
-     */
     init(dataArray, renderRowCallback) {
         this.data = dataArray || [];
         this.renderCallback = renderRowCallback;
@@ -466,68 +1019,76 @@ class TablePaginator {
     render() {
         if (!this.renderCallback) return;
 
-        window.showGlobalSpinner("Syncing View...");
+        const totalPages = Math.max(1, Math.ceil(this.data.length / this.itemsPerPage));
+        if (this.currentPage > totalPages) this.currentPage = totalPages;
+        if (this.currentPage < 1) this.currentPage = 1;
 
-        setTimeout(() => {
-            const totalPages = Math.max(1, Math.ceil(this.data.length / this.itemsPerPage));
-            if (this.currentPage > totalPages) this.currentPage = totalPages;
-            if (this.currentPage < 1) this.currentPage = 1;
+        const start = (this.currentPage - 1) * this.itemsPerPage;
+        const end = start + this.itemsPerPage;
+        const pageItems = this.data.slice(start, end);
 
-            const start = (this.currentPage - 1) * this.itemsPerPage;
-            const end = start + this.itemsPerPage;
-            const pageItems = this.data.slice(start, end);
+        // Execute actual rendering of rows
+        this.renderCallback(pageItems, start);
 
-            // Execute actual rendering of rows
-            this.renderCallback(pageItems, start);
-
-            // Render controls UI
-            this.renderControls(totalPages);
-
-            window.hideGlobalSpinner();
-        }, 100);
+        // Render controls UI
+        this.renderControls(totalPages);
     }
-
 
     renderControls(totalPages) {
         const container = document.getElementById(this.containerId);
         if (!container) return;
 
         container.innerHTML = `
-            <div class="flex flex-col sm:flex-row items-center justify-between gap-4 px-4 py-3 bg-white/50 backdrop-blur-sm border border-slate-100 rounded-2xl text-[10px] font-black uppercase tracking-widest text-slate-400 mt-4 shadow-sm">
-                <div class="flex items-center gap-3">
-                    <span class="opacity-50">Show:</span>
-                    <select class="page-size-select bg-slate-50 border border-slate-200 rounded-lg px-2 py-1 text-indigo-600 outline-none">
+            <div class="flex flex-col sm:flex-row items-center justify-between gap-3 px-3 py-3 bg-white/50 backdrop-blur-sm border border-slate-100 rounded-2xl text-[10px] font-black uppercase tracking-widest text-slate-400 mt-4 shadow-sm">
+                <div class="flex items-center gap-2 flex-wrap justify-center sm:justify-start">
+                    <span class="opacity-50 text-[8px] sm:text-[10px]">Show:</span>
+                    <select class="page-size-select bg-slate-50 border border-slate-200 rounded-lg px-2 py-1 text-indigo-600 outline-none text-[10px] sm:text-xs">
                         <option value="10" ${this.itemsPerPage === 10 ? 'selected' : ''}>10</option>
                         <option value="20" ${this.itemsPerPage === 20 ? 'selected' : ''}>20</option>
                         <option value="50" ${this.itemsPerPage === 50 ? 'selected' : ''}>50</option>
                         <option value="100" ${this.itemsPerPage === 100 ? 'selected' : ''}>100</option>
                     </select>
-                    <span class="ml-2">Total: <span class="text-indigo-600 font-black">${this.data.length}</span></span>
+                    <span class="ml-1 sm:ml-2 text-[8px] sm:text-[10px]">Total: <span class="text-indigo-600 font-black">${this.data.length}</span></span>
                 </div>
 
-                <div class="flex items-center gap-4">
-                    <button class="prev-btn w-8 h-8 flex items-center justify-center bg-indigo-50 text-indigo-600 rounded-full disabled:opacity-30 disabled:grayscale transition-all active:scale-90" ${this.currentPage === 1 ? 'disabled' : ''}>
+                <div class="flex items-center gap-2 sm:gap-4">
+                    <button class="prev-btn w-7 h-7 sm:w-8 sm:h-8 flex items-center justify-center bg-indigo-50 text-indigo-600 rounded-full disabled:opacity-30 disabled:grayscale transition-all active:scale-90 text-xs sm:text-sm" ${this.currentPage === 1 ? 'disabled' : ''}>
                         <i class="fa-solid fa-chevron-left"></i>
                     </button>
 
-                    <div class="flex items-center gap-1">
+                    <div class="flex items-center gap-1 text-[8px] sm:text-[10px]">
                         <span class="opacity-50">Page</span>
-                        <span class="text-indigo-600">${this.currentPage}</span>
+                        <span class="text-indigo-600 font-black">${this.currentPage}</span>
                         <span class="opacity-50">/ ${totalPages}</span>
                     </div>
 
-                    <button class="next-btn w-8 h-8 flex items-center justify-center bg-indigo-50 text-indigo-600 rounded-full disabled:opacity-30 disabled:grayscale transition-all active:scale-90" ${this.currentPage >= totalPages ? 'disabled' : ''}>
+                    <button class="next-btn w-7 h-7 sm:w-8 sm:h-8 flex items-center justify-center bg-indigo-50 text-indigo-600 rounded-full disabled:opacity-30 disabled:grayscale transition-all active:scale-90 text-xs sm:text-sm" ${this.currentPage >= totalPages ? 'disabled' : ''}>
                         <i class="fa-solid fa-chevron-right"></i>
                     </button>
                 </div>
             </div>
         `;
 
-        // Bind control events
-        container.querySelector('.prev-btn')?.addEventListener('click', (e) => { e.preventDefault(); this.currentPage--; this.render(); });
-        container.querySelector('.next-btn')?.addEventListener('click', (e) => { e.preventDefault(); this.currentPage++; this.render(); });
+        // Bind control events safely
+        container.querySelector('.prev-btn')?.addEventListener('click', (e) => {
+            e.preventDefault();
+            if (this.currentPage > 1) {
+                this.currentPage--;
+                this.render();
+            }
+        });
+
+        container.querySelector('.next-btn')?.addEventListener('click', (e) => {
+            e.preventDefault();
+            if (this.currentPage < totalPages) {
+                this.currentPage++;
+                this.render();
+            }
+        });
+
         container.querySelector('.page-size-select')?.addEventListener('change', (e) => {
-            this.itemsPerPage = parseInt(e.target.value);
+            const parsed = parseInt(e.target.value, 10);
+            this.itemsPerPage = isNaN(parsed) ? 20 : Math.max(1, parsed);
             this.currentPage = 1;
             this.render();
         });
@@ -571,97 +1132,218 @@ window.toggleStaffTab = (tab) => {
             logTab.classList.add('text-gray-400', 'border-transparent');
             logTab.classList.remove('text-indigo-600', 'border-indigo-600');
             regForm.classList.remove('hidden');
-            regForm.classList.add('hidden');
+            logForm.classList.add('hidden');
         }
-    } catch (e) { console.error("Toggle Tab Error:", e); }
+    } catch (e) {
+        console.error("Toggle Tab Error:", e);
+    }
 };
 
 // ================================================================ */
-// MEDIA RENDERING & FALLBACKS                                      */
+// VIEW SWITCHER (FIXED v4.3 - LAYOUT PRESERVATION)               */
 // ================================================================ */
 
-window.getDirectDriveImageUrl = (driveUrl) => {
-    if (!driveUrl || driveUrl === 'N/A' || driveUrl === '-') return 'https://placehold.co/400x300/e2e8f0/64748b?text=No+Photo';
-    if (driveUrl.startsWith('data:image')) return driveUrl;
-    let fileId = null;
-    const match = driveUrl.match(/\/file\/d\/([^\/]+)/) || driveUrl.match(/[?&]id=([^&]+)/) || driveUrl.match(/([a-zA-Z0-9_-]{25,})/);
-    if (match) fileId = match[1];
-    return fileId ? `https://lh3.googleusercontent.com/d/${fileId}` : driveUrl;
-};
+window.showStaffView = function(viewId) {
+    console.log(`📂 Switching to view: ${viewId}`);
 
-window.formatDriveImageUrl = window.getDirectDriveImageUrl;
-window.openImageZoom = (url) => { if(!url || url.includes('placeholder')) return; window.open(url, '_blank'); };
+    const authArea = document.getElementById('staff-auth-area');
+    if (authArea) {
+        authArea.classList.add('hidden');
+        authArea.style.display = 'none';
+    }
 
-// ================================================================ */
-// COMPRESSION & IMAGE HELPERS                                      */
-// ================================================================ */
+    const views = [
+        'staff-dash-area',
+        'security-main-container',
+        'tasks-management-section',
+        'asset-audit-section',
+        'asset-disposal-section',
+        'asset-transfer-section',
+        'transfer-logs-section'
+    ];
 
-window.compressImageFile = async (file, maxWidth = 1000, maxHeight = 1000, quality = 0.7) => {
-    return new Promise((resolve) => {
-        const reader = new FileReader();
-        reader.onload = (e) => {
-            const img = new Image();
-            img.onload = () => {
-                const canvas = document.createElement('canvas');
-                let w = img.width, h = img.height;
-                if (w > h) { if (w > maxWidth) { h *= maxWidth / w; w = maxWidth; } }
-                else { if (h > maxHeight) { w *= maxHeight / h; h = maxHeight; } }
-                canvas.width = w; canvas.height = h;
-                const ctx = canvas.getContext('2d');
-                ctx.drawImage(img, 0, 0, w, h);
-                resolve(canvas.toDataURL("image/jpeg", quality));
-            };
-            img.src = e.target.result;
-        };
-        reader.readAsDataURL(file);
+    views.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) {
+            el.classList.add('hidden');
+            el.style.display = 'none';
+        }
     });
+
+    const target = document.getElementById(viewId);
+    if (target) {
+        target.classList.remove('hidden');
+        // Clear inline display style so element preserves its native flex/grid CSS layout
+        target.style.display = '';
+    }
+
+    if (viewId === 'tasks-management-section' && typeof window.loadRoleView === 'function') {
+        window.loadRoleView(window.currentStaff);
+    }
+
+    if (typeof window.initTopBackButton === 'function') {
+        window.initTopBackButton();
+    }
+
+    window.scrollTo({ top: 0, behavior: 'smooth' });
 };
 
 // ================================================================ */
-// APP LAUNCH VIDEO LOGIC                                           */
+// AUTOMATIC SPINNER ATTACHMENT (FIXED v4.3 - VALIDATION SAFE)    */
 // ================================================================ */
-window.handleLaunchVideo = () => {
-    const overlay = document.getElementById('launchVideoOverlay');
-    const video = document.getElementById('appLaunchVideo');
-    const skipBtn = document.getElementById('skipVideoBtn');
-    if (!overlay || !video) return;
-    if (sessionStorage.getItem('videoPlayedThisSession') === 'true') { overlay.remove(); return; }
-    overlay.classList.remove('hidden');
-    overlay.style.display = 'flex';
-    let hasHidden = false;
-    const hideOverlay = () => {
-        if (hasHidden) return;
-        hasHidden = true;
-        sessionStorage.setItem('videoPlayedThisSession', 'true');
-        overlay.style.transition = 'opacity 0.8s ease-out';
-        overlay.style.opacity = '0';
-        setTimeout(() => overlay.remove(), 800);
+
+document.addEventListener('DOMContentLoaded', () => {
+    // Override existing logout buttons
+    const attachLogoutListeners = () => {
+        const logoutBtns = document.querySelectorAll('#logout-btn, .logout-btn, [onclick*="logoutStaff"]');
+        logoutBtns.forEach(btn => {
+            if (!btn.dataset.logoutBound) {
+                btn.onclick = (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    if (typeof window.executeSecureLogout === 'function') {
+                        window.executeSecureLogout();
+                    }
+                };
+                btn.dataset.logoutBound = "true";
+            }
+        });
     };
-    const safetyTimeout = setTimeout(hideOverlay, 4500);
-    video.onended = hideOverlay;
-    if (skipBtn) skipBtn.onclick = hideOverlay;
-    video.play().catch(hideOverlay);
-};
 
-document.addEventListener('DOMContentLoaded', window.handleLaunchVideo);
-window.addEventListener('load', () => { setTimeout(() => { const o = document.getElementById('launchVideoOverlay'); if(o) o.remove(); }, 5000); });
+    attachLogoutListeners();
 
-console.log("✅ ui_module.js loaded (UI & Interface Helpers)");
+    if (typeof window.initSidebarProfileAndRestrictions === 'function') {
+        window.initSidebarProfileAndRestrictions();
+    }
 
-// Pure JS Avatar Generator - Completely Offline & Wifi-Safe (No external URL call)
-window.generateLocalAvatar = function(name, background = "4f46e5", color = "fff") {
-    if (!name) name = "User";
-    const initials = name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
+    // Auto-catch all form submit events ONLY IF valid
+    document.addEventListener('submit', (e) => {
+        const form = e.target;
+        if (form && typeof form.checkValidity === 'function' && !form.checkValidity()) {
+            return; // Don't show spinner if HTML5 form validation fails
+        }
+        if (typeof window.showGlobalSpinner === 'function') {
+            window.showGlobalSpinner("Saving Data...");
+        }
+    }, true);
 
-    // Generates Inline SVG Data URI without hitting any external server
-    const svg = `
-        <svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">
-            <rect width="100%" height="100%" fill="#${background}"/>
-            <text x="50%" y="50%" dominant-baseline="central" text-anchor="middle"
-                  fill="#${color}" font-family="Arial, sans-serif" font-size="50" font-weight="bold">
-                ${initials}
-            </text>
-        </svg>
-    `;
-    return 'data:image/svg+xml;utf8,' + encodeURIComponent(svg);
-}
+    // Auto-catch all primary action buttons with validation check
+    const attachButtonListeners = () => {
+        document.querySelectorAll('button[type="submit"], .btn-primary, .submit-btn, .btn-submit-transfer').forEach(btn => {
+            if (!btn.dataset.spinnerBound) {
+                btn.addEventListener('click', (e) => {
+                    const form = btn.closest('form');
+
+                    // If button is inside a form, let form submit listener handle spinner safely
+                    if (form) {
+                        if (form.checkValidity()) {
+                            setTimeout(() => {
+                                if (typeof window.showGlobalSpinner === 'function') {
+                                    window.showGlobalSpinner("Please wait...");
+                                }
+                            }, 50);
+                        }
+                    } else {
+                        // Standalone buttons (not in forms)
+                        setTimeout(() => {
+                            if (typeof window.showGlobalSpinner === 'function') {
+                                window.showGlobalSpinner("Please wait...");
+                            }
+                        }, 50);
+                    }
+                });
+                btn.dataset.spinnerBound = "true";
+            }
+        });
+    };
+
+    attachButtonListeners();
+
+    // Observe DOM changes to attach listeners to dynamic elements
+    const observer = new MutationObserver(() => {
+        attachLogoutListeners();
+        attachButtonListeners();
+    });
+
+    observer.observe(document.body, { childList: true, subtree: true });
+});
+
+// ================================================================ */
+// AUTOMATIC SPINNER ATTACHMENT (FIXED v4.3 - VALIDATION SAFE)    */
+// ================================================================ */
+
+document.addEventListener('DOMContentLoaded', () => {
+    // Override existing logout buttons
+    const attachLogoutListeners = () => {
+        const logoutBtns = document.querySelectorAll('#logout-btn, .logout-btn, [onclick*="logoutStaff"]');
+        logoutBtns.forEach(btn => {
+            if (!btn.dataset.logoutBound) {
+                btn.onclick = (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    if (typeof window.executeSecureLogout === 'function') {
+                        window.executeSecureLogout();
+                    }
+                };
+                btn.dataset.logoutBound = "true";
+            }
+        });
+    };
+
+    attachLogoutListeners();
+
+    if (typeof window.initSidebarProfileAndRestrictions === 'function') {
+        window.initSidebarProfileAndRestrictions();
+    }
+
+    // Auto-catch all form submit events ONLY IF valid
+    document.addEventListener('submit', (e) => {
+        const form = e.target;
+        if (form && typeof form.checkValidity === 'function' && !form.checkValidity()) {
+            return; // Don't show spinner if HTML5 form validation fails
+        }
+        if (typeof window.showGlobalSpinner === 'function') {
+            window.showGlobalSpinner("Saving Data...");
+        }
+    }, true);
+
+    // Auto-catch all primary action buttons with validation check
+    const attachButtonListeners = () => {
+        document.querySelectorAll('button[type="submit"], .btn-primary, .submit-btn, .btn-submit-transfer').forEach(btn => {
+            if (!btn.dataset.spinnerBound) {
+                btn.addEventListener('click', (e) => {
+                    const form = btn.closest('form');
+
+                    // If button is inside a form, let form submit listener handle spinner safely
+                    if (form) {
+                        if (form.checkValidity()) {
+                            setTimeout(() => {
+                                if (typeof window.showGlobalSpinner === 'function') {
+                                    window.showGlobalSpinner("Please wait...");
+                                }
+                            }, 50);
+                        }
+                    } else {
+                        // Standalone buttons (not in forms)
+                        setTimeout(() => {
+                            if (typeof window.showGlobalSpinner === 'function') {
+                                window.showGlobalSpinner("Please wait...");
+                            }
+                        }, 50);
+                    }
+                });
+                btn.dataset.spinnerBound = "true";
+            }
+        });
+    };
+
+    attachButtonListeners();
+
+    // Observe DOM changes to attach listeners to dynamic elements
+    const observer = new MutationObserver(() => {
+        attachLogoutListeners();
+        attachButtonListeners();
+    });
+
+    observer.observe(document.body, { childList: true, subtree: true });
+});

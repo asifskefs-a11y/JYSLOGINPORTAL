@@ -90,9 +90,21 @@ const addImageToSheet = (workbook, sheet, buffer, col, row, width = 100, height 
 // ================================================
 window._downloadExcelReport = async () => {
     try {
-        if (!window.adminData || window.adminData.length === 0) {
+        const visitors = window.appCache?.visitors || [];
+        const staffAttendance = window.appCache?.attendance || [];
+
+        if (visitors.length === 0 && staffAttendance.length === 0) {
+            alert("No data available in cache. Refreshing...");
             if (window.refreshDashboardData) await window.refreshDashboardData();
-            if (!window.adminData || window.adminData.length === 0) return alert("No data to export.");
+            // Check again after refresh (listeners might take a second)
+            setTimeout(() => {
+                if ((window.appCache?.visitors?.length || 0) === 0 && (window.appCache?.attendance?.length || 0) === 0) {
+                    alert("Still no data to export after refresh.");
+                } else {
+                    window._downloadExcelReport();
+                }
+            }, 1500);
+            return;
         }
 
         const workbook = new ExcelJS.Workbook();
@@ -100,55 +112,72 @@ window._downloadExcelReport = async () => {
         const sSheet = workbook.addWorksheet('Staff Attendance');
 
         vSheet.columns = [
-            { header: 'Pass No', key: 'id', width: 22 },
-            { header: 'Full Name', key: 'name', width: 22 },
-            { header: 'Mobile', key: 'mobile', width: 22 },
-            { header: 'Company', key: 'company', width: 22 },
-            { header: 'Purpose', key: 'purpose', width: 22 },
-            { header: 'Date', key: 'date', width: 22 },
-            { header: 'In-Time', key: 'timeIn', width: 22 },
-            { header: 'Out-Time', key: 'timeOut', width: 22 },
-            { header: 'Status', key: 'status', width: 22 },
-            { header: 'Signature', key: 'sig', width: 22 }
+            { header: 'Type', key: 'type', width: 15 },
+            { header: 'System ID', key: 'id', width: 22 },
+            { header: 'Full Name', key: 'name', width: 25 },
+            { header: 'Mobile', key: 'mobile', width: 20 },
+            { header: 'Company', key: 'company', width: 25 },
+            { header: 'Purpose', key: 'purpose', width: 30 },
+            { header: 'Date', key: 'date', width: 15 },
+            { header: 'In-Time', key: 'timeIn', width: 15 },
+            { header: 'Out-Time', key: 'outTime', width: 15 },
+            { header: 'Status', key: 'status', width: 15 },
+            { header: 'Key Status', key: 'key', width: 15 }
         ];
 
         sSheet.columns = [
-            { header: 'Pass No', key: 'id', width: 22 },
-            { header: 'Full Name', key: 'name', width: 22 },
-            { header: 'Mobile', key: 'mobile', width: 22 },
-            { header: 'Branch', key: 'school', width: 22 },
-            { header: 'Role', key: 'role', width: 22 },
-            { header: 'Date', key: 'date', width: 22 },
-            { header: 'In-Time', key: 'timeIn', width: 22 },
-            { header: 'Out-Time', key: 'timeOut', width: 22 },
-            { header: 'Status', key: 'status', width: 22 },
-            { header: 'Signature', key: 'sig', width: 22 }
+            { header: 'Staff Name', key: 'name', width: 25 },
+            { header: 'Staff ID', key: 'id', width: 20 },
+            { header: 'Mobile', key: 'mobile', width: 20 },
+            { header: 'Company', key: 'company', width: 25 },
+            { header: 'Branch', key: 'branch', width: 20 },
+            { header: 'Role', key: 'role', width: 20 },
+            { header: 'Date', key: 'date', width: 15 },
+            { header: 'Time In', key: 'timeIn', width: 15 },
+            { header: 'Time Out', key: 'timeOut', width: 15 },
+            { header: 'Key Status', key: 'keyStatus', width: 15 },
+            { header: 'Status', key: 'status', width: 15 }
         ];
 
-        const visitors = window.adminData.filter(r => r.type === 'visitor');
-        const staff = window.adminData.filter(r => r.type === 'staff');
+        visitors.forEach((v) => {
+            vSheet.addRow({
+                type: v.type || 'VISITOR',
+                id: v.id || '-',
+                name: v.name || '-',
+                mobile: v.mobile || '-',
+                company: v.company || '-',
+                purpose: v.purpose || '-',
+                date: v.date || '-',
+                timeIn: v.timeIn || '-',
+                outTime: v.outTime || '-',
+                status: v.status || 'Active',
+                key: (v.keyCollected === 'YES' || v.keyCollected === true) ? '🔑 HELD' : '❌ NO'
+            });
+        });
 
-        for (let i = 0; i < visitors.length; i++) {
-            const v = visitors[i];
-            vSheet.addRow({ id: v.id, name: v.name, mobile: v.mobile, company: v.company, purpose: v.purpose, date: v.date, timeIn: v.timeIn, timeOut: v.outTime || "-", status: v.status });
-            if (v.signatureUrl) {
-                const buf = await getImageBuffer(v.signatureUrl);
-                if (buf) addImageToSheet(workbook, vSheet, buf, 9, i + 1);
-            }
-        }
-
-        for (let i = 0; i < staff.length; i++) {
-            const s = staff[i];
-            sSheet.addRow({ id: s.adekPass || s.mobile, name: s.name, mobile: s.mobile, school: s.branch, role: s.role, date: s.date, timeIn: s.timeIn, timeOut: s.checkOutTime || "-", status: s.status });
-            if (s.signatureUrl) {
-                const buf = await getImageBuffer(s.signatureUrl);
-                if (buf) addImageToSheet(workbook, sSheet, buf, 9, i + 1);
-            }
-        }
+        staffAttendance.forEach((s) => {
+            sSheet.addRow({
+                name: s.name || '-',
+                id: s.id || '-',
+                mobile: s.mobile || '-',
+                company: s.companyName || '-',
+                branch: s.branch || s.school || '-',
+                role: s.role || '-',
+                date: s.date || '-',
+                timeIn: s.timeIn || '-',
+                timeOut: s.checkOutTime || '-',
+                keyStatus: s.keyStatus || 'NONE',
+                status: s.status || '-'
+            });
+        });
 
         const buffer = await workbook.xlsx.writeBuffer();
-        saveAs(new Blob([buffer]), `Portal_Report_${Date.now()}.xlsx`);
-    } catch (e) { console.error(e); }
+        saveAs(new Blob([buffer]), `JYS_Portal_Report_${Date.now()}.xlsx`);
+        console.log("✅ Main Report Generated.");
+    } catch (e) {
+        console.error("Export Error:", e);
+        alert("Export failed: " + e.message);
+    }
 };
 
 // ================================================

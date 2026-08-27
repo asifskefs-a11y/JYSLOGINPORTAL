@@ -140,6 +140,7 @@ window.handleStaffLogin = async (e) => {
                 if ((foundUser.role || "").toLowerCase().trim() === 'security') {
                     console.log("🔓 Staff Login: Security role detected, redirecting to security.html");
                     localStorage.setItem('loggedStaff', JSON.stringify(foundUser));
+                    sessionStorage.setItem('active_staff_user', JSON.stringify(foundUser));
                     safeNavigate('security.html');
                     return false;
                 }
@@ -215,7 +216,9 @@ window.handleVisitorSignIn = async (e) => {
 
     const btn = e?.target?.querySelector('button[type="submit"]');
     if (btn) btn.disabled = true;
-    window.showGlobalSpinner("Saving Entry Record...");
+
+    // ✅ Stage 1: Professional Processing Spinner with Logo
+    if (window.showGlobalSpinner) window.showGlobalSpinner("Your Check-In is in Process...");
 
     try {
         const canvasId = 'v-sig-pad';
@@ -240,8 +243,7 @@ window.handleVisitorSignIn = async (e) => {
             company: document.getElementById('v-company').value,
             purpose: document.getElementById('v-purpose').value,
             keyCollected: document.getElementById('v-key-status')?.value || 'NO',
-            keyReturnPin: token.sequenceNo.toString().padStart(4, '0'), // Dynamic PIN based on sequence for safety
-            checkoutPin: token.sequenceNo.toString().padStart(4, '0'),
+            keyReturnPin: Math.floor(1000 + Math.random() * 9000).toString(), // ✅ RANDOM 4-DIGIT PIN
             date: new Date().toLocaleDateString('en-US'),
             timeIn: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', hour12: true}),
             timestamp: Date.now(),
@@ -251,6 +253,8 @@ window.handleVisitorSignIn = async (e) => {
             sequenceNo: token.sequenceNo,
             tokenId: token.tokenId
         };
+        // Ensure checkoutPin matches keyReturnPin
+        data.checkoutPin = data.keyReturnPin;
 
         if (mode === 'contractor') {
             data.contractorId = document.getElementById('contractorId').value;
@@ -261,6 +265,9 @@ window.handleVisitorSignIn = async (e) => {
 
         // Save into Permanent Master Node using Token ID
         await set(ref(db, dbPath + token.tokenId), data);
+
+        // ✅ Hide Spinner before showing Welcome Animation
+        if (window.hideGlobalSpinner) window.hideGlobalSpinner();
 
         // SYNC TO SECURITY KEY CONTROL (RESTORED)
         if (data.keyCollected === 'YES') {
@@ -280,6 +287,7 @@ window.handleVisitorSignIn = async (e) => {
         localStorage.setItem('vActive', JSON.stringify({
             id: data.id,
             name: data.name,
+            mobile: data.mobile, // ✅ ADDED: Store mobile to ensure clean checkout deletion
             timeIn: data.timeIn,
             keyCollected: data.keyCollected,
             mode: mode,
@@ -290,14 +298,25 @@ window.handleVisitorSignIn = async (e) => {
         window.currentReservedToken = null;
         window.showWhatsAppToast(`🚪 New ${mode === 'contractor' ? 'Contractor' : 'Visitor'} Entry`, `${data.name} has checked in.`);
 
-        if (window.triggerSuccessPopup) window.triggerSuccessPopup(`Sign-In Successful! Assigned Sequence #${token.sequenceNo} 🏢`);
-        if (window.checkVisitorSession) window.checkVisitorSession();
+        if (window.showPortalAnimation) {
+            window.showPortalAnimation('entry');
+            setTimeout(() => {
+                window.hidePortalAnimation();
+                if (window.triggerSuccessPopup) window.triggerSuccessPopup(`Sign-In Successful! Assigned Sequence #${token.sequenceNo} 🏢`);
+                if (window.checkVisitorSession) window.checkVisitorSession();
+            }, 2000);
+        } else {
+            if (window.triggerSuccessPopup) window.triggerSuccessPopup(`Sign-In Successful! Assigned Sequence #${token.sequenceNo} 🏢`);
+            if (window.checkVisitorSession) window.checkVisitorSession();
+        }
 
     } catch (error) {
         console.error(`❌ ${mode.toUpperCase()} Sign-In: Error:`, error);
+        if (window.hidePortalAnimation) window.hidePortalAnimation();
         alert("Sign-In Error: " + error.message);
     } finally {
         if (btn) btn.disabled = false;
+        if (window.hidePortalAnimation) window.hidePortalAnimation();
         window.hideGlobalSpinner();
     }
     return false;
@@ -326,12 +345,20 @@ document.addEventListener('DOMContentLoaded', () => {
     try {
         const isAdmin = localStorage.getItem('isAdminLoggedIn') === 'true';
 
-        // Require explicit local session check instead of persistent auth auto-login
+        // 🛡️ STRICT SESSION ISOLATION: Prioritize sessionStorage (tab-isolated)
         const activeStaff = JSON.parse(sessionStorage.getItem('active_staff_user') || 'null');
-        const loggedStaff = activeStaff || JSON.parse(localStorage.getItem('loggedStaff') || 'null');
+        const loggedStaff = JSON.parse(localStorage.getItem('loggedStaff') || 'null');
+
+        // Only use localStorage if sessionStorage is empty AND they are on the login page (initial load)
+        const effectiveStaff = activeStaff || (path.includes('staff-login.html') ? loggedStaff : null);
 
         console.log("🚀 SchoolLog Init: Current Path:", path);
-        console.log("🚀 SchoolLog Init: Auth State - Admin:", isAdmin, "| Staff Active:", !!activeStaff);
+        console.log("🚀 SchoolLog Init: Auth State - Session:", !!activeStaff, "| Shared Local:", !!loggedStaff);
+
+        if (effectiveStaff && !activeStaff) {
+            console.log("💾 Hydrating Session from LocalStorage...");
+            sessionStorage.setItem('active_staff_user', JSON.stringify(effectiveStaff));
+        }
 
         // --- 1. ADMIN PAGE ROUTING ---
         if (path.includes('admin.html')) {
@@ -357,26 +384,27 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         // --- 2. STAFF PAGE ROUTING ---
-        if (path.includes('staff-login.html')) {
-            if (activeStaff) {
-                console.log("🛡️ Staff: Verified active session found, rendering dashboard...");
+        if (path.includes('staff-login.html') || path.includes('security.html')) {
+            if (effectiveStaff) {
+                console.log(`🛡️ ${path.includes('security.html') ? 'Security' : 'Staff'}: Verified active session found, rendering dashboard...`);
                 try {
                     if (window.initUserDashboard) {
-                        window.initUserDashboard(activeStaff);
+                        window.initUserDashboard(effectiveStaff);
                     } else if (window.renderDashboard) {
-                        window.renderDashboard(activeStaff);
+                        window.renderDashboard(effectiveStaff);
                     } else {
-                        console.log("⏳ Staff: Waiting for attendance_module.js...");
+                        console.log("⏳ Waiting for attendance_module.js...");
                         setTimeout(() => {
-                            if (window.initUserDashboard) window.initUserDashboard(activeStaff);
-                            else if (window.renderDashboard) window.renderDashboard(activeStaff);
+                            if (window.initUserDashboard) window.initUserDashboard(effectiveStaff);
+                            else if (window.renderDashboard) window.renderDashboard(effectiveStaff);
                         }, 1000);
                     }
                 } catch (e) {
-                    console.error("❌ Staff: Session parse error, clearing...", e);
+                    console.error("❌ Session parse error, clearing...", e);
                     sessionStorage.removeItem('active_staff_user');
+                    localStorage.removeItem('loggedStaff');
                 }
-            } else {
+            } else if (path.includes('staff-login.html')) {
                 console.log("🛡️ Staff: No active session, showing login area...");
                 const authArea = document.getElementById('staff-auth-area');
                 const dashArea = document.getElementById('staff-dash-area');
@@ -398,16 +426,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 localStorage.clear();
                 sessionStorage.clear();
 
-                // RESET UI FOR STAFF PAGE IF ON IT
-                const authArea = document.getElementById('staff-auth-area');
-                const dashArea = document.getElementById('staff-dash-area');
-                if (authArea) authArea.classList.remove('hidden');
-                if (dashArea) dashArea.classList.add('hidden');
-
-                // Optional: Redirect if not already on landing/login
-                if (!window.location.pathname.includes('staff-login.html')) {
-                    safeNavigate('index.html');
-                }
+                // Direct redirect to Login Page as requested
+                window.location.href = 'staff-login.html';
             } catch (e) { console.error("Logout Error:", e); }
         };
 

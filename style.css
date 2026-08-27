@@ -1,4 +1,7 @@
-﻿/* --- APP LAUNCH VIDEO OVERLAY --- */
+﻿/* ================================================================ */
+/* --- APP LAUNCH VIDEO OVERLAY ---                                 */
+/* ================================================================ */
+
 #launchVideoOverlay {
     position: fixed !important;
     top: 0 !important;
@@ -8,12 +11,14 @@
     width: 100vw !important;
     height: 100vh !important;
     height: 100dvh !important;
-    background: #000 !important;
+    background: #000000 !important;
     z-index: 999999 !important;
     overflow: hidden !important;
     display: flex !important;
     align-items: center !important;
     justify-content: center !important;
+    /* ✅ Smooth opacity transition for fade out */
+    transition: opacity 0.4s ease-out, visibility 0.4s ease-out !important;
 }
 
 #appLaunchVideo {
@@ -23,18 +28,14 @@
     max-height: 100% !important;
     object-fit: contain !important;
     object-position: center !important;
-    background: #000;
+    background: #000000;
     pointer-events: none !important;
     margin: auto !important;
 }
 
-/* Hide Browser Video Controls Entirely */
-#appLaunchVideo::-webkit-media-controls {
-    display: none !important;
-}
-#appLaunchVideo::-webkit-media-controls-enclosure {
-    display: none !important;
-}
+/* Hide Browser Native Video Controls */
+#appLaunchVideo::-webkit-media-controls,
+#appLaunchVideo::-webkit-media-controls-enclosure,
 #appLaunchVideo::-webkit-media-controls-panel {
     display: none !important;
 }
@@ -42,56 +43,69 @@
     display: none !important;
 }
 
+/* ✅ Fixed Positioning Context for Skip Button */
 #skipVideoBtn {
-    pointer-events: auto !important;
-    cursor: pointer !important;
+    position: absolute !important;
     top: max(20px, env(safe-area-inset-top)) !important;
     right: max(20px, env(safe-area-inset-right)) !important;
     z-index: 1000000 !important;
+    pointer-events: auto !important;
+    cursor: pointer !important;
 }
 
+/* Video Overlay Smooth Exit */
 .fade-out {
     opacity: 0 !important;
+    visibility: hidden !important;
     pointer-events: none !important;
 }
 
+/* ================================================================ */
+/* ROOT VARIABLES & RESET STYLES                                    */
+/* ================================================================ */
+
 :root {
-  --primary-teal: #00A8B5;
-  --primary-dark: #0A2540;
-  --bg-light: #F4F7FE;
-  --white: #FFFFFF;
-  --text-gray: #626C7A;
-  --border-color: #E2E8F0;
-  --shadow: 0px 8px 24px rgba(149, 157, 165, 0.1);
+    --primary-teal: #00A8B5;
+    --primary-dark: #0A2540;
+    --bg-light: #F4F7FE;
+    --white: #FFFFFF;
+    --text-gray: #626C7A;
+    --border-color: #E2E8F0;
+    --shadow: 0px 8px 24px rgba(149, 157, 165, 0.1);
 }
 
-* { font-family: 'Poppins', sans-serif; box-sizing: border-box; }
+* {
+    box-sizing: border-box;
+}
 
 body {
     background: #F8F9FD !important;
     min-height: 100vh;
+    min-height: 100dvh;
     margin: 0;
     padding: 0;
     -webkit-user-select: none;
     user-select: none;
     -webkit-tap-highlight-color: transparent;
     overflow-x: hidden;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    font-family: 'Poppins', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif !important;
 }
 
+/* ✅ Controlled Click Target Focus (Avoids breaking modal z-indexes) */
 button, a, .btn, [onclick] {
-    pointer-events: auto !important;
-    cursor: pointer !important;
-    z-index: 5;
-    position: relative;
+    pointer-events: auto;
+    cursor: pointer;
 }
 
-/* Ensure hidden remains hidden on all views */
+/* Universal Utility Class */
 .hidden {
     display: none !important;
 }
 
-/* --- CAMERA SCANNER VIEWPORT OVERLAY FIX --- */
+/* ================================================================ */
+/* --- CAMERA SCANNER VIEWPORT OVERLAY FIX ---                      */
+/* ================================================================ */
+
 #interactive.viewport video {
     width: 100% !important;
     height: 100% !important;
@@ -106,7 +120,7 @@ button, a, .btn, [onclick] {
     height: 100% !important;
     object-fit: cover !important;
     display: block !important;
-    position: absolute !important; /* Force overlay positioning */
+    position: absolute !important;
     top: 0 !important;
     left: 0 !important;
     pointer-events: none !important;
@@ -117,13 +131,15 @@ button, a, .btn, [onclick] {
     width: 100% !important;
     max-width: 480px !important;
     margin: 0 auto !important;
-    aspect-ratio: 1 / 1 !important;
+    min-height: 280px !important;
     overflow: hidden !important;
     border-radius: 1.5rem !important;
     display: flex !important;
     align-items: center !important;
     justify-content: center !important;
+    background: #000000 !important;
 }
+
 #reader video, #qr-reader video {
     width: 100% !important;
     height: 100% !important;
@@ -131,7 +147,10 @@ button, a, .btn, [onclick] {
     border-radius: 1.5rem !important;
 }
 
-/* Center Viewfinder Frame Box */
+/* ================================================================ */
+/* CAMERA SCANNER VIEWFINDER                                        */
+/* ================================================================ */
+
 .scanner-overlay-box {
     position: absolute !important;
     top: 50% !important;
@@ -146,7 +165,10 @@ button, a, .btn, [onclick] {
     border-radius: 1rem !important;
 }
 
-/* --- PORTAL LANDING PAGE LAYOUT --- */
+/* ================================================================ */
+/* PORTAL LANDING PAGE LAYOUT                                       */
+/* ================================================================ */
+
 .portal-main-container {
     display: flex !important;
     flex-direction: row !important;
@@ -156,6 +178,7 @@ button, a, .btn, [onclick] {
     width: 100% !important;
     max-width: 900px !important;
     margin: 48px auto !important;
+    box-sizing: border-box !important;
 }
 
 .portal-card {
@@ -170,37 +193,89 @@ button, a, .btn, [onclick] {
     .portal-main-container {
         flex-direction: column !important;
         padding: 0 20px !important;
+        margin: 24px auto !important;
     }
     .portal-card {
         width: 100% !important;
-        min-width: unset !important;
+        min-width: 0 !important;
     }
 }
+
+/* ================================================================ */
+/* NAVBAR COMPONENT                                                 */
+/* ================================================================ */
+
 .navbar {
-  background: var(--white);
-  padding: 12px 24px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  border-bottom: 2px solid var(--border-color);
-  box-shadow: var(--shadow);
-  position: sticky;
-  top: 0;
-  z-index: 1000;
+    background: var(--white);
+    padding: max(12px, env(safe-area-inset-top)) 24px 12px 24px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 2px solid var(--border-color);
+    box-shadow: var(--shadow);
+    position: sticky;
+    top: 0;
+    z-index: 1000;
 }
 
+.brand-section {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.school-title {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--primary-dark);
+    line-height: 1.2;
+}
+
+.school-title span {
+    font-size: 0.8rem;
+    font-weight: 400;
+    color: var(--primary-teal);
+    display: block;
+}
+
+.avatar {
+    width: 40px;
+    height: 40px;
+    background: var(--primary-teal);
+    color: #ffffff !important;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    flex-shrink: 0;
+}
+
+.avatar * {
+    color: #ffffff !important;
+}
+
+/* Admin Tabs */
 .admin-tab-btn {
     border: none !important;
     color: #64748b !important;
     background: transparent !important;
     position: relative;
+    padding: 8px 16px;
+    font-weight: 600;
+    transition: all 0.2s ease;
 }
 
 .admin-tab-btn.active-tab {
     color: #4f46e5 !important;
-    background: white !important;
+    background: #ffffff !important;
     box-shadow: 0 4px 12px rgba(79, 70, 229, 0.08) !important;
+    border-radius: 8px;
 }
+
+/* ================================================================ */
+/* DATA TABLES & BADGES                                             */
+/* ================================================================ */
 
 .excel-table {
     border-collapse: separate !important;
@@ -234,17 +309,32 @@ button, a, .btn, [onclick] {
 }
 
 .badge-pill {
+    display: inline-flex !important;
+    align-items: center !important;
     padding: 4px 10px !important;
     border-radius: 9999px !important;
     font-weight: 800 !important;
+    font-size: 10px !important;
     text-transform: uppercase !important;
     letter-spacing: 0.025em !important;
+    line-height: 1 !important;
 }
-.brand-section { display: flex; align-items: center; gap: 15px; }
-.school-title { font-size: 1.1rem; font-weight: 700; color: var(--primary-dark); line-height: 1.2; }
-.school-title span { font-size: 0.8rem; font-weight: 400; color: var(--primary-teal); display: block; }
-.avatar { width: 40px; height: 40px; background: var(--primary-teal); color: white !important; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 600; }
-.avatar * { color: white !important; }
+
+/* ================================================================ */
+/* KPI CONTAINERS & STAT CARDS                                      */
+/* ================================================================ */
+
+/* ✅ Cleaned Syntax Block Fixes */
+.kpi-main-grid {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.kpi-horizontal-wrapper {
+    width: 100%;
+}
 
 .kpi-horizontal-container {
     display: flex !important;
@@ -282,6 +372,7 @@ button, a, .btn, [onclick] {
     display: flex !important;
     align-items: center !important;
     justify-content: center !important;
+    flex-shrink: 0 !important;
 }
 
 .kpi-horizontal-container .stat-card-info p {
@@ -305,8 +396,9 @@ button, a, .btn, [onclick] {
     .kpi-horizontal-container {
         flex-wrap: wrap !important;
     }
+    /* ✅ Fixed Math Offset for Gap */
     .kpi-horizontal-container > .stat-card {
-        flex: 1 1 calc(50% - 16px) !important;
+        flex: 1 1 calc(50% - 8px) !important;
     }
 }
 
@@ -316,10 +408,7 @@ button, a, .btn, [onclick] {
     }
 }
 
-.kpi-main-grid {
-
-.kpi-horizontal-wrapper {
-
+/* Standard Stats Grid */
 .stats-grid {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
@@ -361,6 +450,7 @@ button, a, .btn, [onclick] {
     display: flex;
     align-items: center;
     justify-content: center;
+    flex-shrink: 0;
 }
 
 .stat-card-info {
@@ -385,20 +475,13 @@ button, a, .btn, [onclick] {
     margin: 0 0 4px 0;
 }
 
-/* Typography & Contrast Improvements */
+/* ================================================================ */
+/* TYPOGRAPHY & CONTRAST IMPROVEMENTS                               */
+/* ================================================================ */
+
 h1, h2, h3, h4, h5, h6 {
     color: #1e293b !important;
     font-weight: 700 !important;
-}
-
-.admin-tab-btn {
-    font-weight: 700 !important;
-    color: #475569 !important;
-    white-space: nowrap;
-}
-
-.admin-tab-btn.active-tab {
-    color: #4f46e5 !important;
 }
 
 .excel-table thead th {
@@ -412,10 +495,14 @@ h1, h2, h3, h4, h5, h6 {
     font-weight: 500 !important;
 }
 
-/* Tabs Navigation Overflow Fix */
+/* ================================================================ */
+/* TABS NAVIGATION OVERFLOW FIX                                     */
+/* ================================================================ */
+
 .no-scrollbar {
     display: flex !important;
     overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important; /* ✅ iOS momentum scroll */
     scrollbar-width: none !important;
     -ms-overflow-style: none !important;
 }
@@ -423,6 +510,10 @@ h1, h2, h3, h4, h5, h6 {
 .no-scrollbar::-webkit-scrollbar {
     display: none !important;
 }
+
+/* ================================================================ */
+/* ACTION PANELS & TASK SECTIONS                                    */
+/* ================================================================ */
 
 .action-panel {
     background: var(--white);
@@ -434,6 +525,7 @@ h1, h2, h3, h4, h5, h6 {
     position: relative;
     z-index: 1;
 }
+
 .action-panel h2 {
     font-size: 1.2rem !important;
     margin-bottom: 20px !important;
@@ -458,7 +550,10 @@ h1, h2, h3, h4, h5, h6 {
     display: block !important;
 }
 
-/* Redesigned Profile Card Utilities */
+/* ================================================================ */
+/* PROFILE CARD UTILITIES & AVATARS                                 */
+/* ================================================================ */
+
 .profile-img-circle {
     width: 60px !important;
     height: 60px !important;
@@ -467,6 +562,7 @@ h1, h2, h3, h4, h5, h6 {
     border: 2px solid #ffffff !important;
     box-shadow: 0 2px 8px rgba(0,0,0,0.15) !important;
     z-index: 2;
+    flex-shrink: 0 !important;
 }
 
 .avatar-initials {
@@ -485,7 +581,7 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 #staff-dash-area .bg-white.rounded-2xl {
-    transition: transform 0.2s ease;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
 #staff-dash-area .bg-white.rounded-2xl:active {
@@ -509,9 +605,15 @@ h1, h2, h3, h4, h5, h6 {
         font-size: 1.1rem !important;
     }
 }
+
+/* ================================================================ */
+/* ASSET AUDIT ACCESS BUTTONS                                       */
+/* ================================================================ */
+
 #asset-audit-access h2 {
     font-size: 1.3rem !important;
-    font-black: 900 !important;
+    /* ✅ Fixed invalid CSS property font-black */
+    font-weight: 900 !important;
     color: #1e1b4b !important;
     margin-bottom: 20px !important;
     letter-spacing: -0.025em;
@@ -539,23 +641,39 @@ h1, h2, h3, h4, h5, h6 {
 
 #asset-audit-access button .bg-white\/20 {
     background: rgba(255, 255, 255, 0.15) !important;
-    backdrop-filter: blur(4px);
-    border: 1px solid rgba(255, 255, 255, 0.2);
+    /* ✅ WebKit prefix added for Apple devices */
+    -webkit-backdrop-filter: blur(4px) !important;
+    backdrop-filter: blur(4px) !important;
+    border: 1px solid rgba(255, 255, 255, 0.2) !important;
 }
 
-.form-group { display: flex; flex-wrap: wrap; gap: 15px; }
-.form-group input, .form-group select {
-    flex: 1;
-    min-width: 200px;
+/* ================================================================ */
+/* FORM GROUPS & INPUT CONTROLS                                     */
+/* ================================================================ */
+
+.form-group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 15px;
+}
+
+.form-group input,
+.form-group select {
+    flex: 1 1 180px; /* ✅ Safe minimum scaling */
+    width: 100%;
     padding: 12px 16px !important;
     border: 1px solid var(--border-color) !important;
     border-radius: 10px !important;
     outline: none;
     color: #111827 !important;
     background-color: #ffffff !important;
+    box-sizing: border-box !important;
 }
 
-/* Explicit contrast for all interactive form elements */
+/* ================================================================ */
+/* EXPLICIT FORM & INTERACTIVE ELEMENT CONTRAST                     */
+/* ================================================================ */
+
 input, select, textarea, .form-control {
     color: #111827 !important;
     background-color: #ffffff !important;
@@ -568,7 +686,11 @@ select option {
     background-color: #ffffff !important;
 }
 
-::placeholder {
+/* ✅ Full Vendor Support for Custom Placeholders */
+::placeholder,
+::-webkit-input-placeholder,
+::-moz-placeholder,
+:-ms-input-placeholder {
     color: #6b7280 !important;
     opacity: 1 !important;
 }
@@ -581,28 +703,171 @@ select option {
     opacity: 1 !important;
 }
 
-.btn { padding: 10px 20px !important; border: none !important; border-radius: 8px !important; cursor: pointer !important; font-weight: 500 !important; display: inline-flex !important; align-items: center !important; gap: 8px !important; transition: all 0.2s ease !important; }
-.btn-teal { background: var(--primary-teal) !important; color: white !important; }
-.btn-teal * { color: white !important; }
-.btn-outline { border: 1px solid var(--primary-teal) !important; color: var(--primary-teal) !important; background: transparent !important; }
-.btn-outline * { color: var(--primary-teal) !important; }
+/* ================================================================ */
+/* BUTTON VARIANTS & UTILITIES                                      */
+/* ================================================================ */
 
-.tasks-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 20px; }
-.task-card { background: var(--white) !important; border-radius: 12px !important; padding: 16px !important; box-shadow: var(--shadow) !important; display: flex !important; flex-direction: column !important; justify-content: space-between !important; border: none !important; margin: 0 !important; }
-.task-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px; }
-.badge { font-size: 0.75rem; padding: 4px 10px; border-radius: 20px; font-weight: 500; }
-.badge-pending { background: #FFF4E5; color: #FF9800 !important; }
-.badge-completed { background: #E8F5E9; color: #4CAF50 !important; }
+.btn {
+    padding: 10px 20px !important;
+    border: none !important;
+    border-radius: 8px !important;
+    cursor: pointer !important;
+    font-weight: 500 !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 8px !important;
+    transition: all 0.2s ease !important;
+}
 
-.image-preview-container { display: flex; gap: 10px; margin: 12px 0; }
-.img-box { flex: 1; height: 120px; background: #EAEFF5; border-radius: 8px; overflow: hidden; position: relative; cursor: pointer; border: 1px dashed #CBD5E1; display: flex; align-items: center; justify-content: center; }
-.img-box img { width: 100%; height: 100%; object-fit: cover; transition: transform 0.3s ease; opacity: 1 !important; }
-.img-label { position: absolute; bottom: 4px; left: 4px; background: rgba(10, 37, 64, 0.75); color: white !important; font-size: 0.65rem; padding: 2px 6px; border-radius: 4px; }
-.img-label * { color: white !important; }
+.btn-teal {
+    background: var(--primary-teal) !important;
+    color: #ffffff !important;
+}
 
-.modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.9); z-index: 2000; justify-content: center; align-items: center; flex-direction: column; }
-.modal img { max-width: 90%; max-height: 80%; border-radius: 8px; }
-.modal-close { position: absolute; top: 20px; right: 25px; color: white !important; font-size: 2.2rem; cursor: pointer; }
+.btn-teal * {
+    color: #ffffff !important;
+}
+
+.btn-outline {
+    border: 1px solid var(--primary-teal) !important;
+    color: var(--primary-teal) !important;
+    background: transparent !important;
+}
+
+.btn-outline * {
+    color: var(--primary-teal) !important;
+}
+
+/* ================================================================ */
+/* TASKS GRID & CARD CONTAINERS                                     */
+/* ================================================================ */
+
+.tasks-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 20px;
+}
+
+.task-card {
+    background: var(--white) !important;
+    border-radius: 12px !important;
+    padding: 16px !important;
+    box-shadow: var(--shadow) !important;
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: space-between !important;
+    border: 1px solid #e2e8f0 !important;
+    margin: 0 !important;
+}
+
+.task-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 10px;
+}
+
+.badge {
+    font-size: 0.75rem;
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-weight: 600;
+}
+
+.badge-pending {
+    background: #FFF4E5;
+    color: #FF9800 !important;
+}
+
+.badge-completed {
+    background: #E8F5E9;
+    color: #4CAF50 !important;
+}
+
+/* ================================================================ */
+/* IMAGE PREVIEW & LIGHTBOX MODAL                                   */
+/* ================================================================ */
+
+.image-preview-container {
+    display: flex;
+    flex-wrap: wrap; /* ✅ Wrap photos gracefully on mobile */
+    gap: 10px;
+    margin: 12px 0;
+}
+
+.img-box {
+    flex: 1 1 110px;
+    height: 120px;
+    background: #EAEFF5;
+    border-radius: 8px;
+    overflow: hidden;
+    position: relative;
+    cursor: pointer;
+    border: 1px dashed #CBD5E1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.img-box img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 0.3s ease;
+    opacity: 1 !important;
+}
+
+.img-label {
+    position: absolute;
+    bottom: 4px;
+    left: 4px;
+    background: rgba(10, 37, 64, 0.85);
+    color: #ffffff !important;
+    font-size: 0.65rem;
+    padding: 2px 6px;
+    border-radius: 4px;
+}
+
+.img-label * {
+    color: #ffffff !important;
+}
+
+/* Lightbox Modal Z-Index Hierarchy Corrected */
+.modal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    height: 100dvh;
+    background: rgba(0, 0, 0, 0.9);
+    z-index: 1000000 !important; /* ✅ Elevated over all overlays */
+    justify-content: center;
+    align-items: center;
+    flex-direction: column;
+}
+
+.modal img {
+    max-width: 90%;
+    max-height: 80%;
+    border-radius: 8px;
+    object-fit: contain;
+}
+
+.modal-close {
+    position: absolute;
+    top: max(20px, env(safe-area-inset-top));
+    right: max(25px, env(safe-area-inset-right));
+    color: #ffffff !important;
+    font-size: 2.2rem;
+    cursor: pointer;
+}
+
+/* ================================================================ */
+/* RESPONSIVE LAYOUT STRUCTURE & CONTAINER SAFETY                   */
+/* ================================================================ */
 
 .app-container {
     width: 100%;
@@ -612,29 +877,25 @@ select option {
     display: flex;
     flex-direction: column;
     position: relative;
-    padding: 16px;
+    padding: 16px !important; /* ✅ Restored safe padding */
     box-sizing: border-box;
     overflow-x: hidden;
     -webkit-overflow-scrolling: touch;
 }
 
-/* Ensure nothing overflows */
-* {
-    box-sizing: border-box;
-}
-
-/* --- RESPONSIVE DASHBOARD CONTAINERS --- */
-.app-container, .main-card, .dashboard-wrapper, #view-admin-dash > div {
+/* Controlled Container Reset */
+.main-card,
+.dashboard-wrapper,
+#view-admin-dash > div {
     width: 100% !important;
     max-width: 100% !important;
     margin: 0 auto 20px auto !important;
-    padding: 0 !important;
 }
 
-/* Media Query Overrides for Mobile */
+/* Mobile Adjustments (≤ 768px) */
 @media screen and (max-width: 768px) {
     .app-container {
-        padding: 12px;
+        padding: 12px !important;
     }
 
     .stats-grid {
@@ -652,27 +913,39 @@ select option {
     }
 }
 
-/* Ensure tables & tab contents expand 100% */
+/* Table Overflow Safety */
 table, .admin-tab, .overflow-x-auto {
     width: 100% !important;
     overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
 }
 
-/* Global Safety - Prevent Horizontal Scrolling on all screens */
+/* Global Prevent Horizontal Scroll Barrier */
 html, body {
-  max-width: 100vw !important;
-  overflow-x: hidden !important;
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
-  scroll-behavior: smooth;
-  touch-action: manipulation;
+    max-width: 100vw !important;
+    overflow-x: hidden !important;
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    scroll-behavior: smooth;
+    /* ✅ Natural touch behavior restored */
+    touch-action: auto;
 }
 
-/* --- ASSET DATA TABLE STYLES --- */
-#asset-master-table th, #asset-master-table td {
+/* ================================================================ */
+/* ASSET MASTER DATA TABLE STYLES & CUSTOM SCROLLBARS               */
+/* ================================================================ */
+
+#asset-master-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+}
+
+#asset-master-table th,
+#asset-master-table td {
     padding: 12px 16px;
-    border-bottom: 1px solid #e0e0e0;
+    border-bottom: 1px solid #e2e8f0;
     white-space: nowrap;
 }
 
@@ -682,7 +955,10 @@ html, body {
     font-weight: 700;
     text-transform: uppercase;
     font-size: 11px;
-    border-bottom: 2px solid #e2e8f0;
+    border-bottom: 2px solid #cbd5e1;
+    position: sticky; /* ✅ Sticky Table Header */
+    top: 0;
+    z-index: 5;
 }
 
 #asset-master-table tbody td {
@@ -698,30 +974,34 @@ html, body {
     border-right: 1px solid #e2e8f0;
 }
 
-#view-admin-dash .overflow-x-auto {
+/* Scrollbar Customization for Admin Panels */
+#view-admin-dash .overflow-x-auto,
+.custom-scrollbar {
     scrollbar-width: thin;
     scrollbar-color: #cbd5e1 #f8f9fa;
 }
 
-#view-admin-dash .overflow-x-auto::-webkit-scrollbar {
-    height: 8px;
-    width: 8px;
+#view-admin-dash .overflow-x-auto::-webkit-scrollbar,
+.custom-scrollbar::-webkit-scrollbar {
+    height: 6px;
+    width: 6px;
 }
 
-#view-admin-dash .overflow-x-auto::-webkit-scrollbar-track {
+#view-admin-dash .overflow-x-auto::-webkit-scrollbar-track,
+.custom-scrollbar::-webkit-scrollbar-track {
     background: #f8f9fa;
 }
 
-#view-admin-dash .overflow-x-auto::-webkit-scrollbar-thumb {
+#view-admin-dash .overflow-x-auto::-webkit-scrollbar-thumb,
+.custom-scrollbar::-webkit-scrollbar-thumb {
     background-color: #cbd5e1;
     border-radius: 10px;
-    border: 2px solid #f8f9fa;
 }
 
-/* ========================================================= */
-/* ðŸ“± MOBILE LAYOUT RESET & VISIBILITY FIX                   */
-/* ========================================================= */
-/* Horizontal Scrollable Tabs for Mobile */
+/* ================================================================ */
+/* NAVIGATION TABS & UTILITIES                                      */
+/* ================================================================ */
+
 .no-scrollbar::-webkit-scrollbar {
     display: none;
 }
@@ -738,28 +1018,18 @@ html, body {
     z-index: 10;
 }
 
-/* Specific styling for new Admin Tabs */
-#tabVisitorLogs, #tabStaffLogs {
+/* Admin Specific Visitor & Staff Logs Tabs */
+#tabVisitorLogs,
+#tabStaffLogs {
     cursor: pointer;
     transition: all 0.3s ease;
 }
 
-#tabVisitorLogs.active-tab, #tabStaffLogs.active-tab {
+#tabVisitorLogs.active-tab,
+#tabStaffLogs.active-tab {
     background: #e0f2fe !important;
     border-bottom: 4px solid #0369a1 !important;
     color: #0369a1 !important;
-}
-
-/* Custom Scrollbar for Responsive Tables */
-.custom-scrollbar::-webkit-scrollbar {
-    height: 6px;
-}
-.custom-scrollbar::-webkit-scrollbar-track {
-    background: #f1f5f9;
-}
-.custom-scrollbar::-webkit-scrollbar-thumb {
-    background: #cbd5e1;
-    border-radius: 10px;
 }
 
 .truncate {
@@ -768,21 +1038,20 @@ html, body {
     white-space: nowrap;
 }
 
-@media screen and (max-width: 768px) {
-    .overflow-x-auto {
-        -webkit-overflow-scrolling: touch;
-    }
-}
+/* Modern Glassmorphism Utility */
 .glass-morphism {
-    background: rgba(255, 255, 255, 0.8) !important;
+    background: rgba(255, 255, 255, 0.85) !important;
+    -webkit-backdrop-filter: blur(12px) !important; /* ✅ Safari Compatibility */
     backdrop-filter: blur(12px) !important;
-    border: 1px solid rgba(255, 255, 255, 0.3) !important;
+    border: 1px solid rgba(255, 255, 255, 0.4) !important;
     box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.07) !important;
 }
 
-/* Fix for top-level navbar in staff-login.html */
-/* Force hide any legacy registration elements */
-#s-tab-reg, #register-tab, .register-link, [onclick*="toggleStaffTab('reg')"] {
+/* Legacy Staff Registration Link Elimination */
+#s-tab-reg,
+#register-tab,
+.register-link,
+[onclick*="toggleStaffTab('reg')"] {
     display: none !important;
     visibility: hidden !important;
     height: 0 !important;
@@ -797,40 +1066,51 @@ html, body {
     background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%) !important;
 }
 
+/* ================================================================ */
+/* MOBILE LAYOUT & NAVIGATION OVERRIDES (≤ 768px)                    */
+/* ================================================================ */
+
 @media screen and (max-width: 768px) {
     html, body {
-      overflow-x: hidden !important;
-      overflow-y: auto !important; /* ENABLE SCROLLING */
-      width: 100vw !important;
-      height: auto !important;
+        overflow-x: hidden !important;
+        overflow-y: auto !important;
+        width: 100% !important; /* ✅ Fixed viewport width clipping bug */
+        height: auto !important;
     }
 
-    /* Prevent Single Page Dump: Strict Routing */
-    .view-section.hidden, .hidden, [style*="display: none"] {
-      display: none !important;
-      visibility: hidden !important;
-      height: 0 !important;
-      overflow: hidden !important;
-      position: absolute !important;
+    .overflow-x-auto {
+        -webkit-overflow-scrolling: touch;
     }
-    .view-section.active, .active {
-      display: block !important;
-      visibility: visible !important;
-      height: auto !important;
-      position: relative !important;
-      width: 100% !important;
-      overflow-y: visible !important;
+
+    /* Target View Sections Explicitly (Prevents .active Class Collisions) */
+    .view-section.hidden,
+    div.hidden,
+    [style*="display: none"] {
+        display: none !important;
+        visibility: hidden !important;
+        height: 0 !important;
+        overflow: hidden !important;
+        position: absolute !important;
+    }
+
+    .view-section.active {
+        display: block !important;
+        visibility: visible !important;
+        height: auto !important;
+        position: relative !important;
+        width: 100% !important;
+        overflow-y: visible !important;
     }
 
     /* Natural Card Scaling & Proportions */
     .app-container {
-      width: 100% !important;
-      max-width: 100% !important;
-      margin: 0 !important;
-      padding: 12px !important;
-      display: block !important; /* Remove flex on mobile to allow natural scroll */
-      height: auto !important;
-      min-height: 100vh !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        margin: 0 !important;
+        padding: 12px !important;
+        display: block !important;
+        height: auto !important;
+        min-height: 100vh !important;
     }
 
     #duplicate-card-content {
@@ -850,29 +1130,22 @@ html, body {
         text-align: left !important;
     }
 
-    .portal-container, .container, .main-card, #staff-auth-area, #view-admin-dash > div {
-      width: 96% !important;
-      max-width: 100% !important;
-      margin: 10px auto !important;
-      padding: 20px 10px !important;
-      box-sizing: border-box !important;
-      border-radius: 16px !important;
-      box-shadow: var(--shadow) !important;
+    .portal-container,
+    .container,
+    .main-card,
+    #staff-auth-area,
+    #view-admin-dash > div {
+        width: 96% !important;
+        max-width: 100% !important;
+        margin: 10px auto !important;
+        padding: 20px 12px !important;
+        box-sizing: border-box !important;
+        border-radius: 16px !important;
+        box-shadow: var(--shadow) !important;
     }
 
-    /* STRICT MOBILE HEADER FIX */
-    /* Force hide any legacy registration elements */
-#s-tab-reg, #register-tab, .register-link, [onclick*="toggleStaffTab('reg')"] {
-    display: none !important;
-    visibility: hidden !important;
-    height: 0 !important;
-    width: 0 !important;
-    padding: 0 !important;
-    margin: 0 !important;
-    overflow: hidden !important;
-}
-
-#view-staff > nav {
+    /* STRICT MOBILE HEADER STYLING */
+    #view-staff > nav {
         display: flex !important;
         flex-direction: column !important;
         align-items: center !important;
@@ -886,13 +1159,19 @@ html, body {
         position: relative !important;
     }
 
-    #view-staff > nav a, #view-staff > nav h2, #view-staff > nav button {
+    #view-staff > nav a,
+    #view-staff > nav h2,
+    #view-staff > nav button {
         width: 100% !important;
         text-align: center !important;
         justify-content: center !important;
     }
+}
 
-    /* PROFILE CARD STACKING */
+    /* ================================================================ */
+    /* STAFF DASHBOARD PROFILE CARD STACKING                            */
+    /* ================================================================ */
+
     #staff-dash-area .bg-white.rounded-\[2rem\] {
         padding: 24px 16px !important;
     }
@@ -953,16 +1232,27 @@ html, body {
         opacity: 1 !important;
     }
 
-    /* Fix Cut-off Textboxes & Inputs */
-    input, select, textarea {
-      width: 100% !important;
-      height: 52px !important;
-      padding: 12px 16px !important;
-      font-size: 16px !important;
-      box-sizing: border-box !important;
-      border-radius: 10px !important;
-      border: 1px solid var(--border-color) !important;
-      display: block !important;
+    /* ================================================================ */
+    /* FORM INPUTS & RESPONSIVE LAYOUT FIXES                            */
+    /* ================================================================ */
+
+    /* ✅ Target text-based form controls safely (Excludes Checkboxes & Radios) */
+    input:not([type="checkbox"]):not([type="radio"]):not([type="color"]):not([type="range"]),
+    select,
+    textarea {
+        width: 100% !important;
+        height: 52px;
+        padding: 12px 16px !important;
+        font-size: 16px !important;
+        box-sizing: border-box !important;
+        border-radius: 10px !important;
+        border: 1px solid var(--border-color, #d1d5db) !important;
+        display: block !important;
+    }
+
+    textarea {
+        height: auto !important;
+        min-height: 100px !important;
     }
 
     /* Force single column for registration grid on mobile */
@@ -971,15 +1261,27 @@ html, body {
         flex-direction: column !important;
         gap: 15px !important;
     }
-    textarea { height: auto !important; min-height: 100px !important; }
 
-    /* Enlarge Homepage Icons & Logo */
+    /* Landing Page Icon & Logo Enlargement */
     #view-landing .w-24 {
-      width: 90px !important;
-      height: 90px !important;
+        width: 90px !important;
+        height: 90px !important;
     }
 
-    /* Task Action Buttons Optimization */
+    #view-landing .bg-indigo-600,
+    #view-landing .bg-purple-600 {
+        padding: 1.5rem !important;
+    }
+
+    #view-landing svg {
+        width: 3.5rem !important;
+        height: 3.5rem !important;
+    }
+
+    /* ================================================================ */
+    /* TASK ACTIONS & INTERACTIVE ELEMENTS                              */
+    /* ================================================================ */
+
     .task-actions-container {
         display: flex !important;
         flex-direction: row !important;
@@ -988,81 +1290,86 @@ html, body {
         margin-top: 15px !important;
     }
 
-    .btn-task-accept, .btn-task-reject {
+    .btn-task-accept,
+    .btn-task-reject {
         flex: 1 !important;
         min-height: 48px !important;
-        font-size: 0.8rem !important;
+        font-size: 0.85rem !important;
         display: flex !important;
         align-items: center !important;
         justify-content: center !important;
         border: none !important;
-    }
-    #view-landing .bg-indigo-600, #view-landing .bg-purple-600 {
-      padding: 1.5rem !important; /* Scale up purple icons */
-    }
-    #view-landing svg {
-      width: 3.5rem !important;
-      height: 3.5rem !important;
+        border-radius: 8px !important;
     }
 
-    /* Interactions Fix - CRITICAL FOR MOBILE SCROLLING */
-    html, body, .app-container, .view-section, .portal-container, .portal-options, a, button, div, span, p {
-      touch-action: auto !important; /* Ensures the whole page and all elements allow scrolling */
+    /* Global Touch & Pointer Safety */
+    html, body, .app-container, .view-section, .portal-container, .portal-options {
+        touch-action: auto !important;
     }
 
     button, a, .btn, [onclick] {
-      pointer-events: auto !important;
-      z-index: 10 !important;
-      cursor: pointer !important;
+        pointer-events: auto !important;
+        cursor: pointer !important;
     }
 
-    /* Global Signature Fixes */
-canvas#sig-canvas, canvas#v-sig-pad {
-    pointer-events: auto !important;
-    touch-action: none !important;
-    z-index: 10005 !important;
-    position: relative !important;
-    background-color: #ffffff !important;
-}
+    /* ================================================================ */
+    /* SIGNATURE CANVAS & DRAWING PADS                                  */
+    /* ================================================================ */
 
-/* Staff UI and Transfer Form styles have been moved to staff-ui.css */
+    canvas#sig-canvas,
+    canvas#v-sig-pad {
+        pointer-events: auto !important;
+        touch-action: none !important; /* ✅ Prevents page scrolling while drawing */
+        z-index: 10005 !important;
+        position: relative !important;
+        background-color: #ffffff !important;
+    }
 
-/* GLOBAL INPUT & VISIBILITY FIX (DESKTOP & MOBILE) */
-.transfer-form input,
-.transfer-form select,
-.transfer-form textarea,
-input[type="text"],
-input[type="tel"],
-input[type="date"],
-input[type="number"] {
-    background-color: #ffffff !important;
-    border: 2px solid #64748b !important;
-    color: #0f172a !important;
-    border-radius: 8px !important;
-    padding: 10px !important;
-    opacity: 1 !important;
-}
+    canvas,
+    .signature-pad {
+        background-color: #ffffff !important;
+        border: 2px dashed #475569 !important;
+        border-radius: 8px !important;
+    }
 
-::placeholder {
-    color: #64748b !important;
-    opacity: 1 !important;
-}
+    /* ================================================================ */
+    /* TRANSFER FORM & HIGHER CONTRAST INPUTS                           */
+    /* ================================================================ */
 
-canvas, .signature-pad {
-    background-color: #ffffff !important;
-    border: 2px dashed #475569 !important;
-    border-radius: 8px !important;
-}
+    .transfer-form input,
+    .transfer-form select,
+    .transfer-form textarea,
+    input[type="text"],
+    input[type="tel"],
+    input[type="date"],
+    input[type="number"] {
+        background-color: #ffffff !important;
+        border: 2px solid #64748b !important;
+        color: #0f172a !important;
+        border-radius: 8px !important;
+        padding: 10px !important;
+        opacity: 1 !important;
+    }
 
-.nav-back-btn, .nav-logout-btn, header button {
-    display: inline-flex !important;
-    opacity: 1 !important;
-    visibility: visible !important;
-}
+    .transfer-form input::placeholder,
+    .transfer-form textarea::placeholder,
+    input::placeholder {
+        color: #64748b !important;
+        opacity: 1 !important;
+    }
 
-/* ========================================================= */
-/* ✅ GLOBAL SUCCESS POPUP ANIMATION (v3.5.1 PREMIUM)        */
-/* ========================================================= */
+    .nav-back-btn,
+    .nav-logout-btn,
+    header button {
+        display: inline-flex !important;
+        opacity: 1 !important;
+        visibility: visible !important;
+    }
+
+/* ================================================================ */
+/* GLOBAL SUCCESS POPUP ANIMATION (v3.5.1 PREMIUM)                  */
+/* ================================================================ */
+
 #global-success-popup {
     position: fixed;
     inset: 0;
@@ -1077,14 +1384,15 @@ canvas, .signature-pad {
 }
 
 .success-modal-card {
-    background: white;
+    background: #ffffff;
     width: 90%;
     max-width: 320px;
     padding: 40px 20px;
     border-radius: 40px;
     text-align: center;
-    box-shadow: 0 20px 50px rgba(0,0,0,0.2);
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.2);
     transform: scale(0.8);
+    will-change: transform, opacity; /* ✅ Smooth Rendering */
     animation: scaleInCard 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
 }
 
@@ -1119,14 +1427,32 @@ canvas, .signature-pad {
 
 /* Responsive Scaling */
 @media (min-width: 768px) {
-    .success-modal-card { max-width: 400px; padding: 60px 40px; }
-    .success-icon-box { width: 100px; height: 100px; font-size: 50px; }
-    .success-modal-card h3 { font-size: 22px; }
+    .success-modal-card {
+        max-width: 400px;
+        padding: 60px 40px;
+    }
+    .success-icon-box {
+        width: 100px;
+        height: 100px;
+        font-size: 50px;
+    }
+    .success-modal-card h3 {
+        font-size: 22px;
+    }
 }
 
-@keyframes fadeInModal { from { opacity: 0; } to { opacity: 1; } }
-@keyframes scaleInCard { from { transform: scale(0.8); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+/* Modal Keyframes */
+@keyframes fadeInModal {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
 
+@keyframes scaleInCard {
+    from { transform: scale(0.8); opacity: 0; }
+    to { transform: scale(1); opacity: 1; }
+}
+
+/* Checkmark SVG Vector Animations */
 .checkmark-circle {
     stroke-dasharray: 166;
     stroke-dashoffset: 166;
@@ -1143,7 +1469,7 @@ canvas, .signature-pad {
     border-radius: 50%;
     display: block;
     stroke-width: 2;
-    stroke: #fff;
+    stroke: #ffffff;
     stroke-miterlimit: 10;
     box-shadow: inset 0px 0px 0px #10b981;
     animation: fill .4s ease-in-out .4s forwards, scale .3s ease-in-out .9s both;
@@ -1156,28 +1482,45 @@ canvas, .signature-pad {
     animation: stroke 0.3s cubic-bezier(0.65, 0, 0.45, 1) 0.8s forwards;
 }
 
-@keyframes stroke { 100% { stroke-dashoffset: 0; } }
-@keyframes scale { 0%, 100% { transform: none; } 50% { transform: scale3d(1.1, 1.1, 1); } }
-@keyframes fill { 100% { box-shadow: inset 0px 0px 0px 30px #10b981; } }
+@keyframes stroke {
+    100% { stroke-dashoffset: 0; }
+}
 
-/* Modal Container Styling with Proper Display Handlers */
+@keyframes scale {
+    0%, 100% { transform: none; }
+    50% { transform: scale3d(1.1, 1.1, 1); }
+}
+
+@keyframes fill {
+    100% { box-shadow: inset 0px 0px 0px 100px #10b981; }
+}
+
+/* ================================================================ */
+/* ADD STAFF MODAL & SCROLL SAFEGUARDS                              */
+/* ================================================================ */
+
 #add-staff-modal {
     position: fixed;
     inset: 0;
     background: rgba(15, 23, 42, 0.85);
     backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
     z-index: 100001;
+    overflow-y: auto; /* ✅ Allows vertical scrolling if modal content overflows */
+    padding: 20px 10px;
 }
 
 #add-staff-modal:not(.hidden) {
     display: flex !important;
+    align-items: center;
+    justify-content: center;
 }
 
 #add-staff-modal.hidden {
     display: none !important;
 }
 
-/* Input Fields General Styling */
+/* Input Fields Inside Add Staff Modal */
 #add-staff-modal input,
 #add-staff-modal select {
     color: #0f172a !important;
@@ -1193,7 +1536,7 @@ canvas, .signature-pad {
     box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.15) !important;
 }
 
-/* Responsive Scaling for Mobile Screens */
+/* Responsive Form Controls for Mobile Screens */
 @media screen and (max-width: 640px) {
     #add-staff-modal input,
     #add-staff-modal select {
@@ -1202,50 +1545,63 @@ canvas, .signature-pad {
     }
 }
 
+/* Logo Pulse Animation */
 @keyframes logoPulseScale {
-    0% { transform: scale(0.85); -webkit-transform: scale(0.85); opacity: 0.7; }
-    50% { transform: scale(1.15); -webkit-transform: scale(1.15); opacity: 1; }
-    100% { transform: scale(0.85); -webkit-transform: scale(0.85); opacity: 0.7; }
+    0% { transform: scale(0.85); opacity: 0.7; }
+    50% { transform: scale(1.15); opacity: 1; }
+    100% { transform: scale(0.85); opacity: 0.7; }
 }
 
 .logo-pulse-anim {
     animation: logoPulseScale 1.2s ease-in-out infinite !important;
-    -webkit-animation: logoPulseScale 1.2s ease-in-out infinite !important;
     will-change: transform, opacity;
 }
 
-/* Sticky Action Column for Tables */
+/* ================================================================ */
+/* DATA TABLE STICKY ACTION COLUMN & UTILITY BUTTONS                */
+/* ================================================================ */
+
 .sticky-action-col {
     position: sticky !important;
     right: 0;
-    background: inherit;
+    background: #ffffff !important; /* ✅ Solid background prevents text overlay bleed */
     z-index: 20;
-    box-shadow: -4px 0 8px -2px rgba(0,0,0,0.05);
+    box-shadow: -4px 0 8px -2px rgba(0, 0, 0, 0.05);
     border-left: 1px solid #f1f5f9;
+}
+
+tr:hover .sticky-action-col {
+    background: #f1f5f9 !important; /* ✅ Matches table hover state */
 }
 
 .btn-eye-view {
     width: 32px;
     height: 32px;
+    flex-shrink: 0; /* ✅ Prevents deform in squeezed layout */
     display: flex;
     align-items: center;
     justify-content: center;
     background: #eef2ff;
     color: #4f46e5;
     border-radius: 8px;
-    transition: all 0.2s;
+    transition: all 0.2s ease;
+    border: none;
+    cursor: pointer;
 }
 
 .btn-eye-view:hover {
     background: #4f46e5;
-    color: white;
-    transform: scale(1.1);
+    color: #ffffff;
+    transform: scale(1.08);
 }
 
 
 
 
-/* --- ASSET PROFILE MODAL (PREMIUM) --- */
+/* ================================================================ */
+/* ASSET PROFILE MODAL (PREMIUM UI COMPONENTS)                      */
+/* ================================================================ */
+
 .asset-profile-hero {
     padding: 24px;
     background: #f8fafc;
@@ -1261,8 +1617,8 @@ canvas, .signature-pad {
     height: 250px;
     border-radius: 24px;
     overflow: hidden;
-    border: 4px solid #fff;
-    box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+    border: 4px solid #ffffff;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
     cursor: zoom-in;
 }
 
@@ -1270,26 +1626,29 @@ canvas, .signature-pad {
     width: 100%;
     height: 100%;
     object-fit: cover;
-    transition: transform 0.5s ease;
+    transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.asset-profile-photo:hover {
-    transform: scale(1.05);
+@media (hover: hover) {
+    .asset-profile-photo:hover {
+        transform: scale(1.05);
+    }
 }
 
 .photo-overlay-badge {
     position: absolute;
     bottom: 12px;
     right: 12px;
-    background: rgba(15, 23, 42, 0.6);
-    backdrop-filter: blur(4px);
-    color: white;
+    background: rgba(15, 23, 42, 0.75);
+    -webkit-backdrop-filter: blur(6px); /* ✅ Safari Support */
+    backdrop-filter: blur(6px);
+    color: #ffffff;
     padding: 4px 10px;
     border-radius: 20px;
-    font-size: 8px;
+    font-size: 10px; /* ✅ Upgraded for readability */
     font-weight: 800;
     text-transform: uppercase;
-    letter-spacing: 1px;
+    letter-spacing: 0.5px;
 }
 
 .asset-profile-photo-fallback {
@@ -1305,6 +1664,10 @@ canvas, .signature-pad {
     border: 2px dashed #cbd5e1;
 }
 
+/* ================================================================ */
+/* DATA GRID & ASSET METADATA SECTIONS                             */
+/* ================================================================ */
+
 .asset-profile-data-grid {
     padding: 24px;
 }
@@ -1314,7 +1677,7 @@ canvas, .signature-pad {
     font-weight: 900;
     color: #4f46e5;
     text-transform: uppercase;
-    letter-spacing: 2px;
+    letter-spacing: 1.5px;
     margin-bottom: 20px;
     display: flex;
     align-items: center;
@@ -1326,7 +1689,7 @@ canvas, .signature-pad {
     padding: 12px 16px;
     border-radius: 12px;
     border: 1px solid #f1f5f9;
-    transition: all 0.2s;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
 .asset-detail-item:hover {
@@ -1336,15 +1699,16 @@ canvas, .signature-pad {
 
 .detail-label {
     display: block;
-    font-size: 8px;
+    font-size: 10px; /* ✅ Enhanced Legibility */
     font-weight: 800;
-    color: #94a3b8;
+    color: #64748b;
     text-transform: uppercase;
     margin-bottom: 4px;
+    letter-spacing: 0.5px;
 }
 
 .detail-value {
-    font-size: 12px;
+    font-size: 13px;
     font-weight: 700;
     color: #1e293b;
     margin: 0;
@@ -1357,32 +1721,43 @@ canvas, .signature-pad {
     border-top: 1px solid #e2e8f0;
 }
 
-/* Modal specific animation and layout fix */
-.asset-details-modal.active {
+/* ================================================================ */
+/* ASSET DETAILS MODAL DIALOG CONTAINER                             */
+/* ================================================================ */
+
+.asset-details-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 100000;
+    background: rgba(15, 23, 42, 0.75);
+    -webkit-backdrop-filter: blur(4px);
+    backdrop-filter: blur(4px);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+}
+
+.asset-details-modal.active:not(.hidden) {
     display: flex !important;
 }
 
 .asset-details-modal .modal-container {
-    width: 95%;
+    width: 100%;
     max-width: 700px;
     max-height: 90vh;
-    background: white;
-    border-radius: 32px;
+    max-height: 90dvh;
+    background: #ffffff;
+    border-radius: 24px;
     overflow: hidden;
     display: flex;
     flex-direction: column;
     box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
 }
 
-.asset-details-modal .modal-body {
-    overflow-y: auto;
-    flex: 1;
-    background: #f8fafc;
-}
-
 .asset-details-modal .modal-header {
     background: #1e1b4b;
-    color: white;
+    color: #ffffff;
     padding: 20px 24px;
     display: flex;
     justify-content: space-between;
@@ -1394,19 +1769,27 @@ canvas, .signature-pad {
     font-weight: 900;
     margin: 0;
     text-transform: uppercase;
+    letter-spacing: 0.5px;
 }
 
 .asset-details-modal .modal-subtitle {
-    font-size: 10px;
-    color: rgba(255,255,255,0.6);
+    font-size: 11px;
+    color: rgba(255, 255, 255, 0.7);
     margin: 2px 0 0 0;
     font-weight: 700;
     text-transform: uppercase;
 }
 
+.asset-details-modal .modal-body {
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch; /* ✅ Smooth Mobile Scroll */
+    flex: 1;
+    background: #f8fafc;
+}
+
 .asset-details-modal .modal-footer {
     padding: 16px 24px;
-    background: white;
+    background: #ffffff;
     display: flex;
     justify-content: flex-end;
     border-top: 1px solid #f1f5f9;
@@ -1422,7 +1805,7 @@ canvas, .signature-pad {
     text-transform: uppercase;
     border: none;
     cursor: pointer;
-    transition: all 0.2s;
+    transition: background 0.2s ease, color 0.2s ease;
 }
 
 .modal-close-btn-bottom:hover {

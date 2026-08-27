@@ -1,7 +1,8 @@
 /**
- * Excel Import — COMPLETE 39+ HEADERS
+ * Excel Import — COMPLETE 39+ HEADERS (FIXED v4.1)
  * ---------------------------------------------------------------
  * ALL headers from Excel file properly mapped and displayed
+ * Fixed: Firebase key sanitization, batch validation, error recovery
  * ---------------------------------------------------------------
  */
 
@@ -127,12 +128,49 @@ function findMatchingField(excelHeader) {
 }
 
 // ================================================================ */
-// PAGINATION STATE                                                 */
+// ✅ FIXED: SAFE FIREBASE KEY SANITIZATION                         */
 // ================================================================ */
 
-window.paginationState = window.paginationState || {};
-window._currentAssets = [];
-window._currentHeaders = [];
+function sanitizeFirebaseKey(key) {
+    if (!key) return 'unknown_' + Date.now();
+    // Remove invalid Firebase characters: . # $ [ ] /
+    let sanitized = String(key)
+        .trim()
+        .replace(/[.#$\[\]/]/g, '_')
+        .replace(/^_+|_+$/g, ''); // Remove leading/trailing underscores
+
+    // If empty after sanitization, generate fallback
+    if (!sanitized) {
+        sanitized = 'asset_' + Date.now();
+    }
+    return sanitized;
+}
+
+// ================================================================ */
+// ✅ FIXED: DUPLICATE CHECK BEFORE IMPORT                          */
+// ================================================================ */
+
+async function checkExistingAssets(barcodes) {
+    const existing = [];
+    const newAssets = [];
+
+    for (const barcode of barcodes) {
+        const sanitized = sanitizeFirebaseKey(barcode);
+        try {
+            const snap = await get(ref(db, `assets/${sanitized}`));
+            if (snap.exists()) {
+                existing.push(barcode);
+            } else {
+                newAssets.push(barcode);
+            }
+        } catch (e) {
+            // If check fails, assume it's new
+            newAssets.push(barcode);
+        }
+    }
+
+    return { existing, newAssets };
+}
 
 // ================================================================ */
 // CORE PARSER - STANDARD ROW-BASED SHEET                          */
@@ -176,6 +214,7 @@ function parseStandardAssetSheet(worksheet) {
 
     const assets = [];
     const skipped = [];
+    const barcodes = [];
 
     jsonData.forEach((row, index) => {
         try {
@@ -185,8 +224,13 @@ function parseStandardAssetSheet(worksheet) {
                 const mappedField = headerMapping[header];
                 let value = row[header];
 
+                // Clean up value
                 if (typeof value === 'string') {
                     value = value.trim();
+                }
+                // Convert empty strings to null
+                if (value === '' || value === undefined || value === null) {
+                    value = null;
                 }
 
                 if (mappedField) {
@@ -207,13 +251,21 @@ function parseStandardAssetSheet(worksheet) {
                 return;
             }
 
-            const cleanBarcode = String(barcode).trim().toUpperCase();
+            const cleanBarcode = String(barcode).trim();
+            barcodes.push(cleanBarcode);
+
+            // ✅ FIXED: Use sanitized key for Firebase
+            const sanitizedId = sanitizeFirebaseKey(cleanBarcode);
 
             assets.push({
-                _id: cleanBarcode,
+                _id: sanitizedId,
+                _rawBarcode: cleanBarcode,
                 _row: index + 2,
                 ...assetObj,
-                assetBarcode: cleanBarcode
+                assetBarcode: cleanBarcode,
+                originalBarcode: cleanBarcode,
+                importedAt: new Date().toISOString(),
+                _version: 1
             });
 
         } catch (error) {
@@ -233,83 +285,117 @@ function parseStandardAssetSheet(worksheet) {
         mappedHeaders: headerMapping,
         mappedCount: mappedCount,
         totalHeaders: rawHeaders.length,
-        skipped
+        skipped,
+        barcodes
     };
 }
 
 // ================================================================ */
-// FIREBASE SAVE - SAVE ALL 39 FIELDS                              */
+// ✅ FIXED: FIREBASE SAVE WITH BATCH VALIDATION & ERROR RECOVERY  */
 // ================================================================ */
 
 async function saveAssetsToFirebase(assets) {
-    if (!assets.length) {
+    if (!assets || assets.length === 0) {
         console.warn("No assets to save — skipping Firebase write.");
-        return { saved: 0, failed: 0 };
+        return { saved: 0, failed: 0, errors: [] };
     }
 
     let saved = 0;
     let failed = 0;
-    const BATCH_SIZE = 50;
+    const errors = [];
 
-    window.showGlobalSpinner("Saving Batch to Database...");
-    console.log(`💾 Saving ${assets.length} assets to Firebase...`);
+    // ✅ FIXED: Smaller batch size for better reliability
+    const BATCH_SIZE = 25;
+
+    window.showGlobalSpinner(`Saving ${assets.length} assets to Database...`);
+    console.log(`💾 Saving ${assets.length} assets to Firebase in batches of ${BATCH_SIZE}...`);
+
+    // First, check for duplicates
+    const barcodes = assets.map(a => a.assetBarcode).filter(Boolean);
+    if (barcodes.length > 0) {
+        const { existing, newAssets } = await checkExistingAssets(barcodes);
+        if (existing.length > 0) {
+            console.warn(`⚠️ ${existing.length} assets already exist in database. They will be updated.`);
+            // Continue - we'll update existing ones
+        }
+    }
 
     for (let i = 0; i < assets.length; i += BATCH_SIZE) {
         const batch = assets.slice(i, i + BATCH_SIZE);
         const updates = {};
 
         batch.forEach((asset) => {
-            const { _id, _row, ...record } = asset;
-            const sanitizedId = String(_id).replace(/[.#$\[\];/]/g, "_");
+            const { _id, _row, _rawBarcode, ...record } = asset;
+
+            // Skip assets without a valid ID
+            if (!_id) {
+                failed++;
+                errors.push({ row: _row, error: "Missing Firebase key" });
+                return;
+            }
 
             // Create complete record with ALL fields
-            const completeRecord = {};
+            const completeRecord = {
+                assetId: _id,
+                assetBarcode: _rawBarcode || record.assetBarcode || 'N/A',
+                importedAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString(),
+                _version: 1
+            };
 
-            // Add all mapped fields
+            // Add all mapped fields, filtering out null/undefined
             Object.keys(record).forEach(key => {
-                if (record[key] !== undefined && record[key] !== null) {
-                    completeRecord[key] = record[key];
-                } else {
-                    completeRecord[key] = '';
+                const val = record[key];
+                if (val !== undefined && val !== null && val !== '') {
+                    completeRecord[key] = val;
                 }
             });
 
-            // Add metadata
-            completeRecord.assetBarcode = sanitizedId;
-            completeRecord.assetId = sanitizedId;
-            completeRecord.importedAt = new Date().toISOString();
-            completeRecord.updatedAt = new Date().toISOString();
-            completeRecord._version = 1;
+            // Ensure assetStatus is set
+            if (!completeRecord.assetStatus) {
+                completeRecord.assetStatus = 'Active';
+            }
 
-            updates[`assets/${sanitizedId}`] = completeRecord;
+            updates[`assets/${_id}`] = completeRecord;
         });
+
+        if (Object.keys(updates).length === 0) {
+            console.warn(`⚠️ Batch ${i}-${i + batch.length}: No valid assets to save.`);
+            continue;
+        }
 
         try {
             await update(ref(db), updates);
-            saved += batch.length;
+            saved += Object.keys(updates).length;
 
             const progress = Math.min(100, Math.round(((i + batch.length) / assets.length) * 100));
             showImportProgress(progress, i + batch.length, assets.length);
 
-            console.log(`✅ Batch ${i}-${i + batch.length}: ${batch.length} assets saved`);
+            console.log(`✅ Batch ${i}-${i + batch.length}: ${Object.keys(updates).length} assets saved`);
+
         } catch (error) {
             console.error(`❌ Batch ${i} failed:`, error);
-            failed += batch.length;
+            failed += Object.keys(updates).length;
+            errors.push({ batch: i, error: error.message });
 
+            // ✅ FIXED: Retry individual items if batch fails
+            console.log(`🔄 Retrying individual assets from failed batch...`);
             for (const [path, data] of Object.entries(updates)) {
                 try {
                     await set(ref(db, path), data);
                     saved++;
+                    failed--; // Correct the count
+                    console.log(`✅ Individual save success: ${path}`);
                 } catch (singleError) {
                     console.error(`❌ Failed to save ${path}:`, singleError);
-                    failed++;
+                    errors.push({ path, error: singleError.message });
                 }
             }
         }
     }
 
     window.hideGlobalSpinner();
-    return { saved, failed };
+    return { saved, failed, errors };
 }
 
 // ================================================================ */
@@ -401,7 +487,7 @@ window.handleAssetImport = function(event) {
             // Render table with ALL headers
             window.renderDynamicAssetTable(result.assets, result.headers);
 
-            // Save to Firebase
+            // ✅ FIXED: Save to Firebase with progress tracking
             const saveResult = await saveAssetsToFirebase(result.assets);
 
             showImportProgress(100, result.assets.length, result.assets.length);
@@ -414,6 +500,11 @@ window.handleAssetImport = function(event) {
             message += `✅ Saved: ${saveResult.saved}\n`;
             message += `❌ Failed: ${saveResult.failed}\n`;
             message += `⚠️ Skipped: ${result.skipped.length}\n\n`;
+
+            if (saveResult.errors && saveResult.errors.length > 0) {
+                message += `⚠️ Errors encountered: ${saveResult.errors.length}\n`;
+                console.error('Import errors:', saveResult.errors);
+            }
 
             if (result.skipped.length > 0) {
                 message += `⚠️ ${result.skipped.length} rows skipped due to missing barcode.\n`;
@@ -437,6 +528,7 @@ window.handleAssetImport = function(event) {
                 modal.style.display = 'none';
             }
             event.target.value = "";
+            window.hideGlobalSpinner();
         }
     };
 
@@ -447,6 +539,7 @@ window.handleAssetImport = function(event) {
             modal.classList.add('hidden');
             modal.style.display = 'none';
         }
+        window.hideGlobalSpinner();
     };
 
     reader.readAsArrayBuffer(file);
@@ -486,7 +579,7 @@ function showImportProgress(percent, current, total) {
 }
 
 // ================================================================ */
-// DYNAMIC TABLE RENDERING - SHOW ALL 39 HEADERS                   */
+// ✅ FIXED: DYNAMIC TABLE RENDERING - SHOW ALL 39 HEADERS          */
 // ================================================================ */
 
 window.renderDynamicAssetTable = function(assets, headers) {
@@ -510,6 +603,11 @@ window.renderDynamicAssetTable = function(assets, headers) {
         return !norm.includes('photo') && !norm.includes('image') && !norm.includes('url');
     });
 
+    // If no headers, use the first asset's keys
+    const finalHeaders = tableHeaders.length > 0 ? tableHeaders : Object.keys(assets[0]).filter(k =>
+        !['_id', '_row', '_rawBarcode', '_version', 'importedAt', 'updatedAt', 'assetId'].includes(k)
+    );
+
     window.adminPaginators.assets.init(assets, (pageItems, startIndex) => {
         tableHeaderContainer.innerHTML = "";
         tableBodyContainer.innerHTML = "";
@@ -518,7 +616,7 @@ window.renderDynamicAssetTable = function(assets, headers) {
         let headerHtml = '<tr class="bg-indigo-900 text-white text-left text-[10px] uppercase font-bold sticky top-0 z-20">';
         headerHtml += '<th class="p-3 w-8 sticky left-0 bg-indigo-900 z-30">#</th>';
 
-        tableHeaders.forEach((header) => {
+        finalHeaders.forEach((header) => {
             let label = header;
             if (label.length > 20) {
                 label = label.substring(0, 17) + '...';
@@ -537,7 +635,7 @@ window.renderDynamicAssetTable = function(assets, headers) {
             bodyHtml += `<tr class="border-b hover:bg-indigo-50 text-[10px] text-slate-700">`;
             bodyHtml += `<td class="p-3 text-center sticky left-0 bg-white z-10 border-r shadow-sm">${startIndex + index + 1}</td>`;
 
-            tableHeaders.forEach((header) => {
+            finalHeaders.forEach((header) => {
                 const mappedField = findMatchingField(header);
                 let value = '-';
 
@@ -577,7 +675,7 @@ window.renderDynamicAssetTable = function(assets, headers) {
         // Update count display
         const countDisplay = document.getElementById('asset-count-display');
         if (countDisplay) {
-            countDisplay.textContent = `Showing ${pageItems.length} of ${assets.length} assets | ${tableHeaders.length} data fields visible`;
+            countDisplay.textContent = `Showing ${pageItems.length} of ${assets.length} assets | ${finalHeaders.length} data fields visible`;
         }
     });
 };
@@ -588,7 +686,8 @@ window.renderDynamicAssetTable = function(assets, headers) {
 
 window.verifyFirebaseData = async (barcode) => {
     try {
-        const assetRef = ref(db, `assets/${barcode}`);
+        const sanitized = sanitizeFirebaseKey(barcode);
+        const assetRef = ref(db, `assets/${sanitized}`);
         const snapshot = await get(assetRef);
 
         if (snapshot.exists()) {
@@ -672,7 +771,8 @@ window.ASSET_HEADER_MAPPING = ASSET_HEADER_MAPPING;
 window.ALL_EXPECTED_FIELDS = ALL_EXPECTED_FIELDS;
 window.findMatchingField = findMatchingField;
 window.normalizeHeader = normalizeHeader;
+window.sanitizeFirebaseKey = sanitizeFirebaseKey;
 
-console.log("✅ import_module.js loaded (COMPLETE 39 HEADERS)");
+console.log("✅ import_module.js loaded (COMPLETE 39 HEADERS - FIXED v4.1)");
 console.log(`📋 Total Headers Configured: ${Object.keys(ASSET_HEADER_MAPPING).length}`);
 console.log(`📋 All 39 Fields:`, ALL_EXPECTED_FIELDS);

@@ -1,18 +1,25 @@
 import { db, UPLOAD_CONFIG } from './firebase_config.js';
-import { ref, set, update, push, onValue, get } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+import { ref, set, update, push, onValue, get, child, off } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
 // ================================================================ */
-// NETWORK SPEED & OFFLINE SYNC HANDLERS (PUBLIC WI-FI BYPASS)       */
+// NETWORK SPEED & OFFLINE SYNC HANDLERS (FIXED v4.3)               */
 // ================================================================ */
 
 const NETWORK_SPEED_THRESHOLD = 3500;
 const OFFLINE_SYNC_KEY = 'pending_offline_sync';
+const DB_BASE_URL = db?.app?.options?.databaseURL || 'https://schoollog-f0a04-default-rtdb.firebaseio.com';
 
 const checkNetworkPing = async () => {
     const start = Date.now();
     try {
-        // Fast shallow fetch from Firebase REST endpoint
-        await fetch('https://schoollog-f0a04-default-rtdb.firebaseio.com/.json?shallow=true', { cache: 'no-store' });
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 4000);
+
+        await fetch(`${DB_BASE_URL}/.json?shallow=true`, {
+            cache: 'no-store',
+            signal: controller.signal
+        });
+        clearTimeout(timeoutId);
         return Date.now() - start;
     } catch (e) {
         return 9999;
@@ -25,30 +32,32 @@ window.showSlowNetWarning = () => {
     const toast = document.createElement('div');
     toast.id = 'slow-net-toast';
     toast.className = 'fixed bottom-24 left-1/2 -translate-x-1/2 z-[300000] bg-amber-500 text-white px-6 py-3 rounded-2xl font-black shadow-2xl flex items-center gap-3 animate-bounce';
-    toast.innerHTML = `<i class="fa-solid fa-wifi"></i> <span>⚠️ Slow Network Detected! Syncing in background...</span>`;
+    toast.innerHTML = `<i class="fa-solid fa-wifi"></i> <span>⚠️ Slow Network Detected! Syncing...</span>`;
     document.body.appendChild(toast);
-    setTimeout(() => toast.remove(), 5000);
+    setTimeout(() => toast?.remove(), 5000);
 };
 
 async function safeFirebaseWrite(type, path, data) {
     try {
-        const ping = await checkNetworkPing();
-        if (ping > NETWORK_SPEED_THRESHOLD) {
-            window.showSlowNetWarning();
-            return await firebaseRestFallback(type, path, data);
+        if (!navigator.onLine) {
+            addToOfflineSync(type, path, data);
+            return { status: 'offline_queued' };
         }
 
-        if (type === 'set') await set(ref(db, path), data);
-        else await update(ref(db, path), data);
+        if (type === 'set') {
+            await set(ref(db, path), data);
+        } else {
+            await update(ref(db, path), data);
+        }
         return { status: 'success' };
     } catch (e) {
-        console.error("Firebase SDK Write Failed, trying REST fallback:", e);
-        return await firebaseRestFallback(type, path, data);
+        console.warn("SDK Write Failed, attempting REST Fallback:", e);
+        return await firebaseRestFallback(type, path, data, true);
     }
 }
 
-async function firebaseRestFallback(type, path, data) {
-    const url = `https://schoollog-f0a04-default-rtdb.firebaseio.com/${path}.json`;
+async function firebaseRestFallback(type, path, data, allowQueueing = true) {
+    const url = `${DB_BASE_URL}/${path}.json`;
     try {
         const method = type === 'set' ? 'PUT' : 'PATCH';
         const res = await fetch(url, {
@@ -59,982 +68,995 @@ async function firebaseRestFallback(type, path, data) {
         if (!res.ok) throw new Error("REST API Failed");
         return { status: 'success' };
     } catch (e) {
-        console.error("REST Fallback Failed, saving for offline sync:", e);
-        addToOfflineSync(type, path, data);
+        if (allowQueueing) {
+            addToOfflineSync(type, path, data);
+        }
         return { status: 'offline_queued' };
     }
 }
 
 function addToOfflineSync(type, path, data) {
     const queue = JSON.parse(localStorage.getItem(OFFLINE_SYNC_KEY) || '[]');
-    queue.push({ type, path, data, timestamp: Date.now() });
-    localStorage.setItem(OFFLINE_SYNC_KEY, JSON.stringify(queue));
+    // Avoid exact duplicate writes in queue
+    const isDuplicate = queue.some(item => item.path === path && item.type === type && JSON.stringify(item.data) === JSON.stringify(data));
+    if (!isDuplicate) {
+        queue.push({ type, path, data, timestamp: Date.now() });
+        localStorage.setItem(OFFLINE_SYNC_KEY, JSON.stringify(queue));
+    }
 }
 
 window.processOfflineSync = async () => {
+    if (!navigator.onLine) return;
+
     const queue = JSON.parse(localStorage.getItem(OFFLINE_SYNC_KEY) || '[]');
     if (queue.length === 0) return;
-    console.log(`🔄 Offline Sync: Processing ${queue.length} items...`);
+
     const remaining = [];
     for (const item of queue) {
         try {
-            await firebaseRestFallback(item.type, item.path, item.data);
-            console.log(`✅ Sync Success: ${item.path}`);
+            const res = await firebaseRestFallback(item.type, item.path, item.data, false);
+            if (res.status !== 'success') {
+                remaining.push(item);
+            }
         } catch (e) {
             remaining.push(item);
         }
     }
     localStorage.setItem(OFFLINE_SYNC_KEY, JSON.stringify(remaining));
 };
+
 setInterval(window.processOfflineSync, 15000);
 
 // ================================================================ */
-// SIGNATURE MODAL HANDLERS                                         */
+// ✅ SESSION ISOLATION UTILITIES (FIXED v7.0 - ADEK PASS BASED)     */
 // ================================================================ */
 
-let sigCallback = null;
+/**
+ * Helper to get unique identifier (ADEK Pass) from staff object
+ */
+function getStaffPassId(staff) {
+    if (!staff) return '';
+    return String(staff.adekPass || staff.adcPassNumber || staff.username || staff.mobile || '').trim();
+}
 
-window.initSigPad = () => {
-    console.log("🖊️ attendance_module: Initializing signature pad...");
-    if (window.sigPadManager) {
-        window.sigPadManager.getPad('sig-canvas');
+/**
+ * 1. Logged-In User का Pass ID निकालने का Bulletproof Helper
+ * 🛡️ STRICT TAB ISOLATION: Prioritize sessionStorage to prevent multi-tab leaks.
+ */
+function getActiveUserKey() {
+    try {
+        // 1. Primary: Current Tab Session (Safe for multi-tab)
+        const session = JSON.parse(sessionStorage.getItem('active_staff_user') || '{}');
+        const passId = getStaffPassId(session);
+        if (passId) return passId;
+
+        // 2. Secondary: Fallback to localStorage only if session is missing
+        const local = JSON.parse(localStorage.getItem('loggedStaff') || '{}');
+        const localPassId = getStaffPassId(local);
+        if (localPassId) return localPassId;
+
+        const mobileStr = localStorage.getItem('loggedStaffMobile');
+        if (mobileStr) return String(mobileStr).trim();
+    } catch (e) {
+        console.warn("⚠️ getActiveUserKey: Parse error", e);
     }
+    return '';
+}
+// ================================================================ */
+// SESSION VALIDATION & STALE CLEANUP (FIXED v4.3)                 */
+// ================================================================ */
+
+// ================================================================ */
+// ✅ FIX 1: Session Validation & Stale Cleanup                     */
+// ================================================================ */
+
+async function getValidActiveSession(passId) {
+    if (!passId) return { valid: false, session: null, reason: 'No Pass ID' };
+
+    try {
+        const sessionRef = ref(db, `active_staff_sessions/${passId}`);
+        const sessionSnap = await get(sessionRef);
+
+        if (!sessionSnap.exists()) {
+            return { valid: false, session: null, reason: 'No active session found' };
+        }
+
+        const session = sessionSnap.val();
+        if (session.status !== 'checked_in') {
+            return { valid: false, session: null, reason: 'Session is not checked in' };
+        }
+
+        // ✅ CRITICAL: Verify attendance record exists
+        if (session.key) {
+            const attSnap = await get(ref(db, `staff_attendance/${session.key}`));
+            if (!attSnap.exists()) {
+                console.warn(`🧹 Clearing stale session for ${passId}`);
+                await set(sessionRef, null);
+                return { valid: false, session: null, reason: 'Stale session cleared' };
+            }
+
+            const attRecord = attSnap.val();
+            if (attRecord.status !== 'checked_in') {
+                await set(sessionRef, null);
+                return { valid: false, session: null, reason: 'Invalid session cleared' };
+            }
+
+            return {
+                valid: true,
+                session: { ...session, attendanceRecord: attRecord, attendanceKey: session.key },
+                reason: 'Valid session'
+            };
+        }
+
+        // Security without key
+        const isSecurity = (session.role || '').toLowerCase().includes('security');
+        if (isSecurity) {
+            return { valid: true, session: session, reason: 'Valid Security Session' };
+        }
+
+        return { valid: false, session: null, reason: 'No attendance key in session' };
+
+    } catch (error) {
+        console.error('Session validation error:', error);
+        return { valid: false, session: null, reason: error.message };
+    }
+}
+
+window.validateActiveSession = async (passId) => {
+    const res = await getValidActiveSession(passId);
+    return res.valid;
 };
 
+// ✅ FIXED: Signature Modal with Global Callback
+window.sigCallback = null;
+
 window.openSignatureModal = (title, callback) => {
+    console.log("📝 Signature Modal: Opening -", title);
+
     const titleEl = document.getElementById('sig-modal-title');
     if (titleEl) titleEl.innerText = title;
+
     const modal = document.getElementById('signature-modal');
     if (modal) {
         modal.classList.add('active');
-        setTimeout(() => {
-            if (window.sigPadManager) {
-                const pad = window.sigPadManager.getPad('sig-canvas');
-                if (pad) pad._setupCanvas();
+        modal.style.display = 'flex';
+
+        // Reset and Unlock Pad
+        const wrappers = modal.querySelectorAll('.canvas-wrapper');
+        wrappers.forEach(w => {
+            w.classList.remove('unlocked');
+            const overlay = w.querySelector('.sig-lock-overlay');
+            if (overlay) overlay.style.display = 'flex';
+
+            const canvas = w.querySelector('canvas');
+            if (canvas && window.sigPadManager) {
+                const pad = window.sigPadManager.getPad(canvas.id);
+                if (pad) {
+                    pad.lock();
+                    pad.clear();
+                }
             }
+        });
+
+        if (typeof window.hideGlobalSpinner === 'function') {
             window.hideGlobalSpinner();
-        }, 150);
+        }
     }
-    sigCallback = callback;
+
+    // ✅ Store callback globally
+    window.sigCallback = callback;
 };
 
 window.closeSignatureModal = () => {
+    console.log("📝 Signature Modal: Closing");
     const modal = document.getElementById('signature-modal');
-    if (modal) modal.classList.remove('active');
-    if (window.clearSignaturePad) window.clearSignaturePad('sig-canvas');
-    sigCallback = null;
+    if (modal) {
+        modal.classList.remove('active');
+        modal.style.display = 'none';
+    }
+    if (window.sigPadManager) {
+        const pad = window.sigPadManager.getPad('sig-canvas');
+        if (pad) {
+            pad.lock();
+            pad.clear();
+        }
+    }
+    window.sigCallback = null;
 };
 
-const sigConfirmBtn = document.getElementById('sig-confirm-btn');
-if (sigConfirmBtn) {
-    sigConfirmBtn.onclick = () => {
-        try {
-            const canvasPad = window.sigPadManager.getPad('sig-canvas');
-            const data = canvasPad.toDataURL();
+// Delegate Event Handlers safely
+document.addEventListener('DOMContentLoaded', () => {
+    // ✅ FIXED: Confirm Button - Uses window.sigCallback (Global)
+    const confirmBtn = document.getElementById('sig-confirm-btn');
+    if (confirmBtn) {
+        const newBtn = confirmBtn.cloneNode(true);
+        confirmBtn.parentNode.replaceChild(newBtn, confirmBtn);
 
-            if (data.length < 1000) {
-                alert("Please provide your signature to continue.");
-                return;
+        newBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            try {
+                if (!window.sigPadManager) {
+                    alert("Signature pad manager not initialized.");
+                    return;
+                }
+                const canvasPad = window.sigPadManager.getPad('sig-canvas');
+                if (!canvasPad || canvasPad.isEmpty()) {
+                    alert("Please provide a signature.");
+                    return;
+                }
+
+                const data = canvasPad.toDataURL();
+                if (!data || data.length < 1000) {
+                    alert("Please provide a valid signature.");
+                    return;
+                }
+
+                if (typeof window.sigCallback === 'function') {
+                    const cb = window.sigCallback;
+                    window.sigCallback = null;
+                    cb(data);
+                }
+                window.closeSignatureModal();
+            } catch (err) {
+                console.error("Signature Capture Failed:", err);
+                alert("Capture failed.");
             }
-
-            if (sigCallback) sigCallback(data);
-            window.closeSignatureModal();
-        } catch (e) {
-            console.error("❌ Signature Confirmation Error:", e);
-            alert("Failed to capture signature. Please try again.");
-        }
-    };
-}
+        });
+    }
+});
 
 // ================================================================ */
-// PASSWORD VERIFICATION MODAL                                      */
+// PASSWORD VERIFICATION MODAL (FIXED v4.3)                         */
 // ================================================================ */
 
 let passwordCallback = null;
 
 window.openPasswordModal = (title, callback) => {
-    console.log("🔐 Password Modal: Opening");
     const titleEl = document.getElementById('password-modal-title');
     if (titleEl) titleEl.innerText = title;
 
     const modal = document.getElementById('password-modal');
     const input = document.getElementById('modal-auth-pass');
-    const error = document.getElementById('password-error');
 
-    if (modal) modal.classList.remove('hidden');
-    if (input) { input.value = ''; input.focus(); }
-    if (error) error.classList.add('hidden');
-
+    if (modal) {
+        modal.classList.remove('hidden');
+        modal.style.display = 'flex';
+    }
+    if (input) {
+        input.value = '';
+        setTimeout(() => input.focus(), 100);
+    }
     passwordCallback = callback;
 };
 
 window.closePasswordModal = () => {
     const modal = document.getElementById('password-modal');
-    if (modal) modal.classList.add('hidden');
+    if (modal) {
+        modal.classList.add('hidden');
+        modal.style.display = 'none';
+    }
+    const input = document.getElementById('modal-auth-pass');
+    if (input) input.value = '';
     passwordCallback = null;
 };
 
+// Password Submit Listener setup
 document.addEventListener('DOMContentLoaded', () => {
-    const passForm = document.getElementById('password-verify-form');
-    if (passForm) {
-        passForm.onsubmit = (e) => {
+    const confirmPassBtn = document.getElementById('password-modal-confirm');
+    const passInput = document.getElementById('modal-auth-pass');
+
+    const handlePasswordSubmit = () => {
+        const passVal = passInput ? passInput.value.trim() : '';
+        if (!passVal) {
+            alert("Please enter password.");
+            return;
+        }
+        if (passwordCallback) {
+            const cb = passwordCallback;
+            passwordCallback = null;
+            cb(passVal);
+        }
+        window.closePasswordModal();
+    };
+
+    if (confirmPassBtn && !confirmPassBtn.dataset.bound) {
+        confirmPassBtn.addEventListener('click', (e) => {
             e.preventDefault();
-            const input = document.getElementById('modal-auth-pass');
-            const error = document.getElementById('password-error');
-            const enteredPass = input?.value || "";
-
-            console.log("🔐 Password Modal: Verifying identity...");
-
-            if (!window.currentStaff) {
-                console.error("❌ Error: No staff profile in context");
-                alert("Session error. Please logout and login again.");
-                return;
-            }
-
-            const actualPass = (window.currentStaff.password || "").toString();
-
-            if (enteredPass === actualPass) {
-                console.log("✅ Password Modal: Identity Verified");
-                if (passwordCallback) passwordCallback();
-                window.closePasswordModal();
-            } else {
-                console.warn("❌ Password Modal: Incorrect Password");
-                if (error) error.classList.remove('hidden');
-                if (input) { input.value = ''; input.focus(); }
-            }
-        };
+            handlePasswordSubmit();
+        });
+        confirmPassBtn.dataset.bound = "true";
     }
 
-    // Attach single ENTER key listener for PIN modal input
-    const pinInput = document.getElementById('key-return-pin-input');
-    if (pinInput) {
-        pinInput.addEventListener('keypress', (e) => {
+    if (passInput && !passInput.dataset.bound) {
+        passInput.addEventListener('keypress', (e) => {
             if (e.key === 'Enter') {
                 e.preventDefault();
-                window.confirmKeyReturn(e);
+                handlePasswordSubmit();
             }
         });
+        passInput.dataset.bound = "true";
     }
 });
 
 // ================================================================ */
-// KEY HANDOVER LOGIC (STRICT MANDATORY RETURN & PIN VERIFICATION)   */
+// UI BUTTON UPDATER (FIXED v6.1 - STRICT SESSION ISOLATION)        */
 // ================================================================ */
 
-let keyCollectCallback = null;
-let keyReturnCallback = null;
+/**
+ * @param {string} status - 'checked_in' or 'checked_out'
+ * @param {string} timeText - Display time
+ * @param {boolean} isSecurity_ignored - (Legacy, now auto-detected)
+ * @param {string} targetPassId - The Pass ID this data belongs to
+ */
+function updateAttendanceButtons(status, timeText, isSecurity_ignored, targetPassId) {
+    const myPassId = getActiveUserKey();
+    const cleanTarget = String(targetPassId || '').trim();
 
-window.generateKeyReturnPin = () => {
-    return Math.floor(1000 + Math.random() * 9000).toString();
+    // 🛡️ SESSION ISOLATION: Only update UI if the update belongs to the logged-in user.
+    if (!myPassId || !cleanTarget || myPassId !== cleanTarget) {
+        console.log(`🛡️ Isolation Guard: Update for [${cleanTarget}] ignored. My Session: [${myPassId}]`);
+        return;
+    }
+
+    console.log(`🔄 updateAttendanceButtons: status=${status}, target=${cleanTarget}`);
+
+    // Detect which dashboard we are on by checking button existence
+    const isSecurityDashboard = !!document.getElementById('security-checkin-btn');
+
+    const cinBtnId = isSecurityDashboard ? 'security-checkin-btn' : 's-checkin-btn';
+    const coutBtnId = isSecurityDashboard ? 'security-checkout-btn' : 's-checkout-btn';
+
+    const cinBtn = document.getElementById(cinBtnId);
+    const coutBtn = document.getElementById(coutBtnId);
+    const statusText = document.getElementById('attendanceStatusText');
+
+    if (status === 'checked_in') {
+        if (cinBtn) {
+            cinBtn.classList.add('hidden');
+            cinBtn.style.display = 'none';
+        }
+        if (coutBtn) {
+            coutBtn.classList.remove('hidden');
+            coutBtn.style.display = 'inline-flex';
+        }
+        if (statusText) {
+            statusText.textContent = isSecurityDashboard ? '🟢 Security shift active' : "Checked in at " + (timeText || 'now');
+            statusText.className = 'text-xs font-black text-emerald-600';
+        }
+        window.currentAttendanceStatus = 'checked_in';
+    } else {
+        if (cinBtn) {
+            cinBtn.classList.remove('hidden');
+            cinBtn.style.display = 'inline-flex';
+        }
+        if (coutBtn) {
+            coutBtn.classList.add('hidden');
+            coutBtn.style.display = 'none';
+        }
+        if (statusText) {
+            statusText.textContent = "Ready to check in";
+            statusText.className = 'text-xs font-black text-slate-400';
+        }
+        window.currentAttendanceStatus = 'checked_out';
+    }
+}
+
+function updateAttendanceStatus(text, status) {
+    const statusElement = document.getElementById('attendanceStatusText');
+    if (!statusElement) {
+        console.warn('⚠️ attendanceStatusText element not found');
+        return;
+    }
+    statusElement.innerText = text;
+    if (status === 'checked_in') {
+        statusElement.className = 'text-xs font-black text-emerald-600';
+    } else {
+        statusElement.className = 'text-xs font-black text-slate-400';
+    }
+    console.log(`✅ Status updated: ${text}`);
+}
+
+// ================================================================ */
+// ✅ FIXED: Check-In Process with ADEK Pass ID                     */
+// ================================================================ */
+
+window.proceedCheckIn = async function(staff, sigData, btn, hasKey, keyCode = null, isSecurity = false) {
+    const passId = getStaffPassId(staff);
+    if (!btn || !passId) return;
+    btn.disabled = true;
+    try {
+        const isActive = await validateActiveSession(passId);
+        if (isActive) {
+            alert("⚠️ You are already checked in. Please use Check-Out button.");
+            updateAttendanceButtons('checked_in', 'Active', isSecurity, passId);
+            return;
+        }
+
+        if (typeof window.showGlobalSpinner === 'function') {
+            window.showGlobalSpinner("Saving Check-In...");
+        }
+
+        // Safe location retrieval fallback
+        let loc = { lat: 0, lng: 0 };
+        try {
+            if (typeof getFastLocation === 'function') {
+                loc = (await getFastLocation()) || loc;
+            }
+        } catch (locErr) {
+            console.warn("Location capture failed, proceeding with fallback location:", locErr);
+        }
+
+        let sigUrl = '';
+        if (window.uploadToDrive && sigData) {
+            try {
+                const res = await window.uploadToDrive({
+                    category: UPLOAD_CONFIG.CATEGORIES.STAFF_ATTENDANCE,
+                    fileName: `In_${passId}_${Date.now()}.png`,
+                    image: sigData
+                });
+                sigUrl = res?.fileUrl || '';
+            } catch (upErr) {
+                console.error("Signature upload failed:", upErr);
+            }
+        }
+
+        const now = new Date();
+        const key = `${passId}_${Date.now()}`;
+        // Use provided keyCode or generate new if missing
+        const pin = hasKey ? (keyCode || Math.floor(1000 + Math.random() * 9000).toString()) : null;
+        const timeIn = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        const dateStr = now.toISOString().split('T')[0];
+
+        const updates = {};
+        updates[`staff_attendance/${key}`] = {
+            mobile: staff.mobile || '',
+            passId: passId,
+            name: staff.fullName || staff.name || 'Unknown',
+            role: staff.role || 'Staff',
+            status: 'checked_in',
+            timeIn: timeIn,
+            date: dateStr,
+            signatureUrl: sigUrl,
+            keyStatus: hasKey ? "HELD" : "NONE",
+            keyReturnPin: pin,
+            lat: loc.lat || 0,
+            lng: loc.lng || 0,
+            timestamp: Date.now()
+        };
+        const sessionData = {
+            status: 'checked_in',
+            key: key,
+            timeIn: timeIn,
+            keyStatus: hasKey ? "HELD" : "NONE",
+            keyCollected: hasKey ? "YES" : "NO",
+            mobile: staff.mobile || '',
+            passId: passId,
+            name: staff.fullName || staff.name,
+            role: staff.role
+        };
+        updates[`active_staff_sessions/${passId}`] = sessionData;
+
+        if (hasKey && pin) {
+            updates[`security_key_control/${passId}`] = {
+                name: staff.fullName || staff.name || 'Unknown',
+                id: passId,
+                type: 'STAFF',
+                pin: pin,
+                status: 'HELD',
+                timestamp: Date.now()
+            };
+        }
+
+        // Clean root multi-path update
+        await safeFirebaseWrite('update', '', updates);
+
+        // ✅ FIXED: Proper UI Update after successful check-in
+        console.log('✅ Check-In successful, updating UI...');
+        console.log(`✅ isSecurity: ${isSecurity}, role: ${staff.role}`);
+
+        updateAttendanceButtons('checked_in', timeIn, isSecurity, passId);
+        updateAttendanceStatus(isSecurity ? '🟢 Security shift active' : `Checked in at ${timeIn}`, 'checked_in');
+
+        // ✅ ATTACH CHECK-OUT LISTENER IMMEDIATELY
+        window.initSecurityCheckOutButton(staff, sessionData);
+
+        // ✅ MANDATED FIX 1: Hiding PIN from user (Staff/Security)
+        const successMsg = hasKey ? "✅ Check-In Successful! Key assigned successfully." : "✅ Check-In Successful!";
+        alert(successMsg);
+    } catch (err) {
+        console.error("Check-In Error:", err);
+        alert("Check-In Failed.");
+    } finally {
+        btn.disabled = false;
+        if (typeof window.hideGlobalSpinner === 'function') {
+            window.hideGlobalSpinner();
+        }
+    }
 };
 
+// ================================================================ */
+// CHECK-OUT PROCESS (FIXED SIGNATURE & UI v4.3)                   */
+// ================================================================ */
+
+// ✅ FIXED: Check-Out Process with Pass ID Validation
+window.executeCheckOutProcess = async function(staffUser, sessionData, sigData, isSecurity = false) {
+    if (typeof window.showGlobalSpinner === 'function') {
+        window.showGlobalSpinner("Processing Check-Out...");
+    }
+
+    try {
+        const passId = getStaffPassId(staffUser);
+        if (!passId) throw new Error("No Pass ID found.");
+
+        // 🔒 MANDATED FIX: Re-verify session validity
+        const validation = await getValidActiveSession(passId);
+        if (!validation.valid) {
+            alert(validation.reason || "No active session found.");
+            return;
+        }
+
+        const activeSession = validation.session;
+        const attKey = activeSession.attendanceKey;
+
+        let sigUrl = '';
+        if (sigData && window.uploadToDrive) {
+            try {
+                const res = await window.uploadToDrive({
+                    category: UPLOAD_CONFIG.CATEGORIES.STAFF_ATTENDANCE,
+                    fileName: `Out_${passId}_${Date.now()}.png`,
+                    image: sigData
+                });
+                sigUrl = res?.fileUrl || '';
+            } catch (upErr) {
+                console.error("Check-out signature upload error:", upErr);
+            }
+        }
+
+        const now = new Date();
+        const checkOutTimeStr = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+
+        const updates = {};
+        if (attKey) {
+            updates[`staff_attendance/${attKey}/status`] = 'checked_out';
+            updates[`staff_attendance/${attKey}/checkOutTime`] = checkOutTimeStr;
+            updates[`staff_attendance/${attKey}/checkOutSignatureUrl`] = sigUrl;
+            updates[`staff_attendance/${attKey}/keyStatus`] = 'RETURNED';
+        }
+        updates[`active_staff_sessions/${passId}`] = null;
+        updates[`security_key_control/${passId}`] = null;
+
+        await safeFirebaseWrite('update', '', updates);
+        updateAttendanceButtons('checked_out', null, isSecurity, passId);
+        alert("✅ Checked-Out Successfully!");
+    } catch (e) {
+        console.error("Check-Out Error:", e);
+        alert("Check-Out Failed.");
+    } finally {
+        if (typeof window.hideGlobalSpinner === 'function') {
+            window.hideGlobalSpinner();
+        }
+    }
+}
+// ================================================================ */
+// KEY COLLECTION MODAL HELPER                                      */
+// ================================================================ */
+
+let keyCollectionCallback = null;
 window.openKeyCollectionModal = (callback) => {
     const modal = document.getElementById('key-collection-modal');
-    if (modal) modal.classList.remove('hidden');
-    keyCollectCallback = callback;
-};
-
-window.confirmKeyCollection = (hasKey) => {
-    const modal = document.getElementById('key-collection-modal');
-    if (modal) modal.classList.add('hidden');
-    if (keyCollectCallback) keyCollectCallback(hasKey);
-    keyCollectCallback = null;
-};
-
-window.openKeyReturnModal = (staffKey, staffRecord, callback) => {
-    // Store full session & key globally
-    window.activeSessionForReturn = {
-        key: staffKey,
-        ...(staffRecord || {})
-    };
-    keyReturnCallback = callback;
-
-    const modal = document.getElementById('key-return-modal');
-    const input = document.getElementById('key-return-pin-input');
-    const error = document.getElementById('pin-error');
-    if (error) error.classList.add('hidden');
-    if (input) input.value = '';
     if (modal) {
         modal.classList.remove('hidden');
         modal.style.display = 'flex';
     }
-    if (input) input.focus();
+    keyCollectionCallback = callback;
 };
+
+window.confirmKeyCollection = (hasKey) => {
+    const modal = document.getElementById('key-collection-modal');
+    if (modal) {
+        modal.classList.add('hidden');
+        modal.style.display = 'none';
+    }
+    if (keyCollectionCallback) {
+        const cb = keyCollectionCallback;
+        keyCollectionCallback = null;
+        cb(hasKey);
+    }
+};
+
+// ================================================================ */
+// ✅ STAFF WORKFLOW HANDLERS (FIXED v6.0)                           */
+// ================================================================ */
+
+/**
+ * 1. STAFF CHECK-IN: Password -> Signature -> Key Prompt
+ */
+window.handleStaffCheckIn = function(staff, btn) {
+    if (!staff || !staff.mobile) {
+        alert('Please login first.');
+        return;
+    }
+
+    console.log(`🔐 handleStaffCheckIn started for: ${staff.fullName || staff.name}`);
+    const isSecurity = (staff.role || '').toLowerCase().includes('security');
+    console.log(`🔐 Role: ${staff.role}, isSecurity: ${isSecurity}`);
+
+    window.openPasswordModal("Verify Identity to Check-In", (enteredPass) => {
+        if (enteredPass !== staff.password) {
+            alert("❌ Incorrect Password!");
+            return;
+        }
+
+        window.openSignatureModal("Staff Signature Required", (sigData) => {
+            window.openKeyCollectionModal((hasKey) => {
+                let generatedPin = hasKey ?
+                    Math.floor(1000 + Math.random() * 9000).toString() :
+                    null;
+
+                console.log(`🔐 Calling proceedCheckIn with isSecurity: ${isSecurity}`);
+                window.proceedCheckIn(
+                    staff,
+                    sigData,
+                    btn,
+                    hasKey,
+                    generatedPin,
+                    isSecurity
+                );
+            });
+        });
+    });
+};
+
+/**
+ * 4. STAFF CHECK-OUT: No Signature, PIN or Pass verification only
+ */
+window.handleStaffCheckOut = async function(staff, session, btn) {
+    console.log("🚪 handleStaffCheckOut started");
+    const hasKey = (session.keyStatus === 'HELD' || session.keyCollected === 'YES');
+    const isSecurity = (staff.role || '').toLowerCase().includes('security');
+
+    if (hasKey) {
+        // Case A: Key WAS Taken -> Ask for PIN
+        const enteredPin = prompt("🔑 KEY RETURN REQUIRED\n\nEnter the 4-digit PIN provided by Security:");
+        if (enteredPin === null) return; // User cancelled
+
+        const attSnap = await get(ref(db, `staff_attendance/${session.key}`));
+        if (attSnap.exists() && (attSnap.val().keyReturnPin || "").toString() === enteredPin.trim()) {
+            executeCheckOutProcess(staff, session, null, isSecurity); // Pass correct role flag
+        } else {
+            alert("❌ Invalid Key PIN! Verification failed.");
+        }
+    } else {
+        // Case B: No Key -> Password verification only
+        window.openPasswordModal("Verify Password to Check-Out", (enteredPass) => {
+            if (enteredPass !== staff.password) return alert("❌ Incorrect Password!");
+            executeCheckOutProcess(staff, session, null, isSecurity); // Pass correct role flag
+        });
+    }
+};
+
+// ================================================================ */
+// SECURITY DASHBOARD SPECIFIC HANDLERS (FIXED v6.0 - DIRECT FLOW)  */
+// ================================================================ */
+
+window.handleSecurityCheckIn = function(event) {
+    if (event) event.preventDefault();
+    const staff = window.currentStaff || JSON.parse(sessionStorage.getItem('active_staff_user') || '{}');
+    const cinBtn = document.getElementById('s-checkin-btn') || document.getElementById('security-checkin-btn');
+    window.handleStaffCheckIn(staff, cinBtn);
+};
+
+window.handleSecurityCheckOut = function(event) {
+    if (event) event.preventDefault();
+    const staff = window.currentStaff || JSON.parse(sessionStorage.getItem('active_staff_user') || '{}');
+    const coutBtn = document.getElementById('s-checkout-btn') || document.getElementById('security-checkout-btn');
+    const passId = getStaffPassId(staff);
+
+    get(ref(db, `active_staff_sessions/${passId}`)).then(snap => {
+        if (snap.exists()) {
+            window.handleStaffCheckOut(staff, snap.val(), coutBtn);
+        } else {
+            alert("No active check-in session found.");
+        }
+    });
+};
+
+// ================================================================ */
+// DASHBOARD PIN LIST LOADER (NEW v5.6)                             */
+// ================================================================ */
+
+window.loadSecurityPinControl = function() {
+    const tbody = document.getElementById('security-pin-list-body');
+    if (!tbody) return;
+
+    onValue(ref(db, 'security_key_control'), (snapshot) => {
+        tbody.innerHTML = "";
+
+        if (!snapshot.exists()) {
+            tbody.innerHTML = "<tr><td colspan='6' class='p-8 text-center text-slate-500 uppercase font-black tracking-widest'>No active keys issued.</td></tr>";
+            return;
+        }
+
+        const data = snapshot.val();
+        Object.entries(data).forEach(([passId, log]) => {
+            const row = document.createElement('tr');
+            row.className = "border-b border-white/5 hover:bg-white/5 transition-colors";
+            row.innerHTML = `
+                <td class="p-3 font-bold text-white uppercase">${log.name || 'Unknown'}</td>
+                <td class="p-3"><span class="px-2 py-0.5 bg-indigo-500/20 text-indigo-300 rounded-md font-black uppercase text-[8px]">${log.type || 'STAFF'}</span></td>
+                <td class="p-3 font-mono text-slate-400">${log.id || '-'}</td>
+                <td class="p-3 text-center">
+                    <div class="flex flex-col items-center gap-1">
+                        <span class="text-[8px] font-black text-amber-500 uppercase">Return PIN</span>
+                        <span class="bg-indigo-600 px-3 py-1 rounded-lg text-white font-black text-base shadow-lg shadow-indigo-500/30">${log.pin || '----'}</span>
+                    </div>
+                </td>
+                <td class="p-3 text-center">
+                    <span class="inline-flex items-center gap-1 text-[8px] font-black text-emerald-400 uppercase">
+                        <span class="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse"></span>
+                        Active
+                    </span>
+                </td>
+                <td class="p-3 text-center">
+                    <button onclick="window.initiateKeyReturn('${passId}')" class="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-[8px] font-black uppercase shadow-md active:scale-95 transition-all">
+                        Verify Return
+                    </button>
+                </td>
+            `;
+            tbody.appendChild(row);
+        });
+    });
+};
+
+window.initiateKeyReturn = async (passId) => {
+    window.showGlobalSpinner("Loading Session...");
+    try {
+        const snap = await get(ref(db, `active_staff_sessions/${passId}`));
+        if (snap.exists()) {
+            window.activeSessionForReturn = snap.val();
+            window.activeSessionForReturn.passId = passId;
+
+            const modal = document.getElementById('key-return-modal');
+            if (modal) {
+                modal.style.display = 'flex';
+                document.getElementById('key-return-pin-input').value = '';
+                document.getElementById('pin-error').classList.add('hidden');
+            }
+        } else {
+            alert("No active session found for this user.");
+        }
+    } catch (e) {
+        console.error("Initiate Return Error:", e);
+    } finally {
+        window.hideGlobalSpinner();
+    }
+};
+
+// ================================================================ */
+// DASHBOARD BUTTON INITIALIZATION (FIXED v5.7)                     */
+// ================================================================ */
+
+window.initSecurityCheckInButton = function() {
+    const cinBtn = document.getElementById('s-checkin-btn') || document.getElementById('security-checkin-btn');
+    if (!cinBtn) return;
+
+    console.log("🔗 Binding Check-In Button:", cinBtn.id);
+
+    // Remove old listener if any (cloning trick)
+    const newBtn = cinBtn.cloneNode(true);
+    cinBtn.parentNode.replaceChild(newBtn, cinBtn);
+
+    newBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const staff = window.currentStaff || JSON.parse(sessionStorage.getItem('active_staff_user'));
+
+        if (!staff || !staff.mobile) {
+            alert("Session expired. Please login again.");
+            window.location.href = 'staff-login.html';
+            return;
+        }
+
+        console.log("👆 Check-In Button Pressed for:", staff.fullName || staff.name);
+        window.handleStaffCheckIn(staff, newBtn);
+    });
+};
+
+window.initSecurityCheckOutButton = function(staff, session) {
+    console.log('🔧 initSecurityCheckOutButton called');
+
+    // Try multiple button IDs
+    let coutBtn = document.getElementById('security-checkout-btn');
+
+    // If not found, try staff check-out button
+    if (!coutBtn) {
+        coutBtn = document.getElementById('s-checkout-btn');
+        console.log('🔍 Using staff check-out button instead');
+    }
+
+    if (!coutBtn) {
+        console.warn("⚠️ No check-out button found");
+        return;
+    }
+
+    console.log('✅ Check-Out button found, attaching handler');
+
+    // Remove old listener
+    const newBtn = coutBtn.cloneNode(true);
+    coutBtn.parentNode.replaceChild(newBtn, coutBtn);
+
+    newBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        console.log("🔐 Check-Out Button Clicked");
+
+        const activeStaff = window.currentStaff || staff || JSON.parse(sessionStorage.getItem('active_staff_user') || '{}');
+
+        if (!activeStaff || !activeStaff.mobile) {
+            alert("Session expired. Please login again.");
+            window.location.href = 'staff-login.html';
+            return;
+        }
+
+        const isSecurity = (activeStaff.role || '').toLowerCase().includes('security');
+
+        if (isSecurity) {
+            console.log('🔐 Security Check-Out initiated');
+            // Directly call handleStaffCheckOut to avoid redundant Firebase fetch
+            window.handleStaffCheckOut(activeStaff, session, newBtn);
+        } else {
+            console.log('👤 Staff Check-Out initiated');
+            window.handleStaffCheckOut(activeStaff, session, newBtn);
+        }
+    });
+};
+
+// ================================================================ */
+// DASHBOARD LISTENER (SECURITY VS STAFF FIX v4.3)                  */
+// ================================================================ */
+
+let activeSessionUnsubscribe = null;
+
+window.initUserDashboard = async (staff) => {
+    const passId = getStaffPassId(staff);
+    if (!staff || !passId) return;
+
+    // 🛡️ ISOLATION: Set session identifier for this tab strictly
+    window.currentStaff = staff;
+    sessionStorage.setItem('active_staff_user', JSON.stringify(staff));
+
+    // Optionally update localStorage but prioritize SESSION for UI
+    localStorage.setItem('loggedStaffMobile', staff.mobile || '');
+
+    // ✅ Sync Dashboard Header Data
+    if (typeof window.renderDashboardProfile === 'function') {
+        window.renderDashboardProfile(staff);
+    }
+
+    // Properly detach previous Firebase Realtime listener if active
+    if (typeof activeSessionUnsubscribe === 'function') {
+        activeSessionUnsubscribe();
+        activeSessionUnsubscribe = null;
+    }
+
+    const sessionRef = ref(db, `active_staff_sessions/${passId}`);
+
+    activeSessionUnsubscribe = onValue(sessionRef, async (snapshot) => {
+        const session = snapshot.val();
+
+        // 🔒 Verify session validity BEFORE updating UI
+        const validation = await getValidActiveSession(passId);
+        const isSecurity = (staff.role || '').toLowerCase().includes('security');
+
+        if (session && validation.valid) {
+            console.log(`📡 Session Update Received for [${passId}]: Checked-In`);
+            updateAttendanceButtons('checked_in', session.timeIn, isSecurity, passId);
+            window.initSecurityCheckOutButton(staff, session);
+        } else {
+            console.log(`📡 Session Update Received for [${passId}]: Checked-Out`);
+            updateAttendanceButtons('checked_out', null, isSecurity, passId);
+            window.initSecurityCheckInButton();
+        }
+    });
+
+    if ((staff.role || '').toLowerCase() === 'security' && typeof window.loadSecurityPinControl === 'function') {
+        window.loadSecurityPinControl();
+    }
+};
+
+// ================================================================ */
+// KEY RETURN MODAL LOGIC (FIXED WRITES v4.3)                      */
+// ================================================================ */
 
 window.confirmKeyReturn = async (event) => {
     if (event) event.preventDefault();
-
     const input = document.getElementById('key-return-pin-input');
     const error = document.getElementById('pin-error');
     const enteredPin = (input?.value || "").toString().trim();
 
-    if (!window.activeSessionForReturn) {
-        alert("Session error. Please close modal and click 'Return Key' again.");
-        return;
-    }
-
-    window.showGlobalSpinner("Verifying Staff Key PIN...");
-
-    let liveStoredPin = "";
+    if (!window.activeSessionForReturn) return;
     const active = window.activeSessionForReturn;
-    let actualFirebaseKey = active.key;
+    const passId = getStaffPassId(active);
 
     try {
-        // Deep Lookup: Fetch from specific node or search by mobile
-        if (actualFirebaseKey) {
-            const snap = await get(ref(db, `staff_attendance/${actualFirebaseKey}`));
-            if (snap.exists()) {
-                const rec = snap.val();
-                liveStoredPin = (rec.keyReturnPin || rec.checkoutPin || rec.pin || "").toString().trim();
-            }
-        }
+        const snap = await get(ref(db, `staff_attendance/${active.key}`));
+        if (snap.exists() && enteredPin === (snap.val().keyReturnPin || "").toString()) {
+            const updates = {};
+            updates[`staff_attendance/${active.key}/keyStatus`] = 'RETURNED';
+            updates[`security_key_control/${passId}`] = null;
+            updates[`active_staff_sessions/${passId}/keyStatus`] = 'RETURNED';
 
-        // Fallback: Search all staff attendance if key was direct session
-        if (!liveStoredPin) {
-            const allSnap = await get(ref(db, 'staff_attendance'));
-            if (allSnap.exists()) {
-                const data = allSnap.val();
-                for (const [k, v] of Object.entries(data)) {
-                    if (v.status === 'checked_in' && (v.mobile === active.mobile || k === active.key)) {
-                        liveStoredPin = (v.keyReturnPin || v.checkoutPin || v.pin || "").toString().trim();
-                        actualFirebaseKey = k;
-                        break;
-                    }
-                }
-            }
-        }
-    } catch (err) {
-        console.error("Error fetching live record for staff:", err);
-    } finally {
-        window.hideGlobalSpinner();
-    }
+            await safeFirebaseWrite('update', '', updates);
 
-    // Fallback to active session local PIN if Firebase load failed
-    if (!liveStoredPin && active.keyReturnPin) {
-        liveStoredPin = active.keyReturnPin.toString().trim();
-    }
-
-    console.log(`[Staff PIN] Input: "${enteredPin}", Expected: "${liveStoredPin}"`);
-
-    // VERIFY PIN
-    if (liveStoredPin !== "" && enteredPin === liveStoredPin) {
-        console.log("✅ Staff Key PIN Verified Successfully!");
-
-        try {
-            window.showGlobalSpinner("Updating Key Status...");
-
-            // Update Firebase
-            if (actualFirebaseKey) {
-                await update(ref(db, `staff_attendance/${actualFirebaseKey}`), {
-                    keyStatus: 'RETURNED',
-                    keyReturnTime: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', hour12: true})
-                });
-            }
-
-            // Hide Modal
             const modal = document.getElementById('key-return-modal');
-            if (modal) {
-                modal.classList.add('hidden');
-                modal.style.display = 'none';
+            if (modal) modal.style.display = 'none';
+            if (input) input.value = '';
+            if (error) error.classList.add('hidden');
+
+            alert("✅ Key Returned!");
+            if (typeof window.loadSecurityPinControl === 'function') {
+                window.loadSecurityPinControl();
             }
-
-            window.activeSessionForReturn = null;
-
-            // Execute Callback if present (For Checkout Flow)
-            if (keyReturnCallback) {
-                const cb = keyReturnCallback;
-                keyReturnCallback = null;
-                await cb();
-            } else {
-                window.triggerSuccessPopup("Staff Key Returned Successfully! 🔑✅");
-            }
-
-            if (window.loadSecurityPinControl) window.loadSecurityPinControl();
-
-        } catch (e) {
-            alert("Error updating key status: " + e.message);
-        } finally {
-            window.hideGlobalSpinner();
+        } else {
+            if (error) error.classList.remove('hidden');
         }
-    } else {
-        console.warn("❌ Incorrect Staff Key PIN");
-        if (error) error.classList.remove('hidden');
-        if (input) {
-            input.value = '';
-            input.focus();
-        }
-        alert(`❌ Invalid PIN (${enteredPin || 'Empty'}).\nPlease enter the exact 4-digit PIN shown on the Security Dashboard.`);
+    } catch (e) {
+        console.error("Key Return Failed:", e);
+        alert("Return Failed.");
     }
 };
 
 // ================================================================ */
-// PERFORMANCE OPTIMIZATIONS: GEOLOCATION & ASYNC                   */
+// FAST GEOLOCATION HELPER (WITH TIMEOUT GUARD)                     */
 // ================================================================ */
 
 const getFastLocation = () => {
     return new Promise((resolve) => {
-        if (!navigator.geolocation) {
-            console.warn("🌐 Geolocation not supported");
-            return resolve({ lat: 0, lng: 0 });
-        }
+        if (!navigator.geolocation) return resolve({ lat: 0, lng: 0 });
+
         navigator.geolocation.getCurrentPosition(
-            (pos) => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+            (p) => resolve({ lat: p.coords.latitude, lng: p.coords.longitude }),
             (err) => {
-                console.warn("⚠️ Geolocation Error:", err.message);
+                console.warn("Geolocation fallback triggered:", err.message);
                 resolve({ lat: 0, lng: 0 });
             },
-            { enableHighAccuracy: false, timeout: 5000, maximumAge: 60000 }
+            { timeout: 5000, enableHighAccuracy: false }
         );
     });
 };
 
 // ================================================================ */
-// DASHBOARD & ATTENDANCE CORE                                       */
+// INITIAL START & PASSWORD MODAL SUBMIT HANDLER                    */
 // ================================================================ */
 
-// FIX 2: Check-In Logic v4.4
-function triggerSignatureAndKeyModal(btn) {
-    if (typeof window.openSignatureModal === 'function') {
-        window.openSignatureModal("Staff Check-In", async (sigData) => {
-            const role = (window.currentStaff?.role || '').toLowerCase();
-            const isSecurityOrAdmin = (role === 'security' || role === 'admin');
-
-            if (!isSecurityOrAdmin) {
-                if (typeof window.openKeyCollectionModal === 'function') {
-                    window.openKeyCollectionModal(async (hasKey, keyCode) => {
-                        await proceedCheckIn(window.currentStaff, sigData, btn, hasKey, keyCode);
-                    });
-                } else {
-                    const hasKey = confirm("Did you collect a key for this shift?");
-                    await proceedCheckIn(window.currentStaff, sigData, btn, hasKey, null);
-                }
-            } else {
-                await proceedCheckIn(window.currentStaff, sigData, btn, false, null);
-            }
-        });
-    }
-}
-
-function initSecurityCheckInButton() {
-    const cinBtn = document.getElementById('s-checkin-btn');
-    if (!cinBtn) return;
-    const newCinBtn = cinBtn.cloneNode(true);
-    if (cinBtn.parentNode) cinBtn.parentNode.replaceChild(newCinBtn, cinBtn);
-    newCinBtn.onclick = async (e) => {
-        e.preventDefault();
-        try {
-            if (typeof window.openPasswordModal === 'function') {
-                window.openPasswordModal("Check-In Security", () => {
-                    triggerSignatureAndKeyModal(newCinBtn);
-                });
-            } else {
-                triggerSignatureAndKeyModal(newCinBtn);
-            }
-        } catch (err) {
-            console.error("Check-In Error:", err);
-        }
-    };
-}
-
-// FIX 3: Profile Photo Rendering v4.4
-function renderSecurityProfileCard(staff) {
-    const photoEl = document.getElementById('user-avatar');
-    if (photoEl) {
-        const fallbackAvatar = window.generateLocalAvatar ? window.generateLocalAvatar(staff.name || staff.fullName || 'U') : '';
-        const photoUrl = staff.profilePicUrl || staff.photo || staff.profilePic || staff.avatar || fallbackAvatar;
-        photoEl.src = window.getDirectDriveImageUrl ? window.getDirectDriveImageUrl(photoUrl) : photoUrl;
-        photoEl.classList.remove('hidden');
-    }
-}
-
-/**
- * FIX: TOP BACK BUTTON INITIALIZER (v4.3)
- * Restores navigation back to the main dashboard from any sub-module view.
- */
-// 3. CONTEXT-AWARE BACK BUTTON NAVIGATION (DETERMINES ACTIVE PORTAL)
-window.initTopBackButton = function() {
-    const backBtns = document.querySelectorAll('.section-back-btn-circle, .top-back-btn, #btn-back-to-dashboard');
-
-    backBtns.forEach(backBtn => {
-        // Prevent duplicate listener buildup
-        const newBackBtn = backBtn.cloneNode(true);
-        if (backBtn.parentNode) backBtn.parentNode.replaceChild(newBackBtn, backBtn);
-
-        newBackBtn.onclick = (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-
-            // Detect if user belongs to Security or General Staff Portal
-            const isSecurityPortal = document.getElementById('security-main-container') !== null;
-            const targetDashboard = isSecurityPortal ? 'security-main-container' : 'staff-dash-area';
-
-            window.showStaffView(targetDashboard);
-        };
-    });
-};
-
-window.initUserDashboard = async (staff) => {
-    console.log("📊 initUserDashboard: Initializing for", staff.name || staff.fullName);
-    window.currentStaff = staff;
-
-    // Safety check for mobile number (prevent undefined errors in Firebase)
-    if (staff.mobile) {
-        localStorage.setItem('loggedStaffMobile', staff.mobile);
-    }
-
-    // Initialize Back Button Navigation
-    window.initTopBackButton();
-
-    const role = (staff.role || "Staff").toString().trim().toLowerCase();
-    const isSecurity = (role === 'security');
-    const isAdmin = (role === 'admin') || (localStorage.getItem('isAdminLoggedIn') === 'true');
-
-    // HIDE AUTH / LOGIN SECTION IF VISIBLE
-    const authArea = document.getElementById('staff-auth-area');
-    const dashArea = document.getElementById('staff-dash-area');
-    if (authArea) authArea.classList.add('hidden');
-    if (dashArea) dashArea.classList.remove('hidden');
-
-    // RESET SUBVIEWS (Role-Specific)
-    const subViews = [
-        'tasks-management-section',
-        'asset-audit-section',
-        'asset-disposal-section',
-        'asset-transfer-section',
-        'transfer-logs-section',
-        'security-pin-control'
-    ];
-
-    subViews.forEach(id => {
-        const el = document.getElementById(id);
-        if (el) {
-            // RESTORATION EXCEPTION: Don't hide core Security Dashboard features if the user is Security
-            const isSecurityCore = (id === 'security-pin-control' || id === 'tasks-management-section' || id === 'asset-transfer-section' || id === 'asset-audit-section' || id === 'asset-disposal-section' || id === 'transfer-logs-section');
-            if (isSecurity && isSecurityCore) {
-                // Keep the primary sections like PIN control visible, but hide the workflow sections until clicked
-                if (id !== 'security-pin-control' && id !== 'tasks-management-section') {
-                    el.classList.add('hidden');
-                    el.style.display = 'none';
-                }
-                return;
-            }
-
-            el.classList.add('hidden');
-            el.style.display = 'none';
-        }
-    });
-
-    // --- ENSURE PRIMARY DASHBOARD COMPONENTS ARE VISIBLE ---
-    const primaryComponents = [
-        'user-profile-card',
-        'security-profile-card',
-        'active-staff-grid',
-        'visitor-log-section',
-        'tasks-summary-card',
-        'attendance-controls',
-        'staff-action-container'
-    ];
-    primaryComponents.forEach(id => {
-        const el = document.getElementById(id) || document.querySelector(`.${id}`);
-        if (el) {
-            el.classList.remove('hidden');
-            el.style.display = ''; // Restore default (flex/block)
-        }
-    });
-
-    // APPLY ROLE RULES (Side Menu & Restricted Sections)
-    if (window.applyRoleDashboardRules) {
-        window.applyRoleDashboardRules(role);
-        const restrictedRoles = ['cleaner', 'bus musrif', 'bus_musrif', 'gardener', 'office boy', 'office_boy'];
-        if (restrictedRoles.includes(role)) window.loadPersonalAttendance(staff.mobile);
-        if (role === 'security') {
-            window.loadSecurityPinControl();
-            if (window.enforceSecurityDashboardLayout) window.enforceSecurityDashboardLayout(role);
-        }
-    }
-
-    // FORCE RELOAD TASK STATS & VIEW (Handles counters)
-    if (window.loadRoleView) {
-        console.log("🛡️ Dashboard: Re-connecting Task real-time counters");
-        window.loadRoleView(staff);
-    }
-
-    // POPULATE PROFILE CARD DETAILS WITH SAFE FALLBACKS
-    const nameEl = document.getElementById('user-name');
-    if (nameEl) nameEl.innerText = staff.name || staff.fullName || "Staff Member";
-
-    const passIdEl = document.getElementById('user-pass-id');
-    if (passIdEl) passIdEl.innerText = `ID: ${staff.passId || staff.adekPass || staff.adcPassNumber || staff.staffId || "-"}`;
-
-    const roleBadgeEl = document.getElementById('user-role');
-    if (roleBadgeEl) roleBadgeEl.innerText = staff.role || "Staff";
-
-    const branchEl = document.getElementById('user-branch');
-    if (branchEl) branchEl.innerHTML = `<i class="fa-solid fa-location-dot text-indigo-400"></i> ${staff.branch || staff.school || "Jern Yafoor School"}`;
-
-    // FIX 3: Profiles Photo Rendering
-    renderSecurityProfileCard(staff);
-
-    // UPDATE STAT COUNTERS FROM FIREBASE TASKS
-    const userRole = (staff.role || '').toLowerCase();
-    const userMobile = (staff.mobile || '').toString();
-    const userName = (staff.name || staff.fullName || '').toLowerCase();
-
-    // Security Dashboard Label Update
-    const taskOverviewLabel = document.querySelector('#tasks-summary-card .stat-completed .label');
-    if (isSecurity && taskOverviewLabel) {
-        taskOverviewLabel.innerText = "Task Overview";
-    }
-
-    onValue(ref(db, 'tasks'), (snapshot) => {
-        const tasks = snapshot.val() || {};
-        let total = 0, pending = 0, completed = 0;
-        Object.values(tasks).forEach(task => {
-            if (!task) return;
-
-            // Flexible Role/Ownership Mapping
-            const taskRole = (task.assignedRole || task.category || '').toLowerCase();
-            const taskCreatorMobile = (task.raisedByMobile || '').toString();
-            const taskCreatorName = (task.raisedByName || task.createdBy || '').toLowerCase();
-
-            const isRelevant = isAdmin ||
-                               taskRole.includes(userRole) ||
-                               taskCreatorMobile === userMobile ||
-                               taskCreatorName === userName;
-
-            if (isRelevant) {
-                total++;
-                if (task.status === 'Closed' || task.status === 'Completed' || task.status === 'Rejected') {
-                    completed++;
-                } else {
-                    pending++;
-                }
-            }
-        });
-        if (document.getElementById('total-tasks-count')) document.getElementById('total-tasks-count').innerText = total;
-        if (document.getElementById('pending-tasks-count')) document.getElementById('pending-tasks-count').innerText = pending;
-        if (document.getElementById('completed-tasks-count')) document.getElementById('completed-tasks-count').innerText = completed;
-    });
-
-    // RE-INITIALIZE ATTENDANCE LISTENER
-    const cinBtn = document.getElementById('s-checkin-btn');
-    const coutBtn = document.getElementById('s-checkout-btn');
-    const statusText = document.getElementById('attendanceStatusText');
-
-    if (cinBtn) { cinBtn.disabled = false; cinBtn.innerHTML = '<i class="fa-regular fa-check-circle"></i> Check In'; }
-    if (coutBtn) { coutBtn.disabled = false; coutBtn.innerHTML = '<i class="fa-regular fa-circle-xmark"></i> Check Out'; }
-
-    onValue(ref(db, 'active_staff_sessions/' + staff.mobile), async (snapshot) => {
-        const session = snapshot.val();
-        console.log("📥 Attendance State Update:", session ? session.status : "No session");
-
-        if (session && session.status === 'checked_in') {
-            if (cinBtn) cinBtn.classList.add('hidden');
-            if (coutBtn) coutBtn.classList.remove('hidden');
-            if (statusText) statusText.innerText = "Checked in at " + (session.timeIn || "recently");
-
-            if (coutBtn) {
-                coutBtn.onclick = () => {
-                    window.openPasswordModal("Check-Out Security", async () => {
-                        if (session.keyStatus === 'HELD') {
-                            window.openKeyReturnModal(session.key, session, async () => {
-                                await proceedCheckOut(staff, session, coutBtn, true);
-                            });
-                        } else {
-                            await proceedCheckOut(staff, session, coutBtn, false);
-                        }
-                    });
-                };
-            }
-        } else {
-            // FIX 2: Ensure Check-In Button is initialized correctly
-            initSecurityCheckInButton();
-
-            if (cinBtn) {
-                cinBtn.classList.remove('hidden');
-            }
-            if (coutBtn) coutBtn.classList.add('hidden');
-            if (statusText) statusText.innerText = "Ready to check in";
-        }
-    });
-};
-
-// Maintain alias for backward compatibility
-window.renderDashboard = window.initUserDashboard;
-
-async function proceedCheckIn(staff, sigData, btn, hasKey, keyCode = null) {
-    console.log("📥 Check-In: Proceeding...");
-    btn.disabled = true;
-    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Processing...';
-    window.showGlobalSpinner("Saving Check-In Record...");
-
-    try {
-        const loc = await getFastLocation();
-
-        // Network Performance Check
-        const ping = await checkNetworkPing();
-        if (ping > NETWORK_SPEED_THRESHOLD) window.showSlowNetWarning();
-
-        const res = await window.uploadToDrive({
-            category: UPLOAD_CONFIG.CATEGORIES.STAFF_ATTENDANCE,
-            fileName: `Attendance_In_${staff.mobile}_${Date.now()}.png`,
-            image: sigData
-        });
-
-        if (res.status !== 'success') throw new Error(res.message || "Upload failed");
-
-        const key = staff.mobile + '_' + Date.now();
-        const pin = hasKey ? window.generateKeyReturnPin() : null;
-        const data = {
-            mobile: staff.mobile,
-            name: staff.fullName || staff.name,
-            role: staff.role || "Staff",
-            branch: staff.branch || staff.school || "School 1",
-            status: 'checked_in',
-            date: new Date().toLocaleDateString(),
-            timeIn: new Date().toLocaleTimeString(),
-            timestamp: Date.now(),
-            signatureUrl: res.fileUrl,
-            lat: loc.lat,
-            lng: loc.lng,
-            keyStatus: hasKey ? "HELD" : "NONE",
-            keyCode: keyCode || "N/A",
-            keyCollectTime: hasKey ? Date.now() : null,
-            keyReturnPin: pin,
-            companyName: staff.companyName || "N/A",
-            companyId: staff.companyId || "N/A",
-            adekPass: staff.adekPass || staff.adcPassNumber || "N/A"
-        };
-
-        // FORCE REST FALLBACK IF NEEDED
-        const dbStatus = await safeFirebaseWrite('set', 'staff_attendance/' + key, data);
-
-        // SYNC TO SECURITY KEY CONTROL (RESTORED)
-        if (hasKey) {
-            await safeFirebaseWrite('set', 'security_key_control/' + staff.mobile, {
-                name: data.name,
-                mobile: data.mobile,
-                role: data.role,
-                pin: pin,
-                status: 'HELD',
-                timestamp: Date.now()
-            });
-        }
-
-        await safeFirebaseWrite('set', 'active_staff_sessions/' + staff.mobile, {
-            status: 'checked_in', key, timeIn: data.timeIn, keyStatus: data.keyStatus, keyReturnPin: pin, mobile: staff.mobile
-        });
-
-        if (window.triggerSuccessPopup) {
-            const welcomeMsg = `Welcome, ${staff.fullName || staff.name || "Staff"}! Checked-in successfully. Have a great day! 👋`;
-            const msg = dbStatus.status === 'offline_queued' ? "Saved Offline! Syncing when network improves. ✅" : welcomeMsg;
-            window.triggerSuccessPopup(msg);
-        } else alert(`Welcome, ${staff.fullName || staff.name || "Staff"}! Checked-in successfully. Have a great day! 👋`);
-
-    } catch (err) {
-        console.error("❌ Check-In Error:", err);
-        alert("Error: " + err.message);
-    } finally {
-        btn.disabled = false;
-        btn.innerHTML = '<i class="fa-regular fa-check-circle"></i> Check In';
-        window.hideGlobalSpinner();
-    }
-}
-
-async function proceedCheckOut(staff, session, btn, keyReturned) {
-    console.log("📤 Check-Out: Proceeding...");
-    btn.disabled = true;
-    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Processing...';
-    window.showGlobalSpinner("Finalizing Check-Out...");
-
-    try {
-        const loc = await getFastLocation();
-
-        const data = {
-            status: 'checked_out',
-            checkOutTime: new Date().toLocaleTimeString(),
-            checkOutTimestamp: Date.now(),
-            checkOutLat: loc.lat,
-            checkOutLng: loc.lng
-        };
-
-        if (keyReturned) {
-            data.keyStatus = "RETURNED";
-            data.keyReturnTime = Date.now();
-        }
-
-        const dbStatus = await safeFirebaseWrite('update', 'staff_attendance/' + (session?.key || ""), data);
-
-        // UPDATE SECURITY KEY CONTROL (RESTORED)
-        if (keyReturned) {
-            await safeFirebaseWrite('set', 'security_key_control/' + staff.mobile, null);
-        }
-
-        await safeFirebaseWrite('set', 'active_staff_sessions/' + staff.mobile, null);
-
-        if (window.triggerSuccessPopup) {
-            const msg = dbStatus.status === 'offline_queued' ? "Saved Offline! Syncing when network improves. 👋" : "Checked Out Successfully! 👋";
-            window.triggerSuccessPopup(msg);
-        } else alert("Checked out!");
-
-        // FIX 1: Ensure loadSecurityPinControl() is ONLY called if role === 'security'
-        const role = (staff.role || '').toLowerCase();
-        if (role === 'security') {
-            if (window.loadSecurityPinControl) window.loadSecurityPinControl();
-        }
-
-    } catch (err) {
-        console.error("❌ Check-Out Error:", err);
-        alert("Error: " + err.message);
-    } finally {
-        btn.disabled = false;
-        btn.innerHTML = '<i class="fa-regular fa-circle-xmark"></i> Check Out';
-        window.hideGlobalSpinner();
-    }
-}
-
-window.loadPersonalAttendance = async (mobile) => {
-    const body = document.getElementById('cleaner-attendance-body');
-    const countEl = document.getElementById('cleaner-total-days');
-    if (!body) return;
-
-    try {
-        const snap = await get(ref(db, 'staff_attendance'));
-        if (snap.exists()) {
-            const data = snap.val();
-            // Cache locally
-            localStorage.setItem(`personal_attendance_${mobile}`, JSON.stringify(data));
-            renderAttendanceList(data, mobile, body, countEl);
-        } else {
-            body.innerHTML = '<tr><td colspan="4" class="p-8 text-center text-gray-400">No records found</td></tr>';
-        }
-    } catch (e) {
-        console.warn("⚠️ Restricted Wi-Fi mode: Loading history from local cache.");
-        const cached = localStorage.getItem(`personal_attendance_${mobile}`);
-        if (cached) {
-            renderAttendanceList(JSON.parse(cached), mobile, body, countEl);
-            window.showWhatsAppToast("⚠️ Offline Mode", "Loaded from local cache.");
-        } else {
-            body.innerHTML = '<tr><td colspan="4" class="p-8 text-center text-red-400">Error loading history</td></tr>';
-        }
-    }
-};
-
-function renderAttendanceList(data, mobile, body, countEl) {
-    const all = Object.values(data).filter(a => a.mobile === mobile);
-    all.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
-
-    if (countEl) countEl.innerText = `${all.length} Days Total`;
-
-    body.innerHTML = all.map(a => {
-        let keyLog = '<span class="text-slate-300">N/A</span>';
-        if (a.keyStatus === 'HELD') keyLog = '🔑 <span class="text-amber-600">Held</span>';
-        else if (a.keyStatus === 'RETURNED') keyLog = '✅ <span class="text-emerald-600">Returned</span>';
-        else if (a.keyStatus === 'NONE') keyLog = '❌ <span class="text-slate-400">None</span>';
-
-        return `
-            <tr>
-                <td class="p-4 font-bold text-indigo-900">${a.date}</td>
-                <td class="p-4 text-emerald-600 font-bold">${a.timeIn || '-'}</td>
-                <td class="p-4 text-red-500 font-bold">${a.checkOutTime || '-'}</td>
-                <td class="p-4">${keyLog}</td>
-            </tr>
-        `;
-    }).join('');
-}
-
-window.loadSecurityPinControl = () => {
-    // FIX 1: Strict Role Guard
-    const currentUser = JSON.parse(sessionStorage.getItem('active_staff_user') || '{}');
-    const role = (currentUser.role || window.currentStaff?.role || '').toLowerCase();
-
-    if (role !== 'security' && role !== 'admin') {
-        const container = document.getElementById('security-pin-control') || document.getElementById('security-key-pin-section');
-        if (container) {
-            container.classList.add('hidden');
-            container.style.display = 'none';
-        }
-        return;
-    }
-
-    const container = document.getElementById('security-pin-control');
-    const body = document.getElementById('security-pin-list-body');
-
-    if (container) {
-        container.classList.remove('hidden');
-        container.style.display = 'block';
-    }
-
-    if (!body) return;
-
-    onValue(ref(db, 'staff_attendance'), () => renderPinTable());
-    onValue(ref(db, 'visitors'), () => renderPinTable());
-    onValue(ref(db, 'contractors'), () => renderPinTable());
-
-    renderPinTable();
-
-    async function renderPinTable() {
-        try {
-            const [staffSnap, visSnap, conSnap] = await Promise.all([
-                get(ref(db, 'staff_attendance')),
-                get(ref(db, 'visitors')),
-                get(ref(db, 'contractors'))
-            ]);
-
-            let rows = [];
-
-            // 1. Process Staff
-            if (staffSnap.exists()) {
-                Object.entries(staffSnap.val()).forEach(([key, s]) => {
-                    if (s.status === 'checked_in' && s.keyStatus === 'HELD') {
-                        rows.push({
-                            name: s.name,
-                            id: s.adekPass || s.mobile,
-                            type: 'STAFF',
-                            info: s.companyName || 'Staff Member',
-                            pin: s.keyReturnPin || '0000',
-                            key: 'School Master Key',
-                            signature: s.signatureUrl,
-                            fullData: s,
-                            firebaseKey: key,
-                            dataType: 'staff'
-                        });
-                    }
-                });
-            }
-
-            // 2. Process Visitors
-            if (visSnap.exists()) {
-                Object.entries(visSnap.val()).forEach(([key, v]) => {
-                    if (v.status === 'active' && (v.keyCollected === 'YES' || v.keyCollected === true)) {
-                        rows.push({
-                            name: v.name,
-                            id: v.id,
-                            type: 'VISITOR',
-                            info: v.company || v.purpose,
-                            pin: v.keyReturnPin || v.checkoutPin || '0000',
-                            key: 'Visitor Badge',
-                            signature: v.signatureUrl,
-                            fullData: v,
-                            firebaseKey: key,
-                            dataType: 'visitor'
-                        });
-                    }
-                });
-            }
-
-            // 3. Process Contractors
-            if (conSnap.exists()) {
-                Object.entries(conSnap.val()).forEach(([key, c]) => {
-                    if (c.status === 'active' && (c.keyCollected === 'YES' || c.keyCollected === true)) {
-                        rows.push({
-                            name: c.name,
-                            id: c.id,
-                            type: 'CONTRACTOR',
-                            info: `${c.company || ''} (${c.contractorId || ''})`,
-                            pin: c.keyReturnPin || c.checkoutPin || '0000',
-                            key: 'Service Key',
-                            signature: c.signatureUrl,
-                            fullData: c,
-                            firebaseKey: key,
-                            dataType: 'contractor'
-                        });
-                    }
-                });
-            }
-
-            if (rows.length === 0) {
-                body.innerHTML = '<tr><td colspan="6" class="p-8 text-center text-slate-500 font-black uppercase tracking-widest">No active keys issued.</td></tr>';
-                return;
-            }
-
-            body.innerHTML = rows.map(r => {
-                const sigHTML = (r.signature && r.signature.length > 30)
-                    ? `<img src="${r.signature}" class="h-8 w-14 object-contain bg-white rounded border border-slate-600 mx-auto cursor-pointer shadow-sm hover:scale-110 transition-all" onclick="window.openImageZoom('${r.signature}')" alt="Sig">`
-                    : `<span class="text-[8px] text-slate-500 italic">No Sig</span>`;
-
-                const typeColor = r.type === 'STAFF' ? 'bg-indigo-500/20 text-indigo-400' : r.type === 'VISITOR' ? 'bg-amber-500/20 text-amber-400' : 'bg-emerald-500/20 text-emerald-400';
-
-                return `
-                    <tr class="hover:bg-white/5 border-b border-white/5 transition-colors">
-                        <td class="p-4 align-middle font-black text-white uppercase text-xs">${r.name}</td>
-                        <td class="p-4 align-middle">
-                            <span class="inline-block px-2 py-0.5 rounded text-[8px] font-black uppercase ${typeColor}">${r.type}</span>
-                        </td>
-                        <td class="p-4 align-middle font-mono font-bold text-slate-400 text-xs">${r.id}</td>
-                        <td class="p-4 text-center align-middle">
-                            <div class="flex flex-col items-center">
-                                <span class="text-amber-500 font-bold text-[9px] flex items-center gap-1 mb-1">
-                                    <i class="fa-solid fa-key"></i> ${r.key}
-                                </span>
-                                <span class="px-2 py-1 bg-emerald-500 text-white rounded-lg font-black text-[10px] tracking-widest shadow-lg shadow-emerald-500/20">
-                                    PIN: ${r.pin}
-                                </span>
-                            </div>
-                        </td>
-                        <td class="p-4 text-center align-middle">${sigHTML}</td>
-                        <td class="p-4 text-center align-middle">
-                            <button onclick="window.openDetailedAuditModal('${r.dataType}', '${r.firebaseKey}')" class="w-10 h-10 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg active:scale-95 transition-all flex items-center justify-center mx-auto">
-                                <i class="fa-solid fa-eye text-sm"></i>
-                            </button>
-                        </td>
-                    </tr>
-                `;
-            }).join('');
-        } catch (e) {
-            console.error("Error loading PIN control:", e);
-        }
-    }
-};
-
-/**
- * RESTORED: SECURITY DASHBOARD LAYOUT ENFORCER (v4.3)
- * Strictly hides gate operations and ensures core modules are visible.
- */
-window.enforceSecurityDashboardLayout = function(role) {
-    const cleanRole = (role || '').toLowerCase();
-    if (cleanRole === 'security') {
-        // 1. Hide Visitor & Contractor Gate Operation Buttons from Security View
-        const gateOpsSection = document.getElementById('gate-operations-section');
-        const visitorEntryBtn = document.getElementById('btn-visitor-entry');
-        const contractorEntryBtn = document.getElementById('btn-contractor-entry');
-        const checkInTopBtn = document.getElementById('top-btn-checkin');
-
-        if (gateOpsSection) gateOpsSection.style.display = 'none';
-        if (visitorEntryBtn) visitorEntryBtn.style.display = 'none';
-        if (contractorEntryBtn) contractorEntryBtn.style.display = 'none';
-        if (checkInTopBtn) checkInTopBtn.style.display = 'none';
-
-        // 2. Ensure Key PIN Control, Create Task, and Asset Modules are Visible
-        const keyPinSection = document.getElementById('security-pin-control') || document.getElementById('security-key-pin-section');
-        const createTaskBtn = document.getElementById('tab-btn-create-task') || document.getElementById('tab-btn-create');
-        const assetModule = document.getElementById('asset-management-section') || document.getElementById('menu-asset-section');
-
-        if (keyPinSection) {
-            keyPinSection.style.display = 'block';
-            keyPinSection.classList.remove('hidden');
-        }
-        if (createTaskBtn) {
-            createTaskBtn.style.display = 'inline-flex';
-            createTaskBtn.classList.remove('hidden');
-        }
-        if (assetModule) {
-            assetModule.style.display = 'block';
-            assetModule.classList.remove('hidden');
-        }
-    }
-};
-
-console.log("✅ attendance_module.js: UI & Security Fully Fixed");
-// 3. ATTACH KEYPRESS LISTENER FOR 'ENTER' KEY SUBMISSION
 document.addEventListener('DOMContentLoaded', () => {
-    const input = document.getElementById('key-return-pin-input');
-    if (input) {
-        input.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') {
-                e.preventDefault();
-                window.confirmKeyReturn(e);
+    const passForm = document.getElementById('password-verify-form');
+    if (passForm && !passForm.dataset.bound) {
+        passForm.onsubmit = (e) => {
+            e.preventDefault();
+            const input = document.getElementById('modal-auth-pass');
+            const enteredPass = (input?.value || "").trim();
+            const actualPass = (window.currentStaff?.password || "").toString().trim();
+
+            if (enteredPass === actualPass) {
+                if (passwordCallback) {
+                    const cb = passwordCallback;
+                    passwordCallback = null;
+                    cb(enteredPass);
+                }
+                window.closePasswordModal();
+            } else {
+                alert("❌ Wrong password.");
             }
-        });
+        };
+        passForm.dataset.bound = "true";
     }
+
+    setTimeout(() => {
+        if (typeof window.initSecurityCheckInButton === 'function') {
+            window.initSecurityCheckInButton();
+        }
+    }, 1000);
 });
+
+console.log("✅ attendance_module.js: v5.5 - Fully Fixed & Verified");

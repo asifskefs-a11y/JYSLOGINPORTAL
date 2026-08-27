@@ -1168,6 +1168,7 @@
     <div id="view-staff-modal" class="fixed inset-0 bg-black/90 backdrop-blur-md z-[100002] hidden flex items-center justify-center p-4"></div>
     <div id="view-transfer-modal" class="fixed inset-0 bg-black/90 backdrop-blur-md z-[100002] hidden flex items-center justify-center p-4"></div>
     <div id="notification-modal" class="fixed inset-0 bg-black/90 backdrop-blur-md z-[100003] hidden flex items-center justify-center p-4"></div>
+    <div id="disposal-inspector-modal" class="fixed inset-0 bg-black/90 backdrop-blur-md z-[100004] hidden flex items-center justify-center p-4"></div>
 
     <!-- TASK INSPECTION MODAL (POPUP WITH BEFORE/AFTER PHOTOS) -->
     <div id="task-inspector-modal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-md z-[100004] hidden flex items-center justify-center p-4">
@@ -1303,41 +1304,24 @@
     </div>
 
     <div id="asset-edit-modal" class="fixed inset-0 bg-black/90 z-[100006] hidden flex items-center justify-center p-4">
-        <div class="bg-white w-full max-w-xl rounded-[40px] overflow-hidden shadow-2xl">
-            <div class="p-6 bg-indigo-600 text-white flex justify-between items-center">
-                <h3 class="text-lg font-bold uppercase tracking-tight">Edit Asset Details</h3>
+        <div class="bg-white w-full max-w-4xl rounded-[40px] overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
+            <div class="p-6 bg-indigo-600 text-white flex justify-between items-center shrink-0">
+                <h3 class="text-lg font-black uppercase tracking-tight"><i class="fa-solid fa-pen-to-square mr-2"></i> Comprehensive Asset Editor</h3>
                 <button onclick="document.getElementById('asset-edit-modal').classList.add('hidden')"><i class="fa-solid fa-xmark text-xl"></i></button>
             </div>
-            <form id="edit-asset-form" class="p-8 space-y-4">
-                <div class="space-y-1">
-                    <label class="text-[10px] font-black text-slate-400 uppercase">Description</label>
-                    <input type="text" id="edit-description" class="w-full p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl outline-none focus:border-indigo-500 text-sm">
-                </div>
-                <div class="grid grid-cols-2 gap-4">
-                    <div class="space-y-1">
-                        <label class="text-[10px] font-black text-slate-400 uppercase">Condition</label>
-                        <select id="edit-condition" class="w-full p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl outline-none focus:border-indigo-500 text-sm">
-                            <option value="Excellent">Excellent</option>
-                            <option value="Good">Good</option>
-                            <option value="Fair">Fair</option>
-                            <option value="Poor">Poor</option>
-                            <option value="Damaged">Damaged</option>
-                        </select>
+            <div class="overflow-y-auto flex-1 bg-slate-50 p-6">
+                <p class="text-[10px] font-black text-indigo-400 uppercase tracking-widest mb-4 border-b border-indigo-100 pb-2">Modify all master register properties below:</p>
+                <form id="edit-asset-form">
+                    <input type="hidden" id="edit-barcode" name="assetBarcode">
+                    <div id="admin-dynamic-edit-fields" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        <!-- Dynamic Fields Generated via JS -->
                     </div>
-                    <div class="space-y-1">
-                        <label class="text-[10px] font-black text-slate-400 uppercase">Location</label>
-                        <input type="text" id="edit-location" class="w-full p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl outline-none focus:border-indigo-500 text-sm">
-                    </div>
-                </div>
-                <div class="space-y-1">
-                    <label class="text-[10px] font-black text-slate-400 uppercase">Room Number</label>
-                    <input type="text" id="edit-room" class="w-full p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl outline-none focus:border-indigo-500 text-sm">
-                </div>
-                <input type="hidden" id="edit-barcode">
-                <button type="button" id="save-asset-edit-btn" class="w-full py-4 bg-indigo-600 text-white rounded-2xl font-black text-sm uppercase tracking-widest shadow-xl active:scale-95 transition-all mt-4">
-                    Save Updates
-                </button>
-            </form>
+                </form>
+            </div>
+            <div class="p-6 bg-white border-t flex gap-4 shrink-0">
+                <button type="button" onclick="document.getElementById('asset-edit-modal').classList.add('hidden')" class="flex-1 py-4 bg-slate-100 text-slate-600 rounded-2xl font-black text-sm uppercase tracking-widest active:scale-95 transition-all">Cancel</button>
+                <button type="button" id="save-asset-edit-btn" class="flex-[2] py-4 bg-indigo-600 text-white rounded-2xl font-black text-sm uppercase tracking-widest shadow-xl shadow-indigo-500/20 active:scale-95 transition-all">Save All Changes & Sync</button>
+            </div>
         </div>
     </div>
 

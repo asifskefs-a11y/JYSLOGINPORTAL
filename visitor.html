@@ -116,7 +116,7 @@
                             <div class="visitor-signature-group pt-2">
                                 <label class="signature-label"><i class="fa-solid fa-user"></i> Visitor Signature Required *</label>
                                 <div class="canvas-wrapper">
-                                    <div class="sig-lock-overlay" onclick="event.preventDefault(); event.stopPropagation(); window.unlockCanvas(this)">
+                                    <div class="sig-lock-overlay" onclick="event.preventDefault(); event.stopPropagation(); window.unlockCanvas(this, event)">
                                         <i class="fa-solid fa-lock text-3xl text-indigo-500 mb-2"></i>
                                         <span>Tap here to sign</span>
                                     </div>
@@ -227,6 +227,27 @@
     <script type="module" src="admin_module.js?v=4.0"></script>
     <script type="module" src="visitor_module.js?v=4.0"></script>
     <script type="module" src="init_module.js?v=4.0"></script>
+
+    <!-- PROFESSIONAL PORTAL ANIMATION OVERLAY -->
+    <div id="portal-animation-overlay" class="fixed inset-0 z-[2000000] hidden items-center justify-center bg-white/90 backdrop-blur-xl transition-all duration-500">
+        <div class="text-center space-y-6 transform scale-110">
+            <div class="relative inline-block">
+                <div class="absolute inset-0 bg-indigo-500/10 rounded-full blur-3xl animate-pulse"></div>
+                <div class="relative w-32 h-32 bg-white rounded-full shadow-2xl flex items-center justify-center border-4 border-indigo-50">
+                    <i id="anim-icon" class="fa-solid fa-user-shield text-indigo-600 text-6xl"></i>
+                </div>
+            </div>
+            <div class="space-y-1">
+                <h2 id="anim-text" class="text-2xl font-black text-indigo-950 uppercase tracking-tighter">Verifying...</h2>
+                <p id="anim-subtext" class="text-[10px] font-black text-indigo-400 uppercase tracking-[0.3em]">Jern Yafoor School</p>
+            </div>
+            <div class="flex justify-center gap-2">
+                <span class="w-2 h-2 bg-indigo-600 rounded-full animate-bounce" style="animation-delay: 0.1s"></span>
+                <span class="w-2 h-2 bg-indigo-400 rounded-full animate-bounce" style="animation-delay: 0.2s"></span>
+                <span class="w-2 h-2 bg-indigo-200 rounded-full animate-bounce" style="animation-delay: 0.3s"></span>
+            </div>
+        </div>
+    </div>
     <!-- FORCED GLOBAL SPINNER & OVERRIDE -->
     <style>
         @keyframes logoPulseScale {
