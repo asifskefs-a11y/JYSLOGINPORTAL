@@ -131,10 +131,14 @@
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
 
+        /* ROLE BADGES */
         .role-badge { display: inline-flex; align-items: center; justify-content: center; padding: 4px 10px; border-radius: 8px; font-weight: 800; font-size: 9px; text-transform: uppercase; letter-spacing: 0.5px; min-width: 100px; }
         .role-security { background: #dbeafe; color: #1e40af; border: 1px solid #bfdbfe; }
         .role-cleaner-leader { background: #dcfce7; color: #166534; border: 1px solid #bbf7d0; }
         .role-technician { background: #f3e8ff; color: #6b21a8; border: 1px solid #e9d5ff; }
+        .role-bus-driver { background: #fef3c7; color: #92400e; border: 1px solid #fde68a; }
+        .role-bus-monitor { background: #ffedd5; color: #9a3412; border: 1px solid #fed7aa; }
+        .role-supervisor { background: #ccfbf1; color: #115e59; border: 1px solid #99f6e4; }
         .role-default { background: #f1f5f9; color: #475569; border: 1px solid #e2e8f0; }
 
         .filter-group {
@@ -149,6 +153,25 @@
             flex-wrap: wrap;
             margin-bottom: 12px;
         }
+
+        /* EYE BUTTON & ACTION COLUMN STYLING */
+        .btn-view-doc {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            background: #e0e7ff;
+            color: #4338ca;
+            border: 1px solid #c7d2fe;
+            transition: all 0.2s ease;
+        }
+        .btn-view-doc:hover {
+            background: #4f46e5;
+            color: #ffffff;
+        }
+
         .status-badge.open { background: #fef3c7; color: #d97706; }
         .status-badge.closed { background: #d1fae5; color: #059669; }
         .status-badge.rejected { background: #fee2e2; color: #dc2626; }
@@ -434,6 +457,7 @@
             white-space: nowrap;
         }
         @media (max-width: 640px) {
+            .filter-group { flex-direction: column; align-items: stretch; }
             .import-body { flex-direction: column; }
             .file-input-group { width: 100%; }
             .btn-import, .btn-debug { width: 100%; justify-content: center; }
@@ -1466,6 +1490,9 @@
     <script type="module" src="attendance_module.js?v=4.0"></script>
     <script type="module" src="tasks_module.js?v=4.0"></script>
     <script type="module" src="admin_module.js?v=4.0"></script>
+    <script type="module" src="modules/staff_documents/docs_firebase.js?v=1.0"></script>
+    <script type="module" src="modules/staff_documents/docs_admin.js?v=1.0"></script>
+    <script type="module" src="modules/staff_documents/docs_verification.js?v=1.0"></script>
     <script type="module" src="contractor_module.js?v=4.0"></script>
     <script type="module" src="init_module.js?v=4.0"></script>
 

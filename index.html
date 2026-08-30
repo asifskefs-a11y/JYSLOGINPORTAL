@@ -4,19 +4,38 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>JYS - Jarn Yafoor School Portal</title>
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+    <!-- Preconnect for faster font loading -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+    <noscript>
+        <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    </noscript>
+
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="manifest" href="./manifest.json">
     <link rel="apple-touch-icon" href="jys_Icon.png?v=3.2">
     <meta name="theme-color" content="#4f46e5">
     <link rel="stylesheet" href="style.css?v=3.2">
+
     <style>
         /* ============================================ */
-        /* EXTRA STYLES FOR LANDING PAGE */
+        /* COMPLETE OPTIMIZED STYLES */
         /* ============================================ */
 
-        /* Portal Container */
+        /* === BASE === */
+        * {
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            font-family: 'Poppins', sans-serif;
+            overflow-x: hidden;
+        }
+
+        /* === PORTAL CONTAINER === */
         .portal-container {
             animation: fadeInUp 0.8s ease-out;
         }
@@ -32,11 +51,14 @@
             }
         }
 
-        /* Card Hover Effect */
+        /* === CARD HOVER EFFECT === */
         .portal-card {
             position: relative;
             overflow: hidden;
             cursor: pointer;
+            min-height: 200px;
+            -webkit-tap-highlight-color: transparent;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
         .portal-card::before {
@@ -57,7 +79,11 @@
             transform: scale(1);
         }
 
-        /* Logo Animation */
+        .portal-card:active {
+            transform: scale(0.97) !important;
+        }
+
+        /* === LOGO ANIMATION === */
         .logo-circular-frame {
             transition: transform 0.5s ease;
         }
@@ -66,7 +92,7 @@
             transform: rotate(5deg) scale(1.05);
         }
 
-        /* Glass Effect */
+        /* === GLASS EFFECT === */
         .glass-effect {
             background: rgba(255, 255, 255, 0.25);
             backdrop-filter: blur(12px);
@@ -74,7 +100,93 @@
             border: 1px solid rgba(255, 255, 255, 0.3);
         }
 
-        /* Responsive Adjustments */
+        /* === ADMIN LINK === */
+        #btn-admin-dashboard {
+            padding: 12px 24px;
+            min-height: 48px;
+            display: inline-flex;
+            align-items: center;
+            text-decoration: none;
+            transition: all 0.3s ease;
+        }
+
+        #btn-admin-dashboard:active {
+            transform: scale(0.95);
+        }
+
+        /* === MODAL FIXES === */
+        #portal-selector-modal {
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+            padding: 16px;
+        }
+
+        #portal-selector-modal .bg-white {
+            max-height: 90vh;
+            overflow-y: auto;
+            margin: auto;
+            border-radius: 40px;
+        }
+
+        #portal-selector-modal .w-20 {
+            min-height: 60px;
+            min-width: 60px;
+        }
+
+        /* === ASSET DETAILS MODAL === */
+        #modal-photo-placeholder {
+            min-height: 150px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        #modal-photo-placeholder i {
+            font-size: 48px;
+            opacity: 0.5;
+        }
+
+        /* === LOADING SPINNER === */
+        #universal-logo-loader {
+            z-index: 99999999;
+            position: fixed;
+            inset: 0;
+            background: rgba(15, 23, 42, 0.85);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        #universal-logo-loader img {
+            max-width: 120px;
+            max-height: 120px;
+            width: auto;
+            height: auto;
+        }
+
+        @keyframes logoPulseScale {
+            0% { transform: scale(0.85); -webkit-transform: scale(0.85); opacity: 0.7; }
+            50% { transform: scale(1.15); -webkit-transform: scale(1.15); opacity: 1; }
+            100% { transform: scale(0.85); -webkit-transform: scale(0.85); opacity: 0.7; }
+        }
+        @-webkit-keyframes logoPulseScale {
+            0% { -webkit-transform: scale(0.85); opacity: 0.7; }
+            50% { -webkit-transform: scale(1.15); opacity: 1; }
+            100% { -webkit-transform: scale(0.85); opacity: 0.7; }
+        }
+
+        .logo-pulse-anim {
+            animation: logoPulseScale 1.2s ease-in-out infinite !important;
+            -webkit-animation: logoPulseScale 1.2s ease-in-out infinite !important;
+            will-change: transform, opacity;
+        }
+
+        /* === RESPONSIVE FIXES === */
+
+        /* Mobile (up to 640px) */
         @media (max-width: 640px) {
             .portal-container {
                 padding-left: 12px !important;
@@ -83,27 +195,102 @@
 
             .portal-card {
                 padding: 20px !important;
-                min-width: 100% !important; /* Fix long cards */
+                min-width: 100% !important;
                 width: 100% !important;
+                min-height: 160px !important;
             }
 
             .portal-card .w-20 {
-                width: 50px;
-                height: 50px;
+                width: 50px !important;
+                height: 50px !important;
             }
 
             .portal-card svg {
-                width: 24px;
-                height: 24px;
+                width: 24px !important;
+                height: 24px !important;
+            }
+
+            .portal-card h3 {
+                font-size: 18px !important;
             }
 
             h1 {
-                font-size: 2rem !important; /* Prevent text cut-off */
+                font-size: 2rem !important;
                 word-wrap: break-word;
             }
         }
 
-        /* Dark Mode Support */
+        /* Tablet (641px - 1024px) */
+        @media (min-width: 641px) and (max-width: 1024px) {
+            .portal-main-container {
+                flex-wrap: wrap !important;
+                justify-content: center !important;
+                gap: 24px !important;
+            }
+
+            .portal-card {
+                flex: 1 1 calc(50% - 24px) !important;
+                min-width: 280px !important;
+                max-width: 380px !important;
+                padding: 24px !important;
+                min-height: 200px !important;
+            }
+
+            .portal-card .w-20 {
+                width: 64px !important;
+                height: 64px !important;
+            }
+        }
+
+        /* Ultra Small Screens (under 380px) */
+        @media (max-width: 380px) {
+            .portal-card {
+                padding: 16px !important;
+                min-height: 140px !important;
+            }
+
+            .portal-card .w-20 {
+                width: 44px !important;
+                height: 44px !important;
+            }
+
+            .portal-card svg {
+                width: 20px !important;
+                height: 20px !important;
+            }
+
+            .portal-card h3 {
+                font-size: 16px !important;
+            }
+
+            #portal-selector-modal .grid {
+                grid-template-columns: 1fr !important;
+                gap: 12px !important;
+            }
+
+            #portal-selector-modal .bg-white {
+                padding: 16px !important;
+            }
+
+            #portal-selector-modal .w-20 {
+                width: 50px !important;
+                height: 50px !important;
+            }
+
+            h1 {
+                font-size: 1.6rem !important;
+            }
+        }
+
+        /* iPad Portrait Fix */
+        @media (width: 768px) and (height: 1024px) {
+            .portal-card {
+                min-width: 300px !important;
+                padding: 28px !important;
+            }
+        }
+
+        /* === DARK MODE SUPPORT === */
         @media (prefers-color-scheme: dark) {
             #view-landing {
                 background: linear-gradient(135deg, #1e1b4b 0%, #312e81 50%, #1e1b4b 100%) !important;
@@ -126,10 +313,23 @@
                 background: linear-gradient(135deg, #e0e7ff, #c4b5fd, #e0e7ff) !important;
                 -webkit-background-clip: text !important;
                 -webkit-text-fill-color: transparent !important;
+                background-clip: text !important;
             }
 
             .portal-card .bg-white\/10 {
                 background: rgba(255,255,255,0.05) !important;
+            }
+
+            .portal-card .text-slate-500 {
+                color: #94a3b8 !important;
+            }
+
+            .portal-card .text-slate-400 {
+                color: #64748b !important;
+            }
+
+            .portal-card .bg-slate-200 {
+                background: rgba(255,255,255,0.1) !important;
             }
         }
     </style>
@@ -139,9 +339,9 @@
 
 <!-- APP LAUNCH VIDEO OVERLAY (Local Asset Version) -->
 <div id="launchVideoOverlay" class="fixed inset-0 w-full h-full bg-black z-[999999] items-center justify-center transition-opacity duration-1000 hidden">
-    <video id="appLaunchVideo" class="w-full h-full object-cover" autoplay muted playsinline webkit-playsinline disablePictureInPicture preload="auto" style="pointer-events: none;">
+    <video id="appLaunchVideo" class="w-full h-full object-cover" autoplay muted playsinline webkit-playsinline disablePictureInPicture preload="metadata" style="pointer-events: none;">
         <source src="launch_video.mp4" type="video/mp4">
-        Your browser does not support the video tag.
+        <img src="jys_Icon.png" alt="Loading...">
     </video>
     <button id="skipVideoBtn" class="absolute top-8 right-8 px-8 py-3 bg-black/40 backdrop-blur-md text-white border border-white/20 rounded-full font-bold text-[10px] uppercase tracking-widest hover:bg-black/60 transition-all z-[1000000] active:scale-95 shadow-2xl">Skip Intro</button>
 </div>
@@ -156,9 +356,12 @@
                 <!-- Logo with Glow Effect -->
                 <div class="relative inline-block mb-6">
                     <div class="absolute inset-0 bg-indigo-500/20 rounded-full blur-3xl animate-pulse"></div>
-                    <div class="logo-circular-frame h-[140px] w-[140px] md:h-[180px] md:w-[180px] flex items-center justify-center mx-auto relative z-10 bg-white/80 backdrop-blur-sm rounded-full shadow-2xl border-4 border-white/50">
-                        <img src="schoollogo.png" class="w-full h-full object-contain p-4" alt="JYS Logo" onerror="if(window.generateLocalAvatar) this.src=window.generateLocalAvatar('JYS');">
-
+                    <div class="logo-circular-frame h-[140px] w-[140px] md:h-[180px] md:w-[180px] flex items-center justify-center mx-auto relative z-10 bg-white/80 backdrop-blur-sm rounded-full shadow-2xl border-4 border-white/50 overflow-hidden">
+                        <img src="schoollogo.png"
+                             class="w-full h-full object-contain p-4"
+                             alt="JYS Logo"
+                             id="main-logo"
+                             onerror="this.onerror=null; this.style.display='none'; this.parentElement.style.background='linear-gradient(135deg, #4f46e5, #7c3aed)'; this.parentElement.innerHTML='<span style=\'font-size:60px;color:white;font-weight:900;font-family:Poppins,sans-serif;\'>JYS</span>'">
                     </div>
 
                     <!-- Decorative Rings -->
@@ -173,11 +376,11 @@
 
                 <!-- Subtitle with Glass Effect -->
                 <div class="mt-3 inline-block">
-                        <span class="text-base md:text-xl font-bold text-indigo-700 bg-white/40 backdrop-blur-sm px-6 py-2 rounded-full border border-white/50 shadow-lg">
-                            <i class="fa fa-graduation-cap mr-2 text-indigo-500"></i>
-                            JYS Login Portal
-                            <span class="ml-2 text-xs text-indigo-400 font-mono">v3.2</span>
-                        </span>
+                    <span class="text-base md:text-xl font-bold text-indigo-700 bg-white/40 backdrop-blur-sm px-6 py-2 rounded-full border border-white/50 shadow-lg">
+                        <i class="fa fa-graduation-cap mr-2 text-indigo-500"></i>
+                        JYS Login Portal
+                        <span class="ml-2 text-xs text-indigo-400 font-mono">v3.2</span>
+                    </span>
                 </div>
 
                 <!-- Tagline -->
@@ -192,7 +395,7 @@
             <main class="portal-main-container flex flex-col md:flex-row items-stretch justify-center gap-6 md:gap-8 mt-8 w-full max-w-full lg:max-w-7xl mx-auto">
 
                 <!-- ===== Visitor / Contractor Entry Card ===== -->
-                <a id="card-visitor-contractor" href="#" onclick="window.showPortalSelector(); return false;" class="portal-card group relative flex-1 min-w-[280px] bg-white/90 backdrop-blur-sm border border-white/50 rounded-3xl p-8 transition-all duration-500 transform hover:-translate-y-2 hover:shadow-2xl hover:shadow-indigo-500/20 active:scale-95 text-center cursor-pointer" style="text-decoration: none; box-shadow: 0 4px 20px rgba(79, 70, 229, 0.08);">
+                <a id="card-visitor-contractor" href="#" onclick="window.showPortalSelector(); return false;" class="portal-card group relative flex-1 min-w-[280px] bg-white/90 backdrop-blur-sm border border-white/50 rounded-3xl p-8 transition-all duration-500 transform hover:-translate-y-2 hover:shadow-2xl hover:shadow-indigo-500/20 active:scale-95 text-center cursor-pointer" style="text-decoration: none; box-shadow: 0 4px 20px rgba(79, 70, 229, 0.08);" role="button" aria-label="Visitor and Contractor Entry">
 
                     <!-- Glow Background -->
                     <div class="absolute inset-0 bg-gradient-to-br from-indigo-50/50 to-transparent rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
@@ -224,27 +427,27 @@
 
                         <!-- Stats -->
                         <div class="mt-4 flex items-center justify-center gap-4 text-xs text-slate-400">
-                                <span class="flex items-center gap-1">
-                                    <span class="w-2 h-2 bg-emerald-400 rounded-full"></span>
-                                    24/7 Access
-                                </span>
+                            <span class="flex items-center gap-1">
+                                <span class="w-2 h-2 bg-emerald-400 rounded-full"></span>
+                                24/7 Access
+                            </span>
                             <span class="w-px h-4 bg-slate-200"></span>
                             <span class="flex items-center gap-1">
-                                    <i class="fa fa-users text-indigo-400"></i>
-                                    Instant Check-in
-                                </span>
+                                <i class="fa fa-users text-indigo-400"></i>
+                                Instant Check-in
+                            </span>
                         </div>
 
                         <!-- Hover Arrow -->
                         <div class="mt-4 text-indigo-500 opacity-0 group-hover:opacity-100 transform translate-y-2 group-hover:translate-y-0 transition-all duration-300">
-                            <i class="fa fa-arrow-right text-sm font-bold"></i>
+                            <i class="fa-arrow-right text-sm font-bold"></i>
                             <span class="text-xs font-bold ml-1">Enter Portal</span>
                         </div>
                     </div>
                 </a>
 
                 <!-- ===== Staff Portal Card ===== -->
-                <a id="card-staff-portal" href="#" onclick="window.handleStaffCardClick(); return false;" class="portal-card group relative flex-1 min-w-[280px] bg-white/90 backdrop-blur-sm border border-white/50 rounded-3xl p-8 transition-all duration-500 transform hover:-translate-y-2 hover:shadow-2xl hover:shadow-purple-500/20 active:scale-95 text-center cursor-pointer" style="text-decoration: none; box-shadow: 0 4px 20px rgba(168, 85, 247, 0.08);">
+                <a id="card-staff-portal" href="#" onclick="window.handleStaffCardClick(); return false;" class="portal-card group relative flex-1 min-w-[280px] bg-white/90 backdrop-blur-sm border border-white/50 rounded-3xl p-8 transition-all duration-500 transform hover:-translate-y-2 hover:shadow-2xl hover:shadow-purple-500/20 active:scale-95 text-center cursor-pointer" style="text-decoration: none; box-shadow: 0 4px 20px rgba(168, 85, 247, 0.08);" role="button" aria-label="Staff Portal">
 
                     <!-- Glow Background -->
                     <div class="absolute inset-0 bg-gradient-to-br from-purple-50/50 to-transparent rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
@@ -262,7 +465,7 @@
 
                         <!-- Badge -->
                         <div class="absolute -top-2 -right-2 bg-purple-500 text-white text-[10px] font-black px-3 py-1 rounded-full shadow-lg shadow-purple-500/30">
-                            <i class="fa fa-lock mr-1"></i> Secure
+                            <i class="fa-solid fa-lock mr-1"></i> Secure
                         </div>
                     </div>
 
@@ -277,20 +480,20 @@
 
                         <!-- Stats -->
                         <div class="mt-4 flex items-center justify-center gap-4 text-xs text-slate-400">
-                                <span class="flex items-center gap-1">
-                                    <span class="w-2 h-2 bg-purple-400 rounded-full"></span>
-                                    Secure Login
-                                </span>
+                            <span class="flex items-center gap-1">
+                                <span class="w-2 h-2 bg-purple-400 rounded-full"></span>
+                                Secure Login
+                            </span>
                             <span class="w-px h-4 bg-slate-200"></span>
                             <span class="flex items-center gap-1">
-                                    <i class="fa fa-id-card text-purple-400"></i>
-                                    Staff Access
-                                </span>
+                                <i class="fa fa-id-card text-purple-400"></i>
+                                Staff Access
+                            </span>
                         </div>
 
                         <!-- Hover Arrow -->
                         <div class="mt-4 text-purple-500 opacity-0 group-hover:opacity-100 transform translate-y-2 group-hover:translate-y-0 transition-all duration-300">
-                            <i class="fa fa-arrow-right text-sm font-bold"></i>
+                            <i class="fa-arrow-right text-sm font-bold"></i>
                             <span class="text-xs font-bold ml-1">Enter Portal</span>
                         </div>
                     </div>
@@ -300,12 +503,12 @@
             <!-- ===== BOTTOM SECTION ===== -->
             <div class="mt-12 text-center">
                 <!-- Admin Link -->
-                <a id="btn-admin-dashboard" href="admin.html" class="inline-flex items-center gap-3 text-sm text-indigo-600/60 hover:text-indigo-800 font-bold transition-all duration-300 hover:scale-105 group" style="text-decoration: none;">
+                <a id="btn-admin-dashboard" href="admin.html" class="inline-flex items-center gap-3 text-sm text-indigo-600/60 hover:text-indigo-800 font-bold transition-all duration-300 hover:scale-105 group" style="text-decoration: none;" role="button" aria-label="Admin Dashboard">
                     <span class="w-8 h-px bg-indigo-300 group-hover:w-12 transition-all duration-300"></span>
                     <span class="tracking-widest uppercase">
-                            <i class="fa fa-crown mr-2 text-yellow-500"></i>
-                            Admin Dashboard
-                        </span>
+                        <i class="fa fa-crown mr-2 text-yellow-500"></i>
+                        Admin Dashboard
+                    </span>
                     <span class="w-8 h-px bg-indigo-300 group-hover:w-12 transition-all duration-300"></span>
                 </a>
 
@@ -328,7 +531,6 @@
             </div>
         </div>
     </section>
-
 </div>
 
 <!-- NOTIFICATION PERMISSION MODAL -->
@@ -362,6 +564,9 @@
     </div>
 </div>
 
+<!-- ============================================ -->
+<!-- SCRIPTS -->
+<!-- ============================================ -->
 <script type="module" src="firebase_config.js?v=4.0"></script>
 <script type="module" src="field_normalizer.js?v=4.0"></script>
 <script type="module" src="drive_module.js?v=4.0"></script>
@@ -386,11 +591,13 @@
         writable: false
     });
 
+    // ===== PORTAL SELECTOR FUNCTIONS =====
     window.showPortalSelector = function() {
         const modal = document.getElementById('portal-selector-modal');
         if (modal) {
             modal.classList.remove('hidden');
             modal.style.display = 'flex';
+            document.body.style.overflow = 'hidden';
         }
     };
 
@@ -399,9 +606,11 @@
         if (modal) {
             modal.classList.add('hidden');
             modal.style.display = 'none';
+            document.body.style.overflow = '';
         }
     };
 
+    // ===== STAFF CARD CLICK HANDLER =====
     window.handleStaffCardClick = function() {
         // 🛡️ STRICT SESSION ISOLATION: Prioritize sessionStorage (tab-isolated)
         const activeStaff = JSON.parse(sessionStorage.getItem('active_staff_user') || 'null');
@@ -422,7 +631,43 @@
         }
     };
 
-    // 🎯 URL MODE DETECTOR FOR SEPARATE GATE QR CODE
+    // ===== ASSET DETAILS MODAL =====
+    window.closeAssetDetailsModal = function() {
+        const modal = document.getElementById('asset-details-modal');
+        if (modal) {
+            modal.classList.add('hidden');
+            modal.style.display = 'none';
+            document.body.style.overflow = '';
+        }
+    };
+
+    // ===== NOTIFICATION MODAL =====
+    window.dismissNotificationModal = function() {
+        const modal = document.getElementById('notification-modal');
+        if (modal) {
+            modal.classList.add('hidden');
+            modal.style.display = 'none';
+        }
+    };
+
+    window.requestNotificationPermission = function() {
+        if ('Notification' in window) {
+            Notification.requestPermission().then(function(permission) {
+                if (permission === 'granted') {
+                    alert('✅ Notifications enabled!');
+                    window.dismissNotificationModal();
+                } else {
+                    document.getElementById('notification-error-area').classList.remove('hidden');
+                    document.getElementById('notification-error-text').innerText = 'Permission denied. Please enable from browser settings.';
+                }
+            });
+        } else {
+            document.getElementById('notification-error-area').classList.remove('hidden');
+            document.getElementById('notification-error-text').innerText = 'Notifications not supported in this browser.';
+        }
+    };
+
+    // ===== URL MODE DETECTOR =====
     document.addEventListener('DOMContentLoaded', () => {
         const urlParams = new URLSearchParams(window.location.search);
         const role = urlParams.get('role');
@@ -444,21 +689,71 @@
             });
         }
     });
+
+    // ===== GLOBAL SPINNER =====
+    var spinnerTimeout = null;
+    window.showGlobalSpinner = function(msg) {
+        var el = document.getElementById('universal-logo-loader');
+        var txt = document.getElementById('universal-loader-text');
+        var img = el ? el.querySelector('img') : null;
+        if (el) {
+            if (txt && msg) txt.innerText = msg;
+            el.style.display = 'flex';
+            if (img) {
+                img.style.animation = 'none';
+                img.offsetHeight;
+                img.style.animation = '';
+            }
+            if (spinnerTimeout) clearTimeout(spinnerTimeout);
+            spinnerTimeout = setTimeout(function() {
+                window.hideGlobalSpinner();
+            }, 15000);
+        }
+    };
+
+    window.hideGlobalSpinner = function() {
+        var el = document.getElementById('universal-logo-loader');
+        if (el) el.style.display = 'none';
+        if (spinnerTimeout) clearTimeout(spinnerTimeout);
+    };
+
+    document.addEventListener('submit', function(e) {
+        if (e.defaultPrevented) return;
+        window.showGlobalSpinner("Saving Data...");
+    }, true);
+
+    // Close modal on ESC key
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            window.closePortalSelector();
+            window.closeAssetDetailsModal();
+        }
+    });
+
+    // Close modal on backdrop click
+    document.addEventListener('click', function(e) {
+        const modal = document.getElementById('portal-selector-modal');
+        if (modal && !modal.classList.contains('hidden')) {
+            if (e.target === modal) {
+                window.closePortalSelector();
+            }
+        }
+    });
 </script>
 
-<!-- PORTAL SELECTOR MODAL -->
+<!-- ===== PORTAL SELECTOR MODAL ===== -->
 <div id="portal-selector-modal" class="fixed inset-0 bg-black/90 backdrop-blur-md z-[2000] hidden flex items-center justify-center p-4">
     <div class="bg-white w-full max-w-lg rounded-[40px] overflow-hidden shadow-2xl border border-slate-100 p-8">
         <div class="flex justify-between items-center mb-8">
             <h3 class="text-2xl font-black text-indigo-900 uppercase tracking-tighter">Choose Entry Mode</h3>
-            <button onclick="window.closePortalSelector()" class="w-10 h-10 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center transition-colors hover:bg-slate-200">
+            <button onclick="window.closePortalSelector()" class="w-10 h-10 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center transition-colors hover:bg-slate-200 active:scale-95" aria-label="Close modal">
                 <i class="fa-solid fa-xmark text-lg"></i>
             </button>
         </div>
 
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
             <!-- Visitor Option -->
-            <a href="visitor.html?mode=visitor" class="flex flex-col items-center gap-4 p-8 bg-indigo-50 border-2 border-transparent rounded-[32px] transition-all hover:border-indigo-400 group no-underline">
+            <a href="visitor.html?mode=visitor" class="flex flex-col items-center gap-4 p-8 bg-indigo-50 border-2 border-transparent rounded-[32px] transition-all hover:border-indigo-400 group no-underline active:scale-95">
                 <div class="w-20 h-20 bg-white rounded-2xl flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
                     <i class="fa-solid fa-user-plus text-3xl text-indigo-600"></i>
                 </div>
@@ -469,12 +764,12 @@
             </a>
 
             <!-- Contractor Option -->
-            <a href="visitor.html?mode=contractor" class="flex flex-col items-center gap-4 p-8 bg-emerald-50 border-2 border-transparent rounded-[32px] transition-all hover:border-emerald-400 group no-underline">
+            <a href="visitor.html?mode=contractor" class="flex flex-col items-center gap-4 p-8 bg-emerald-50 border-2 border-transparent rounded-[32px] transition-all hover:border-emerald-400 group no-underline active:scale-95">
                 <div class="w-20 h-20 bg-white rounded-2xl flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
                     <i class="fa-solid fa-helmet-safety text-3xl text-emerald-600"></i>
                 </div>
                 <div class="text-center">
-                    <span class="block font-black text-emerald-900 uppercase text-xs tracking-widest mb-1">Work/Services</span>
+                    <span class="block font-black text-indigo-900 uppercase text-xs tracking-widest mb-1">Work/Services</span>
                     <h4 class="text-lg font-black text-emerald-700 leading-tight">CONTRACTOR ENTRY</h4>
                 </div>
             </a>
@@ -484,12 +779,12 @@
     </div>
 </div>
 
-<!-- ASSET DETAILS MODAL (👁️ VIEW FEATURE) -->
+<!-- ===== ASSET DETAILS MODAL ===== -->
 <div id="asset-details-modal" class="fixed inset-0 z-[100008] hidden items-center justify-center p-4 bg-black/90 backdrop-blur-md">
     <div class="bg-white w-full max-w-3xl rounded-[40px] overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
         <div class="bg-indigo-900 text-white p-6 flex justify-between items-center flex-shrink-0">
             <h3 class="font-black uppercase tracking-tight text-xl text-white"><i class="fa-solid fa-boxes-stacked mr-2"></i> Asset Details</h3>
-            <span class="cursor-pointer text-3xl leading-none text-white" onclick="window.closeAssetDetailsModal()">&times;</span>
+            <button onclick="window.closeAssetDetailsModal()" class="text-3xl leading-none text-white hover:text-amber-400 transition-colors active:scale-90" aria-label="Close">&times;</button>
         </div>
 
         <div class="overflow-y-auto flex-1 bg-slate-50 p-8">
@@ -516,57 +811,16 @@
         </div>
 
         <div class="p-6 border-t bg-white flex justify-end">
-            <button type="button" onclick="window.closeAssetDetailsModal()" class="px-8 py-3 bg-slate-100 text-slate-600 rounded-xl font-black text-xs uppercase active:scale-95 transition-all">Close</button>
+            <button onclick="window.closeAssetDetailsModal()" class="px-8 py-3 bg-slate-100 text-slate-600 rounded-xl font-black text-xs uppercase active:scale-95 transition-all">Close</button>
         </div>
     </div>
 </div>
 
-<!-- FORCED GLOBAL SPINNER & OVERRIDE -->
-<style>
-    @keyframes logoPulseScale {
-        0% { transform: scale(0.85); -webkit-transform: scale(0.85); opacity: 0.7; }
-        50% { transform: scale(1.15); -webkit-transform: scale(1.15); opacity: 1; }
-        100% { transform: scale(0.85); -webkit-transform: scale(0.85); opacity: 0.7; }
-    }
-    @-webkit-keyframes logoPulseScale {
-        0% { -webkit-transform: scale(0.85); opacity: 0.7; }
-        50% { -webkit-transform: scale(1.15); opacity: 1; }
-        100% { -webkit-transform: scale(0.85); opacity: 0.7; }
-    }
-    .logo-pulse-anim {
-        animation: logoPulseScale 1.2s ease-in-out infinite !important;
-        -webkit-animation: logoPulseScale 1.2s ease-in-out infinite !important;
-        will-change: transform, opacity;
-    }
-</style>
-<div id="universal-logo-loader" style="display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(8px); z-index: 99999999; flex-direction: column; align-items: center; justify-content: center;">
-    <img src="schoollogo.png" class="logo-pulse-anim" style="width: 100px; height: 100px; object-fit: contain;" alt="Loading..." onerror="this.src='jys_Icon.png'">
-    <p id="universal-loader-text" style="color: #ffffff; font-weight: bold; margin-top: 16px; font-family: sans-serif; letter-spacing: 1px; text-transform: uppercase;">Processing, please wait...</p>
+<!-- ===== LOADING SPINNER ===== -->
+<div id="universal-logo-loader" style="display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); z-index: 99999999; flex-direction: column; align-items: center; justify-content: center;">
+    <img src="schoollogo.png" class="logo-pulse-anim" style="width: 100px; height: 100px; object-fit: contain;" alt="Loading..." onerror="this.onerror=null; this.src='jys_Icon.png'">
+    <p id="universal-loader-text" style="color: #ffffff; font-weight: bold; margin-top: 16px; font-family: 'Poppins', sans-serif; letter-spacing: 1px; text-transform: uppercase; font-size: 14px;">Processing, please wait...</p>
 </div>
 
-<script>
-    var spinnerTimeout = null;
-    window.showGlobalSpinner = function(msg) {
-        var el = document.getElementById('universal-logo-loader');
-        var txt = document.getElementById('universal-loader-text');
-        var img = el ? el.querySelector('img') : null;
-        if (el) {
-            if (txt && msg) txt.innerText = msg;
-            el.style.display = 'flex';
-            if (img) { img.style.animation = 'none'; img.offsetHeight; img.style.animation = ''; }
-            if (spinnerTimeout) clearTimeout(spinnerTimeout);
-            spinnerTimeout = setTimeout(function() { window.hideGlobalSpinner(); }, 15000);
-        }
-    };
-    window.hideGlobalSpinner = function() {
-        var el = document.getElementById('universal-logo-loader');
-        if (el) el.style.display = 'none';
-        if (spinnerTimeout) clearTimeout(spinnerTimeout);
-    };
-    document.addEventListener('submit', function(e) {
-        if (e.defaultPrevented) return;
-        window.showGlobalSpinner("Saving Data...");
-    }, true);
-</script>
 </body>
 </html>

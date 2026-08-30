@@ -1,0 +1,701 @@
+/* ================================================================ */
+/* ✅ STAFF DOCUMENT VERIFICATION MODULE - FIXED v2.0              */
+/* ================================================================ */
+
+/* --- Main Container --- */
+.doc-upload-container {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    padding: 16px 20px 24px 20px;
+    max-width: 800px;
+    margin: 0 auto;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+/* --- Page Title --- */
+.doc-page-title {
+    font-size: 24px;
+    font-weight: 800;
+    color: #1e1b4b;
+    margin-bottom: 4px;
+    padding-bottom: 14px;
+    border-bottom: 4px solid #4f46e5;
+    display: block;
+    font-family: inherit;
+    letter-spacing: -0.5px;
+}
+
+.doc-page-subtitle {
+    font-size: 14px;
+    color: #64748b;
+    margin-bottom: 12px;
+    display: block;
+}
+
+/* --- Document Card --- */
+.doc-card {
+    background: #ffffff;
+    border-radius: 16px;
+    padding: 16px 20px 20px 20px;
+    border: 1px solid #e2e8f0;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.04);
+    transition: all 0.3s ease;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.doc-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(79, 70, 229, 0.08);
+    border-color: #c7d2fe;
+}
+
+/* --- Document Header --- */
+.doc-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding-bottom: 10px;
+    border-bottom: 2px solid #f1f5f9;
+}
+
+.doc-title-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.doc-icon {
+    width: 34px;
+    height: 34px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    color: #4f46e5;
+    background: #eef2ff;
+    flex-shrink: 0;
+}
+
+.doc-title {
+    font-weight: 700;
+    font-size: 15px;
+    color: #1e1b4b;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    font-family: inherit;
+}
+
+/* --- Status Badges --- */
+.status-badge {
+    padding: 4px 14px;
+    border-radius: 20px;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    white-space: nowrap;
+}
+
+.status-pending {
+    background: #fff7ed;
+    color: #ea580c;
+    border: 1px solid #fed7aa;
+}
+
+.status-approved {
+    background: #ecfdf5;
+    color: #059669;
+    border: 1px solid #a7f3d0;
+}
+
+.status-rejected {
+    background: #fef2f2;
+    color: #dc2626;
+    border: 1px solid #fecaca;
+}
+
+.status-not-uploaded {
+    background: #f1f5f9;
+    color: #64748b;
+    border: 1px solid #e2e8f0;
+}
+
+/* --- Document Details Grid --- */
+.doc-details {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    width: 100%;
+    background: #f8fafc;
+    padding: 10px 14px;
+    border-radius: 10px;
+    border: 1px solid #f1f5f9;
+}
+
+.doc-detail-item {
+    display: flex;
+    flex-direction: column;
+}
+
+.doc-detail-label {
+    font-size: 9px;
+    font-weight: 700;
+    color: #94a3b8;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.doc-detail-value {
+    font-size: 13px;
+    font-weight: 600;
+    color: #1e1b4b;
+    margin-top: 2px;
+    word-break: break-word;
+}
+
+.doc-detail-value.empty {
+    color: #94a3b8;
+    font-weight: 400;
+}
+
+/* --- Upload Zone --- */
+.doc-upload-zone {
+    border: 2px dashed #cbd5e1;
+    border-radius: 14px;
+    padding: 20px 16px;
+    text-align: center;
+    cursor: pointer;
+    background: #fafbfc;
+    transition: all 0.2s ease;
+    width: 100%;
+    box-sizing: border-box;
+    min-height: 80px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+
+.doc-upload-zone:hover {
+    background: #f1f5f9;
+    border-color: #4f46e5;
+}
+
+.doc-upload-zone:active {
+    transform: scale(0.98);
+}
+
+.doc-upload-zone i {
+    font-size: 28px;
+    color: #4f46e5;
+    margin-bottom: 6px;
+}
+
+.doc-upload-zone span {
+    display: block;
+    font-size: 13px;
+    font-weight: 600;
+    color: #64748b;
+}
+
+.doc-upload-zone .sub-text {
+    font-size: 11px;
+    font-weight: 400;
+    color: #94a3b8;
+    margin-top: 2px;
+}
+
+/* --- Document Preview Button --- */
+.doc-link-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    background: #4f46e5;
+    color: #ffffff;
+    padding: 10px 20px;
+    border-radius: 12px;
+    font-size: 13px;
+    font-weight: 700;
+    text-decoration: none;
+    transition: all 0.2s ease;
+    border: none;
+    cursor: pointer;
+    width: 100%;
+    box-sizing: border-box;
+    min-height: 44px;
+    font-family: inherit;
+}
+
+.doc-link-btn:hover {
+    background: #4338ca;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 15px rgba(79, 70, 229, 0.3);
+}
+
+.doc-link-btn:active {
+    transform: scale(0.97);
+}
+
+.doc-link-btn i {
+    font-size: 16px;
+}
+
+/* --- Button Variants --- */
+.doc-link-btn.preview {
+    background: #0ea5e9;
+}
+
+.doc-link-btn.preview:hover {
+    background: #0284c7;
+}
+
+.doc-link-btn.upload {
+    background: #4f46e5;
+}
+
+.doc-link-btn.download {
+    background: #10b981;
+}
+
+.doc-link-btn.download:hover {
+    background: #059669;
+}
+
+.doc-link-btn.reupload {
+    background: #f59e0b;
+}
+
+.doc-link-btn.reupload:hover {
+    background: #d97706;
+}
+
+.doc-link-btn.view {
+    background: #8b5cf6;
+}
+
+.doc-link-btn.view:hover {
+    background: #7c3aed;
+}
+
+/* --- Action Buttons Container --- */
+.doc-actions {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    width: 100%;
+}
+
+.doc-actions .doc-link-btn {
+    flex: 1;
+    min-width: 80px;
+}
+
+/* --- Divider between documents --- */
+.doc-divider {
+    border: none;
+    border-top: 2px dashed #e2e8f0;
+    margin: 4px 0;
+}
+
+/* --- File Input Hidden --- */
+.doc-file-input {
+    display: none;
+}
+
+/* ================================================================ */
+/* ✅ RESPONSIVE BREAKPOINTS                                        */
+/* ================================================================ */
+
+/* --- Mobile (Portrait) --- */
+@media (max-width: 640px) {
+    .doc-upload-container {
+        padding: 12px 12px 16px 12px;
+        gap: 12px;
+    }
+
+    .doc-page-title {
+        font-size: 20px;
+        padding-bottom: 10px;
+    }
+
+    .doc-page-subtitle {
+        font-size: 13px;
+    }
+
+    .doc-card {
+        padding: 14px 14px 16px 14px;
+        border-radius: 14px;
+        gap: 10px;
+    }
+
+    .doc-title {
+        font-size: 13px;
+    }
+
+    .doc-icon {
+        width: 28px;
+        height: 28px;
+        font-size: 13px;
+    }
+
+    .status-badge {
+        font-size: 9px;
+        padding: 3px 10px;
+    }
+
+    .doc-details {
+        grid-template-columns: 1fr 1fr;
+        gap: 6px;
+        padding: 8px 10px;
+    }
+
+    .doc-detail-label {
+        font-size: 8px;
+    }
+
+    .doc-detail-value {
+        font-size: 12px;
+    }
+
+    .doc-upload-zone {
+        padding: 14px 10px;
+        min-height: 60px;
+    }
+
+    .doc-upload-zone i {
+        font-size: 22px;
+    }
+
+    .doc-upload-zone span {
+        font-size: 12px;
+    }
+
+    .doc-link-btn {
+        padding: 8px 14px;
+        font-size: 12px;
+        min-height: 40px;
+    }
+
+    .doc-actions {
+        gap: 6px;
+    }
+
+    .doc-actions .doc-link-btn {
+        min-width: 60px;
+        font-size: 11px;
+        padding: 8px 10px;
+    }
+}
+
+/* --- Very Small Phones --- */
+@media (max-width: 380px) {
+    .doc-upload-container {
+        padding: 8px 8px 12px 8px;
+        gap: 10px;
+    }
+
+    .doc-card {
+        padding: 10px 10px 12px 10px;
+    }
+
+    .doc-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 4px;
+    }
+
+    .doc-title-wrapper {
+        width: 100%;
+    }
+
+    .doc-details {
+        grid-template-columns: 1fr;
+        gap: 4px;
+    }
+
+    .doc-actions {
+        flex-direction: column;
+    }
+
+    .doc-actions .doc-link-btn {
+        width: 100%;
+        min-width: unset;
+    }
+
+    .doc-page-title {
+        font-size: 17px;
+    }
+}
+
+/* --- Mobile (Landscape) --- */
+@media (max-height: 600px) and (orientation: landscape) {
+    .doc-upload-container {
+        padding: 8px 12px 12px 12px;
+        gap: 8px;
+    }
+
+    .doc-card {
+        padding: 10px 14px 12px 14px;
+        gap: 8px;
+    }
+
+    .doc-title {
+        font-size: 12px;
+    }
+
+    .doc-icon {
+        width: 24px;
+        height: 24px;
+        font-size: 12px;
+    }
+
+    .status-badge {
+        font-size: 8px;
+        padding: 2px 8px;
+    }
+
+    .doc-details {
+        grid-template-columns: 1fr 1fr;
+        gap: 4px;
+        padding: 6px 8px;
+    }
+
+    .doc-detail-value {
+        font-size: 11px;
+    }
+
+    .doc-upload-zone {
+        padding: 10px 12px;
+        min-height: 50px;
+    }
+
+    .doc-upload-zone i {
+        font-size: 18px;
+        margin-bottom: 3px;
+    }
+
+    .doc-upload-zone span {
+        font-size: 11px;
+    }
+
+    .doc-link-btn {
+        padding: 6px 12px;
+        font-size: 11px;
+        min-height: 34px;
+    }
+
+    .doc-actions .doc-link-btn {
+        min-width: 50px;
+        font-size: 10px;
+        padding: 6px 8px;
+    }
+}
+
+/* --- Tablet --- */
+@media (min-width: 641px) and (max-width: 1024px) {
+    .doc-upload-container {
+        padding: 16px 20px 20px 20px;
+        gap: 14px;
+        max-width: 90%;
+    }
+
+    .doc-card {
+        padding: 18px 20px 20px 20px;
+    }
+
+    .doc-title {
+        font-size: 14px;
+    }
+
+    .doc-details {
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+    }
+
+    .doc-link-btn {
+        padding: 10px 16px;
+        font-size: 13px;
+    }
+}
+
+/* --- Large Screens --- */
+@media (min-width: 1025px) {
+    .doc-upload-container {
+        padding: 20px 24px 28px 24px;
+        gap: 18px;
+        max-width: 850px;
+    }
+
+    .doc-page-title {
+        font-size: 26px;
+    }
+
+    .doc-card {
+        padding: 20px 24px 24px 24px;
+        border-radius: 18px;
+    }
+
+    .doc-title {
+        font-size: 16px;
+    }
+
+    .doc-details {
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+        padding: 12px 16px;
+    }
+
+    .doc-detail-label {
+        font-size: 10px;
+    }
+
+    .doc-detail-value {
+        font-size: 14px;
+    }
+}
+
+/* ================================================================ */
+/* ✅ DARK MODE SUPPORT                                             */
+/* ================================================================ */
+
+@media (prefers-color-scheme: dark) {
+    .doc-page-title {
+        color: #e2e8f0;
+        border-bottom-color: #4f46e5;
+    }
+
+    .doc-page-subtitle {
+        color: #94a3b8;
+    }
+
+    .doc-card {
+        background: #1a1a2e;
+        border-color: #2d2d44;
+    }
+
+    .doc-card:hover {
+        border-color: #4f46e5;
+    }
+
+    .doc-title {
+        color: #e2e8f0;
+    }
+
+    .doc-icon {
+        background: #2d2d44;
+        color: #818cf8;
+    }
+
+    .doc-details {
+        background: #1f1f36;
+        border-color: #2d2d44;
+    }
+
+    .doc-detail-label {
+        color: #94a3b8;
+    }
+
+    .doc-detail-value {
+        color: #e2e8f0;
+    }
+
+    .doc-detail-value.empty {
+        color: #64748b;
+    }
+
+    .doc-upload-zone {
+        background: #1f1f36;
+        border-color: #3d3d5c;
+    }
+
+    .doc-upload-zone:hover {
+        background: #2d2d44;
+        border-color: #4f46e5;
+    }
+
+    .doc-upload-zone span {
+        color: #94a3b8;
+    }
+
+    .doc-upload-zone .sub-text {
+        color: #667;
+    }
+
+    .status-not-uploaded {
+        background: #2d2d44;
+        color: #94a3b8;
+        border-color: #3d3d5c;
+    }
+
+    .status-pending {
+        background: #332211;
+        color: #f59e0b;
+        border-color: #664422;
+    }
+
+    .status-approved {
+        background: #112233;
+        color: #34d399;
+        border-color: #1a4a3a;
+    }
+
+    .status-rejected {
+        background: #331111;
+        color: #f87171;
+        border-color: #662222;
+    }
+
+    .doc-divider {
+        border-top-color: #2d2d44;
+    }
+
+    .doc-header {
+        border-bottom-color: #2d2d44;
+    }
+}
+
+/* ================================================================ */
+/* ✅ UTILITY CLASSES                                               */
+/* ================================================================ */
+
+.doc-hidden {
+    display: none !important;
+}
+
+.doc-flex {
+    display: flex !important;
+}
+
+.doc-flex-center {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.doc-gap-8 { gap: 8px; }
+.doc-gap-12 { gap: 12px; }
+.doc-gap-16 { gap: 16px; }
+
+.doc-mt-8 { margin-top: 8px; }
+.doc-mb-8 { margin-bottom: 8px; }
+.doc-mt-12 { margin-top: 12px; }
+.doc-mb-12 { margin-bottom: 12px; }
+
+.doc-text-center { text-align: center; }
+.doc-text-muted { color: #94a3b8; }
+.doc-text-success { color: #10b981; }
+.doc-text-danger { color: #ef4444; }
+.doc-text-warning { color: #f59e0b; }
+
+.doc-w-full { width: 100%; }
+.doc-w-auto { width: auto; }

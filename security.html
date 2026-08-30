@@ -96,6 +96,10 @@
                         <i class="fa-solid fa-list-check text-indigo-400"></i>
                         <span>Task History</span>
                     </button>
+                    <button onclick="window.toggleSideMenu(); window.showStaffView('staff-docs-section')" class="menu-item-btn w-full flex items-center gap-3 p-4 bg-white/5 rounded-2xl text-white/80 hover:bg-white/10 transition-all">
+                        <i class="fa-solid fa-file-shield text-emerald-400"></i>
+                        <span>My Documents</span>
+                    </button>
                 </div>
             </div>
             <a href="index.html" class="menu-item-btn w-full flex items-center gap-3 p-4 text-white/60 hover:text-white no-underline mt-4 border-t border-white/5 pt-6">
@@ -183,7 +187,24 @@
     </div>
 
     <!-- STATS GRID -->
-    <div class="grid grid-cols-2 gap-4 mb-6" id="tasks-summary-card">
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6" id="tasks-summary-card">
+        <!-- Document Compliance Card -->
+        <div onclick="window.showStaffView('staff-docs-section')" class="bg-white p-5 rounded-3xl shadow-xl border border-indigo-50 flex items-center justify-between cursor-pointer active:scale-95 transition-all">
+            <div class="flex-1">
+                <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Account Activation</p>
+                <div class="flex items-center gap-2">
+                    <p class="text-3xl font-black text-indigo-900" id="dash-doc-progress">0%</p>
+                    <span class="text-[8px] font-bold text-amber-500 bg-amber-50 px-2 py-0.5 rounded uppercase" id="dash-doc-status">Pending</span>
+                </div>
+                <div class="w-full h-1.5 bg-slate-100 rounded-full mt-3 overflow-hidden">
+                    <div id="dash-doc-progress-bar" class="h-full bg-indigo-600 transition-all duration-1000" style="width: 0%;"></div>
+                </div>
+            </div>
+            <div class="text-indigo-500 text-3xl ml-4 bg-indigo-50 w-12 h-12 rounded-2xl flex items-center justify-center">
+                <i class="fa-solid fa-shield-check"></i>
+            </div>
+        </div>
+
         <div class="bg-white p-5 rounded-3xl shadow-xl border border-indigo-50 text-center" id="visitor-log-section">
             <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Visitors Today</p>
             <p class="text-3xl font-black text-indigo-900" id="top-counter-visitors">0</p>
@@ -712,6 +733,38 @@
             <div id="section-history-tasks" class="task-tab-content hidden space-y-4 mb-24"><div class="tasks-grid space-y-4" id="tasksContainerHistory"></div></div>
         </div>
     </div>
+
+    <!-- DOCUMENT VERIFICATION SECTION -->
+    <div id="staff-docs-section" class="hidden w-full lg:max-w-[98%] mx-auto mt-6 transfer-workflow-container">
+        <div class="workflow-header flex items-center gap-4 mb-6">
+            <button onclick="window.showStaffView('staff-dash-area')" class="section-back-btn-circle w-11 h-11 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center transition-all shadow-sm active:scale-95">
+                <i class="fa-solid fa-arrow-left"></i>
+            </button>
+            <div class="flex-1">
+                <h2 class="text-2xl font-black text-slate-800 uppercase tracking-tighter">Verification Dashboard</h2>
+                <p class="text-[10px] font-bold text-emerald-600 uppercase tracking-widest flex items-center gap-2">
+                    <i class="fa-solid fa-shield-check"></i> Document Compliance
+                </p>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-[2.5rem] shadow-xl border border-slate-100 p-6 sm:p-8">
+            <div class="mb-6 p-4 bg-indigo-50 border border-indigo-100 rounded-2xl flex items-start gap-3">
+                <i class="fa-solid fa-circle-info text-indigo-500 mt-0.5"></i>
+                <p class="text-[11px] font-bold text-indigo-900 leading-normal text-gray-800">
+                    To enable all features, please upload the required documents assigned to you. Once approved by Admin, your account will be fully activated.
+                </p>
+            </div>
+
+            <div id="staff-docs-container" class="space-y-4 min-h-[300px] text-gray-800">
+                <!-- Cards will be injected here via docs_ui.js -->
+                <div class="flex flex-col items-center justify-center py-20 text-slate-300">
+                    <i class="fa-solid fa-spinner fa-spin fa-3x mb-4"></i>
+                    <p class="text-[10px] font-black uppercase tracking-widest">Syncing Requirements...</p>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 
 <!-- MODALS -->
@@ -964,7 +1017,7 @@
         const views = [
             'staff-dash-area', 'security-main-container', 'tasks-management-section',
             'asset-audit-section', 'asset-disposal-section', 'asset-transfer-section',
-            'transfer-logs-section', 'movement-logs-section'
+            'transfer-logs-section', 'movement-logs-section', 'staff-docs-section'
         ];
         views.forEach(id => {
             const el = document.getElementById(id);
@@ -978,6 +1031,11 @@
             target.classList.remove('hidden');
             target.style.display = 'block';
         }
+
+        if (viewId === 'staff-docs-section' && typeof window.initStaffDocsModule === 'function') {
+            window.initStaffDocsModule('staff-docs-container');
+        }
+
         if (viewId === 'movement-logs-section' && window.loadMovementLogs) {
             window.loadMovementLogs();
         }
@@ -1665,6 +1723,8 @@
 </script>
 
 <script type="module" src="firebase_config.js?v=4.0"></script>
+<script type="module" src="modules/staff_documents/docs_firebase.js?v=2.0"></script>
+<script type="module" src="modules/staff_documents/docs_ui.js?v=2.0"></script>
 <script type="module" src="field_normalizer.js?v=4.0"></script>
 <script type="module" src="ui_module.js?v=4.0"></script>
 <script type="module" src="visitor_module.js?v=4.0"></script>

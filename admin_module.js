@@ -394,7 +394,10 @@ function renderStaffDirectory(staff) {
                 <td class="p-4 font-bold text-slate-700">${s.companyName || "-"}</td>
                 <td class="p-4 font-mono text-indigo-600 font-bold">${s.companyId || "-"}</td>
                 <td class="p-4 font-mono text-slate-500">${s.mobile || "-"}</td>
-                <td class="p-4 text-center"><button onclick="window.openEditStaffModal('${s.firebaseKey || s.mobile}')" class="text-indigo-400 hover:text-indigo-600"><i class="fa-solid fa-user-pen"></i></button></td>
+                <td class="p-4 text-center">
+                    <button onclick="window.openEditStaffModal('${s.firebaseKey || s.mobile}')" class="text-indigo-400 hover:text-indigo-600 mr-2"><i class="fa-solid fa-user-pen"></i></button>
+                    <button onclick="window.openStaffDocumentReviewModal('${s.adekPass || s.mobile}')" class="text-emerald-500 hover:text-emerald-700"><i class="fa-solid fa-eye"></i></button>
+                </td>
             </tr>`).join('') : '<tr><td colspan="10" class="p-8 text-center text-gray-400">No staff found</td></tr>';
     });
 }
@@ -497,127 +500,214 @@ window.bulkDeleteAssets = async () => {
 
 let staffPhotoBase64 = ""; // Global variable to store selected image
 
-/**
- * 1. Open Modal and Inject HTML Form
- */
+// ================================================================ */
+// ✅ 1. OPEN MODAL - Universal Responsive Design
+// ================================================================ */
 window.openAddStaffModal = function() {
     const modal = document.getElementById('add-staff-modal');
     if (!modal) return;
 
     modal.innerHTML = `
-        <div class="bg-white w-full max-w-xl rounded-[40px] overflow-hidden shadow-2xl p-10 relative">
-            <div class="flex justify-between items-center mb-8">
-                <h3 class="text-2xl font-black text-indigo-900 uppercase tracking-tight">Register New Staff</h3>
-                <button onclick="window.closeStaffModal('add')" class="w-10 h-10 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center hover:bg-red-50 hover:text-red-500 transition-all">&times;</button>
-            </div>
+        <div class="pro-modal-container">
+            <button type="button" onclick="window.closeStaffModal('add')" class="modal-close-btn">&times;</button>
 
-            <form id="add-staff-form" class="space-y-6" onsubmit="event.preventDefault(); window.handleStaffSubmit('add')">
+            <h3 class="pro-modal-title">Register New Staff</h3>
 
-                <!-- ✅ CRITICAL: Hidden field to track unique record key -->
+            <form id="add-staff-form" onsubmit="event.preventDefault(); window.handleStaffSubmit('add')">
+
                 <input type="hidden" id="staff-db-key" value="">
 
-                <!-- Profile Photo Picker -->
-                <div class="flex flex-col items-center mb-6">
-                    <div class="relative group">
-                        <div class="w-28 h-28 rounded-full bg-slate-100 border-4 border-white shadow-xl overflow-hidden flex items-center justify-center">
-                            <img id="staff-photo-preview" src="" class="w-full h-full object-cover hidden">
-                            <i id="staff-photo-icon" class="fa-solid fa-camera text-4xl text-slate-300"></i>
-                        </div>
-                        <input type="file" id="staff-photo-input" accept="image/*" class="absolute inset-0 opacity-0 cursor-pointer" onchange="window.previewStaffPhoto(this)">
+                <!-- Profile Photo Picker - Touch Friendly -->
+                <div class="profile-upload-wrapper">
+                    <label for="staff-photo-input" class="avatar-upload-box" id="photo-upload-label">
+                        <img id="staff-photo-preview" src="" class="w-full h-full object-cover hidden" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%; display: none;">
+                        <i id="staff-photo-icon" class="fa-solid fa-camera"></i>
+                        <input type="file" id="staff-photo-input" accept="image/*" class="hidden-file-input" capture="environment" onchange="window.previewStaffPhoto(this)">
+                    </label>
+                    <span class="avatar-label-text">Upload Profile Image</span>
+                </div>
+
+                <!-- Form Inputs Grid - Responsive -->
+                <div class="pro-form-grid">
+                    <div class="input-field-group">
+                        <input type="text" id="staff-name" placeholder="Full Name" required class="pro-input" autocomplete="name">
                     </div>
-                    <p class="text-[10px] font-black text-indigo-500 uppercase mt-3 tracking-widest">Upload Profile Image</p>
-                </div>
 
-                <div class="grid grid-cols-2 gap-4">
-                    <input type="text" id="staff-name" placeholder="Full Name" required class="p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl outline-none focus:border-indigo-500 text-sm font-bold">
-                    <input type="tel" id="staff-mobile" placeholder="Mobile (Login ID)" required class="p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl outline-none focus:border-indigo-500 text-sm font-bold">
-                </div>
+                    <div class="input-field-group">
+                        <input type="tel" id="staff-mobile" placeholder="Mobile (Login ID)" required class="pro-input" autocomplete="tel" inputmode="numeric">
+                    </div>
 
-                <div class="grid grid-cols-2 gap-4">
-                    <input type="text" id="staff-adek" placeholder="ADEK Pass No" required class="p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl outline-none focus:border-indigo-500 text-sm font-bold">
-                    <input type="text" id="staff-pass" placeholder="Login Password" required class="p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl outline-none focus:border-indigo-500 text-sm font-bold">
-                </div>
+                    <div class="input-field-group">
+                        <input type="text" id="staff-adek" placeholder="ADEK Pass No" required class="pro-input" autocomplete="off">
+                    </div>
 
-                <div class="grid grid-cols-2 gap-4">
-                    <select id="staff-role" required class="p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl outline-none focus:border-indigo-500 text-sm font-bold">
-                        <option value="">Select Role</option>
-                        <option value="Security">Security</option>
-                        <option value="Cleaner">Cleaner</option>
-                        <option value="Cleaner Leader">Cleaner Leader</option>
-                        <option value="Technician">Technician</option>
-                        <option value="Gardener">Gardener</option>
-                        <option value="Admin">Admin</option>
-                    </select>
-                    <select id="staff-school" required class="p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl outline-none focus:border-indigo-500 text-sm font-bold">
-                        <option value="">Select School</option>
-                        <option value="Jern Yafoor School 1">Jern Yafoor School 1</option>
-                        <option value="Jern Yafoor School 2">Jern Yafoor School 2</option>
-                    </select>
-                </div>
+                    <div class="input-field-group">
+                        <input type="text" id="staff-pass" placeholder="Login Password" required class="pro-input" autocomplete="new-password">
+                    </div>
 
-                <div class="grid grid-cols-2 gap-4">
-                    <input type="text" id="staff-company" placeholder="Company Name" class="p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl outline-none focus:border-indigo-500 text-sm font-bold">
-                    <input type="text" id="staff-comp-id" placeholder="Company ID" class="p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl outline-none focus:border-indigo-500 text-sm font-bold">
-                </div>
+                    <div class="input-field-group">
+                        <select id="staff-role" required class="pro-select">
+                            <option value="">Select Role</option>
+                            <option value="Security">Security</option>
+                            <option value="Cleaner">Cleaner</option>
+                            <option value="Cleaner Leader">Cleaner Leader</option>
+                            <option value="Technician">Technician</option>
+                            <option value="Gardener">Gardener</option>
+                            <option value="Admin">Admin</option>
+                            <option value="Bus Monitor">Bus Monitor</option>
+                            <option value="Bus Driver">Bus Driver</option>
+                            <option value="Supervisor">Supervisor</option>
+                        </select>
+                    </div>
 
-                <button type="submit" id="staff-save-btn" class="w-full py-5 bg-indigo-600 text-white rounded-2xl font-black text-sm uppercase tracking-[0.2em] shadow-2xl shadow-indigo-500/30 active:scale-95 transition-all">
-                    Register Staff Member
-                </button>
+                    <div class="input-field-group">
+                        <select id="staff-school" required class="pro-select">
+                            <option value="">Select School</option>
+                            <option value="Jern Yafoor School 1">Jern Yafoor School 1</option>
+                            <option value="Jern Yafoor School 2">Jern Yafoor School 2</option>
+                        </select>
+                    </div>
+
+                    <div class="input-field-group">
+                        <input type="text" id="staff-company" placeholder="Company Name" class="pro-input" autocomplete="organization">
+                    </div>
+
+                    <div class="input-field-group">
+                        <input type="text" id="staff-comp-id" placeholder="Company ID" class="pro-input" autocomplete="off">
+                    </div>
+
+                    <!-- Document Verification Assignment Container -->
+                    <div id="staff-doc-assignment-container" style="grid-column: 1 / -1;"></div>
+
+                    <!-- Submit Button - Touch Friendly -->
+                    <button type="submit" id="staff-save-btn" class="pro-submit-btn">
+                        Register Staff Member
+                    </button>
+                </div>
             </form>
         </div>
     `;
-    modal.classList.remove('hidden');
+
+    // Show modal with proper styling
+    modal.className = "modal-backdrop";
     modal.style.display = 'flex';
-    staffPhotoBase64 = ""; // Reset image on open
+    staffPhotoBase64 = "";
+
+    // ✅ Add listener for Role Change
+    const roleSelect = document.getElementById('staff-role');
+    if (roleSelect) {
+        roleSelect.addEventListener('change', (e) => {
+            if (window.renderDocAssignmentUI) {
+                window.renderDocAssignmentUI(e.target.value, 'staff-doc-assignment-container');
+            }
+        });
+    }
+
+    // ✅ Mobile-friendly: auto-focus first field with slight delay
+    setTimeout(() => {
+        const firstInput = document.getElementById('staff-name');
+        if (firstInput && window.innerWidth < 768) {
+            // Don't force focus on mobile to avoid keyboard issues
+        }
+    }, 100);
 };
 
-/**
- * 2. Preview Selected Photo
- */
+// ================================================================ */
+// ✅ 2. PREVIEW PHOTO - Universal File Reader
+// ================================================================ */
 window.previewStaffPhoto = function(input) {
     if (input.files && input.files[0]) {
+        const file = input.files[0];
+
+        // ✅ Check file size (max 5MB)
+        if (file.size > 5 * 1024 * 1024) {
+            alert("❌ Image size must be less than 5MB. Please compress your image.");
+            input.value = '';
+            return;
+        }
+
+        // ✅ Check file type
+        if (!file.type.startsWith('image/')) {
+            alert("❌ Please select a valid image file.");
+            input.value = '';
+            return;
+        }
+
         const reader = new FileReader();
         reader.onload = function(e) {
             const preview = document.getElementById('staff-photo-preview');
             const icon = document.getElementById('staff-photo-icon');
             if (preview) {
                 preview.src = e.target.result;
+                preview.style.display = 'block';
                 preview.classList.remove('hidden');
-                if (icon) icon.classList.add('hidden');
-                staffPhotoBase64 = e.target.result; // Store for upload
+                if (icon) {
+                    icon.style.display = 'none';
+                    icon.classList.add('hidden');
+                }
+                staffPhotoBase64 = e.target.result;
             }
         };
-        reader.readAsDataURL(input.files[0]);
+        reader.onerror = function() {
+            alert("❌ Failed to read image. Please try again.");
+        };
+        reader.readAsDataURL(file);
     }
 };
 
-/**
- * 3. Handle Submit (Drive Upload + Firebase Save)
- */
+// ================================================================ */
+// ✅ 3. HANDLE SUBMIT - Enhanced Error Handling
+// ================================================================ */
 window.handleStaffSubmit = async function(type) {
     const btn = document.getElementById('staff-save-btn');
     const mobile = document.getElementById('staff-mobile').value.trim();
     const existingKey = document.getElementById('staff-db-key')?.value || "";
 
-    if (btn) btn.disabled = true;
-    window.showGlobalSpinner("Saving Data & Uploading Photo...");
+    // ✅ Validate required fields
+    if (!mobile) {
+        alert("❌ Mobile number is required.");
+        if (btn) btn.disabled = false;
+        return;
+    }
+
+    // ✅ Validate mobile number format (UAE format)
+    if (!/^[0-9]{9,15}$/.test(mobile)) {
+        alert("❌ Please enter a valid mobile number (9-15 digits).");
+        if (btn) btn.disabled = false;
+        return;
+    }
+
+    if (btn) {
+        btn.disabled = true;
+        btn.textContent = "⏳ Saving...";
+    }
+
+    if (window.showGlobalSpinner) window.showGlobalSpinner("Saving Data & Uploading Photo...");
 
     try {
         let finalPhotoUrl = "";
 
-        // STEP A: Upload to Google Drive if image is selected
+        // STEP A: Upload to Google Drive if new image is selected
         if (staffPhotoBase64 && window.uploadToDrive) {
+            const uploadConfigCat = (typeof UPLOAD_CONFIG !== 'undefined' && UPLOAD_CONFIG.CATEGORIES)
+                ? UPLOAD_CONFIG.CATEGORIES.STAFF_PHOTOS
+                : 'STAFF_PHOTOS';
+
             const uploadRes = await window.uploadToDrive({
-                category: UPLOAD_CONFIG.CATEGORIES.STAFF_PHOTOS || 'STAFF_PHOTOS',
+                category: uploadConfigCat,
                 fileName: `Staff_Profile_${mobile}_${Date.now()}.jpg`,
                 image: staffPhotoBase64
             });
+
             if (uploadRes && uploadRes.status === 'success') {
                 finalPhotoUrl = uploadRes.fileUrl;
+            } else {
+                // ✅ Continue without photo if upload fails (but log error)
+                console.warn("⚠️ Photo upload failed, continuing without photo.");
             }
         }
 
-        // STEP B: Prepare Database Object
+        // STEP B: Prepare Base Database Object
         const staffData = {
             fullName: document.getElementById('staff-name').value.trim(),
             mobile: mobile,
@@ -630,14 +720,36 @@ window.handleStaffSubmit = async function(type) {
             updatedAt: Date.now()
         };
 
+        // ✅ Preserve existing photo if no new image was selected during Edit
         if (finalPhotoUrl) {
             staffData.profilePicUrl = finalPhotoUrl;
+        } else if (existingKey) {
+            const existingPreview = document.getElementById('staff-photo-preview');
+            if (existingPreview && existingPreview.src && !existingPreview.src.includes('data:image')) {
+                staffData.profilePicUrl = existingPreview.src;
+            }
         }
 
-        // 🚨 CRITICAL FIX: To prevent overwriting, we use unique keys
-        // If existingKey is present, it's an EDIT (update existing node)
-        // If existingKey is EMPTY, it's a NEW staff (use push() for unique ID)
+        // STEP C: Collect and Save Assigned Documents
+        if (window.getAssignedDocsFromUI) {
+            const assignedDocs = window.getAssignedDocsFromUI();
+            staffData.requiredVerificationDocs = assignedDocs;
 
+            // Initialize verification node for NEW staff
+            if (!existingKey && assignedDocs && Object.keys(assignedDocs).length > 0) {
+                const docStatusNode = {};
+                Object.keys(assignedDocs).forEach(id => {
+                    docStatusNode[id] = { status: "NOT UPLOADED", documentType: id };
+                });
+                await set(ref(db, `staff_documents/${staffData.adekPass || mobile}`), {
+                    docs: docStatusNode,
+                    isAccountActivated: false,
+                    verificationProgress: "0%"
+                });
+            }
+        }
+
+        // STEP D: Push to Firebase (Edit vs Create)
         if (existingKey) {
             console.log("💾 Updating existing staff record:", existingKey);
             await update(ref(db, `staff/${existingKey}`), staffData);
@@ -646,64 +758,127 @@ window.handleStaffSubmit = async function(type) {
             await push(ref(db, 'staff'), staffData);
         }
 
-        alert("✅ Staff Member Successfully Registered!");
+        alert("✅ Staff Member Successfully Saved!");
         window.closeStaffModal(type);
 
-        // Refresh the list if the function exists
+        // Refresh list
         if (window.filterStaffDirectory) window.filterStaffDirectory();
 
     } catch (error) {
         console.error("Staff Save Error:", error);
-        alert("❌ Error: " + error.message);
+        alert("❌ Error: " + (error.message || "Unknown error occurred"));
     } finally {
-        if (btn) btn.disabled = false;
-        window.hideGlobalSpinner();
+        if (btn) {
+            btn.disabled = false;
+            btn.textContent = existingKey ? "UPDATE STAFF DETAILS" : "Register Staff Member";
+        }
+        if (window.hideGlobalSpinner) window.hideGlobalSpinner();
     }
 };
 
-/**
- * 4. Close Modals
- */
+// ================================================================ */
+// ✅ 4. CLOSE MODAL - Universal Handler
+// ================================================================ */
 window.closeStaffModal = function(type) {
     const modalId = type === 'add' ? 'add-staff-modal' : 'edit-staff-modal';
-    const modal = document.getElementById(modalId);
+    let modal = document.getElementById(modalId);
+
+    // Fallback if edit modal uses same modal container
+    if (!modal && type === 'edit') modal = document.getElementById('add-staff-modal');
+
     if (modal) {
         modal.classList.add('hidden');
         modal.style.display = 'none';
     }
+
+    // ✅ Clear file input to prevent cached images
+    const fileInput = document.getElementById('staff-photo-input');
+    if (fileInput) fileInput.value = '';
+
+    // ✅ Reset preview
+    const preview = document.getElementById('staff-photo-preview');
+    const icon = document.getElementById('staff-photo-icon');
+    if (preview) {
+        preview.src = '';
+        preview.style.display = 'none';
+        preview.classList.add('hidden');
+    }
+    if (icon) {
+        icon.style.display = 'block';
+        icon.classList.remove('hidden');
+    }
+
+    staffPhotoBase64 = "";
 };
 
-/**
- * 5. Edit Staff Logic (Loads existing data)
- */
+// ================================================================ */
+// ✅ 5. EDIT STAFF - Enhanced Loading
+// ================================================================ */
 window.openEditStaffModal = async function(dbKey) {
+    if (!dbKey) {
+        alert("❌ Invalid staff record.");
+        return;
+    }
+
     try {
+        if (window.showGlobalSpinner) window.showGlobalSpinner("Loading Staff Data...");
+
         const snap = await get(ref(db, `staff/${dbKey}`));
-        if (!snap.exists()) return alert("Staff record not found.");
+        if (!snap.exists()) {
+            alert("❌ Staff record not found.");
+            if (window.hideGlobalSpinner) window.hideGlobalSpinner();
+            return;
+        }
 
         const s = snap.val();
-        window.openAddStaffModal(); // Open UI First
 
-        // Update Title and Button text for Edit mode
-        const title = document.querySelector('#add-staff-modal h3');
-        if (title) title.innerText = "Edit Staff Member";
+        // Render base Modal UI
+        window.openAddStaffModal();
+
+        // Update Title & Submit Button Text for Edit Mode
+        const title = document.querySelector('.pro-modal-title');
+        if (title) title.innerText = "✏️ Edit Staff Member";
+
         const saveBtn = document.getElementById('staff-save-btn');
-        if (saveBtn) saveBtn.innerText = "Update Staff Details";
+        if (saveBtn) saveBtn.innerText = "UPDATE STAFF DETAILS";
 
         // Set the hidden database key
         const keyInput = document.getElementById('staff-db-key');
         if (keyInput) keyInput.value = dbKey;
 
-        // Fill Form Fields
-        document.getElementById('staff-name').value = s.fullName || s.name || "";
-        document.getElementById('staff-mobile').value = s.mobile || "";
-        document.getElementById('staff-mobile').readOnly = true; // Mobile cannot be changed
-        document.getElementById('staff-adek').value = s.adekPass || "";
-        document.getElementById('staff-pass').value = s.password || "";
-        document.getElementById('staff-role').value = s.role || "";
-        document.getElementById('staff-school').value = s.school || s.branch || "";
-        document.getElementById('staff-company').value = s.companyName || "";
-        document.getElementById('staff-comp-id').value = s.companyId || "";
+        // Fill Form Fields safely
+        const nameField = document.getElementById('staff-name');
+        if (nameField) nameField.value = s.fullName || s.name || "";
+
+        const mobileField = document.getElementById('staff-mobile');
+        if (mobileField) {
+            mobileField.value = s.mobile || "";
+            mobileField.readOnly = true;
+            mobileField.style.backgroundColor = '#f0f0f0';
+        }
+
+        const adekField = document.getElementById('staff-adek');
+        if (adekField) adekField.value = s.adekPass || "";
+
+        const passField = document.getElementById('staff-pass');
+        if (passField) passField.value = s.password || "";
+
+        const roleField = document.getElementById('staff-role');
+        if (roleField) roleField.value = s.role || "";
+
+        const schoolField = document.getElementById('staff-school');
+        if (schoolField) schoolField.value = s.school || s.branch || "";
+
+        const companyField = document.getElementById('staff-company');
+        if (companyField) companyField.value = s.companyName || "";
+
+        const compIdField = document.getElementById('staff-comp-id');
+        if (compIdField) compIdField.value = s.companyId || "";
+
+        // Load assigned verification documents
+        if (window.renderDocAssignmentUI) {
+            window.renderDocAssignmentUI(s.role, 'staff-doc-assignment-container', s.requiredVerificationDocs || null);
+        }
 
         // Load Existing Photo Preview
         if (s.profilePicUrl) {
@@ -711,17 +886,82 @@ window.openEditStaffModal = async function(dbKey) {
             const icon = document.getElementById('staff-photo-icon');
             if (preview) {
                 preview.src = window.getDirectDriveImageUrl ? window.getDirectDriveImageUrl(s.profilePicUrl) : s.profilePicUrl;
+                preview.style.display = 'block';
                 preview.classList.remove('hidden');
-                if (icon) icon.classList.add('hidden');
+                if (icon) {
+                    icon.style.display = 'none';
+                    icon.classList.add('hidden');
+                }
             }
         }
 
+        if (window.hideGlobalSpinner) window.hideGlobalSpinner();
+
     } catch (e) {
         console.error("Edit Staff Load Error:", e);
-        alert("Failed to load staff details.");
+        alert("❌ Failed to load staff details: " + (e.message || "Unknown error"));
+        if (window.hideGlobalSpinner) window.hideGlobalSpinner();
     }
 };
-console.log("✅ admin_module.js Deployed - v4.7 Real-time Metrics Engine Active");
+
+// ================================================================ */
+// ✅ 6. ADDITIONAL UTILITY FUNCTIONS
+// ================================================================ */
+
+/**
+ * Reset the staff form to default state
+ */
+window.resetStaffForm = function() {
+    const form = document.getElementById('add-staff-form');
+    if (form) form.reset();
+
+    const preview = document.getElementById('staff-photo-preview');
+    const icon = document.getElementById('staff-photo-icon');
+    if (preview) {
+        preview.src = '';
+        preview.style.display = 'none';
+        preview.classList.add('hidden');
+    }
+    if (icon) {
+        icon.style.display = 'block';
+        icon.classList.remove('hidden');
+    }
+
+    const keyInput = document.getElementById('staff-db-key');
+    if (keyInput) keyInput.value = '';
+
+    const mobileField = document.getElementById('staff-mobile');
+    if (mobileField) {
+        mobileField.readOnly = false;
+        mobileField.style.backgroundColor = '';
+    }
+
+    staffPhotoBase64 = "";
+};
+
+/**
+ * Validate UAE mobile number format
+ */
+window.validateUAEMobile = function(number) {
+    // UAE mobile format: 9-15 digits, can start with 0 or 5
+    const cleaned = number.replace(/\s/g, '');
+    return /^[0-9]{9,15}$/.test(cleaned);
+};
+
+/**
+ * Handle mobile input formatting for better UX
+ */
+document.addEventListener('DOMContentLoaded', function() {
+    const mobileInput = document.getElementById('staff-mobile');
+    if (mobileInput) {
+        mobileInput.addEventListener('input', function(e) {
+            // Remove any non-numeric characters
+            this.value = this.value.replace(/[^0-9]/g, '');
+        });
+    }
+});
+
+console.log("✅ Staff Management Module v5.0 - Universal Responsive");
 
 // ================================================================ */
 // ✅ DETAILED MODAL HANDLERS (FIXED v4.8)                          */

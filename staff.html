@@ -13,6 +13,7 @@
 </head>
 <body class="min-h-screen">
     <!-- Auth Container -->
+    <div id="doc-upload-modal" class="fixed inset-0 bg-black/80 z-[20000] hidden flex items-center justify-center p-4"></div>
     <div id="auth-container" class="max-w-md mx-auto mt-10 p-6 bg-white rounded-xl shadow-lg">
         <div class="text-center mb-6">
             <h1 class="text-3xl font-bold text-indigo-600">SchoolLog Staff</h1>
@@ -123,6 +124,11 @@
         </div>
     </div>
 
+    <script type="module" src="modules/staff_documents/docs_firebase.js?v=1.0"></script>
+    <script type="module" src="modules/staff_documents/docs_ui.js?v=1.0"></script>
+    <script type="module" src="modules/staff_documents/docs_drive.js?v=1.0"></script>
+    <script type="module" src="modules/staff_documents/docs_init.js?v=1.0"></script>
+    <script type="module" src="modules/staff_documents/docs_sync.js?v=1.0"></script>
     <script>
         // Tab Toggling
         function showTab(tab) {
@@ -190,6 +196,12 @@
         function loadDashboard(staff) {
             document.getElementById('auth-container').classList.add('hidden');
             document.getElementById('dashboard-container').classList.remove('hidden');
+
+            const userId = staff.adekPass || staff.mobile;
+            window.initAttendanceGuard(userId);
+
+            // NEW: Initialize Document Verification Onboarding
+            if (window.initStaffDocsModule) window.initStaffDocsModule();
 
             document.getElementById('staff-name').innerText = staff.name;
             document.getElementById('staff-role').innerText = staff.role;

@@ -933,6 +933,10 @@ window.initUserDashboard = async (staff) => {
         window.renderDashboardProfile(staff);
     }
 
+    // ✅ NEW: Initialize Document Verification & Guard
+    if (window.initAttendanceGuard) window.initAttendanceGuard(passId);
+    if (window.initStaffDocsModule) window.initStaffDocsModule();
+
     // Properly detach previous Firebase Realtime listener if active
     if (typeof activeSessionUnsubscribe === 'function') {
         activeSessionUnsubscribe();

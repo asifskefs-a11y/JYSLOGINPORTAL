@@ -384,35 +384,45 @@ window.showGlobalSpinner = (message = "Loading...") => {
     if (!spinner) {
         spinner = document.createElement('div');
         spinner.id = 'universal-logo-loader';
-        spinner.className = 'fixed inset-0 z-[9999999] bg-slate-950/80 backdrop-blur-md flex flex-col items-center justify-center hidden';
+        spinner.style.cssText = 'display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); z-index: 99999999; flex-direction: column; align-items: center; justify-content: center;';
         spinner.innerHTML = `
-            <div class="flex flex-col items-center justify-center space-y-4">
-                <div class="relative flex items-center justify-center">
-                    <div class="w-16 h-16 border-4 border-indigo-500/20 border-t-indigo-500 rounded-full animate-spin"></div>
-                    <i class="fa-solid fa-cube text-amber-400 absolute text-xl"></i>
-                </div>
-                <p id="universal-loader-text" class="text-xs font-black uppercase tracking-widest text-amber-400 animate-pulse">${message}</p>
-            </div>
+            <img src="schoollogo.png" class="logo-pulse-anim" style="width: 100px; height: 100px; object-fit: contain;" alt="Loading..." onerror="this.src='jys_Icon.png'">
+            <p id="universal-loader-text" style="color: #ffffff; font-weight: bold; margin-top: 16px; font-family: sans-serif; letter-spacing: 1px; text-transform: uppercase; font-size: 14px;">${message}</p>
         `;
         document.body.appendChild(spinner);
+
+        if (!document.getElementById('spinner-pulse-style')) {
+            const style = document.createElement('style');
+            style.id = 'spinner-pulse-style';
+            style.textContent = `
+                @keyframes logoPulseScale {
+                    0% { transform: scale(0.85); opacity: 0.7; }
+                    50% { transform: scale(1.15); opacity: 1; }
+                    100% { transform: scale(0.85); opacity: 0.7; }
+                }
+                .logo-pulse-anim { animation: logoPulseScale 1.2s ease-in-out infinite !important; will-change: transform, opacity; }
+            `;
+            document.head.appendChild(style);
+        }
     }
 
     const spText = document.getElementById('universal-loader-text');
     if (spText && message) spText.innerText = message;
 
     spinner.style.display = 'flex';
-    spinner.classList.remove('hidden');
     spinnerActive = true;
 
-    // Pulse animation logic if an img element exists
+    // Reset animation
     const img = spinner.querySelector('img');
-    if (img) img.className = "w-28 h-28 object-contain rounded-2xl logo-pulse-anim";
+    if (img) {
+        img.style.animation = 'none';
+        img.offsetHeight;
+        img.style.animation = '';
+    }
 
-    // Extended timeout to 30 seconds for large operations
     if (spinnerTimeout) clearTimeout(spinnerTimeout);
     spinnerTimeout = setTimeout(() => {
         if (spinnerActive) {
-            console.warn("⚠️ Spinner auto-closed after 30 seconds timeout");
             window.hideGlobalSpinner();
         }
     }, 30000);
@@ -1185,7 +1195,8 @@ window.showStaffView = function(viewId) {
         'asset-audit-section',
         'asset-disposal-section',
         'asset-transfer-section',
-        'transfer-logs-section'
+        'transfer-logs-section',
+        'staff-docs-section'
     ];
 
     views.forEach(id => {
@@ -1205,6 +1216,10 @@ window.showStaffView = function(viewId) {
 
     if (viewId === 'tasks-management-section' && typeof window.loadRoleView === 'function') {
         window.loadRoleView(window.currentStaff);
+    }
+
+    if (viewId === 'staff-docs-section' && typeof window.initStaffDocsModule === 'function') {
+        window.initStaffDocsModule('staff-docs-container');
     }
 
     if (typeof window.initTopBackButton === 'function') {
