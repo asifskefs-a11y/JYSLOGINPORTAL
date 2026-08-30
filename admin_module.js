@@ -1279,19 +1279,19 @@ window.loadAdminDisposalTable = function() {
         body.innerHTML = pageItems.length ? pageItems.map(d => `
             <tr class="hover:bg-red-50 border-b text-[10px]">
                 <td class="p-3 font-mono font-bold text-red-600">${d.assetBarcode || "-"}</td>
-                <td class="p-3 font-bold">${d.assetName || "-"}</td>
-                <td class="p-3">${d.assetVendor || "-"}</td>
+                <td class="p-3 font-bold">${d.assetDescription || d.assetName || "-"}</td>
+                <td class="p-3">${d.assetVendorName || d.assetVendor || "-"}</td>
                 <td class="p-3">${d.assetCategory || "-"}</td>
-                <td class="p-3">${d.date || "-"}</td>
-                <td class="p-3">${d.assetFloor || "-"}</td>
-                <td class="p-3">${d.assetFloor || "-"}</td>
-                <td class="p-3">${d.assetLocation || "-"}</td>
-                <td class="p-3">${d.assetCategory || "-"}</td>
-                <td class="p-3">${d.assetCategory || "-"}</td>
-                <td class="p-3">${d.assetBuilding || "-"}</td>
-                <td class="p-3">${d.assetRoom || "-"}</td>
-                <td class="p-3">${d.assetRoom || "-"}</td>
-                <td class="p-3">${d.assetCategory || "-"}</td>
+                <td class="p-3">${d.datePlaceInService || d.date || "-"}</td>
+                <td class="p-3">${d.assetFloorDescription || "-"}</td>
+                <td class="p-3">${d.assetFloorNo || d.assetFloor || "-"}</td>
+                <td class="p-3">${d.assetLocationName || d.assetLocation || "-"}</td>
+                <td class="p-3">${d.assetMajorCategory || "-"}</td>
+                <td class="p-3">${d.assetMinorCategory || "-"}</td>
+                <td class="p-3">${d.assetSchoolBuildingName || d.assetBuilding || "-"}</td>
+                <td class="p-3">${d.assetRoomNo || "-"}</td>
+                <td class="p-3">${d.assetRoomName || d.assetRoom || "-"}</td>
+                <td class="p-3">${d.assetSubMinorCategory || "-"}</td>
                 <td class="p-3 text-center">${d.disposalPhotoUrl ? `<img src="${window.getDirectDriveImageUrl(d.disposalPhotoUrl)}" class="h-6 mx-auto rounded shadow-sm" onclick="window.openImageZoom('${d.disposalPhotoUrl}')">` : 'No Photo'}</td>
                 <td class="p-3 text-center">
                     <button onclick="window.approveDisposal('${d.requestId}')" class="text-emerald-600 hover:scale-110"><i class="fa-solid fa-check-circle"></i></button>

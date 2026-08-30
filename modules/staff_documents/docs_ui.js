@@ -541,6 +541,11 @@ window.renderStaffDocsModule = function(container, requirements, staffDocs, prog
            </div>
        `;
    });
+
+   html += `</div>`;
+   container.innerHTML = html;
+};
+
 /**
  * ✅ Initialize staff documents module
  */

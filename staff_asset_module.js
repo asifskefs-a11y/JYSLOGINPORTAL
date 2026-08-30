@@ -225,7 +225,8 @@ window.saveAssetLocationUpdate = async function(e) {
     }
 
     const staffUser = window.currentStaff || JSON.parse(sessionStorage.getItem('active_staff_user') || '{}');
-    if (!staffUser || !staffUser.name) {
+    // ✅ FIXED: Fallback check for session properties (name/fullName/mobile)
+    if (!staffUser || (!staffUser.name && !staffUser.fullName && !staffUser.mobile)) {
         alert("Session error. Please logout and login again.");
         return;
     }

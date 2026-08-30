@@ -475,7 +475,7 @@
         </div>
 
         <!-- ASSET AUDIT SECTION -->
-        <div id="asset-audit-section" class="hidden w-full lg:max-w-[98%] mx-auto p-4 transfer-workflow-container">
+        <div id="asset-audit-section" class="hidden w-full lg:max-w-[98%] mx-auto p-4 transfer-workflow-container" style="height: auto; min-height: 100%;">
             <div class="workflow-header flex items-center gap-4 mb-6">
                 <button type="button" onclick="if(typeof window.showStaffView === 'function') window.showStaffView('staff-dash-area')" class="section-back-btn-circle w-11 h-11 rounded-full bg-indigo-50 hover:bg-indigo-100 text-indigo-600 flex items-center justify-center active:scale-95 shadow-sm transition-all shrink-0" aria-label="Go back to dashboard">
                     <i class="fa-solid fa-arrow-left text-base"></i>
@@ -491,7 +491,7 @@
                     <div id="audit-asset-preview" class="min-h-[20px]"></div>
 
                     <div class="border border-indigo-100/60 rounded-2xl overflow-hidden shadow-sm bg-white transition-all duration-300">
-                        <button type="button" onclick="if(typeof window.toggleAccordion === 'function') window.toggleAccordion('sec-a')" class="w-full flex justify-between items-center p-4 bg-indigo-50/50 text-indigo-900 font-bold hover:bg-indigo-50 transition-colors cursor-pointer touch-manipulation">
+                        <button type="button" id="accordion-header-a" onclick="if(typeof window.toggleAccordion === 'function') window.toggleAccordion('sec-a')" class="w-full flex justify-between items-center p-4 bg-indigo-50/50 text-indigo-900 font-bold hover:bg-indigo-50 transition-colors cursor-pointer touch-manipulation">
                             <span class="flex items-center gap-2 select-none pointer-events-none"><span class="w-6 h-6 bg-indigo-600 text-white rounded-lg flex items-center justify-center text-xs font-black">A</span> IDENTIFICATION</span>
                             <i id="sec-a-icon" class="fa-solid fa-chevron-down text-indigo-400 transition-transform duration-200 pointer-events-none"></i>
                         </button>
@@ -555,7 +555,7 @@
                     </div>
 
                     <div class="border border-indigo-100/60 rounded-2xl overflow-hidden shadow-sm bg-white transition-all duration-300">
-                        <button type="button" onclick="if(typeof window.toggleAccordion === 'function') window.toggleAccordion('sec-b')" class="w-full flex justify-between items-center p-4 bg-indigo-50/50 text-indigo-900 font-bold hover:bg-indigo-50 transition-colors cursor-pointer touch-manipulation">
+                        <button type="button" id="accordion-header-b" onclick="if(typeof window.toggleAccordion === 'function') window.toggleAccordion('sec-b')" class="w-full flex justify-between items-center p-4 bg-indigo-50/50 text-indigo-900 font-bold hover:bg-indigo-50 transition-colors cursor-pointer touch-manipulation">
                             <span class="flex items-center gap-2 select-none pointer-events-none"><span class="w-6 h-6 bg-indigo-600 text-white rounded-lg flex items-center justify-center text-xs font-black">B</span> CATEGORIZATION</span>
                             <i id="sec-b-icon" class="fa-solid fa-chevron-right text-indigo-400 transition-transform duration-200 pointer-events-none"></i>
                         </button>
@@ -605,7 +605,7 @@
                     </div>
 
                     <div class="border border-indigo-100/60 rounded-2xl overflow-hidden shadow-sm bg-white transition-all duration-300">
-                        <button type="button" onclick="if(typeof window.toggleAccordion === 'function') window.toggleAccordion('sec-c')" class="w-full flex justify-between items-center p-4 bg-indigo-50/50 text-indigo-900 font-bold hover:bg-indigo-50 transition-colors cursor-pointer touch-manipulation">
+                        <button type="button" id="accordion-header-c" onclick="if(typeof window.toggleAccordion === 'function') window.toggleAccordion('sec-c')" class="w-full flex justify-between items-center p-4 bg-indigo-50/50 text-indigo-900 font-bold hover:bg-indigo-50 transition-colors cursor-pointer touch-manipulation">
                             <span class="flex items-center gap-2 select-none pointer-events-none"><span class="w-6 h-6 bg-indigo-600 text-white rounded-lg flex items-center justify-center text-xs font-black">C</span> LOCATION DETAILS</span>
                             <i id="sec-c-icon" class="fa-solid fa-chevron-right text-indigo-400 transition-transform duration-200 pointer-events-none"></i>
                         </button>
@@ -650,7 +650,7 @@
                     </div>
 
                     <div class="border border-indigo-100/60 rounded-2xl overflow-hidden shadow-sm bg-white transition-all duration-300">
-                        <button type="button" onclick="if(typeof window.toggleAccordion === 'function') window.toggleAccordion('sec-d')" class="w-full flex justify-between items-center p-4 bg-indigo-50/50 text-indigo-900 font-bold hover:bg-indigo-50 transition-colors cursor-pointer touch-manipulation">
+                        <button type="button" id="accordion-header-d" onclick="if(typeof window.toggleAccordion === 'function') window.toggleAccordion('sec-d')" class="w-full flex justify-between items-center p-4 bg-indigo-50/50 text-indigo-900 font-bold hover:bg-indigo-50 transition-colors cursor-pointer touch-manipulation">
                             <span class="flex items-center gap-2 select-none pointer-events-none"><span class="w-6 h-6 bg-indigo-600 text-white rounded-lg flex items-center justify-center text-xs font-black">D</span> STATUS &amp; REMARKS</span>
                             <i id="sec-d-icon" class="fa-solid fa-chevron-right text-indigo-400 transition-transform duration-200 pointer-events-none"></i>
                         </button>
@@ -738,15 +738,15 @@
 
             <div class="transfer-form-card">
                 <div class="bg-white rounded-3xl shadow-xl shadow-red-500/5 border border-red-50 p-6 space-y-8 text-gray-800">
-                    <div class="space-y-2">
+                    <div class="space-y-2 disposable-qr-wrapper" style="display: flex; flex-direction: column; gap: 8px;">
                         <label for="f1_disposal_barcode_input" class="text-[10px] font-black text-red-500 uppercase tracking-wider flex items-center gap-2 select-none">
                             <i class="fa-solid fa-qrcode"></i> Scan Barcode
                         </label>
-                        <div class="relative group">
+                        <div class="relative group w-full">
                             <div class="absolute left-4 top-1/2 -translate-y-1/2 text-red-300 pointer-events-none">
                                 <i class="fa-solid fa-barcode text-lg"></i>
                             </div>
-                            <input type="text" id="f1_disposal_barcode_input" placeholder="ENTER BARCODE..." class="w-full pl-14 pr-14 py-4 bg-slate-50 border-2 border-slate-200 rounded-xl focus:border-red-500 focus:bg-white outline-none transition-all text-sm font-bold uppercase tracking-wider text-slate-800" oninput="if(typeof window.fetchDisposalAssetDetails === 'function') window.fetchDisposalAssetDetails(this.value)">
+                            <input type="text" id="f1_disposal_barcode_input" placeholder="ENTER BARCODE..." class="w-full pl-16 pr-14 py-4 bg-slate-50 border-2 border-slate-200 rounded-xl focus:border-red-500 focus:bg-white outline-none transition-all text-sm font-bold uppercase tracking-wider text-slate-800" oninput="if(typeof window.fetchDisposalAssetDetails === 'function') window.fetchDisposalAssetDetails(this.value)">
                             <button type="button" onclick="if(typeof window.startCameraScanner === 'function') window.startCameraScanner('f1_disposal_barcode_input')" class="absolute right-2 top-1/2 -translate-y-1/2 w-11 h-11 bg-red-500 hover:bg-red-600 text-white rounded-xl flex items-center justify-center shadow-lg shadow-red-500/25 transition-all active:scale-95" aria-label="Scan Disposal Barcode">
                                 <i class="fa-solid fa-camera text-lg"></i>
                             </button>
@@ -765,7 +765,17 @@
                         <!-- 2. Staff Capture Photo (Before Disposal) -->
                         <div class="text-center">
                             <span class="text-[10px] font-bold text-slate-500 uppercase block mb-1 select-none">Disposal Photo (Required)</span>
-                            <input type="file" id="disposal-photo-input" capture="environment" accept="image/*" class="hidden" onchange="if(this.files &amp;&amp; this.files[0]){ const r = new FileReader(); r.onload = function(e){ window.disposalBeforePhotoBase64 = e.target.result; }; r.readAsDataURL(this.files[0]); }">
+
+                            <!-- ✅ FIXED: Photo Preview Rendering Container -->
+                            <div id="disposal-photo-preview-box" class="mb-3 hidden">
+                                <img id="disposal-photo-preview" src="" alt="Captured Disposal Proof" class="w-full h-40 object-cover rounded-2xl border-2 border-red-200">
+                            </div>
+                            <div id="no-photo-placeholder" class="w-full h-40 bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200 flex flex-col items-center justify-center mb-3 text-slate-400">
+                                <i class="fa-solid fa-image text-3xl mb-2"></i>
+                                <span class="text-[10px] font-black uppercase">No Photo Available</span>
+                            </div>
+
+                            <input type="file" id="disposal-photo-input" capture="environment" accept="image/*" class="hidden" onchange="if(typeof window.handleDisposalPhotoSelect === 'function') window.handleDisposalPhotoSelect(event)">
                             <button type="button" onclick="document.getElementById('disposal-photo-input').click()" class="w-full py-3 bg-red-600 hover:bg-red-700 active:scale-95 text-white rounded-xl text-xs font-bold shadow-md flex items-center justify-center gap-2 transition-all">
                                 <i class="fa-solid fa-camera text-sm"></i> Take Photo
                             </button>
@@ -879,24 +889,26 @@
 
                         <!-- Input Area -->
                         <div class="batch-input-group space-y-2">
-                            <label for="t_asset_barcode" class="batch-label text-[9px] font-black text-slate-400 uppercase tracking-wider flex items-center gap-1.5 select-none">
+                            <label for="t_asset_barcode" class="batch-label text-[10px] font-black text-slate-400 uppercase tracking-wider flex items-center gap-1.5 select-none">
                                 <i class="fa-solid fa-qrcode text-indigo-500"></i> Scan/Enter Barcode *
                             </label>
                             <div class="batch-input-row flex flex-col sm:flex-row gap-3">
                                 <div class="input-with-camera flex-1 relative">
-                                    <div class="input-icon absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none">
+                                    <div class="input-icon absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none z-10">
                                         <i class="fa-solid fa-barcode text-lg"></i>
                                     </div>
                                     <input
                                             type="text"
                                             id="t_asset_barcode"
                                             name="assetBarcodeScan"
-                                            class="batch-input-field w-full pl-12 pr-12 py-3.5 bg-slate-50 border-2 border-slate-200 rounded-xl focus:border-indigo-500 focus:bg-white outline-none transition-all text-sm font-bold uppercase tracking-wider text-slate-800"
+                                            class="batch-input-field w-full pl-14 pr-12 py-3.5 bg-slate-50 border-2 border-slate-200 rounded-xl focus:border-indigo-500 focus:bg-white outline-none transition-all text-sm font-bold uppercase tracking-wider text-slate-800"
+                                            style="padding-left: 50px !important;"
                                             placeholder="SCAN BARCODE..."
                                             autocomplete="off"
                                             autocorrect="off"
                                             autocapitalize="off"
                                             spellcheck="false"
+                                            oninput="if(typeof window.fetchAssetDetailsByBarcode === 'function') window.fetchAssetDetailsByBarcode(this.value)"
                                             onkeypress="if(event.key === 'Enter'){ event.preventDefault(); if(typeof window.addAssetToBatch === 'function') window.addAssetToBatch(); }"
                                     >
                                     <button type="button" onclick="if(typeof window.startCameraScanner === 'function') window.startCameraScanner('t_asset_barcode')" class="camera-button absolute right-2 top-1/2 -translate-y-1/2 w-10 h-10 text-indigo-500 hover:text-indigo-700 rounded-lg flex items-center justify-center transition-colors" aria-label="Scan Barcode with Camera">
@@ -1007,11 +1019,11 @@
                             <label class="text-[10px] font-black text-indigo-600 uppercase tracking-wider flex items-center gap-2 select-none">
                                 <i class="fa-regular fa-image text-sm"></i> Transfer Photo Capture
                             </label>
-                            <input type="file" id="t_photo_capture" accept="image/*" capture="environment" class="hidden" onchange="if(typeof window.handleTransferPhoto === 'function') window.handleTransferPhoto(event); else if(typeof handleTransferPhoto === 'function') handleTransferPhoto(event);">
+                            <input type="file" id="t_photo_capture" accept="image/*" class="hidden" onchange="if(typeof window.handleTransferPhoto === 'function') window.handleTransferPhoto(event); else if(typeof handleTransferPhoto === 'function') handleTransferPhoto(event);">
 
                             <button type="button" onclick="document.getElementById('t_photo_capture').click()" class="w-full py-4 border-2 border-dashed border-indigo-200 hover:border-indigo-400 rounded-2xl text-indigo-600 font-bold flex items-center justify-center gap-2 hover:bg-indigo-50/50 active:scale-[0.99] transition-all">
-                                <i class="fa-solid fa-camera text-xl"></i>
-                                <span id="t_photo_btn_text" class="text-xs uppercase tracking-wider">Capture Transfer Photo</span>
+                                <i class="fa-solid fa-images text-xl"></i>
+                                <span id="t_photo_btn_text" class="text-xs uppercase tracking-wider">Choose Transfer Photo</span>
                             </button>
 
                             <div id="t_photo_preview" class="hidden mt-2 h-40 rounded-2xl overflow-hidden border-2 border-indigo-100 shadow-sm relative group">
@@ -1593,9 +1605,13 @@
         will-change: transform, opacity;
     }
 </style>
-<div id="universal-logo-loader" style="display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(8px); z-index: 99999999; flex-direction: column; align-items: center; justify-content: center;">
-    <img src="schoollogo.png" class="logo-pulse-anim" style="width: 100px; height: 100px; object-fit: contain;" alt="Loading..." onerror="this.src='jys_Icon.png'">
-    <p id="universal-loader-text" style="color: #ffffff; font-weight: bold; margin-top: 16px; font-family: sans-serif; letter-spacing: 1px; text-transform: uppercase;">Processing, please wait...</p>
+<!-- ===== LOADING SPINNER (UPGRADED v3.6 - LOGO RING) ===== -->
+<div id="universal-logo-loader" style="display: none; position: fixed; inset: 0; width: 100vw; height: 100vh; background: rgba(15, 23, 42, 0.95); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); z-index: 99999999; flex-direction: column; align-items: center; justify-content: center;">
+    <div class="checkin-loader-overlay relative flex items-center justify-center">
+        <img src="schoollogo.png" class="loader-center-logo logo-pulse-anim w-24 h-24 object-contain relative z-10" alt="JYS" onerror="this.src='jys_Icon.png'">
+        <div class="spinner-ring absolute inset-[-20px] border-4 border-indigo-500/20 border-t-indigo-500 rounded-full animate-spin" style="width: 140px; height: 140px;"></div>
+    </div>
+    <p id="universal-loader-text" style="color: #ffffff; font-weight: 800; margin-top: 32px; font-family: 'Poppins', sans-serif; letter-spacing: 2px; text-transform: uppercase; font-size: 14px; text-shadow: 0 2px 4px rgba(0,0,0,0.5);">Processing, please wait...</p>
 </div>
 
 <script>

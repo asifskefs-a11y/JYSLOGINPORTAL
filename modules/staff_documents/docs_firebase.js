@@ -159,16 +159,25 @@ window.getStaffDocuments = async function(userId) {
             return { docs: {}, isAccountActivated: false, verificationProgress: "0%" };
         }
 
-        const docRef = ref(db, `staff_documents/${userId}`);
-        const snap = await get(docRef);
+        // ✅ MANDATED FIX: Check both Pass ID and Mobile variations for resolution
+        const variations = [userId];
+        const staff = window.currentStaff || JSON.parse(sessionStorage.getItem('active_staff_user') || '{}');
+        if (staff.mobile && staff.mobile !== userId) variations.push(staff.mobile);
+        if (staff.adekPass && staff.adekPass !== userId) variations.push(staff.adekPass);
 
-        if (snap.exists()) {
-            const data = snap.val();
-            return {
-                docs: data.docs || {},
-                isAccountActivated: data.isAccountActivated || false,
-                verificationProgress: data.verificationProgress || "0%"
-            };
+        for (const id of variations) {
+            const docRef = ref(db, `staff_documents/${id}`);
+            const snap = await get(docRef);
+
+            if (snap.exists()) {
+                const data = snap.val();
+                console.log(`✅ Documents resolved using key: ${id}`);
+                return {
+                    docs: data.docs || {},
+                    isAccountActivated: data.isAccountActivated || false,
+                    verificationProgress: data.verificationProgress || "0%"
+                };
+            }
         }
 
         return { docs: {}, isAccountActivated: false, verificationProgress: "0%" };

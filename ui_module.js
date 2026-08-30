@@ -384,10 +384,13 @@ window.showGlobalSpinner = (message = "Loading...") => {
     if (!spinner) {
         spinner = document.createElement('div');
         spinner.id = 'universal-logo-loader';
-        spinner.style.cssText = 'display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); z-index: 99999999; flex-direction: column; align-items: center; justify-content: center;';
+        spinner.style.cssText = 'display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(15, 23, 42, 0.95); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); z-index: 99999999; flex-direction: column; align-items: center; justify-content: center;';
         spinner.innerHTML = `
-            <img src="schoollogo.png" class="logo-pulse-anim" style="width: 100px; height: 100px; object-fit: contain;" alt="Loading..." onerror="this.src='jys_Icon.png'">
-            <p id="universal-loader-text" style="color: #ffffff; font-weight: bold; margin-top: 16px; font-family: sans-serif; letter-spacing: 1px; text-transform: uppercase; font-size: 14px;">${message}</p>
+            <div class="checkin-loader-overlay relative flex items-center justify-center">
+                <img src="schoollogo.png" class="loader-center-logo logo-pulse-anim w-24 h-24 object-contain relative z-10" alt="JYS" onerror="this.src='jys_Icon.png'">
+                <div class="spinner-ring absolute inset-[-20px] border-4 border-indigo-500/20 border-t-indigo-500 rounded-full animate-spin"></div>
+            </div>
+            <p id="universal-loader-text" style="color: #ffffff; font-weight: 800; margin-top: 32px; font-family: 'Poppins', sans-serif; letter-spacing: 2px; text-transform: uppercase; font-size: 14px; text-shadow: 0 2px 4px rgba(0,0,0,0.5);">${message}</p>
         `;
         document.body.appendChild(spinner);
 
@@ -401,6 +404,7 @@ window.showGlobalSpinner = (message = "Loading...") => {
                     100% { transform: scale(0.85); opacity: 0.7; }
                 }
                 .logo-pulse-anim { animation: logoPulseScale 1.2s ease-in-out infinite !important; will-change: transform, opacity; }
+                .spinner-ring { width: 140px; height: 140px; }
             `;
             document.head.appendChild(style);
         }
@@ -412,20 +416,12 @@ window.showGlobalSpinner = (message = "Loading...") => {
     spinner.style.display = 'flex';
     spinnerActive = true;
 
-    // Reset animation
-    const img = spinner.querySelector('img');
-    if (img) {
-        img.style.animation = 'none';
-        img.offsetHeight;
-        img.style.animation = '';
-    }
-
     if (spinnerTimeout) clearTimeout(spinnerTimeout);
     spinnerTimeout = setTimeout(() => {
         if (spinnerActive) {
             window.hideGlobalSpinner();
         }
-    }, 30000);
+    }, 15000);
 };
 
 window.hideGlobalSpinner = () => {
@@ -480,7 +476,7 @@ window.generateLocalAvatar = function(name, background = "4f46e5", color = "fff"
 };
 
 // ================================================================ */
-// ROLE-BASED DASHBOARD RULES (FIXED v6.0 - POSITION RESTRICTIONS)  */
+// ROLE-BASED DASHBOARD RULES (FIXED v6.5 - CLEANER & DOCS FOCUS)  */
 // ================================================================ */
 
 window.applyRoleDashboardRules = function(userRole) {
@@ -492,76 +488,100 @@ window.applyRoleDashboardRules = function(userRole) {
     const roleVal = normalize(staff.role);
     const designVal = normalize(staff.designation || staff.position || userRole);
 
-    console.log(`👤 Position UI Filter: Role=[${roleVal}], Position=[${designVal}]`);
+    console.log(`👤 Applied Filter for Position: [${roleVal}], Role: [${designVal}]`);
 
-    // ✅ MANDATE: Restricted Positions for Minimalist Dashboard
-    // IMPORTANT: 'cleaner_leader' is NOT in this list and will retain all features.
-    const restrictedList = ['cleaner', 'bus_supervisor', 'bus_monitor', 'gardener', 'bus_driver'];
-
-    // Check if either field matches restricted positions
+    // ✅ MANDATE: Restricted Positions (Minimum UI for these roles)
+    // IMPORTANT: 'cleaner_leader', 'technician', 'office_boy' are NOT restricted and get Operational Dashboard
+    const restrictedList = ['cleaner', 'bus_supervisor', 'bus_monitor', 'gardener', 'bus_driver', 'helper'];
     const isRestricted = restrictedList.includes(roleVal) || restrictedList.includes(designVal);
 
-    if (isRestricted) {
-        // 1. Hide Dashboard Banner & Metrics
-        const widgetsToHide = [
-            'scan-edit-asset-btn',      // SCAN & EDIT ASSET LOCATION (Banner)
-            'tasks-summary-card',       // Stats Grid container
-            'visitor-log-section',      // Visitor Counter
-            'active-staff-grid',        // Staff Present Counter
-            'security-pin-control',     // Key PIN Control
-            'security-profile-card'     // Security Dashboard Variant
-        ];
+    // 1. DASHBOARD WIDGETS CONTROL
+    const adminWidgets = [
+        'scan-edit-asset-btn',      // Asset Scanning Banner
+        'tasks-summary-card',       // Stats Grid (Total/Pending)
+        'visitor-log-section',      // Visitor Counter
+        'active-staff-grid',        // Staff Present Counter
+        'security-pin-control',     // Key PIN Control
+        'security-profile-card',    // Security Specific Header
+        's-dash-create-task-btn',   // Dashboard Quick Create
+        'movement-logs-btn'         // History Button
+    ];
 
-        widgetsToHide.forEach(id => {
-            const el = document.getElementById(id);
-            if (el) {
+    adminWidgets.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) {
+            if (isRestricted) {
                 el.style.display = 'none';
                 el.classList.add('hidden');
+            } else {
+                el.style.display = '';
+                el.classList.remove('hidden');
             }
-        });
-
-        // ✅ MANDATE: Specifically hide the Completed Tasks Card metrics
-        const completedCard = document.querySelector('.stat-completed');
-        if (completedCard) {
-            completedCard.style.display = 'none';
-            completedCard.classList.add('hidden');
         }
+    });
 
-        // Collapse grid layout
+    // 2. DOCUMENT SECTION ACTIVATION (Restricted roles ke liye specific focus)
+    if (isRestricted) {
+        // Stats grid ko hide karna (layout clean karne ke liye)
         const statsGrid = document.querySelector('.stats-grid');
         if (statsGrid) {
             statsGrid.style.display = 'none';
             statsGrid.classList.add('hidden');
         }
 
-        // Show personal attendance history table
+        // Dashboard par personal records show karna
         const attHistorySec = document.getElementById('cleaner-attendance-section');
         if (attHistorySec) {
             attHistorySec.classList.remove('hidden');
             attHistorySec.style.display = 'block';
         }
-    }
 
-    // 2. Side Menu Visibility (Global Filter)
-    const assetSection = document.getElementById('menu-asset-section');
-    const taskHistoryBtn = document.getElementById('menu-tasks-btn');
-    const createTaskBtn = document.getElementById('menu-create-task-btn');
-
-    if (isRestricted) {
-        if (assetSection) { assetSection.style.display = 'none'; assetSection.classList.add('hidden'); }
-        if (taskHistoryBtn) { taskHistoryBtn.style.display = 'none'; taskHistoryBtn.classList.add('hidden'); }
-        if (createTaskBtn) { createTaskBtn.style.display = 'none'; createTaskBtn.classList.add('hidden'); }
+        // Document Section ko active/visible rakhna
+        const docsBtn = document.getElementById('menu-docs-btn');
+        if (docsBtn) {
+            docsBtn.style.display = 'flex';
+            docsBtn.classList.remove('hidden');
+            // Highlight effect for restricted roles
+            docsBtn.classList.add('bg-indigo-600/20', 'border-l-4', 'border-indigo-400');
+        }
     } else {
-        // Standards for non-restricted (Includes Cleaner Leader)
-        const assetRoles = ['security', 'technician', 'tech', 'admin', 'leader', 'cleaner_leader'];
-        const hasAssetAccess = assetRoles.includes(roleVal) || assetRoles.includes(designVal);
-        if (assetSection) {
-            assetSection.style.display = hasAssetAccess ? 'block' : 'none';
-            assetSection.classList.toggle('hidden', !hasAssetAccess);
+        // ✅ FIXED: Show sections for full access roles
+        const statsGrid = document.querySelector('.stats-grid');
+        if (statsGrid) {
+            statsGrid.style.display = '';
+            statsGrid.classList.remove('hidden');
         }
     }
 
-    // 3. Ensure Primary Nav (Attendance & Docs) is always accessible
+    // 3. SIDEBAR MENU VISIBILITY
+    const restrictedMenuItems = [
+        'menu-asset-section',
+        'menu-asset-transfer',
+        'menu-asset-audit',
+        'menu-asset-dispose',
+        'menu-movement-logs',
+        'menu-tasks-btn',
+        'menu-create-task-btn'
+    ];
+
+    restrictedMenuItems.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) {
+            if (isRestricted) {
+                el.style.display = 'none';
+                el.classList.add('hidden');
+            } else {
+                // Operational Roles Access (Security, Cleaner Leader, Technician, Office Boy, Admin)
+                const operationalRoles = ['security', 'technician', 'tech', 'admin', 'leader', 'cleaner_leader', 'office_boy'];
+                const hasAccess = operationalRoles.includes(roleVal) || operationalRoles.includes(designVal);
+
+                el.style.display = hasAccess ? 'block' : 'none';
+                el.classList.toggle('hidden', !hasAccess);
+            }
+        }
+    });
+
+    // Primary Nav ensure accessibility
     const historyBtn = document.getElementById('menu-history-btn');
     const docsBtn = document.getElementById('menu-docs-btn');
 
@@ -569,7 +589,7 @@ window.applyRoleDashboardRules = function(userRole) {
     if (docsBtn) { docsBtn.style.display = 'flex'; docsBtn.classList.remove('hidden'); }
 
     if (typeof window.initSidebarProfileAndRestrictions === 'function') {
-        window.initSidebarProfileAndRestrictions();
+        window.initSidebarProfileAndRestrictions(staff);
     }
 };
 
@@ -616,7 +636,7 @@ window.executeSecureLogout = function() {
 
 window.logoutStaff = window.executeSecureLogout;
 // ================================================================ */
-// SIDEBAR PROFILE & RESTRICTIONS (FIXED v6.0 - NO DUPLICATES)      */
+// SIDEBAR PROFILE & UI PERSISTENCE (v6.5)                          */
 // ================================================================ */
 
 window.initSidebarProfileAndRestrictions = function(staffData) {
@@ -658,24 +678,25 @@ window.initSidebarProfileAndRestrictions = function(staffData) {
     }
 
     // ✅ MANDATE: Strict Visibility Control for Side Menu Items
-    // IMPORTANT: 'cleaner_leader' will NOT be restricted here.
-    const restrictedList = ['cleaner', 'bus_supervisor', 'bus_monitor', 'gardener', 'bus_driver'];
+    const restrictedList = ['cleaner', 'bus_supervisor', 'bus_monitor', 'gardener', 'bus_driver', 'helper'];
     const isRestricted = restrictedList.includes(roleVal) || restrictedList.includes(designVal);
 
     if (isRestricted) {
-        // HIDE Asset Management Buttons
+        // HIDE Asset Management & Logs
         document.querySelectorAll('#menu-asset-section, #menu-asset-transfer, #menu-asset-audit, #menu-asset-dispose, #menu-movement-logs').forEach(el => {
             el.style.display = 'none';
             el.classList.add('hidden');
         });
+    } else {
+        // Ensure Movement Logs visible for Operational Roles
+        const operationalRoles = ['security', 'technician', 'tech', 'admin', 'leader', 'cleaner_leader', 'office_boy'];
+        const isOperational = operationalRoles.includes(roleVal) || operationalRoles.includes(designVal);
 
-        // HIDE Task Related Buttons
-        document.querySelectorAll('#menu-tasks-btn, #menu-create-task-btn, #s-dash-create-task-btn').forEach(el => {
-            el.style.display = 'none';
-            el.classList.add('hidden');
-        });
-
-        // DUPLICATE FIX: Toggling visibility only, no dynamic HTML injection.
+        const logBtn = document.getElementById('menu-movement-logs');
+        if (logBtn && isOperational) {
+            logBtn.style.display = 'flex';
+            logBtn.classList.remove('hidden');
+        }
     }
 };
 
@@ -761,15 +782,15 @@ window.openAttendanceHistoryModal = async function() {
         <div class="bg-indigo-950 border border-white/10 rounded-[2.5rem] p-8 max-w-lg w-full text-white space-y-6 shadow-2xl max-h-[90vh] flex flex-col fade-in">
             <div class="flex justify-between items-center border-b border-white/5 pb-5">
                 <div>
-                    <h3 class="text-xl font-black text-amber-400 uppercase tracking-tight">📅 Attendance History</h3>
+                    <h3 class="text-xl font-black text-cyan-400 uppercase tracking-tight attendance-history-title">📅 Attendance History</h3>
                     <p class="text-[10px] font-bold text-white/40 uppercase tracking-widest mt-1">${staffName} • ${staff.role || 'User'}</p>
                 </div>
                 <button onclick="window.closeAttendanceHistoryModal()" class="w-10 h-10 bg-white/5 rounded-full flex items-center justify-center text-white/60 hover:text-white transition-colors">&times;</button>
             </div>
 
-            <div id="attendance-modal-logs" class="overflow-y-auto space-y-3 pr-2 flex-1 no-scrollbar">
+            <div id="attendance-modal-logs" class="overflow-y-auto space-y-4 pr-2 flex-1 flex flex-col no-scrollbar" style="max-height: 60vh;">
                 <div class="flex flex-col items-center justify-center py-12 space-y-4">
-                    <i class="fa-solid fa-spinner fa-spin text-amber-400 text-3xl"></i>
+                    <i class="fa-solid fa-spinner fa-spin text-cyan-400 text-3xl"></i>
                     <p class="text-[10px] font-black uppercase tracking-widest text-white/40">Loading Logs...</p>
                 </div>
             </div>
@@ -1179,6 +1200,15 @@ window.toggleStaffTab = (tab) => {
         console.error("Toggle Tab Error:", e);
     }
 };
+
+window.openMovementLogModal = function() {
+    window.showStaffView('transfer-logs-section');
+    if (typeof window.loadTransferLogs === 'function') {
+        window.loadTransferLogs();
+    }
+};
+
+window.openTransferLogs = window.openMovementLogModal;
 
 // ================================================================ */
 // VIEW SWITCHER (FIXED v4.3 - LAYOUT PRESERVATION)               */
