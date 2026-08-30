@@ -480,93 +480,93 @@ window.generateLocalAvatar = function(name, background = "4f46e5", color = "fff"
 };
 
 // ================================================================ */
-// ROLE-BASED DASHBOARD RULES (FIXED v4.3)                         */
+// ROLE-BASED DASHBOARD RULES (FIXED v6.0 - POSITION RESTRICTIONS)  */
 // ================================================================ */
 
 window.applyRoleDashboardRules = function(userRole) {
-    const rawRole = (userRole || '').toString().trim().toLowerCase();
-    const cleanRole = rawRole.replace(/[\s-]+/g, '_');
+    const staff = window.currentStaff || JSON.parse(sessionStorage.getItem('active_staff_user') || '{}');
 
-    console.log(`👤 Normalizing Role for Sidebar Permissions: Original="${userRole}" -> Cleaned="${cleanRole}"`);
+    // Normalize string for position/designation/role
+    const normalize = (val) => (val || '').toString().trim().toLowerCase().replace(/[\s-]+/g, '_');
 
-    const assetAllowedRoles = [
-        'security', 'technician', 'tech', 'office_boy', 'admin',
-        'leader', 'cleaner_leader', 'cleaning_leader', 'leader_technician'
-    ];
+    const roleVal = normalize(staff.role);
+    const designVal = normalize(staff.designation || staff.position || userRole);
 
-    const taskAllowedRoles = [
-        'cleaner', 'cleaner_leader', 'cleaning_leader', 'leader',
-        'technician', 'tech', 'security', 'admin', 'office_boy', 'leader_technician'
-    ];
+    console.log(`👤 Position UI Filter: Role=[${roleVal}], Position=[${designVal}]`);
 
-    const taskCreateRoles = ['security', 'admin'];
+    // ✅ MANDATE: Restricted Positions for Minimalist Dashboard
+    // IMPORTANT: 'cleaner_leader' is NOT in this list and will retain all features.
+    const restrictedList = ['cleaner', 'bus_supervisor', 'bus_monitor', 'gardener', 'bus_driver'];
 
-    const hasAssetAccess = assetAllowedRoles.includes(cleanRole);
-    const hasTaskAccess = taskAllowedRoles.includes(cleanRole);
-    const canCreateTask = taskCreateRoles.includes(cleanRole);
+    // Check if either field matches restricted positions
+    const isRestricted = restrictedList.includes(roleVal) || restrictedList.includes(designVal);
 
+    if (isRestricted) {
+        // 1. Hide Dashboard Banner & Metrics
+        const widgetsToHide = [
+            'scan-edit-asset-btn',      // SCAN & EDIT ASSET LOCATION (Banner)
+            'tasks-summary-card',       // Stats Grid container
+            'visitor-log-section',      // Visitor Counter
+            'active-staff-grid',        // Staff Present Counter
+            'security-pin-control',     // Key PIN Control
+            'security-profile-card'     // Security Dashboard Variant
+        ];
+
+        widgetsToHide.forEach(id => {
+            const el = document.getElementById(id);
+            if (el) {
+                el.style.display = 'none';
+                el.classList.add('hidden');
+            }
+        });
+
+        // ✅ MANDATE: Specifically hide the Completed Tasks Card metrics
+        const completedCard = document.querySelector('.stat-completed');
+        if (completedCard) {
+            completedCard.style.display = 'none';
+            completedCard.classList.add('hidden');
+        }
+
+        // Collapse grid layout
+        const statsGrid = document.querySelector('.stats-grid');
+        if (statsGrid) {
+            statsGrid.style.display = 'none';
+            statsGrid.classList.add('hidden');
+        }
+
+        // Show personal attendance history table
+        const attHistorySec = document.getElementById('cleaner-attendance-section');
+        if (attHistorySec) {
+            attHistorySec.classList.remove('hidden');
+            attHistorySec.style.display = 'block';
+        }
+    }
+
+    // 2. Side Menu Visibility (Global Filter)
     const assetSection = document.getElementById('menu-asset-section');
-    if (assetSection) {
-        if (hasAssetAccess) {
-            assetSection.classList.remove('hidden');
-            assetSection.style.display = 'block';
-        } else {
-            assetSection.classList.add('hidden');
-            assetSection.style.display = 'none';
+    const taskHistoryBtn = document.getElementById('menu-tasks-btn');
+    const createTaskBtn = document.getElementById('menu-create-task-btn');
+
+    if (isRestricted) {
+        if (assetSection) { assetSection.style.display = 'none'; assetSection.classList.add('hidden'); }
+        if (taskHistoryBtn) { taskHistoryBtn.style.display = 'none'; taskHistoryBtn.classList.add('hidden'); }
+        if (createTaskBtn) { createTaskBtn.style.display = 'none'; createTaskBtn.classList.add('hidden'); }
+    } else {
+        // Standards for non-restricted (Includes Cleaner Leader)
+        const assetRoles = ['security', 'technician', 'tech', 'admin', 'leader', 'cleaner_leader'];
+        const hasAssetAccess = assetRoles.includes(roleVal) || assetRoles.includes(designVal);
+        if (assetSection) {
+            assetSection.style.display = hasAssetAccess ? 'block' : 'none';
+            assetSection.classList.toggle('hidden', !hasAssetAccess);
         }
     }
 
-    const assetSubButtons = [
-        'menu-asset-transfer', 'menu-asset-audit',
-        'menu-asset-dispose', 'menu-movement-logs'
-    ];
+    // 3. Ensure Primary Nav (Attendance & Docs) is always accessible
+    const historyBtn = document.getElementById('menu-history-btn');
+    const docsBtn = document.getElementById('menu-docs-btn');
 
-    assetSubButtons.forEach(btnId => {
-        const btnEl = document.getElementById(btnId);
-        if (btnEl) {
-            if (hasAssetAccess) {
-                btnEl.classList.remove('hidden');
-                btnEl.style.display = 'flex';
-            } else {
-                btnEl.classList.add('hidden');
-                btnEl.style.display = 'none';
-            }
-        }
-    });
-
-    const taskBtn = document.getElementById('menu-tasks-btn');
-    if (taskBtn) {
-        if (hasTaskAccess) {
-            taskBtn.classList.remove('hidden');
-            taskBtn.style.display = 'flex';
-        } else {
-            taskBtn.classList.add('hidden');
-            taskBtn.style.display = 'none';
-        }
-    }
-
-    const createBtns = ['menu-create-task-btn', 's-dash-create-task-btn', 'tab-btn-create-task'];
-    createBtns.forEach(id => {
-        const btn = document.getElementById(id);
-        if (btn) {
-            if (canCreateTask) {
-                btn.classList.remove('hidden');
-                btn.style.display = (id === 'tab-btn-create-task') ? 'inline-flex' : 'flex';
-            } else {
-                btn.classList.add('hidden');
-                btn.style.display = 'none';
-            }
-        }
-    });
-
-    const checkinBtns = document.querySelectorAll('#s-checkin-btn, #btn-staff-checkin');
-    checkinBtns.forEach(btn => {
-        btn.classList.remove('hidden');
-        // Keep CSS layout flexible instead of forcing inline-flex
-        if (btn.style.display === 'none') {
-            btn.style.display = '';
-        }
-    });
+    if (historyBtn) { historyBtn.style.display = 'flex'; historyBtn.classList.remove('hidden'); }
+    if (docsBtn) { docsBtn.style.display = 'flex'; docsBtn.classList.remove('hidden'); }
 
     if (typeof window.initSidebarProfileAndRestrictions === 'function') {
         window.initSidebarProfileAndRestrictions();
@@ -616,7 +616,7 @@ window.executeSecureLogout = function() {
 
 window.logoutStaff = window.executeSecureLogout;
 // ================================================================ */
-// SIDEBAR PROFILE & RESTRICTIONS (FIXED v4.3)                    */
+// SIDEBAR PROFILE & RESTRICTIONS (FIXED v6.0 - NO DUPLICATES)      */
 // ================================================================ */
 
 window.initSidebarProfileAndRestrictions = function(staffData) {
@@ -625,11 +625,15 @@ window.initSidebarProfileAndRestrictions = function(staffData) {
 
     if (!staff || !passId) return;
 
-    const role = (staff.role || '').toLowerCase().trim();
     const displayName = staff.fullName || staff.name || "Staff Member";
     const displayRole = staff.designation || staff.position || staff.role || "Employee";
 
-    console.log("👤 Syncing Side Menu Profile for:", displayName);
+    // Normalize for checks
+    const normalize = (val) => (val || '').toString().trim().toLowerCase().replace(/[\s-]+/g, '_');
+    const roleVal = normalize(staff.role);
+    const designVal = normalize(staff.designation || staff.position);
+
+    console.log(`👤 Side Menu Profile Update: [${displayName}] as [${displayRole}]`);
 
     const nameEl = document.getElementById('sidebar-user-name') || document.getElementById('menuUserName') || document.querySelector('.sidebar-user-name');
     const roleEl = document.getElementById('sidebar-user-role') || document.getElementById('menuUserRole') || document.querySelector('.sidebar-user-role');
@@ -653,24 +657,25 @@ window.initSidebarProfileAndRestrictions = function(staffData) {
         }
     }
 
-    // Cleaner, Gardener & Bus Musrif specific restrictions
-    if (role === 'cleaner' || role === 'gardener' || role === 'bus musrif' || role === 'bus_musrif') {
-        const scanAssetBtns = document.querySelectorAll('#scan-edit-asset-btn, .scan-asset-btn, [data-action="scan-asset"]');
-        scanAssetBtns.forEach(b => {
-            b.style.display = 'none';
-            b.classList.add('hidden');
+    // ✅ MANDATE: Strict Visibility Control for Side Menu Items
+    // IMPORTANT: 'cleaner_leader' will NOT be restricted here.
+    const restrictedList = ['cleaner', 'bus_supervisor', 'bus_monitor', 'gardener', 'bus_driver'];
+    const isRestricted = restrictedList.includes(roleVal) || restrictedList.includes(designVal);
+
+    if (isRestricted) {
+        // HIDE Asset Management Buttons
+        document.querySelectorAll('#menu-asset-section, #menu-asset-transfer, #menu-asset-audit, #menu-asset-dispose, #menu-movement-logs').forEach(el => {
+            el.style.display = 'none';
+            el.classList.add('hidden');
         });
 
-        const taskHistoryMenuItem = document.getElementById('menu-task-history') || document.getElementById('menu-tasks-btn') || document.querySelector('[data-menu="task-history"]');
-        if (taskHistoryMenuItem && !taskHistoryMenuItem.dataset.modified) {
-            taskHistoryMenuItem.dataset.modified = "true";
-            taskHistoryMenuItem.innerHTML = `
-                <div onclick="if(window.toggleSideMenu) window.toggleSideMenu(); if(window.openAttendanceHistoryModal) window.openAttendanceHistoryModal();" class="flex items-center gap-3 p-4 bg-white/5 rounded-2xl text-white/80 hover:bg-white/10 transition-all cursor-pointer">
-                    <i class="fa-solid fa-calendar-days text-amber-400"></i>
-                    <span>Attendance History</span>
-                </div>
-            `;
-        }
+        // HIDE Task Related Buttons
+        document.querySelectorAll('#menu-tasks-btn, #menu-create-task-btn, #s-dash-create-task-btn').forEach(el => {
+            el.style.display = 'none';
+            el.classList.add('hidden');
+        });
+
+        // DUPLICATE FIX: Toggling visibility only, no dynamic HTML injection.
     }
 };
 

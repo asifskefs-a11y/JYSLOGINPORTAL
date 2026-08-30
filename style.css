@@ -17,7 +17,6 @@
     display: flex !important;
     align-items: center !important;
     justify-content: center !important;
-    /* ✅ Smooth opacity transition for fade out */
     transition: opacity 0.4s ease-out, visibility 0.4s ease-out !important;
 }
 
@@ -33,7 +32,6 @@
     margin: auto !important;
 }
 
-/* Hide Browser Native Video Controls */
 #appLaunchVideo::-webkit-media-controls,
 #appLaunchVideo::-webkit-media-controls-enclosure,
 #appLaunchVideo::-webkit-media-controls-panel {
@@ -43,7 +41,6 @@
     display: none !important;
 }
 
-/* ✅ Fixed Positioning Context for Skip Button */
 #skipVideoBtn {
     position: absolute !important;
     top: max(20px, env(safe-area-inset-top)) !important;
@@ -53,7 +50,6 @@
     cursor: pointer !important;
 }
 
-/* Video Overlay Smooth Exit */
 .fade-out {
     opacity: 0 !important;
     visibility: hidden !important;
@@ -78,8 +74,17 @@
     box-sizing: border-box;
 }
 
+/* ✅ FIXED: No white border */
+html {
+    margin: 0 !important;
+    padding: 0 !important;
+    background: linear-gradient(135deg, #f5f3ff 0%, #ede9fe 50%, #e0e7ff 100%) !important;
+    overflow-x: hidden !important;
+    min-height: 100vh !important;
+}
+
 body {
-    background: #F8F9FD !important;
+    background: transparent !important;
     min-height: 100vh;
     min-height: 100dvh;
     margin: 0;
@@ -91,13 +96,11 @@ body {
     font-family: 'Poppins', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif !important;
 }
 
-/* ✅ Controlled Click Target Focus (Avoids breaking modal z-indexes) */
 button, a, .btn, [onclick] {
     pointer-events: auto;
     cursor: pointer;
 }
 
-/* Universal Utility Class */
 .hidden {
     display: none !important;
 }
@@ -112,7 +115,7 @@ button, a, .btn, [onclick] {
     object-fit: cover !important;
     border-radius: 1.5rem !important;
     display: block !important;
-    transform: none !important; /* Stop slicing/mirroring */
+    transform: none !important;
 }
 
 #interactive.viewport canvas {
@@ -147,10 +150,6 @@ button, a, .btn, [onclick] {
     border-radius: 1.5rem !important;
 }
 
-/* ================================================================ */
-/* CAMERA SCANNER VIEWFINDER                                        */
-/* ================================================================ */
-
 .scanner-overlay-box {
     position: absolute !important;
     top: 50% !important;
@@ -166,39 +165,137 @@ button, a, .btn, [onclick] {
 }
 
 /* ================================================================ */
-/* PORTAL LANDING PAGE LAYOUT                                       */
+/* ✅ FIXED: PORTAL LANDING PAGE LAYOUT - NO WHITE BORDER          */
 /* ================================================================ */
 
-.portal-main-container {
-    display: flex !important;
-    flex-direction: row !important;
-    justify-content: center !important;
-    align-items: stretch !important;
-    gap: 24px !important;
+#view-landing {
+    min-height: 100vh !important;
+    min-height: 100dvh !important;
     width: 100% !important;
-    max-width: 900px !important;
-    margin: 48px auto !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    background: linear-gradient(135deg, #f5f3ff 0%, #ede9fe 50%, #e0e7ff 100%) !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+}
+
+/* ✅ FIXED: App container - NO padding causing white border */
+.app-container {
+    width: 100% !important;
+    max-width: 100% !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    min-height: 100vh !important;
+    min-height: 100dvh !important;
+    overflow: hidden !important;
+    background: transparent !important;
+}
+
+/* ✅ FIXED: Portal container controls padding */
+.portal-container {
+    width: 100% !important;
+    max-width: 100% !important;
+    padding: 20px !important;
+    margin: 0 auto !important;
     box-sizing: border-box !important;
 }
 
-.portal-card {
-    flex: 1 !important;
-    min-width: 300px !important;
-    margin: 0 !important;
+/* ✅ FIXED: Portal main container - Mobile First */
+.portal-main-container {
     display: flex !important;
     flex-direction: column !important;
+    justify-content: center !important;
+    align-items: stretch !important;
+    gap: 16px !important;
+    width: 100% !important;
+    max-width: 900px !important;
+    padding: 0 !important;
+    margin: 0 auto !important;
 }
 
-@media screen and (max-width: 768px) {
-    .portal-main-container {
-        flex-direction: column !important;
-        padding: 0 20px !important;
-        margin: 24px auto !important;
-    }
-    .portal-card {
-        width: 100% !important;
-        min-width: 0 !important;
-    }
+/* ✅ FIXED: Portal cards - Full width, no min-width issues */
+.portal-card {
+    flex: 1 1 auto !important;
+    min-width: unset !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 24px 20px !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    text-align: center !important;
+    box-sizing: border-box !important;
+    border-radius: 24px !important;
+    background: rgba(255, 255, 255, 0.9) !important;
+    backdrop-filter: blur(4px) !important;
+    -webkit-backdrop-filter: blur(4px) !important;
+    border: 1px solid rgba(255, 255, 255, 0.5) !important;
+    box-shadow: 0 4px 20px rgba(79, 70, 229, 0.08) !important;
+    transition: all 0.3s ease !important;
+}
+
+.portal-card:hover {
+    transform: translateY(-4px) !important;
+    box-shadow: 0 8px 30px rgba(79, 70, 229, 0.15) !important;
+}
+
+.portal-card:active {
+    transform: scale(0.97) !important;
+}
+
+/* ✅ FIXED: Card content centering */
+.portal-card .relative.z-10 {
+    width: 100% !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+}
+
+/* ✅ FIXED: Card icon sizing */
+.portal-card .w-20 {
+    width: 72px !important;
+    height: 72px !important;
+    flex-shrink: 0 !important;
+}
+
+.portal-card .w-20 .w-full.h-full {
+    border-radius: 16px !important;
+}
+
+.portal-card svg {
+    width: 32px !important;
+    height: 32px !important;
+}
+
+/* ✅ FIXED: Card text wrapping */
+.portal-card h3 {
+    font-size: 20px !important;
+    word-break: break-word !important;
+    text-align: center !important;
+    width: 100% !important;
+    margin-top: 12px !important;
+}
+
+.portal-card p {
+    text-align: center !important;
+    max-width: 100% !important;
+    font-size: 14px !important;
+}
+
+/* ✅ FIXED: Stats wrapping */
+.portal-card .flex.items-center.justify-center.gap-4 {
+    flex-wrap: wrap !important;
+    justify-content: center !important;
+}
+
+/* ✅ FIXED: Badge position */
+.portal-card .absolute.-top-2.-right-2 {
+    top: -6px !important;
+    right: -6px !important;
+    font-size: 10px !important;
+    padding: 3px 12px !important;
 }
 
 /* ================================================================ */
@@ -255,7 +352,6 @@ button, a, .btn, [onclick] {
     color: #ffffff !important;
 }
 
-/* Admin Tabs */
 .admin-tab-btn {
     border: none !important;
     color: #64748b !important;
@@ -324,7 +420,6 @@ button, a, .btn, [onclick] {
 /* KPI CONTAINERS & STAT CARDS                                      */
 /* ================================================================ */
 
-/* ✅ Cleaned Syntax Block Fixes */
 .kpi-main-grid {
     width: 100%;
     display: flex;
@@ -392,40 +487,11 @@ button, a, .btn, [onclick] {
     line-height: 1 !important;
 }
 
-@media (max-width: 1024px) {
-    .kpi-horizontal-container {
-        flex-wrap: wrap !important;
-    }
-    /* ✅ Fixed Math Offset for Gap */
-    .kpi-horizontal-container > .stat-card {
-        flex: 1 1 calc(50% - 8px) !important;
-    }
-}
-
-@media (max-width: 640px) {
-    .kpi-horizontal-container > .stat-card {
-        flex: 1 1 100% !important;
-    }
-}
-
-/* Standard Stats Grid */
 .stats-grid {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
     gap: 16px;
     margin-bottom: 24px;
-}
-
-@media (max-width: 1024px) {
-    .stats-grid {
-        grid-template-columns: repeat(2, 1fr);
-    }
-}
-
-@media (max-width: 600px) {
-    .stats-grid {
-        grid-template-columns: 1fr;
-    }
 }
 
 .stat-card {
@@ -502,7 +568,7 @@ h1, h2, h3, h4, h5, h6 {
 .no-scrollbar {
     display: flex !important;
     overflow-x: auto !important;
-    -webkit-overflow-scrolling: touch !important; /* ✅ iOS momentum scroll */
+    -webkit-overflow-scrolling: touch !important;
     scrollbar-width: none !important;
     -ms-overflow-style: none !important;
 }
@@ -594,25 +660,12 @@ h1, h2, h3, h4, h5, h6 {
     padding: 4px 8px !important;
 }
 
-@media screen and (max-width: 480px) {
-    .school-header h1 {
-        font-size: 1rem !important;
-    }
-
-    .avatar-container div {
-        width: 48px !important;
-        height: 48px !important;
-        font-size: 1.1rem !important;
-    }
-}
-
 /* ================================================================ */
 /* ASSET AUDIT ACCESS BUTTONS                                       */
 /* ================================================================ */
 
 #asset-audit-access h2 {
     font-size: 1.3rem !important;
-    /* ✅ Fixed invalid CSS property font-black */
     font-weight: 900 !important;
     color: #1e1b4b !important;
     margin-bottom: 20px !important;
@@ -641,7 +694,6 @@ h1, h2, h3, h4, h5, h6 {
 
 #asset-audit-access button .bg-white\/20 {
     background: rgba(255, 255, 255, 0.15) !important;
-    /* ✅ WebKit prefix added for Apple devices */
     -webkit-backdrop-filter: blur(4px) !important;
     backdrop-filter: blur(4px) !important;
     border: 1px solid rgba(255, 255, 255, 0.2) !important;
@@ -659,7 +711,7 @@ h1, h2, h3, h4, h5, h6 {
 
 .form-group input,
 .form-group select {
-    flex: 1 1 180px; /* ✅ Safe minimum scaling */
+    flex: 1 1 180px;
     width: 100%;
     padding: 12px 16px !important;
     border: 1px solid var(--border-color) !important;
@@ -669,10 +721,6 @@ h1, h2, h3, h4, h5, h6 {
     background-color: #ffffff !important;
     box-sizing: border-box !important;
 }
-
-/* ================================================================ */
-/* EXPLICIT FORM & INTERACTIVE ELEMENT CONTRAST                     */
-/* ================================================================ */
 
 input, select, textarea, .form-control {
     color: #111827 !important;
@@ -686,7 +734,6 @@ select option {
     background-color: #ffffff !important;
 }
 
-/* ✅ Full Vendor Support for Custom Placeholders */
 ::placeholder,
 ::-webkit-input-placeholder,
 ::-moz-placeholder,
@@ -791,7 +838,7 @@ select option {
 
 .image-preview-container {
     display: flex;
-    flex-wrap: wrap; /* ✅ Wrap photos gracefully on mobile */
+    flex-wrap: wrap;
     gap: 10px;
     margin: 12px 0;
 }
@@ -833,7 +880,6 @@ select option {
     color: #ffffff !important;
 }
 
-/* Lightbox Modal Z-Index Hierarchy Corrected */
 .modal {
     display: none;
     position: fixed;
@@ -843,7 +889,7 @@ select option {
     height: 100vh;
     height: 100dvh;
     background: rgba(0, 0, 0, 0.9);
-    z-index: 1000000 !important; /* ✅ Elevated over all overlays */
+    z-index: 1000000 !important;
     justify-content: center;
     align-items: center;
     flex-direction: column;
@@ -866,36 +912,179 @@ select option {
 }
 
 /* ================================================================ */
-/* RESPONSIVE LAYOUT STRUCTURE & CONTAINER SAFETY                   */
+/* ✅ FIXED: RESPONSIVE LAYOUT STRUCTURE                            */
 /* ================================================================ */
 
-.app-container {
-    width: 100%;
-    margin: 0 auto;
-    max-width: 1400px !important;
-    min-height: 100vh;
-    display: flex;
-    flex-direction: column;
-    position: relative;
-    padding: 16px !important; /* ✅ Restored safe padding */
-    box-sizing: border-box;
-    overflow-x: hidden;
-    -webkit-overflow-scrolling: touch;
-}
+/* ✅ Tablet (641px - 1024px) */
+@media (min-width: 641px) and (max-width: 1024px) {
+    .portal-main-container {
+        flex-direction: row !important;
+        flex-wrap: wrap !important;
+        justify-content: center !important;
+        gap: 20px !important;
+    }
 
-/* Controlled Container Reset */
-.main-card,
-.dashboard-wrapper,
-#view-admin-dash > div {
-    width: 100% !important;
-    max-width: 100% !important;
-    margin: 0 auto 20px auto !important;
-}
+    .portal-card {
+        flex: 1 1 calc(50% - 20px) !important;
+        max-width: 380px !important;
+        min-width: 280px !important;
+        padding: 28px 24px !important;
+        min-height: 220px !important;
+    }
 
-/* Mobile Adjustments (≤ 768px) */
-@media screen and (max-width: 768px) {
+    .portal-card .w-20 {
+        width: 80px !important;
+        height: 80px !important;
+    }
+
+    .portal-card svg {
+        width: 36px !important;
+        height: 36px !important;
+    }
+
+    .portal-card h3 {
+        font-size: 20px !important;
+    }
+
+    #view-landing {
+        padding: 0 !important;
+    }
+
     .app-container {
+        padding: 0 !important;
+    }
+
+    .portal-container {
+        padding: 24px !important;
+    }
+
+    .kpi-horizontal-container {
+        flex-wrap: wrap !important;
+    }
+
+    .kpi-horizontal-container > .stat-card {
+        flex: 1 1 calc(50% - 8px) !important;
+    }
+
+    .stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+/* ✅ Desktop (1025px+) */
+@media (min-width: 1025px) {
+    .portal-main-container {
+        flex-direction: row !important;
+        justify-content: center !important;
+        gap: 32px !important;
+    }
+
+    .portal-card {
+        flex: 0 1 380px !important;
+        padding: 32px 28px !important;
+        min-height: 260px !important;
+        border-radius: 32px !important;
+    }
+
+    .portal-card .w-20 {
+        width: 96px !important;
+        height: 96px !important;
+    }
+
+    .portal-card svg {
+        width: 44px !important;
+        height: 44px !important;
+    }
+
+    .portal-card h3 {
+        font-size: 24px !important;
+    }
+
+    #view-landing {
+        padding: 0 !important;
+        min-height: 100vh !important;
+    }
+
+    .app-container {
+        padding: 0 !important;
+    }
+
+    .portal-container {
+        padding: 32px !important;
+        max-width: 1200px !important;
+    }
+
+    html, body {
+        min-height: 100vh !important;
+        background: linear-gradient(135deg, #f5f3ff 0%, #ede9fe 50%, #e0e7ff 100%) !important;
+    }
+}
+
+/* ✅ Mobile (up to 640px) */
+@media (max-width: 640px) {
+    .portal-container {
         padding: 12px !important;
+    }
+
+    .portal-main-container {
+        flex-direction: column !important;
+        gap: 12px !important;
+    }
+
+    .portal-card {
+        padding: 20px 16px !important;
+        min-height: 180px !important;
+        border-radius: 24px !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        margin: 0 !important;
+    }
+
+    .portal-card .w-20 {
+        width: 60px !important;
+        height: 60px !important;
+    }
+
+    .portal-card svg {
+        width: 28px !important;
+        height: 28px !important;
+    }
+
+    .portal-card h3 {
+        font-size: 17px !important;
+    }
+
+    .portal-card p {
+        font-size: 13px !important;
+    }
+
+    .portal-card .text-xs {
+        font-size: 10px !important;
+    }
+
+    .portal-card .absolute.-top-2.-right-2 {
+        font-size: 8px !important;
+        padding: 2px 10px !important;
+        top: -6px !important;
+        right: -6px !important;
+    }
+
+    .logo-circular-frame {
+        width: 120px !important;
+        height: 120px !important;
+    }
+
+    h1 {
+        font-size: 28px !important;
+    }
+
+    #view-landing {
+        padding: 0 !important;
+        min-height: 100dvh !important;
+    }
+
+    .app-container {
+        padding: 0 !important;
     }
 
     .stats-grid {
@@ -911,240 +1100,35 @@ select option {
         padding: 16px !important;
         margin-bottom: 20px !important;
     }
-}
 
-/* Table Overflow Safety */
-table, .admin-tab, .overflow-x-auto {
-    width: 100% !important;
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-}
-
-/* Global Prevent Horizontal Scroll Barrier */
-html, body {
-    max-width: 100vw !important;
-    overflow-x: hidden !important;
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
-    scroll-behavior: smooth;
-    /* ✅ Natural touch behavior restored */
-    touch-action: auto;
-}
-
-/* ================================================================ */
-/* ASSET MASTER DATA TABLE STYLES & CUSTOM SCROLLBARS               */
-/* ================================================================ */
-
-#asset-master-table {
-    width: 100%;
-    border-collapse: separate;
-    border-spacing: 0;
-}
-
-#asset-master-table th,
-#asset-master-table td {
-    padding: 12px 16px;
-    border-bottom: 1px solid #e2e8f0;
-    white-space: nowrap;
-}
-
-#asset-master-table thead th {
-    background-color: #f8f9fa;
-    color: #1e1b4b;
-    font-weight: 700;
-    text-transform: uppercase;
-    font-size: 11px;
-    border-bottom: 2px solid #cbd5e1;
-    position: sticky; /* ✅ Sticky Table Header */
-    top: 0;
-    z-index: 5;
-}
-
-#asset-master-table tbody td {
-    font-size: 13px;
-    color: #334155;
-}
-
-#asset-master-table tr:hover {
-    background-color: #f1f5f9;
-}
-
-#asset-master-table .border-r {
-    border-right: 1px solid #e2e8f0;
-}
-
-/* Scrollbar Customization for Admin Panels */
-#view-admin-dash .overflow-x-auto,
-.custom-scrollbar {
-    scrollbar-width: thin;
-    scrollbar-color: #cbd5e1 #f8f9fa;
-}
-
-#view-admin-dash .overflow-x-auto::-webkit-scrollbar,
-.custom-scrollbar::-webkit-scrollbar {
-    height: 6px;
-    width: 6px;
-}
-
-#view-admin-dash .overflow-x-auto::-webkit-scrollbar-track,
-.custom-scrollbar::-webkit-scrollbar-track {
-    background: #f8f9fa;
-}
-
-#view-admin-dash .overflow-x-auto::-webkit-scrollbar-thumb,
-.custom-scrollbar::-webkit-scrollbar-thumb {
-    background-color: #cbd5e1;
-    border-radius: 10px;
-}
-
-/* ================================================================ */
-/* NAVIGATION TABS & UTILITIES                                      */
-/* ================================================================ */
-
-.no-scrollbar::-webkit-scrollbar {
-    display: none;
-}
-.no-scrollbar {
-    -ms-overflow-style: none;
-    scrollbar-width: none;
-}
-
-.admin-tab-btn.active-tab {
-    background-color: var(--white);
-    color: var(--primary-teal) !important;
-    border-bottom: 3px solid var(--primary-teal);
-    position: relative;
-    z-index: 10;
-}
-
-/* Admin Specific Visitor & Staff Logs Tabs */
-#tabVisitorLogs,
-#tabStaffLogs {
-    cursor: pointer;
-    transition: all 0.3s ease;
-}
-
-#tabVisitorLogs.active-tab,
-#tabStaffLogs.active-tab {
-    background: #e0f2fe !important;
-    border-bottom: 4px solid #0369a1 !important;
-    color: #0369a1 !important;
-}
-
-.truncate {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-
-/* Modern Glassmorphism Utility */
-.glass-morphism {
-    background: rgba(255, 255, 255, 0.85) !important;
-    -webkit-backdrop-filter: blur(12px) !important; /* ✅ Safari Compatibility */
-    backdrop-filter: blur(12px) !important;
-    border: 1px solid rgba(255, 255, 255, 0.4) !important;
-    box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.07) !important;
-}
-
-/* Legacy Staff Registration Link Elimination */
-#s-tab-reg,
-#register-tab,
-.register-link,
-[onclick*="toggleStaffTab('reg')"] {
-    display: none !important;
-    visibility: hidden !important;
-    height: 0 !important;
-    width: 0 !important;
-    padding: 0 !important;
-    margin: 0 !important;
-    overflow: hidden !important;
-}
-
-#view-staff > nav {
-    margin-top: 10px;
-    background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%) !important;
-}
-
-/* ================================================================ */
-/* MOBILE LAYOUT & NAVIGATION OVERRIDES (≤ 768px)                    */
-/* ================================================================ */
-
-@media screen and (max-width: 768px) {
-    html, body {
-        overflow-x: hidden !important;
-        overflow-y: auto !important;
-        width: 100% !important; /* ✅ Fixed viewport width clipping bug */
-        height: auto !important;
-    }
-
-    .overflow-x-auto {
-        -webkit-overflow-scrolling: touch;
-    }
-
-    /* Target View Sections Explicitly (Prevents .active Class Collisions) */
-    .view-section.hidden,
-    div.hidden,
-    [style*="display: none"] {
-        display: none !important;
-        visibility: hidden !important;
-        height: 0 !important;
-        overflow: hidden !important;
-        position: absolute !important;
-    }
-
-    .view-section.active {
-        display: block !important;
-        visibility: visible !important;
-        height: auto !important;
-        position: relative !important;
+    input:not([type="checkbox"]):not([type="radio"]):not([type="color"]):not([type="range"]),
+    select,
+    textarea {
         width: 100% !important;
-        overflow-y: visible !important;
-    }
-
-    /* Natural Card Scaling & Proportions */
-    .app-container {
-        width: 100% !important;
-        max-width: 100% !important;
-        margin: 0 !important;
-        padding: 12px !important;
-        display: block !important;
-        height: auto !important;
-        min-height: 100vh !important;
-    }
-
-    #duplicate-card-content {
-        flex-direction: column !important;
-        align-items: center !important;
-        text-align: center !important;
-    }
-
-    #duplicate-card-content .md\:w-32 {
-        width: 120px !important;
-        height: 120px !important;
-        margin-bottom: 10px !important;
-    }
-
-    #duplicate-card-content .grid-cols-2 {
-        grid-template-columns: 1fr !important;
-        text-align: left !important;
-    }
-
-    .portal-container,
-    .container,
-    .main-card,
-    #staff-auth-area,
-    #view-admin-dash > div {
-        width: 96% !important;
-        max-width: 100% !important;
-        margin: 10px auto !important;
-        padding: 20px 12px !important;
+        height: 52px;
+        padding: 12px 16px !important;
+        font-size: 16px !important;
         box-sizing: border-box !important;
-        border-radius: 16px !important;
-        box-shadow: var(--shadow) !important;
+        border-radius: 10px !important;
+        border: 1px solid var(--border-color, #d1d5db) !important;
+        display: block !important;
     }
 
-    /* STRICT MOBILE HEADER STYLING */
+    textarea {
+        height: auto !important;
+        min-height: 100px !important;
+    }
+
+    #staff-reg-form .grid {
+        display: flex !important;
+        flex-direction: column !important;
+        gap: 15px !important;
+    }
+
+    .kpi-horizontal-container > .stat-card {
+        flex: 1 1 100% !important;
+    }
+
     #view-staff > nav {
         display: flex !important;
         flex-direction: column !important;
@@ -1166,11 +1150,6 @@ html, body {
         text-align: center !important;
         justify-content: center !important;
     }
-}
-
-    /* ================================================================ */
-    /* STAFF DASHBOARD PROFILE CARD STACKING                            */
-    /* ================================================================ */
 
     #staff-dash-area .bg-white.rounded-\[2rem\] {
         padding: 24px 16px !important;
@@ -1225,63 +1204,6 @@ html, body {
         font-size: 1.2rem !important;
     }
 
-    /* Admin Signature Visibility Fix */
-    .excel-table img {
-        display: block !important;
-        visibility: visible !important;
-        opacity: 1 !important;
-    }
-
-    /* ================================================================ */
-    /* FORM INPUTS & RESPONSIVE LAYOUT FIXES                            */
-    /* ================================================================ */
-
-    /* ✅ Target text-based form controls safely (Excludes Checkboxes & Radios) */
-    input:not([type="checkbox"]):not([type="radio"]):not([type="color"]):not([type="range"]),
-    select,
-    textarea {
-        width: 100% !important;
-        height: 52px;
-        padding: 12px 16px !important;
-        font-size: 16px !important;
-        box-sizing: border-box !important;
-        border-radius: 10px !important;
-        border: 1px solid var(--border-color, #d1d5db) !important;
-        display: block !important;
-    }
-
-    textarea {
-        height: auto !important;
-        min-height: 100px !important;
-    }
-
-    /* Force single column for registration grid on mobile */
-    #staff-reg-form .grid {
-        display: flex !important;
-        flex-direction: column !important;
-        gap: 15px !important;
-    }
-
-    /* Landing Page Icon & Logo Enlargement */
-    #view-landing .w-24 {
-        width: 90px !important;
-        height: 90px !important;
-    }
-
-    #view-landing .bg-indigo-600,
-    #view-landing .bg-purple-600 {
-        padding: 1.5rem !important;
-    }
-
-    #view-landing svg {
-        width: 3.5rem !important;
-        height: 3.5rem !important;
-    }
-
-    /* ================================================================ */
-    /* TASK ACTIONS & INTERACTIVE ELEMENTS                              */
-    /* ================================================================ */
-
     .task-actions-container {
         display: flex !important;
         flex-direction: row !important;
@@ -1302,72 +1224,352 @@ html, body {
         border-radius: 8px !important;
     }
 
-    /* Global Touch & Pointer Safety */
-    html, body, .app-container, .view-section, .portal-container, .portal-options {
-        touch-action: auto !important;
+    #view-landing .w-24 {
+        width: 90px !important;
+        height: 90px !important;
     }
 
-    button, a, .btn, [onclick] {
-        pointer-events: auto !important;
-        cursor: pointer !important;
+    #view-landing .bg-indigo-600,
+    #view-landing .bg-purple-600 {
+        padding: 1.5rem !important;
     }
 
-    /* ================================================================ */
-    /* SIGNATURE CANVAS & DRAWING PADS                                  */
-    /* ================================================================ */
-
-    canvas#sig-canvas,
-    canvas#v-sig-pad {
-        pointer-events: auto !important;
-        touch-action: none !important; /* ✅ Prevents page scrolling while drawing */
-        z-index: 10005 !important;
-        position: relative !important;
-        background-color: #ffffff !important;
+    #view-landing svg {
+        width: 3.5rem !important;
+        height: 3.5rem !important;
     }
 
-    canvas,
-    .signature-pad {
-        background-color: #ffffff !important;
-        border: 2px dashed #475569 !important;
-        border-radius: 8px !important;
+    #duplicate-card-content {
+        flex-direction: column !important;
+        align-items: center !important;
+        text-align: center !important;
     }
 
-    /* ================================================================ */
-    /* TRANSFER FORM & HIGHER CONTRAST INPUTS                           */
-    /* ================================================================ */
-
-    .transfer-form input,
-    .transfer-form select,
-    .transfer-form textarea,
-    input[type="text"],
-    input[type="tel"],
-    input[type="date"],
-    input[type="number"] {
-        background-color: #ffffff !important;
-        border: 2px solid #64748b !important;
-        color: #0f172a !important;
-        border-radius: 8px !important;
-        padding: 10px !important;
-        opacity: 1 !important;
+    #duplicate-card-content .md\:w-32 {
+        width: 120px !important;
+        height: 120px !important;
+        margin-bottom: 10px !important;
     }
 
-    .transfer-form input::placeholder,
-    .transfer-form textarea::placeholder,
-    input::placeholder {
-        color: #64748b !important;
-        opacity: 1 !important;
+    #duplicate-card-content .grid-cols-2 {
+        grid-template-columns: 1fr !important;
+        text-align: left !important;
     }
 
-    .nav-back-btn,
-    .nav-logout-btn,
-    header button {
-        display: inline-flex !important;
-        opacity: 1 !important;
+    .portal-container,
+    .container,
+    .main-card,
+    #staff-auth-area,
+    #view-admin-dash > div {
+        width: 96% !important;
+        max-width: 100% !important;
+        margin: 10px auto !important;
+        padding: 20px 12px !important;
+        box-sizing: border-box !important;
+        border-radius: 16px !important;
+        box-shadow: var(--shadow) !important;
+    }
+
+    .excel-table img {
+        display: block !important;
         visibility: visible !important;
+        opacity: 1 !important;
     }
+
+    .sticky-action-col {
+        position: sticky !important;
+        right: 0;
+        background: #ffffff !important;
+        z-index: 20;
+        box-shadow: -4px 0 8px -2px rgba(0, 0, 0, 0.05);
+        border-left: 1px solid #f1f5f9;
+    }
+
+    tr:hover .sticky-action-col {
+        background: #f1f5f9 !important;
+    }
+}
+
+/* ✅ Ultra Small Phones (under 380px) */
+@media (max-width: 380px) {
+    .portal-card {
+        padding: 16px 12px !important;
+        min-height: 150px !important;
+        border-radius: 20px !important;
+    }
+
+    .portal-card .w-20 {
+        width: 50px !important;
+        height: 50px !important;
+    }
+
+    .portal-card svg {
+        width: 22px !important;
+        height: 22px !important;
+    }
+
+    .portal-card h3 {
+        font-size: 15px !important;
+    }
+
+    .portal-card p {
+        font-size: 12px !important;
+    }
+
+    h1 {
+        font-size: 22px !important;
+    }
+
+    .logo-circular-frame {
+        width: 100px !important;
+        height: 100px !important;
+    }
+
+    .portal-card .absolute.-top-2.-right-2 {
+        font-size: 7px !important;
+        padding: 2px 8px !important;
+    }
+
+    #portal-selector-modal .grid {
+        grid-template-columns: 1fr !important;
+        gap: 12px !important;
+    }
+
+    #portal-selector-modal .bg-white {
+        padding: 16px !important;
+    }
+
+    #portal-selector-modal .w-20 {
+        width: 50px !important;
+        height: 50px !important;
+    }
+}
+
+/* ✅ Landscape Mobile */
+@media (max-height: 600px) and (orientation: landscape) {
+    .portal-container {
+        padding: 8px 16px !important;
+    }
+
+    .portal-main-container {
+        flex-direction: row !important;
+        gap: 12px !important;
+    }
+
+    .portal-card {
+        padding: 16px !important;
+        min-height: 140px !important;
+    }
+
+    .portal-card .w-20 {
+        width: 50px !important;
+        height: 50px !important;
+    }
+
+    .portal-card svg {
+        width: 22px !important;
+        height: 22px !important;
+    }
+
+    .portal-card h3 {
+        font-size: 15px !important;
+        margin-top: 6px !important;
+    }
+
+    .portal-card p {
+        font-size: 11px !important;
+    }
+
+    .logo-circular-frame {
+        width: 80px !important;
+        height: 80px !important;
+    }
+
+    h1 {
+        font-size: 22px !important;
+    }
+
+    .portal-card .absolute.-top-2.-right-2 {
+        font-size: 7px !important;
+        padding: 1px 8px !important;
+    }
+
+    .portal-card .mt-4 {
+        margin-top: 6px !important;
+    }
+
+    .portal-card .gap-4 {
+        gap: 8px !important;
+    }
+}
 
 /* ================================================================ */
-/* GLOBAL SUCCESS POPUP ANIMATION (v3.5.1 PREMIUM)                  */
+/* ✅ FIXED: DARK MODE SUPPORT - NO WHITE EDGES                     */
+/* ================================================================ */
+
+@media (prefers-color-scheme: dark) {
+    html, body {
+        background: linear-gradient(135deg, #1e1b4b 0%, #312e81 50%, #1e1b4b 100%) !important;
+    }
+
+    #view-landing {
+        background: linear-gradient(135deg, #1e1b4b 0%, #312e81 50%, #1e1b4b 100%) !important;
+    }
+
+    .app-container {
+        background: transparent !important;
+    }
+
+    .portal-card {
+        background: rgba(30, 27, 75, 0.9) !important;
+        border-color: rgba(255, 255, 255, 0.08) !important;
+    }
+
+    .portal-card:hover {
+        box-shadow: 0 8px 30px rgba(79, 70, 229, 0.2) !important;
+    }
+
+    .portal-card h3 {
+        color: #e0e7ff !important;
+    }
+
+    .portal-card p {
+        color: #94a3b8 !important;
+    }
+
+    .portal-card .text-slate-500 {
+        color: #94a3b8 !important;
+    }
+
+    .portal-card .text-slate-400 {
+        color: #64748b !important;
+    }
+
+    .portal-card .bg-white\/10 {
+        background: rgba(255, 255, 255, 0.05) !important;
+    }
+
+    .portal-card .bg-slate-200 {
+        background: rgba(255, 255, 255, 0.08) !important;
+    }
+
+    .portal-card .absolute.-top-2.-right-2 {
+        background: #7c3aed !important;
+        color: white !important;
+    }
+
+    h1 {
+        background: linear-gradient(135deg, #e0e7ff, #c4b5fd, #e0e7ff) !important;
+        -webkit-background-clip: text !important;
+        -webkit-text-fill-color: transparent !important;
+        background-clip: text !important;
+    }
+
+    .portal-container .text-indigo-900 {
+        color: #e0e7ff !important;
+    }
+
+    .portal-container .text-indigo-700 {
+        color: #c4b5fd !important;
+    }
+
+    .portal-container .text-indigo-600\/60 {
+        color: #94a3b8 !important;
+    }
+
+    .portal-container .text-indigo-300 {
+        color: #818cf8 !important;
+    }
+
+    .portal-container .bg-white\/40 {
+        background: rgba(30, 27, 75, 0.6) !important;
+        border-color: rgba(255, 255, 255, 0.1) !important;
+    }
+
+    .portal-container .bg-white\/90 {
+        background: rgba(30, 27, 75, 0.9) !important;
+    }
+
+    .portal-container .text-slate-400 {
+        color: #94a3b8 !important;
+    }
+
+    .portal-container .border-indigo-300\/30 {
+        border-color: rgba(129, 140, 248, 0.2) !important;
+    }
+
+    .portal-container .border-indigo-400\/20 {
+        border-color: rgba(129, 140, 248, 0.15) !important;
+    }
+
+    .portal-container .bg-indigo-50\/50 {
+        background: rgba(30, 27, 75, 0.3) !important;
+    }
+
+    .portal-container .shadow-indigo-500\/20 {
+        box-shadow: 0 8px 30px rgba(79, 70, 229, 0.15) !important;
+    }
+
+    .portal-container .shadow-indigo-500\/30 {
+        box-shadow: 0 4px 20px rgba(79, 70, 229, 0.2) !important;
+    }
+
+    .portal-container .shadow-purple-500\/20 {
+        box-shadow: 0 8px 30px rgba(168, 85, 247, 0.15) !important;
+    }
+
+    .portal-container .shadow-purple-500\/30 {
+        box-shadow: 0 4px 20px rgba(168, 85, 247, 0.2) !important;
+    }
+}
+
+/* ================================================================ */
+/* ✅ FIXED: Edge Browser Specific                                   */
+/* ================================================================ */
+
+@supports (-ms-ime-align: auto) {
+    .app-container {
+        width: 100% !important;
+        min-height: 100vh !important;
+        padding: 0 !important;
+    }
+
+    #view-landing {
+        min-height: 100vh !important;
+        padding: 0 !important;
+    }
+
+    html, body {
+        margin: 0 !important;
+        padding: 0 !important;
+        background: linear-gradient(135deg, #f5f3ff 0%, #ede9fe 50%, #e0e7ff 100%) !important;
+    }
+
+    .portal-card {
+        min-height: 220px !important;
+    }
+}
+
+/* ================================================================ */
+/* ✅ FIXED: Safari Specific                                         */
+/* ================================================================ */
+
+@supports (-webkit-touch-callout: none) {
+    #view-landing {
+        min-height: -webkit-fill-available !important;
+    }
+
+    .portal-card {
+        -webkit-tap-highlight-color: transparent !important;
+    }
+
+    .app-container {
+        min-height: -webkit-fill-available !important;
+    }
+}
+
+/* ================================================================ */
+/* GLOBAL SUCCESS POPUP ANIMATION                                    */
 /* ================================================================ */
 
 #global-success-popup {
@@ -1392,7 +1594,6 @@ html, body {
     text-align: center;
     box-shadow: 0 20px 50px rgba(0, 0, 0, 0.2);
     transform: scale(0.8);
-    will-change: transform, opacity; /* ✅ Smooth Rendering */
     animation: scaleInCard 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
 }
 
@@ -1425,7 +1626,6 @@ html, body {
     font-weight: 600;
 }
 
-/* Responsive Scaling */
 @media (min-width: 768px) {
     .success-modal-card {
         max-width: 400px;
@@ -1441,7 +1641,6 @@ html, body {
     }
 }
 
-/* Modal Keyframes */
 @keyframes fadeInModal {
     from { opacity: 0; }
     to { opacity: 1; }
@@ -1452,47 +1651,15 @@ html, body {
     to { transform: scale(1); opacity: 1; }
 }
 
-/* Checkmark SVG Vector Animations */
-.checkmark-circle {
-    stroke-dasharray: 166;
-    stroke-dashoffset: 166;
-    stroke-width: 2;
-    stroke-miterlimit: 10;
-    stroke: #10b981;
-    fill: none;
-    animation: stroke 0.6s cubic-bezier(0.65, 0, 0.45, 1) forwards;
+@keyframes logoPulseScale {
+    0% { transform: scale(0.85); opacity: 0.7; }
+    50% { transform: scale(1.15); opacity: 1; }
+    100% { transform: scale(0.85); opacity: 0.7; }
 }
 
-.checkmark {
-    width: 56px;
-    height: 56px;
-    border-radius: 50%;
-    display: block;
-    stroke-width: 2;
-    stroke: #ffffff;
-    stroke-miterlimit: 10;
-    box-shadow: inset 0px 0px 0px #10b981;
-    animation: fill .4s ease-in-out .4s forwards, scale .3s ease-in-out .9s both;
-}
-
-.checkmark-check {
-    transform-origin: 50% 50%;
-    stroke-dasharray: 48;
-    stroke-dashoffset: 48;
-    animation: stroke 0.3s cubic-bezier(0.65, 0, 0.45, 1) 0.8s forwards;
-}
-
-@keyframes stroke {
-    100% { stroke-dashoffset: 0; }
-}
-
-@keyframes scale {
-    0%, 100% { transform: none; }
-    50% { transform: scale3d(1.1, 1.1, 1); }
-}
-
-@keyframes fill {
-    100% { box-shadow: inset 0px 0px 0px 100px #10b981; }
+.logo-pulse-anim {
+    animation: logoPulseScale 1.2s ease-in-out infinite !important;
+    will-change: transform, opacity;
 }
 
 /* ================================================================ */
@@ -1506,7 +1673,7 @@ html, body {
     backdrop-filter: blur(8px);
     -webkit-backdrop-filter: blur(8px);
     z-index: 100001;
-    overflow-y: auto; /* ✅ Allows vertical scrolling if modal content overflows */
+    overflow-y: auto;
     padding: 20px 10px;
 }
 
@@ -1520,7 +1687,6 @@ html, body {
     display: none !important;
 }
 
-/* Input Fields Inside Add Staff Modal */
 #add-staff-modal input,
 #add-staff-modal select {
     color: #0f172a !important;
@@ -1536,7 +1702,6 @@ html, body {
     box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.15) !important;
 }
 
-/* Responsive Form Controls for Mobile Screens */
 @media screen and (max-width: 640px) {
     #add-staff-modal input,
     #add-staff-modal select {
@@ -1545,184 +1710,8 @@ html, body {
     }
 }
 
-/* Logo Pulse Animation */
-@keyframes logoPulseScale {
-    0% { transform: scale(0.85); opacity: 0.7; }
-    50% { transform: scale(1.15); opacity: 1; }
-    100% { transform: scale(0.85); opacity: 0.7; }
-}
-
-.logo-pulse-anim {
-    animation: logoPulseScale 1.2s ease-in-out infinite !important;
-    will-change: transform, opacity;
-}
-
 /* ================================================================ */
-/* DATA TABLE STICKY ACTION COLUMN & UTILITY BUTTONS                */
-/* ================================================================ */
-
-.sticky-action-col {
-    position: sticky !important;
-    right: 0;
-    background: #ffffff !important; /* ✅ Solid background prevents text overlay bleed */
-    z-index: 20;
-    box-shadow: -4px 0 8px -2px rgba(0, 0, 0, 0.05);
-    border-left: 1px solid #f1f5f9;
-}
-
-tr:hover .sticky-action-col {
-    background: #f1f5f9 !important; /* ✅ Matches table hover state */
-}
-
-.btn-eye-view {
-    width: 32px;
-    height: 32px;
-    flex-shrink: 0; /* ✅ Prevents deform in squeezed layout */
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: #eef2ff;
-    color: #4f46e5;
-    border-radius: 8px;
-    transition: all 0.2s ease;
-    border: none;
-    cursor: pointer;
-}
-
-.btn-eye-view:hover {
-    background: #4f46e5;
-    color: #ffffff;
-    transform: scale(1.08);
-}
-
-
-
-
-/* ================================================================ */
-/* ASSET PROFILE MODAL (PREMIUM UI COMPONENTS)                      */
-/* ================================================================ */
-
-.asset-profile-hero {
-    padding: 24px;
-    background: #f8fafc;
-    border-bottom: 1px solid #e2e8f0;
-    display: flex;
-    justify-content: center;
-}
-
-.asset-profile-photo-container {
-    position: relative;
-    width: 100%;
-    max-width: 400px;
-    height: 250px;
-    border-radius: 24px;
-    overflow: hidden;
-    border: 4px solid #ffffff;
-    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
-    cursor: zoom-in;
-}
-
-.asset-profile-photo {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-@media (hover: hover) {
-    .asset-profile-photo:hover {
-        transform: scale(1.05);
-    }
-}
-
-.photo-overlay-badge {
-    position: absolute;
-    bottom: 12px;
-    right: 12px;
-    background: rgba(15, 23, 42, 0.75);
-    -webkit-backdrop-filter: blur(6px); /* ✅ Safari Support */
-    backdrop-filter: blur(6px);
-    color: #ffffff;
-    padding: 4px 10px;
-    border-radius: 20px;
-    font-size: 10px; /* ✅ Upgraded for readability */
-    font-weight: 800;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-}
-
-.asset-profile-photo-fallback {
-    width: 100%;
-    max-width: 400px;
-    height: 200px;
-    background: #f1f5f9;
-    border-radius: 24px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    border: 2px dashed #cbd5e1;
-}
-
-/* ================================================================ */
-/* DATA GRID & ASSET METADATA SECTIONS                             */
-/* ================================================================ */
-
-.asset-profile-data-grid {
-    padding: 24px;
-}
-
-.grid-section-title {
-    font-size: 11px;
-    font-weight: 900;
-    color: #4f46e5;
-    text-transform: uppercase;
-    letter-spacing: 1.5px;
-    margin-bottom: 20px;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-
-.asset-detail-item {
-    background: #ffffff;
-    padding: 12px 16px;
-    border-radius: 12px;
-    border: 1px solid #f1f5f9;
-    transition: border-color 0.2s ease, box-shadow 0.2s ease;
-}
-
-.asset-detail-item:hover {
-    border-color: #e0e7ff;
-    box-shadow: 0 4px 12px rgba(79, 70, 229, 0.04);
-}
-
-.detail-label {
-    display: block;
-    font-size: 10px; /* ✅ Enhanced Legibility */
-    font-weight: 800;
-    color: #64748b;
-    text-transform: uppercase;
-    margin-bottom: 4px;
-    letter-spacing: 0.5px;
-}
-
-.detail-value {
-    font-size: 13px;
-    font-weight: 700;
-    color: #1e293b;
-    margin: 0;
-    word-break: break-word;
-}
-
-.asset-profile-metadata {
-    padding: 20px 24px;
-    background: #f8fafc;
-    border-top: 1px solid #e2e8f0;
-}
-
-/* ================================================================ */
-/* ASSET DETAILS MODAL DIALOG CONTAINER                             */
+/* ASSET DETAILS MODAL                                               */
 /* ================================================================ */
 
 .asset-details-modal {
@@ -1782,7 +1771,7 @@ tr:hover .sticky-action-col {
 
 .asset-details-modal .modal-body {
     overflow-y: auto;
-    -webkit-overflow-scrolling: touch; /* ✅ Smooth Mobile Scroll */
+    -webkit-overflow-scrolling: touch;
     flex: 1;
     background: #f8fafc;
 }
@@ -1814,10 +1803,9 @@ tr:hover .sticky-action-col {
 }
 
 /* ================================================================ */
-/* ✅ STAFF MANAGEMENT MODAL - FULLY FIXED VERSION                   */
+/* ✅ STAFF MANAGEMENT MODAL - FULLY FIXED                           */
 /* ================================================================ */
 
-/* --- Modal Container --- */
 .modal-backdrop {
     position: fixed;
     top: 0;
@@ -1859,7 +1847,6 @@ tr:hover .sticky-action-col {
     }
 }
 
-/* --- Close Button (Fixed Center Alignment) --- */
 .modal-close-btn {
     position: absolute;
     top: 20px;
@@ -1867,7 +1854,7 @@ tr:hover .sticky-action-col {
     background: #f5f5f5;
     border: none;
     font-size: 24px;
-    line-height: 1; /* Center fixes cross icon */
+    line-height: 1;
     width: 40px;
     height: 40px;
     border-radius: 50%;
@@ -1887,7 +1874,6 @@ tr:hover .sticky-action-col {
     transform: rotate(90deg);
 }
 
-/* --- Title --- */
 .pro-modal-title {
     font-size: 24px;
     font-weight: 700;
@@ -1896,7 +1882,6 @@ tr:hover .sticky-action-col {
     padding-right: 50px;
 }
 
-/* --- Profile Photo Upload (Fixed File-Input Bleed) --- */
 .profile-upload-wrapper {
     display: flex;
     flex-direction: column;
@@ -1929,7 +1914,6 @@ tr:hover .sticky-action-col {
     color: #8899aa;
 }
 
-/* Hard-Hide Input from Screen View without losing functional click */
 .hidden-file-input {
     position: absolute !important;
     width: 1px !important;
@@ -1959,10 +1943,6 @@ tr:hover .sticky-action-col {
     display: block;
 }
 
-/* ================================================================ */
-/* ✅ FORM GRID - FIXED (Labels ab sahi dikhenge)                   */
-/* ================================================================ */
-
 .pro-form-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -1975,7 +1955,6 @@ tr:hover .sticky-action-col {
     flex-direction: column;
 }
 
-/* ✅ INPUT LABELS - FIXED (Yeh missing tha) */
 .input-label {
     font-size: 14px;
     font-weight: 600;
@@ -1989,7 +1968,6 @@ tr:hover .sticky-action-col {
     color: #e74c3c;
 }
 
-/* --- Inputs --- */
 .pro-input,
 .pro-select {
     width: 100%;
@@ -2025,7 +2003,6 @@ tr:hover .sticky-action-col {
     padding-right: 40px;
 }
 
-/* --- Submit Button --- */
 .pro-submit-btn {
     grid-column: 1 / -1;
     padding: 16px 32px;
@@ -2053,7 +2030,6 @@ tr:hover .sticky-action-col {
     transform: none;
 }
 
-/* --- Document Container --- */
 #staff-doc-assignment-container {
     grid-column: 1 / -1;
     padding: 12px 0;
@@ -2102,10 +2078,7 @@ tr:hover .sticky-action-col {
     cursor: pointer;
 }
 
-/* ================================================================ */
-/* ✅ RESPONSIVE - Mobile First                                     */
-/* ================================================================ */
-
+/* ✅ Responsive - Modal */
 @media (max-width: 640px) {
     .pro-modal-container {
         padding: 20px 16px;
@@ -2176,7 +2149,6 @@ tr:hover .sticky-action-col {
     }
 }
 
-/* --- Landscape Mobile --- */
 @media (max-height: 600px) and (orientation: landscape) {
     .pro-modal-container {
         max-height: 95vh;
@@ -2216,7 +2188,6 @@ tr:hover .sticky-action-col {
     }
 }
 
-/* --- Dark Mode --- */
 @media (prefers-color-scheme: dark) {
     .pro-modal-container {
         background: #1a1a2e;
@@ -2298,7 +2269,6 @@ tr:hover .sticky-action-col {
     }
 }
 
-/* --- Loading Spinner --- */
 .spinner-inline {
     display: inline-block;
     width: 20px;
@@ -2315,7 +2285,267 @@ tr:hover .sticky-action-col {
     to { transform: rotate(360deg); }
 }
 
-/* --- Utility --- */
 .hidden {
     display: none !important;
+}
+
+/* ================================================================ */
+/* ✅ 3D PREMIUM EFFECTS - JYS PORTAL                              */
+/* ================================================================ */
+
+/* --- 3D HOVER EFFECTS FOR CARDS --- */
+.portal-card {
+    transform: perspective(1000px) rotateX(0deg) rotateY(0deg) scale(1);
+    transform-style: preserve-3d;
+    transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow:
+        0 4px 20px rgba(79, 70, 229, 0.08),
+        inset 0 1px 0 rgba(255, 255, 255, 0.6);
+}
+
+.portal-card:hover {
+    transform: perspective(1000px) rotateX(2deg) rotateY(-3deg) scale(1.02);
+    box-shadow:
+        0 20px 60px rgba(79, 70, 229, 0.2),
+        0 8px 30px rgba(79, 70, 229, 0.15),
+        inset 0 1px 0 rgba(255, 255, 255, 0.8);
+}
+
+/* --- 3D GLASS EFFECT --- */
+.portal-card .relative.z-10 {
+    transform: translateZ(20px);
+    transform-style: preserve-3d;
+}
+
+.portal-card .w-20 {
+    transform: translateZ(30px);
+    transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 8px 25px rgba(79, 70, 229, 0.2);
+}
+
+.portal-card:hover .w-20 {
+    transform: translateZ(40px) scale(1.05);
+}
+
+.portal-card h3 {
+    transform: translateZ(15px);
+    transition: transform 0.4s ease;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.portal-card:hover h3 {
+    transform: translateZ(25px);
+}
+
+.portal-card p {
+    transform: translateZ(10px);
+}
+
+/* --- 3D GLOW BACKGROUND --- */
+.portal-card::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(
+        circle at 30% 20%,
+        rgba(255, 255, 255, 0.3) 0%,
+        transparent 70%
+    );
+    opacity: 0;
+    transition: opacity 0.5s ease;
+    border-radius: 24px;
+    pointer-events: none;
+}
+
+.portal-card:hover::before {
+    opacity: 1;
+}
+
+/* --- 3D SHADOW FLOATING --- */
+.portal-card::after {
+    content: '';
+    position: absolute;
+    bottom: -10px;
+    left: 10%;
+    width: 80%;
+    height: 20px;
+    background: radial-gradient(ellipse, rgba(79, 70, 229, 0.15) 0%, transparent 70%);
+    filter: blur(15px);
+    opacity: 0;
+    transition: opacity 0.5s ease;
+    pointer-events: none;
+}
+
+.portal-card:hover::after {
+    opacity: 1;
+}
+
+/* --- 3D LOGO EFFECT --- */
+.logo-circular-frame {
+    transform: perspective(800px) rotateX(0deg) rotateY(0deg);
+    transition: all 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow:
+        0 10px 40px rgba(79, 70, 229, 0.15),
+        0 4px 15px rgba(79, 70, 229, 0.1),
+        inset 0 2px 0 rgba(255, 255, 255, 0.6);
+}
+
+.logo-circular-frame:hover {
+    transform: perspective(800px) rotateX(-5deg) rotateY(10deg) scale(1.05);
+    box-shadow:
+        0 20px 60px rgba(79, 70, 229, 0.25),
+        0 8px 30px rgba(79, 70, 229, 0.15);
+}
+
+/* --- 3D CARD GLOSSY OVERLAY --- */
+.portal-card .absolute.inset-0.bg-gradient-to-br {
+    opacity: 0.3;
+    transition: opacity 0.5s ease;
+    pointer-events: none;
+}
+
+.portal-card:hover .absolute.inset-0.bg-gradient-to-br {
+    opacity: 0.5;
+}
+
+/* --- 3D HOVER ARROW --- */
+.portal-card .opacity-0.group-hover\:opacity-100 {
+    transform: translateZ(15px);
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.portal-card:hover .opacity-0.group-hover\:opacity-100 {
+    transform: translateZ(25px) translateX(5px);
+}
+
+/* --- 3D BADGE --- */
+.portal-card .absolute.-top-2.-right-2 {
+    transform: translateZ(25px);
+    box-shadow:
+        0 4px 15px rgba(0, 0, 0, 0.15),
+        inset 0 1px 0 rgba(255, 255, 255, 0.3);
+}
+
+.portal-card:hover .absolute.-top-2.-right-2 {
+    transform: translateZ(35px) scale(1.05);
+}
+
+/* --- 3D TITLE TEXT --- */
+h1 {
+    text-shadow:
+        0 2px 10px rgba(79, 70, 229, 0.1),
+        0 4px 20px rgba(79, 70, 229, 0.05);
+    transform: perspective(800px) rotateX(0deg);
+    transition: transform 0.6s ease;
+}
+
+h1:hover {
+    transform: perspective(800px) rotateX(-2deg) scale(1.01);
+}
+
+/* --- 3D SUBTITLE GLASS --- */
+.portal-container .mt-3.inline-block {
+    transform: translateZ(10px);
+    box-shadow:
+        0 4px 20px rgba(79, 70, 229, 0.08),
+        inset 0 1px 0 rgba(255, 255, 255, 0.5);
+}
+
+.portal-container .mt-3.inline-block:hover {
+    transform: translateZ(20px) scale(1.02);
+}
+
+/* --- 3D ADMIN LINK --- */
+#btn-admin-dashboard {
+    transform: translateZ(5px);
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+#btn-admin-dashboard:hover {
+    transform: translateZ(15px) scale(1.05);
+    text-shadow: 0 0 20px rgba(79, 70, 229, 0.2);
+}
+
+/* --- 3D DECORATIVE DOTS --- */
+.portal-container .flex.items-center.gap-2 span {
+    transition: all 0.4s ease;
+}
+
+.portal-container .flex.items-center.gap-2:hover span:nth-child(1) {
+    transform: translateY(-3px) scale(1.5);
+    background: #4f46e5;
+}
+
+.portal-container .flex.items-center.gap-2:hover span:nth-child(2) {
+    transform: translateY(3px) scale(1.5);
+    background: #7c3aed;
+}
+
+.portal-container .flex.items-center.gap-2:hover span:nth-child(3) {
+    transform: translateY(-3px) scale(1.5);
+    background: #4f46e5;
+}
+
+/* ================================================================ */
+/* 3D RESPONSIVE - MOBILE                                          */
+/* ================================================================ */
+
+@media (max-width: 640px) {
+    .portal-card:hover {
+        transform: perspective(1000px) rotateX(1deg) rotateY(-1deg) scale(1.01);
+    }
+
+    .portal-card .w-20 {
+        transform: translateZ(15px);
+    }
+
+    .portal-card:hover .w-20 {
+        transform: translateZ(25px) scale(1.03);
+    }
+
+    .logo-circular-frame:hover {
+        transform: perspective(800px) rotateX(-3deg) rotateY(5deg) scale(1.03);
+    }
+
+    .portal-card h3 {
+        transform: translateZ(10px);
+    }
+
+    .portal-card:hover h3 {
+        transform: translateZ(18px);
+    }
+}
+
+/* ================================================================ */
+/* 3D DARK MODE                                                     */
+/* ================================================================ */
+
+@media (prefers-color-scheme: dark) {
+    .portal-card {
+        box-shadow:
+            0 4px 20px rgba(79, 70, 229, 0.05),
+            inset 0 1px 0 rgba(255, 255, 255, 0.05);
+    }
+
+    .portal-card:hover {
+        box-shadow:
+            0 20px 60px rgba(79, 70, 229, 0.15),
+            0 8px 30px rgba(79, 70, 229, 0.1),
+            inset 0 1px 0 rgba(255, 255, 255, 0.1);
+    }
+
+    .portal-card .w-20 {
+        box-shadow: 0 8px 25px rgba(79, 70, 229, 0.1);
+    }
+
+    .logo-circular-frame {
+        box-shadow:
+            0 10px 40px rgba(79, 70, 229, 0.1),
+            0 4px 15px rgba(79, 70, 229, 0.05),
+            inset 0 2px 0 rgba(255, 255, 255, 0.1);
+    }
+
+    .portal-card::after {
+        background: radial-gradient(ellipse, rgba(79, 70, 229, 0.08) 0%, transparent 70%);
+    }
 }

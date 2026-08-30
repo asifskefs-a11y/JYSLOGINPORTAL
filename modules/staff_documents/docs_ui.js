@@ -463,83 +463,84 @@ window.renderStaffDocsModule = function(container, requirements, staffDocs, prog
         </div>
         <div class="doc-cards-grid grid grid-cols-1 md:grid-cols-2 gap-4">
     `;
+   // renderStaffDocsModule function mein - Card HTML update karein
 
-    // ✅ Loop through each requirement
-    Object.entries(requirements).forEach(([docId, req]) => {
-        const uploadedDoc = staffDocs[docId] || null;
-        const status = uploadedDoc ? uploadedDoc.status : 'NOT UPLOADED';
-        const statusClass = status.toLowerCase().replace(/\s+/g, '-');
-        const isUploaded = status !== 'NOT UPLOADED';
-        const isApproved = status === 'APPROVED';
-        const isRejected = status === 'REJECTED';
-        const icon = req.icon || window.getDocIcon(docId);
-        const displayName = req.name || docId;
+   // ✅ Loop through each requirement
+   Object.entries(requirements).forEach(([docId, req]) => {
+       const uploadedDoc = staffDocs[docId] || null;
+       const status = uploadedDoc ? uploadedDoc.status : 'NOT UPLOADED';
+       const statusClass = status.toLowerCase().replace(/\s+/g, '-');
+       const isUploaded = status !== 'NOT UPLOADED';
+       const isApproved = status === 'APPROVED';
+       const isRejected = status === 'REJECTED';
+       const icon = req.icon || window.getDocIcon(docId);
+       const displayName = req.name || docId;
 
-        html += `
-            <div class="doc-card group relative bg-white border border-slate-100 rounded-[2.5rem] p-6 transition-all duration-300 hover:shadow-xl hover:border-indigo-200" data-id="${docId}">
-                <div class="flex items-start justify-between mb-4">
-                    <div class="flex items-center gap-3">
-                        <div class="w-12 h-12 rounded-2xl bg-slate-50 flex items-center justify-center text-slate-400 group-hover:bg-indigo-50 group-hover:text-indigo-500 transition-colors">
-                            <i class="fas ${icon} text-xl"></i>
-                        </div>
-                        <div>
-                            <h4 class="text-sm font-black text-slate-900 leading-tight uppercase tracking-tight">${displayName}</h4>
-                            ${req.mandatory ? '<span class="text-[8px] font-black text-red-500 uppercase tracking-widest">Mandatory</span>' : ''}
-                        </div>
-                    </div>
-                    <span class="px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest status-badge-${statusClass} ${
-                        isApproved ? 'bg-emerald-100 text-emerald-600' :
-                        isRejected ? 'bg-red-100 text-red-600' :
-                        isUploaded ? 'bg-amber-100 text-amber-600' : 'bg-slate-100 text-slate-400'
-                    }">${status}</span>
-                </div>
+       html += `
+           <div class="doc-card group relative bg-white border border-slate-100 rounded-[2.5rem] p-6 transition-all duration-300 hover:shadow-xl hover:border-indigo-200" data-id="${docId}">
+               <!-- ===== HEADER ===== -->
+               <div class="doc-header flex items-start justify-between w-full">
+                   <div class="doc-title-wrapper flex items-center gap-3">
+                       <div class="doc-icon w-12 h-12 rounded-2xl bg-slate-50 flex items-center justify-center text-slate-400 group-hover:bg-indigo-50 group-hover:text-indigo-500 transition-colors">
+                           <i class="fas ${icon} text-xl"></i>
+                       </div>
+                       <div>
+                           <h4 class="doc-title text-sm font-black text-slate-900 leading-tight uppercase tracking-tight">${displayName}</h4>
+                           ${req.mandatory ? '<span class="text-[8px] font-black text-red-500 uppercase tracking-widest">Mandatory</span>' : ''}
+                       </div>
+                   </div>
+                   <span class="status-badge px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest ${
+                       isApproved ? 'bg-emerald-100 text-emerald-600' :
+                       isRejected ? 'bg-red-100 text-red-600' :
+                       isUploaded ? 'bg-amber-100 text-amber-600' : 'bg-slate-100 text-slate-400'
+                   }">${status}</span>
+               </div>
 
-                ${isUploaded ? `
-                    <div class="grid grid-cols-2 gap-2 mb-4">
-                        <div class="bg-slate-50 p-2 rounded-xl border border-slate-100">
-                            <span class="block text-[8px] font-black text-slate-400 uppercase tracking-tighter mb-0.5">Issue Date</span>
-                            <span class="text-[10px] font-bold text-slate-700">${uploadedDoc.issueDate || '-'}</span>
-                        </div>
-                        <div class="bg-slate-50 p-2 rounded-xl border border-slate-100">
-                            <span class="block text-[8px] font-black text-slate-400 uppercase tracking-tighter mb-0.5">Expiry Date</span>
-                            <span class="text-[10px] font-bold text-slate-700">${uploadedDoc.expiryDate || '-'}</span>
-                        </div>
-                    </div>
-                ` : `
-                    <div onclick="window.triggerDocUpload('${docId}')" class="py-6 border-2 border-dashed border-slate-100 rounded-3xl flex flex-col items-center justify-center text-slate-300 mb-4 cursor-pointer hover:border-indigo-300 hover:text-indigo-400 transition-all">
-                        <i class="fa-solid fa-cloud-arrow-up text-2xl mb-2 opacity-50"></i>
-                        <span class="text-[9px] font-black uppercase tracking-widest">Tap to Upload</span>
-                    </div>
-                `}
+               <!-- ===== DETAILS + ACTIONS ROW ===== -->
+               <div class="doc-body flex flex-wrap items-center gap-4 w-full mt-2">
+                   ${isUploaded ? `
+                       <div class="doc-details flex flex-wrap gap-4 bg-slate-50 p-3 rounded-xl border border-slate-100 flex-1 min-w-[200px]">
+                           <div class="doc-detail-item">
+                               <span class="doc-detail-label text-[8px] font-black text-slate-400 uppercase tracking-tighter">Issue Date</span>
+                               <span class="doc-detail-value text-[10px] font-bold text-slate-700">${uploadedDoc.issueDate || '-'}</span>
+                           </div>
+                           <div class="doc-detail-item">
+                               <span class="doc-detail-label text-[8px] font-black text-slate-400 uppercase tracking-tighter">Expiry Date</span>
+                               <span class="doc-detail-value text-[10px] font-bold text-slate-700">${uploadedDoc.expiryDate || '-'}</span>
+                           </div>
+                       </div>
+                   ` : `
+                       <div onclick="window.triggerDocUpload('${docId}')" class="doc-upload-zone flex-1 min-w-[150px] py-4 border-2 border-dashed border-slate-200 rounded-2xl flex flex-col items-center justify-center text-slate-400 cursor-pointer hover:border-indigo-400 hover:text-indigo-500 transition-all">
+                           <i class="fa-solid fa-cloud-arrow-up text-2xl mb-1 opacity-50"></i>
+                           <span class="text-[9px] font-black uppercase tracking-widest">Tap to Upload</span>
+                       </div>
+                   `}
 
-                ${isRejected && uploadedDoc?.rejectionReason ? `
-                    <div class="mb-4 p-3 bg-red-50 rounded-2xl border border-red-100 flex items-start gap-2">
-                        <i class="fas fa-exclamation-circle text-red-400 mt-0.5 text-xs"></i>
-                        <span class="text-[9px] font-bold text-red-700 leading-tight">${uploadedDoc.rejectionReason}</span>
-                    </div>
-                ` : ''}
+                   <!-- ===== ACTION BUTTONS ===== -->
+                   <div class="doc-actions flex gap-2 ml-auto shrink-0">
+                       ${!isApproved ? `
+                           <button class="flex-1 min-w-[100px] py-3 px-4 bg-indigo-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-lg shadow-indigo-500/20 active:scale-95 transition-all" onclick="window.triggerDocUpload('${docId}')">
+                               <i class="fas ${isUploaded ? 'fa-sync-alt' : 'fa-upload'} mr-1"></i>
+                               ${isUploaded ? 'Re-Upload' : 'Upload'}
+                           </button>
+                       ` : ''}
+                       ${uploadedDoc?.driveFileUrl ? `
+                           <button onclick="window.open('${uploadedDoc.driveFileUrl}', '_blank'); return false;" class="px-4 py-3 bg-slate-100 text-slate-600 rounded-2xl font-black text-[10px] uppercase tracking-widest active:scale-95 transition-all no-underline inline-flex items-center justify-center">
+                               <i class="fas fa-eye mr-1"></i> View
+                           </button>
+                       ` : ''}
+                   </div>
+               </div>
 
-                <div class="flex gap-2">
-                    ${!isApproved ? `
-                        <button class="flex-1 py-3 bg-indigo-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-lg shadow-indigo-500/20 active:scale-95 transition-all" onclick="window.triggerDocUpload('${docId}')">
-                            <i class="fas ${isUploaded ? 'fa-sync-alt' : 'fa-upload'} mr-1"></i>
-                            ${isUploaded ? 'Re-Upload' : 'Upload Now'}
-                        </button>
-                    ` : ''}
-                    ${uploadedDoc?.driveFileUrl ? `
-                        <button onclick="window.open('${uploadedDoc.driveFileUrl}', '_blank'); return false;" class="px-4 py-3 bg-slate-100 text-slate-600 rounded-2xl font-black text-[10px] uppercase tracking-widest active:scale-95 transition-all no-underline inline-flex items-center justify-center">
-                            <i class="fas fa-eye"></i>
-                        </button>
-                    ` : ''}
-                </div>
-            </div>
-        `;
-    });
-
-    html += `</div>`;
-    container.innerHTML = html;
-};
-
+               ${isRejected && uploadedDoc?.rejectionReason ? `
+                   <div class="doc-rejection-box w-full mt-3 p-3 bg-red-50 rounded-2xl border border-red-100 flex items-start gap-2">
+                       <i class="fas fa-exclamation-circle text-red-400 mt-0.5 text-xs"></i>
+                       <span class="text-[9px] font-bold text-red-700 leading-tight">${uploadedDoc.rejectionReason}</span>
+                   </div>
+               ` : ''}
+           </div>
+       `;
+   });
 /**
  * ✅ Initialize staff documents module
  */
@@ -550,12 +551,16 @@ window.initStaffDocsModule = async function(containerId = 'staff-docs-container'
         return;
     }
 
+    if (window.showGlobalSpinner) {
+        window.showGlobalSpinner("Loading Verification Center...");
+    }
+
     try {
-        // ✅ Show loading
+        // ✅ Show local inline loading as fallback
         container.innerHTML = `
             <div class="flex flex-col items-center justify-center p-12">
                 <div class="w-12 h-12 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin mb-4"></div>
-                <p class="text-[10px] font-black text-indigo-900 uppercase tracking-widest">Loading document requirements...</p>
+                <p class="text-[10px] font-black text-indigo-900 uppercase tracking-widest">Syncing Requirements...</p>
             </div>
         `;
 
@@ -606,6 +611,9 @@ window.initStaffDocsModule = async function(containerId = 'staff-docs-container'
         // ✅ STEP 3: Render documents
         window.renderStaffDocsModule(container, requirements, staffDocs, progress, isActivated);
 
+        // ✅ STEP 4: Check for Document Expiries (Task 2)
+        window.checkDocumentExpiries(staffDocs);
+
         // ✅ Update lock status
         if (window.updateLockStatus) {
             window.updateLockStatus(progress, isActivated);
@@ -640,7 +648,76 @@ window.initStaffDocsModule = async function(containerId = 'staff-docs-container'
                 </button>
             </div>
         `;
+    } finally {
+        if (window.hideGlobalSpinner) {
+            window.hideGlobalSpinner();
+        }
     }
+};
+
+/**
+ * ✅ Check Document Expiries (Task 2)
+ */
+window.checkDocumentExpiries = function(staffDocs) {
+    if (!staffDocs) return;
+
+    const today = new Date();
+    const expiryThresholdDays = 30;
+    const warnings = [];
+
+    Object.entries(staffDocs).forEach(([docId, data]) => {
+        if (data.expiryDate && data.status === 'APPROVED') {
+            const expiryDate = new Date(data.expiryDate);
+            if (isNaN(expiryDate.getTime())) return;
+
+            const timeDiff = expiryDate.getTime() - today.getTime();
+            const daysRemaining = Math.ceil(timeDiff / (1000 * 3600 * 24));
+
+            if (daysRemaining <= expiryThresholdDays) {
+                const docName = docId.replace(/_/g, ' ');
+                if (daysRemaining <= 0) {
+                    warnings.push(`🚨 Your <b>${docName}</b> has EXPIRED. Please upload a renewed copy immediately.`);
+                } else {
+                    warnings.push(`⚠️ Your <b>${docName}</b> expires in <b>${daysRemaining} days</b>. Please upload a renewed copy.`);
+                }
+            }
+        }
+    });
+
+    if (warnings.length > 0) {
+        window.showExpiryNotificationBanner(warnings);
+    }
+};
+
+/**
+ * ✅ Show Expiry Notification Banner
+ */
+window.showExpiryNotificationBanner = function(warnings) {
+    let banner = document.getElementById('doc-expiry-banner');
+    if (!banner) {
+        banner = document.createElement('div');
+        banner.id = 'doc-expiry-banner';
+        banner.className = 'fixed top-0 left-0 right-0 z-[200000] bg-rose-600 text-white p-4 shadow-2xl transform -translate-y-full transition-transform duration-500 ease-in-out';
+        document.body.prepend(banner);
+    }
+
+    const warningsHtml = warnings.map(w => `<p class="flex items-center gap-2 mb-1 last:mb-0"><i class="fa-solid fa-circle-exclamation"></i> <span>${w}</span></p>`).join('');
+
+    banner.innerHTML = `
+        <div class="max-w-4xl mx-auto flex items-center justify-between gap-4">
+            <div class="flex-1 text-[11px] font-black uppercase tracking-tight leading-tight">
+                ${warningsHtml}
+            </div>
+            <button onclick="this.closest('#doc-expiry-banner').classList.add('-translate-y-full')" class="shrink-0 w-8 h-8 bg-white/20 rounded-full flex items-center justify-center hover:bg-white/30 transition-all">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+        </div>
+    `;
+
+    // Force show after a small delay
+    setTimeout(() => {
+        banner.classList.remove('-translate-y-full');
+    }, 1000);
 };
 
 console.log("✅ docs_ui.js v2.0 Loaded");

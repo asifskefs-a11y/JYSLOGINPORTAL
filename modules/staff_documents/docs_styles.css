@@ -699,3 +699,198 @@
 
 .doc-w-full { width: 100%; }
 .doc-w-auto { width: auto; }
+
+/* ================================================================ */
+/* STAFF DOCUMENT REVIEW - FULL SCREEN DESKTOP                     */
+/* ================================================================ */
+
+/* Desktop (1025px+) - Full Screen */
+@media (min-width: 1025px) {
+    .doc-upload-container {
+        max-width: 100% !important;
+        padding: 24px 32px 32px 32px !important;
+        gap: 20px !important;
+    }
+
+    .doc-page-title {
+        font-size: 28px !important;
+        padding-bottom: 16px !important;
+        border-bottom-width: 4px !important;
+    }
+
+    /* Cards - Bigger & Full Width */
+    .doc-card {
+        padding: 24px 28px 28px 28px !important;
+        border-radius: 20px !important;
+        min-height: 200px !important;
+        display: flex !important;
+        flex-direction: row !important;
+        flex-wrap: wrap !important;
+        align-items: center !important;
+        gap: 16px !important;
+        border: 2px solid #e2e8f0 !important;
+        transition: all 0.3s ease !important;
+        box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04) !important;
+    }
+
+    .doc-card:hover {
+        transform: translateY(-3px) !important;
+        box-shadow: 0 8px 30px rgba(79, 70, 229, 0.12) !important;
+        border-color: #818cf8 !important;
+    }
+
+    /* Card Header - Full Width */
+    .doc-card .doc-header {
+        width: 100% !important;
+        padding-bottom: 12px !important;
+        border-bottom: 2px solid #f1f5f9 !important;
+        display: flex !important;
+        justify-content: space-between !important;
+        align-items: center !important;
+        flex-wrap: nowrap !important;
+    }
+
+    .doc-card .doc-title-wrapper {
+        display: flex !important;
+        align-items: center !important;
+        gap: 14px !important;
+    }
+
+    .doc-card .doc-icon {
+        width: 44px !important;
+        height: 44px !important;
+        font-size: 20px !important;
+        border-radius: 12px !important;
+    }
+
+    .doc-card .doc-title {
+        font-size: 18px !important;
+        font-weight: 800 !important;
+        letter-spacing: 0.5px !important;
+    }
+
+    /* Status Badge - Bigger */
+    .doc-card .status-badge {
+        font-size: 12px !important;
+        padding: 6px 20px !important;
+        border-radius: 24px !important;
+        font-weight: 800 !important;
+    }
+
+    /* Document Details - Horizontal Layout */
+    .doc-card .doc-details {
+        display: flex !important;
+        flex-direction: row !important;
+        gap: 24px !important;
+        padding: 12px 20px !important;
+        background: #f8fafc !important;
+        border-radius: 14px !important;
+        border: 1px solid #f1f5f9 !important;
+        width: 100% !important;
+        flex: 1 !important;
+        min-width: 0 !important;
+    }
+
+    .doc-card .doc-detail-item {
+        display: flex !important;
+        flex-direction: column !important;
+        min-width: 100px !important;
+    }
+
+    .doc-card .doc-detail-label {
+        font-size: 10px !important;
+        font-weight: 700 !important;
+        color: #94a3b8 !important;
+        text-transform: uppercase !important;
+        letter-spacing: 0.5px !important;
+    }
+
+    .doc-card .doc-detail-value {
+        font-size: 14px !important;
+        font-weight: 700 !important;
+        color: #1e1b4b !important;
+        margin-top: 2px !important;
+    }
+
+    /* Action Buttons - Right Side */
+    .doc-card .doc-actions {
+        display: flex !important;
+        flex-direction: row !important;
+        gap: 10px !important;
+        align-items: center !important;
+        margin-left: auto !important;
+        flex-shrink: 0 !important;
+    }
+
+    .doc-card .doc-actions .doc-link-btn {
+        padding: 10px 24px !important;
+        font-size: 13px !important;
+        font-weight: 700 !important;
+        border-radius: 14px !important;
+        min-height: 44px !important;
+        min-width: 120px !important;
+        white-space: nowrap !important;
+    }
+
+    .doc-card .doc-actions .doc-link-btn i {
+        font-size: 14px !important;
+        margin-right: 6px !important;
+    }
+
+    /* Upload Zone - Full Width */
+    .doc-card .doc-upload-zone {
+        flex: 1 !important;
+        min-height: 80px !important;
+        padding: 16px 20px !important;
+        border-radius: 16px !important;
+    }
+
+    .doc-card .doc-upload-zone i {
+        font-size: 32px !important;
+    }
+
+    .doc-card .doc-upload-zone span {
+        font-size: 14px !important;
+    }
+
+    /* Rejection Box */
+    .doc-card .doc-rejection-box {
+        width: 100% !important;
+        padding: 12px 16px !important;
+        background: #fef2f2 !important;
+        border-radius: 12px !important;
+        border: 1px solid #fecaca !important;
+    }
+
+    .doc-card .doc-rejection-text {
+        font-size: 12px !important;
+        font-weight: 600 !important;
+        color: #dc2626 !important;
+    }
+
+    /* Grid Layout - Two Columns */
+    .doc-cards-grid {
+        display: grid !important;
+        grid-template-columns: 1fr 1fr !important;
+        gap: 20px !important;
+    }
+
+    /* Progress Section - Full Width */
+    .doc-progress-section {
+        padding: 20px 24px !important;
+        border-radius: 20px !important;
+    }
+
+    .doc-progress-section .flex.justify-between span {
+        font-size: 13px !important;
+    }
+
+    .doc-progress-section .text-lg {
+        font-size: 22px !important;
+    }
+
+    .doc-progress-section .w-full.h-3 {
+        height: 8px !important;
+        border-radius: 8px !important;
+    }
+}
