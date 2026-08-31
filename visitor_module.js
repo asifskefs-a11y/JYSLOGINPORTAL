@@ -1,6 +1,5 @@
 import { db } from './firebase_config.js';
 import { ref, set, get, update, runTransaction, push, remove, onValue } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
-import { PATHS, FirebasePathValidator } from './firebase_path_manager.js';
 
 // --- VISITOR SYSTEM (v3.5.1 - FIXED) ---
 let vCanvas, vCtx, vDrawing = false;
@@ -13,9 +12,7 @@ window.tokenTimer = null;
  * ASSIGN IMMEDIATE UNIQUE TOKEN ON FORM OPEN
  */
 window.reservePortalToken = async function(mode = 'visitor') {
-    const counterPath = mode === 'contractor' ? `${PATHS.SYSTEM_COUNTERS}/contractor_daily` : `${PATHS.SYSTEM_COUNTERS}/visitor_daily`;
-    if (!FirebasePathValidator.validatePath(counterPath)) throw new Error("Invalid Counter Path");
-
+    const counterPath = mode === 'contractor' ? 'system_counters/contractor_daily' : 'system_counters/visitor_daily';
     const counterRef = ref(db, counterPath);
     const todayStr = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
 
@@ -35,7 +32,7 @@ window.reservePortalToken = async function(mode = 'visitor') {
         });
 
         // Reserve temporary token in Firebase
-        const reservationRef = push(ref(db, PATHS.TOKEN_RESERVATIONS));
+        const reservationRef = push(ref(db, 'token_reservations'));
         const tokenId = reservationRef.key;
 
         const tokenData = {
@@ -81,11 +78,7 @@ function startTokenExpiryTimer(tokenId, seqNo) {
             console.warn(`Token #${seqNo} expired without signature. Recycling token...`);
 
             // Remove unsubmitted token
-        const path = `${PATHS.TOKEN_RESERVATIONS}/${tokenId}`;
-        if (FirebasePathValidator.validatePath(path)) {
-            FirebasePathValidator.logOperation('remove', path);
-            await remove(ref(db, path));
-        }
+            await remove(ref(db, `token_reservations/${tokenId}`));
 
             // Mark token as recycled so queue auto-shifts
             window.currentReservedToken = null;
@@ -191,7 +184,6 @@ window.checkVisitorSession = () => {
                 const dbNode = mode === 'contractor' ? 'contractors' : 'visitors';
                 try {
                     // 1. ALWAYS FORCE A FRESH FIREBASE LOOKUP FOR ALL CHECKOUTS
-                    if (!FirebasePathValidator.validatePath(dbNode)) throw new Error("Access Denied");
                     const snap = await get(ref(db, dbNode));
                     if (snap.exists()) {
                         const logs = snap.val();
@@ -242,10 +234,7 @@ window.checkVisitorSession = () => {
                     const now = new Date();
                     const outTime = now.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', hour12: true});
                     const targetKey = data.firebaseKey || data.id;
-                    const path = `${dbNode}/${targetKey}`;
-                    if (!FirebasePathValidator.validatePath(path)) throw new Error("Invalid Path");
-                    FirebasePathValidator.logOperation('update', path);
-                    await update(ref(db, path), {
+                    await update(ref(db, `${dbNode}/${targetKey}`), {
                         outTime: outTime,
                         status: 'SIGNED OUT',
                         keyReturned: 'YES'
@@ -254,11 +243,7 @@ window.checkVisitorSession = () => {
                     // ✅ REMOVE FROM SECURITY KEY CONTROL (RESTORED)
                     // Uses exact same identifier logic as init_module.js
                     const securityRefId = data.mobile || data.id;
-                    const path = `${PATHS.SECURITY_KEYS}/${securityRefId}`;
-                    if (FirebasePathValidator.validatePath(path)) {
-                        FirebasePathValidator.logOperation('remove', path);
-                        await remove(ref(db, path));
-                    }
+                    await remove(ref(db, `security_key_control/${securityRefId}`));
 
                     localStorage.removeItem('vActive');
 

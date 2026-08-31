@@ -1,14 +1,6 @@
 import { db } from './firebase_config.js';
 import { ref, get, child } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
-// 🔧 SECURITY: XSS Prevention - Sanitize user-facing text data
-window.sanitizeTextForDOM = (text) => {
-    if (!text) return '';
-    const div = document.createElement('div');
-    div.textContent = String(text).trim();
-    return div.innerHTML;
-};
-
 // ================================================================ */
 // WHATSAPP-STYLE TOAST ENGINE (FIXED v4.2)                        */
 // ================================================================ */
@@ -210,77 +202,15 @@ class SignaturePadManager {
     }
 }
 
-/**
- * SignaturePadValidator Utility (Requirement: Add SignaturePadValidator utility function)
- * Safely validates signature pad and canvas operations.
- */
-const SignaturePadValidator = {
-    validatePad(id) {
-        if (!window.sigPadManager) return { valid: false, error: "sigPadManager unavailable" };
-        const pad = window.sigPadManager.getPad(id);
-        if (!pad) return { valid: false, error: `Pad with ID ${id} not found` };
-        return { valid: true, pad };
-    },
-    validateCanvas(id) {
-        const canvas = document.getElementById(id);
-        if (!canvas) return { valid: false, error: `Canvas element ${id} missing from DOM` };
-        if (canvas.tagName !== 'CANVAS') return { valid: false, error: `Element ${id} is not a canvas` };
-        return { valid: true, canvas };
-    }
-};
-
 window.sigPadManager = new SignaturePadManager();
-
-/**
- * FIXED: window.getCanvasBase64 (Requirement 1, 2, 4, 5, 6)
- * Safely captures base64 from canvas with extensive validation.
- */
-window.getCanvasBase64 = (id) => {
-    try {
-        // Requirement 1: sigPadManager existence validation
-        // Requirement 2: Check if pad element exists in DOM
-        const canvasRes = SignaturePadValidator.validateCanvas(id);
-        if (!canvasRes.valid) {
-            console.warn(`⚠️ getCanvasBase64: ${canvasRes.error}`);
-            return null; // Return null instead of crashing
-        }
-
-        const padRes = SignaturePadValidator.validatePad(id);
-        if (!padRes.valid) {
-             // Requirement 3: Fallback canvas initialization if sigPadManager unavailable
-             console.warn(`⚠️ sigPadManager method unavailable for ${id}, attempting direct canvas capture`);
-             return canvasRes.canvas.toDataURL("image/png");
-        }
-
-        const pad = padRes.pad;
-
-        // Requirement 6: Validate canvas context before calling toDataURL()
-        const ctx = canvasRes.canvas.getContext('2d');
-        if (!ctx) throw new Error("Could not acquire 2D context from canvas");
-
-        const data = pad.toDataURL();
-
-        // Requirement 4: Add error handling for failed signature capture
-        if (!data || data === "data:,") {
-             console.log(`ℹ️ Signature pad ${id} is empty.`);
-             return null;
-        }
-
-        return data;
-    } catch (err) {
-        // Requirement 5: Return meaningful error messages instead of undefined
-        console.error(`❌ getCanvasBase64 Critical Failure [${id}]:`, err.message);
-        return null;
-    }
-};
+window.getCanvasBase64 = (id) => window.sigPadManager.getPad(id).toDataURL();
 
 // ✅ FIXED: Clear hone par canvas locked nahi hoga
 window.clearSignaturePad = (id) => {
-    // Optional chaining and null coalescing (Requirement 3, 6)
-    const pad = window.sigPadManager?.getPad(id);
+    const pad = window.sigPadManager.getPad(id);
     if (pad) {
-        pad.clear?.();
-        pad.unlock?.();
+        pad.clear();
+        pad.unlock();
     }
 };
 
@@ -337,27 +267,7 @@ window.unlockCanvas = (el, event) => {
     }
 };
 
-window.initVisitorCanvas = () => {
-    try {
-        // Requirement 2: Check if pad element exists in DOM before initialization
-        const canvas = document.getElementById('v-sig-pad');
-        if (!canvas) {
-            console.warn("⚠️ initVisitorCanvas: v-sig-pad not found in current DOM view. Skipping init.");
-            return null;
-        }
-
-        // Requirement 1 & 3: sigPadManager existence validation & Fallback
-        if (!window.sigPadManager) {
-            console.error("❌ sigPadManager is missing. Signature functionality disabled.");
-            return null;
-        }
-
-        return window.sigPadManager.getPad('v-sig-pad');
-    } catch (err) {
-        console.error("❌ initVisitorCanvas Exception:", err);
-        return null;
-    }
-};
+window.initVisitorCanvas = () => window.sigPadManager.getPad('v-sig-pad');
 
 // ================================================================ */
 // ASSET PREVIEW MODAL (FIXED v4.3)                                */
@@ -402,13 +312,11 @@ window.openAssetPreviewModal = function(assetData) {
         <div class="bg-indigo-950 border border-white/10 rounded-[2.5rem] p-8 max-w-md w-full text-white space-y-6 shadow-2xl animate-fade-in">
             <div class="flex justify-between items-center border-b border-white/5 pb-5">
                 <h3 class="text-xl font-black text-amber-400 uppercase tracking-tight">📦 Asset Details</h3>
-                <button onclick="window.closeAssetPreviewModal()" class="w-10 h-10 bg-white/10 rounded-full flex items-center justify-center text-white/60 hover:text-white transition-colors">
-                    <i class="fa-solid fa-xmark"></i>
-                </button>
+                <button onclick="window.closeAssetPreviewModal()" class="w-10 h-10 bg-white/10 rounded-full flex items-center justify-center text-white/60 hover:text-white transition-colors text-2xl font-bold">×</button>
             </div>
             <div class="space-y-4 text-xs">
                 ${(photo && photo !== 'N/A' && photo !== '-') ? `
-                    <img src="${window.getDirectDriveImageUrl ? window.getDirectDriveImageUrl(photo) : photo}" class="w-full h-48 object-cover rounded-3xl border border-white/10 mb-4 shadow-inner" alt="Asset Photo" onerror="this.src='jys_Icon.png'">
+                    <img src="${window.getDirectDriveImageUrl ? window.getDirectDriveImageUrl(photo) : photo}" class="w-full h-48 object-cover rounded-3xl border border-white/10 mb-4 shadow-inner cursor-pointer" onclick="window.openImageZoom('${photo}')"/>
                 ` : `
                     <div class="w-full h-32 bg-white/5 rounded-3xl flex flex-col items-center justify-center text-white/20 border-2 border-dashed border-white/5">
                         <i class="fa-solid fa-image text-3xl mb-2"></i>
@@ -442,7 +350,7 @@ window.openAssetPreviewModal = function(assetData) {
                     </div>
                 </div>
             </div>
-            <button onclick="window.closeAssetPreviewModal()" class="w-full py-4 bg-white/5 hover:bg-white/10 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] transition-all border border-white/10">Close</button>
+            <button onclick="window.closeAssetPreviewModal()" class="w-full py-4 bg-white/5 hover:bg-white/10 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] transition-all border border-white/5">Close Preview</button>
         </div>
     `;
     modal.classList.remove('hidden');
@@ -483,17 +391,6 @@ window.showGlobalSpinner = (message = "Loading...") => {
                 <div class="spinner-ring absolute inset-[-20px] border-4 border-indigo-500/20 border-t-indigo-500 rounded-full animate-spin"></div>
             </div>
             <p id="universal-loader-text" style="color: #ffffff; font-weight: 800; margin-top: 32px; font-family: 'Poppins', sans-serif; letter-spacing: 2px; text-transform: uppercase; font-size: 14px; text-shadow: 0 2px 4px rgba(0,0,0,0.5);">${message}</p>
-
-            <!-- PROGRESS FEEDBACK UI (Requirement 3) -->
-            <div id="loader-progress-container" style="display: none; width: 220px; margin-top: 24px;">
-                <div style="width: 100%; height: 4px; background: rgba(255,255,255,0.1); border-radius: 2px; overflow: hidden;">
-                    <div id="loader-progress-bar" style="width: 0%; height: 100%; background: #6366f1; transition: width 0.3s ease-out;"></div>
-                </div>
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 8px; width: 100%;">
-                    <span id="loader-progress-pct" style="color: rgba(255,255,255,0.5); font-size: 9px; font-weight: 900; letter-spacing: 1px;">0%</span>
-                    <button id="loader-abort-btn" style="margin-left: auto; background: transparent; border: none; color: #f87171; font-size: 9px; font-weight: 900; text-transform: uppercase; cursor: pointer; letter-spacing: 1px;">[ Abort ]</button>
-                </div>
-            </div>
         `;
         document.body.appendChild(spinner);
 
@@ -516,27 +413,6 @@ window.showGlobalSpinner = (message = "Loading...") => {
     const spText = document.getElementById('universal-loader-text');
     if (spText && message) spText.innerText = message;
 
-    // Ensure Progress UI exists if spinner was already in DOM (Requirement 3 fallback)
-    if (spinner && !document.getElementById('loader-progress-container')) {
-        const progDiv = document.createElement('div');
-        progDiv.id = 'loader-progress-container';
-        progDiv.style.cssText = 'display: none; width: 220px; margin-top: 24px;';
-        progDiv.innerHTML = `
-            <div style="width: 100%; height: 4px; background: rgba(255,255,255,0.1); border-radius: 2px; overflow: hidden;">
-                <div id="loader-progress-bar" style="width: 0%; height: 100%; background: #6366f1; transition: width 0.3s ease-out;"></div>
-            </div>
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 8px; width: 100%;">
-                <span id="loader-progress-pct" style="color: rgba(255,255,255,0.5); font-size: 9px; font-weight: 900; letter-spacing: 1px;">0%</span>
-                <button id="loader-abort-btn" style="background: transparent; border: none; color: #f87171; font-size: 9px; font-weight: 900; text-transform: uppercase; cursor: pointer; letter-spacing: 1px;">[ Abort ]</button>
-            </div>
-        `;
-        spinner.appendChild(progDiv);
-    }
-
-    // Reset Progress UI
-    const progContainer = document.getElementById('loader-progress-container');
-    if (progContainer) progContainer.style.display = 'none';
-
     spinner.style.display = 'flex';
     spinnerActive = true;
 
@@ -545,22 +421,7 @@ window.showGlobalSpinner = (message = "Loading...") => {
         if (spinnerActive) {
             window.hideGlobalSpinner();
         }
-    }, 30000); // Increased to 30s to allow for retries
-};
-
-/**
- * Updates the global loader progress bar
- */
-window.updateGlobalLoaderProgress = (percent, message) => {
-    const container = document.getElementById('loader-progress-container');
-    const bar = document.getElementById('loader-progress-bar');
-    const pctText = document.getElementById('loader-progress-pct');
-    const mainText = document.getElementById('universal-loader-text');
-
-    if (container) container.style.display = 'block';
-    if (bar) bar.style.width = Math.min(100, Math.max(0, percent)) + '%';
-    if (pctText) pctText.innerText = Math.round(percent) + '%';
-    if (mainText && message) mainText.innerText = message;
+    }, 15000);
 };
 
 window.hideGlobalSpinner = () => {
@@ -595,7 +456,7 @@ window.generateLocalAvatar = function(name, background = "4f46e5", color = "fff"
         const initials = name.trim().split(/\s+/).map(n => n[0]).join('').substring(0, 2).toUpperCase();
 
         if (!initials) {
-            return 'data:image/svg+xml;utf8,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128"><rect width="100%" height="100%" fill="#4f46e5"/><text x="50%" y="50%" dominant-baseline="central" text-anchor="middle" fill="#fff" font-family="Arial, sans-serif" font-size="50" font-weight="bold">?</text></svg>');
+            return 'data:image/svg+xml;utf8,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128"><rect width="100%" height="100%" fill="#4f46e5"/><text x="50%" y="50%" dominant-baseline="central" text-anchor="middle" fill="#ffffff" font-family="Arial, sans-serif" font-size="50" font-weight="bold">?</text></svg>');
         }
 
         const svg = `
@@ -610,12 +471,12 @@ window.generateLocalAvatar = function(name, background = "4f46e5", color = "fff"
         return 'data:image/svg+xml;utf8,' + encodeURIComponent(svg);
     } catch (e) {
         console.error("Avatar generation error:", e);
-        return 'data:image/svg+xml;utf8,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128"><rect width="100%" height="100%" fill="#4f46e5"/><text x="50%" y="50%" dominant-baseline="central" text-anchor="middle" fill="#fff" font-family="Arial, sans-serif" font-size="50" font-weight="bold">U</text></svg>');
+        return 'data:image/svg+xml;utf8,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128"><rect width="100%" height="100%" fill="#4f46e5"/><text x="50%" y="50%" dominant-baseline="central" text-anchor="middle" fill="#ffffff" font-family="Arial, sans-serif" font-size="50" font-weight="bold">U</text></svg>');
     }
 };
 
 // ================================================================ */
-// ROLE-BASED DASHBOARD RULES (FIXED v6.5 - CLEANER & DOCS FOCUS)  */
+// ROLE-BASED DASHBOARD RULES (FIXED v6.0 - POSITION RESTRICTIONS)  */
 // ================================================================ */
 
 window.applyRoleDashboardRules = function(userRole) {
@@ -627,61 +488,60 @@ window.applyRoleDashboardRules = function(userRole) {
     const roleVal = normalize(staff.role);
     const designVal = normalize(staff.designation || staff.position || userRole);
 
-    console.log(`👤 Applied Filter for Position: [${roleVal}], Role: [${designVal}]`);
+    console.log(`👤 Position UI Filter: Role=[${roleVal}], Position=[${designVal}]`);
 
-    // ✅ MANDATE: Restricted Positions (Minimum UI for these roles)
-    // IMPORTANT: 'cleaner_leader', 'technician', 'office_boy' are NOT restricted and get Operational Dashboard
-    const restrictedList = ['cleaner', 'bus_supervisor', 'bus_monitor', 'gardener', 'bus_driver', 'helper'];
+    // ✅ MANDATE: Restricted Positions for Minimalist Dashboard
+    // IMPORTANT: 'cleaner_leader' and 'security' are NOT in this list and will retain all features.
+    const restrictedList = ['cleaner', 'bus_supervisor', 'bus_monitor', 'gardener', 'bus_driver'];
+
+    // Check if either field matches restricted positions
     const isRestricted = restrictedList.includes(roleVal) || restrictedList.includes(designVal);
 
-    // 1. DASHBOARD WIDGETS CONTROL
-    const adminWidgets = [
-        'scan-edit-asset-btn',      // Asset Scanning Banner
-        'tasks-summary-card',       // Stats Grid (Total/Pending)
+    // 1. Dashboard Banner & Metrics Visibility
+    const widgetsToControl = [
+        'scan-edit-asset-btn',      // SCAN & EDIT ASSET LOCATION (Banner)
+        'tasks-summary-card',       // Stats Grid container
         'visitor-log-section',      // Visitor Counter
         'active-staff-grid',        // Staff Present Counter
         'security-pin-control',     // Key PIN Control
-        'security-profile-card',    // Security Specific Header
-        's-dash-create-task-btn',   // Dashboard Quick Create
-        'movement-logs-btn'         // History Button
+        'security-profile-card',    // Security Dashboard Variant
+        's-dash-create-task-btn'    // Dashboard Quick Create Task
     ];
 
-    adminWidgets.forEach(id => {
+    widgetsToControl.forEach(id => {
         const el = document.getElementById(id);
         if (el) {
             if (isRestricted) {
                 el.style.display = 'none';
                 el.classList.add('hidden');
             } else {
+                // ✅ FIXED: Explicitly show for non-restricted roles (Leader/Security/Admin)
                 el.style.display = '';
                 el.classList.remove('hidden');
             }
         }
     });
 
-    // 2. DOCUMENT SECTION ACTIVATION (Restricted roles ke liye specific focus)
     if (isRestricted) {
-        // Stats grid ko hide karna (layout clean karne ke liye)
+        // ✅ MANDATE: Specifically hide the Completed Tasks Card metrics
+        const completedCard = document.querySelector('.stat-completed');
+        if (completedCard) {
+            completedCard.style.display = 'none';
+            completedCard.classList.add('hidden');
+        }
+
+        // Collapse grid layout
         const statsGrid = document.querySelector('.stats-grid');
         if (statsGrid) {
             statsGrid.style.display = 'none';
             statsGrid.classList.add('hidden');
         }
 
-        // Dashboard par personal records show karna
+        // Show personal attendance history table
         const attHistorySec = document.getElementById('cleaner-attendance-section');
         if (attHistorySec) {
             attHistorySec.classList.remove('hidden');
             attHistorySec.style.display = 'block';
-        }
-
-        // Document Section ko active/visible rakhna
-        const docsBtn = document.getElementById('menu-docs-btn');
-        if (docsBtn) {
-            docsBtn.style.display = 'flex';
-            docsBtn.classList.remove('hidden');
-            // Highlight effect for restricted roles
-            docsBtn.classList.add('bg-indigo-600/20', 'border-l-4', 'border-indigo-400');
         }
     } else {
         // ✅ FIXED: Show sections for full access roles
@@ -692,35 +552,26 @@ window.applyRoleDashboardRules = function(userRole) {
         }
     }
 
-    // 3. SIDEBAR MENU VISIBILITY
-    const restrictedMenuItems = [
-        'menu-asset-section',
-        'menu-asset-transfer',
-        'menu-asset-audit',
-        'menu-asset-dispose',
-        'menu-movement-logs',
-        'menu-tasks-btn',
-        'menu-create-task-btn'
-    ];
+    // 2. Side Menu Visibility (Global Filter)
+    const assetSection = document.getElementById('menu-asset-section');
+    const taskHistoryBtn = document.getElementById('menu-tasks-btn');
+    const createTaskBtn = document.getElementById('menu-create-task-btn');
 
-    restrictedMenuItems.forEach(id => {
-        const el = document.getElementById(id);
-        if (el) {
-            if (isRestricted) {
-                el.style.display = 'none';
-                el.classList.add('hidden');
-            } else {
-                // Operational Roles Access (Security, Cleaner Leader, Technician, Office Boy, Admin)
-                const operationalRoles = ['security', 'technician', 'tech', 'admin', 'leader', 'cleaner_leader', 'office_boy'];
-                const hasAccess = operationalRoles.includes(roleVal) || operationalRoles.includes(designVal);
-
-                el.style.display = hasAccess ? 'block' : 'none';
-                el.classList.toggle('hidden', !hasAccess);
-            }
+    if (isRestricted) {
+        if (assetSection) { assetSection.style.display = 'none'; assetSection.classList.add('hidden'); }
+        if (taskHistoryBtn) { taskHistoryBtn.style.display = 'none'; taskHistoryBtn.classList.add('hidden'); }
+        if (createTaskBtn) { createTaskBtn.style.display = 'none'; createTaskBtn.classList.add('hidden'); }
+    } else {
+        // Standards for non-restricted (Includes Cleaner Leader)
+        const assetRoles = ['security', 'technician', 'tech', 'admin', 'leader', 'cleaner_leader'];
+        const hasAssetAccess = assetRoles.includes(roleVal) || assetRoles.includes(designVal);
+        if (assetSection) {
+            assetSection.style.display = hasAssetAccess ? 'block' : 'none';
+            assetSection.classList.toggle('hidden', !hasAssetAccess);
         }
-    });
+    }
 
-    // Primary Nav ensure accessibility
+    // 3. Ensure Primary Nav (Attendance & Docs) is always accessible
     const historyBtn = document.getElementById('menu-history-btn');
     const docsBtn = document.getElementById('menu-docs-btn');
 
@@ -728,7 +579,7 @@ window.applyRoleDashboardRules = function(userRole) {
     if (docsBtn) { docsBtn.style.display = 'flex'; docsBtn.classList.remove('hidden'); }
 
     if (typeof window.initSidebarProfileAndRestrictions === 'function') {
-        window.initSidebarProfileAndRestrictions(staff);
+        window.initSidebarProfileAndRestrictions();
     }
 };
 
@@ -775,7 +626,7 @@ window.executeSecureLogout = function() {
 
 window.logoutStaff = window.executeSecureLogout;
 // ================================================================ */
-// SIDEBAR PROFILE & UI PERSISTENCE (v6.5)                          */
+// SIDEBAR PROFILE & RESTRICTIONS (FIXED v6.0 - NO DUPLICATES)      */
 // ================================================================ */
 
 window.initSidebarProfileAndRestrictions = function(staffData) {
@@ -799,8 +650,8 @@ window.initSidebarProfileAndRestrictions = function(staffData) {
     const imgEl = document.getElementById('sidebar-user-avatar') || document.getElementById('sidebar-profile-img') || document.querySelector('.sidebar-user-avatar');
     const initialsEl = document.getElementById('sidebar-initials');
 
-    if (nameEl) nameEl.innerText = window.sanitizeTextForDOM(displayName);
-    if (roleEl) roleEl.innerText = window.sanitizeTextForDOM(displayRole);
+    if (nameEl) nameEl.innerText = displayName;
+    if (roleEl) roleEl.innerText = displayRole;
 
     if (imgEl) {
         const photo = staff.photoUrl || staff.profilePic || staff.imageUrl || staff.photo || staff.profilePicUrl;
@@ -817,25 +668,24 @@ window.initSidebarProfileAndRestrictions = function(staffData) {
     }
 
     // ✅ MANDATE: Strict Visibility Control for Side Menu Items
-    const restrictedList = ['cleaner', 'bus_supervisor', 'bus_monitor', 'gardener', 'bus_driver', 'helper'];
+    // IMPORTANT: 'cleaner_leader' will NOT be restricted here.
+    const restrictedList = ['cleaner', 'bus_supervisor', 'bus_monitor', 'gardener', 'bus_driver'];
     const isRestricted = restrictedList.includes(roleVal) || restrictedList.includes(designVal);
 
     if (isRestricted) {
-        // HIDE Asset Management & Logs
+        // HIDE Asset Management Buttons
         document.querySelectorAll('#menu-asset-section, #menu-asset-transfer, #menu-asset-audit, #menu-asset-dispose, #menu-movement-logs').forEach(el => {
             el.style.display = 'none';
             el.classList.add('hidden');
         });
-    } else {
-        // Ensure Movement Logs visible for Operational Roles
-        const operationalRoles = ['security', 'technician', 'tech', 'admin', 'leader', 'cleaner_leader', 'office_boy'];
-        const isOperational = operationalRoles.includes(roleVal) || operationalRoles.includes(designVal);
 
-        const logBtn = document.getElementById('menu-movement-logs');
-        if (logBtn && isOperational) {
-            logBtn.style.display = 'flex';
-            logBtn.classList.remove('hidden');
-        }
+        // HIDE Task Related Buttons
+        document.querySelectorAll('#menu-tasks-btn, #menu-create-task-btn, #s-dash-create-task-btn').forEach(el => {
+            el.style.display = 'none';
+            el.classList.add('hidden');
+        });
+
+        // DUPLICATE FIX: Toggling visibility only, no dynamic HTML injection.
     }
 };
 
@@ -864,14 +714,14 @@ window.renderDashboardProfile = function(staffData) {
     const branchEl = document.getElementById('user-branch');
     const imgEl = document.getElementById('user-avatar');
 
-    if (nameEl) nameEl.innerText = window.sanitizeTextForDOM(staff.fullName || staff.name || "Staff Member");
+    if (nameEl) nameEl.innerText = staff.fullName || staff.name || "Staff Member";
     if (idEl) idEl.innerText = `ID: ${passId}`;
 
     const displayRole = staff.designation || staff.position || staff.role || "Employee";
-    if (roleEl) roleEl.innerText = window.sanitizeTextForDOM(displayRole);
+    if (roleEl) roleEl.innerText = displayRole;
 
     if (branchEl) {
-        branchEl.innerHTML = `<i class="fa-solid fa-location-dot text-indigo-400"></i> ${window.sanitizeTextForDOM(staff.school || staff.branch || 'Jern Yafoor School')}`;
+        branchEl.innerHTML = `<i class="fa-solid fa-location-dot text-indigo-400"></i> ${staff.school || staff.branch || 'Jern Yafoor School'}`;
     }
 
     if (imgEl) {
@@ -1044,153 +894,72 @@ window.openImageZoom = (url) => {
 };
 
 // ================================================================ */
-// COMPRESSION & IMAGE HELPERS (FIXED v4.4 - IMAGE LOAD MANAGER)   */
+// COMPRESSION & IMAGE HELPERS (FIXED v4.3 - WITH RETRY & SAFARI BUGFIX) */
 // ================================================================ */
 
-/**
- * Requirement 1 & 2: ImageLoadManager handles timeouts and retries
- */
-class ImageLoadManager {
-    constructor(options = {}) {
-        this.timeout = options.timeout || 10000;
-        this.maxRetries = options.maxRetries || 3;
-        this.onProgress = options.onProgress || (() => {});
-        this.controller = new AbortController();
-    }
-
-    async load(file) {
-        let attempt = 0;
-        let lastErr = null;
-
-        while (attempt < this.maxRetries) {
-            try {
-                if (this.controller.signal.aborted) throw new DOMException("Aborted", "AbortError");
-
-                const progress = Math.round((attempt / this.maxRetries) * 100);
-                this.onProgress(progress || 10, `Processing Image (Attempt ${attempt + 1})...`);
-
-                return await this._loadImage(file);
-            } catch (err) {
-                lastErr = err;
-                if (err.name === 'AbortError') throw err;
-
-                attempt++;
-                if (attempt >= this.maxRetries) break;
-
-                const backoff = Math.pow(2, attempt) * 500;
-                this.onProgress((attempt / this.maxRetries) * 100, `Load Failed. Retrying in ${backoff/1000}s...`);
-                await new Promise(r => setTimeout(r, backoff));
+window.compressImageFile = async (file, maxWidth = 1000, maxHeight = 1000, quality = 0.7) => {
+    return new Promise((resolve, reject) => {
+        try {
+            if (!file) {
+                return reject(new Error("No file provided for compression"));
             }
-        }
-        throw lastErr || new Error("Image failed to load after multiple attempts.");
-    }
-
-    _loadImage(file) {
-        return new Promise((resolve, reject) => {
-            const timeoutId = setTimeout(() => {
-                this.controller.abort();
-                reject(new Error("Timeout: Image took too long to load (10s limit)"));
-            }, this.timeout);
 
             const reader = new FileReader();
-            const abortHandler = () => {
-                reader.abort();
-                clearTimeout(timeoutId);
-                reject(new DOMException("Image load cancelled by user", "AbortError"));
-            };
-
-            this.controller.signal.addEventListener('abort', abortHandler);
-
             reader.onload = (e) => {
                 const img = new Image();
                 img.onload = () => {
-                    clearTimeout(timeoutId);
-                    this.controller.signal.removeEventListener('abort', abortHandler);
-                    resolve(img);
+                    try {
+                        const canvas = document.createElement('canvas');
+                        let w = img.width;
+                        let h = img.height;
+
+                        // Calculate aspect ratio with Math.floor to avoid fractional canvas bounds
+                        if (w > h) {
+                            if (w > maxWidth) {
+                                h = Math.round(h * (maxWidth / w));
+                                w = maxWidth;
+                            }
+                        } else {
+                            if (h > maxHeight) {
+                                w = Math.round(w * (maxHeight / h));
+                                h = maxHeight;
+                            }
+                        }
+
+                        canvas.width = Math.max(1, w);
+                        canvas.height = Math.max(1, h);
+
+                        const ctx = canvas.getContext('2d');
+                        if (!ctx) {
+                            return reject(new Error("Failed to get 2D context"));
+                        }
+
+                        ctx.imageSmoothingEnabled = true;
+                        ctx.imageSmoothingQuality = 'high';
+                        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+                        const compressedDataUrl = canvas.toDataURL("image/jpeg", quality);
+
+                        // Cleanup Canvas memory context
+                        canvas.width = 0;
+                        canvas.height = 0;
+
+                        resolve(compressedDataUrl);
+                    } catch (err) {
+                        reject(err);
+                    }
                 };
-                img.onerror = () => {
-                    clearTimeout(timeoutId);
-                    this.controller.signal.removeEventListener('abort', abortHandler);
-                    reject(new Error("Critical: Image decoding failed (Corrupt data)"));
-                };
+
+                img.onerror = () => reject(new Error("Failed to decode image data"));
                 img.src = e.target.result;
             };
 
-            reader.onerror = () => {
-                clearTimeout(timeoutId);
-                this.controller.signal.removeEventListener('abort', abortHandler);
-                reject(new Error("Critical: Failed to read local file"));
-            };
-
+            reader.onerror = () => reject(new Error("Failed to read image file"));
             reader.readAsDataURL(file);
-        });
-    }
-
-    abort() {
-        this.controller.abort();
-    }
-}
-
-window.compressImageFile = async (file, maxWidth = 1000, maxHeight = 1000, quality = 0.7) => {
-    if (!file) throw new Error("No file provided for compression");
-
-    const manager = new ImageLoadManager({
-        onProgress: (pct, msg) => window.updateGlobalLoaderProgress(pct, msg)
-    });
-
-    // Requirement 4: Abort mechanism
-    const abortBtn = document.getElementById('loader-abort-btn');
-    if (abortBtn) {
-        abortBtn.onclick = () => {
-            manager.abort();
-            window.hideGlobalSpinner();
-        };
-    }
-
-    try {
-        const img = await manager.load(file);
-
-        // Canvas Processing
-        const canvas = document.createElement('canvas');
-        let w = img.width;
-        let h = img.height;
-
-        if (w > h) {
-            if (w > maxWidth) {
-                h = Math.round(h * (maxWidth / w));
-                w = maxWidth;
-            }
-        } else {
-            if (h > maxHeight) {
-                w = Math.round(w * (maxHeight / h));
-                h = maxHeight;
-            }
+        } catch (err) {
+            reject(err);
         }
-
-        canvas.width = Math.max(1, w);
-        canvas.height = Math.max(1, h);
-
-        const ctx = canvas.getContext('2d');
-        if (!ctx) throw new Error("Failed to initialize graphics context");
-
-        ctx.imageSmoothingEnabled = true;
-        ctx.imageSmoothingQuality = 'high';
-        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-
-        const compressedDataUrl = canvas.toDataURL("image/jpeg", quality);
-
-        // Requirement 6: Memory Cleanup
-        canvas.width = 0;
-        canvas.height = 0;
-        img.src = ""; // Clear image data from memory
-
-        return compressedDataUrl;
-    } catch (err) {
-        // Requirement 5: User-friendly error messages
-        const errMsg = err.name === 'AbortError' ? "Upload cancelled by user." : `Image Error: ${err.message}`;
-        window.showWhatsAppToast("❌ Process Failed", errMsg, "error");
-        throw err;
-    }
+    });
 };
 
 // ✅ FIXED: Compress with retry and exponential fallback
@@ -1562,15 +1331,84 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     observer.observe(document.body, { childList: true, subtree: true });
+});
 
-    // 🔧 FIXED: Store observer globally for cleanup
-    window._uiModuleObserver = observer;
+// ================================================================ */
+// AUTOMATIC SPINNER ATTACHMENT (FIXED v4.3 - VALIDATION SAFE)    */
+// ================================================================ */
 
-    // Disconnect observer on page unload to prevent memory leaks
-    window.addEventListener('beforeunload', () => {
-        if (window._uiModuleObserver) {
-            window._uiModuleObserver.disconnect();
-            console.log("✅ MutationObserver cleaned up on page unload");
+document.addEventListener('DOMContentLoaded', () => {
+    // Override existing logout buttons
+    const attachLogoutListeners = () => {
+        const logoutBtns = document.querySelectorAll('#logout-btn, .logout-btn, [onclick*="logoutStaff"]');
+        logoutBtns.forEach(btn => {
+            if (!btn.dataset.logoutBound) {
+                btn.onclick = (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    if (typeof window.executeSecureLogout === 'function') {
+                        window.executeSecureLogout();
+                    }
+                };
+                btn.dataset.logoutBound = "true";
+            }
+        });
+    };
+
+    attachLogoutListeners();
+
+    if (typeof window.initSidebarProfileAndRestrictions === 'function') {
+        window.initSidebarProfileAndRestrictions();
+    }
+
+    // Auto-catch all form submit events ONLY IF valid
+    document.addEventListener('submit', (e) => {
+        const form = e.target;
+        if (form && typeof form.checkValidity === 'function' && !form.checkValidity()) {
+            return; // Don't show spinner if HTML5 form validation fails
         }
+        if (typeof window.showGlobalSpinner === 'function') {
+            window.showGlobalSpinner("Saving Data...");
+        }
+    }, true);
+
+    // Auto-catch all primary action buttons with validation check
+    const attachButtonListeners = () => {
+        document.querySelectorAll('button[type="submit"], .btn-primary, .submit-btn, .btn-submit-transfer').forEach(btn => {
+            if (!btn.dataset.spinnerBound) {
+                btn.addEventListener('click', (e) => {
+                    const form = btn.closest('form');
+
+                    // If button is inside a form, let form submit listener handle spinner safely
+                    if (form) {
+                        if (form.checkValidity()) {
+                            setTimeout(() => {
+                                if (typeof window.showGlobalSpinner === 'function') {
+                                    window.showGlobalSpinner("Please wait...");
+                                }
+                            }, 50);
+                        }
+                    } else {
+                        // Standalone buttons (not in forms)
+                        setTimeout(() => {
+                            if (typeof window.showGlobalSpinner === 'function') {
+                                window.showGlobalSpinner("Please wait...");
+                            }
+                        }, 50);
+                    }
+                });
+                btn.dataset.spinnerBound = "true";
+            }
+        });
+    };
+
+    attachButtonListeners();
+
+    // Observe DOM changes to attach listeners to dynamic elements
+    const observer = new MutationObserver(() => {
+        attachLogoutListeners();
+        attachButtonListeners();
     });
+
+    observer.observe(document.body, { childList: true, subtree: true });
 });

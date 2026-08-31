@@ -343,9 +343,7 @@
         <source src="launch_video.mp4" type="video/mp4">
         <img src="jys_Icon.png" alt="Loading...">
     </video>
-    <button id="skipVideoBtn" class="absolute top-8 right-8 px-8 py-3 bg-black/40 backdrop-blur-md text-white border border-white/20 rounded-full font-bold text-[10px] uppercase tracking-widest hover:bg-black/60 active:scale-90 transition-all z-[1000001]">
-        <i class="fa-solid fa-xmark mr-2"></i>SKIP
-    </button>
+    <button id="skipVideoBtn" class="absolute top-8 right-8 px-8 py-3 bg-black/40 backdrop-blur-md text-white border border-white/20 rounded-full font-bold text-[10px] uppercase tracking-widest hover:bg-black/60 transition-all z-[1000000] active:scale-95 shadow-2xl">Skip Intro</button>
 </div>
 
 <div class="app-container">
@@ -569,33 +567,18 @@
 <!-- ============================================ -->
 <!-- SCRIPTS -->
 <!-- ============================================ -->
-<script type="module">
-    // 🔧 FIXED: Error handling for module imports
-    const modules = [
-        './firebase_config.js',
-        './field_normalizer.js',
-        './drive_module.js',
-        './ui_module.js',
-        './import_module.js',
-        './export_module.js',
-        './audit_module.js',
-        './attendance_module.js',
-        './tasks_module.js',
-        './admin_module.js',
-        './visitor_module.js',
-        './init_module.js'
-    ];
-
-    Promise.all(modules.map(m =>
-        import(m + '?v=4.0')
-            .catch(e => {
-                console.error(`❌ Failed to load module: ${m}`, e);
-                window.showWhatsAppToast?.('⚠️ Module Load Error', `Failed to load: ${m}`, 'warning');
-            })
-    )).then(() => {
-        console.log('✅ All core modules loaded successfully');
-    });
-</script>
+<script type="module" src="firebase_config.js?v=4.0"></script>
+<script type="module" src="field_normalizer.js?v=4.0"></script>
+<script type="module" src="drive_module.js?v=4.0"></script>
+<script type="module" src="ui_module.js?v=4.0"></script>
+<script type="module" src="import_module.js?v=4.0"></script>
+<script type="module" src="export_module.js?v=4.0"></script>
+<script type="module" src="audit_module.js?v=4.0"></script>
+<script type="module" src="attendance_module.js?v=4.0"></script>
+<script type="module" src="tasks_module.js?v=4.0"></script>
+<script type="module" src="admin_module.js?v=4.0"></script>
+<script type="module" src="visitor_module.js?v=4.0"></script>
+<script type="module" src="init_module.js?v=4.0"></script>
 
 <script>
     // 🚫 GLOBAL RELOAD KILL-SWITCH
@@ -768,7 +751,7 @@
     <div class="bg-white w-full max-w-lg rounded-[40px] overflow-hidden shadow-2xl border border-slate-100 p-8">
         <div class="flex justify-between items-center mb-8">
             <h3 class="text-2xl font-black text-indigo-900 uppercase tracking-tighter">Choose Entry Mode</h3>
-            <button onclick="window.closePortalSelector()" class="w-10 h-10 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center transition-colors hover:bg-slate-200 active:scale-90">
+            <button onclick="window.closePortalSelector()" class="w-10 h-10 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center transition-colors hover:bg-slate-200 active:scale-95" aria-label="Close modal">
                 <i class="fa-solid fa-xmark text-lg"></i>
             </button>
         </div>

@@ -280,55 +280,67 @@
                 </label>
                 <div class="input-with-camera">
                     <input type="text"
-                           id="f1_disposal_barcode_input"
+                           id="disposal-barcode-input"
                            placeholder="ENTER BARCODE..."
                            class="text-sm font-bold uppercase tracking-wider"
                            oninput="window.handleDisposalBarcodeInput(this.value)">
                     <button type="button"
                             class="camera-btn bg-red"
-                            onclick="window.startCameraScanner('f1_disposal_barcode_input')">
+                            onclick="window.startCameraScanner('disposal-barcode-input')">
                         <i class="fa-solid fa-camera"></i>
                     </button>
                 </div>
             </div>
 
             <!-- Asset Preview Card -->
-            <div id="disposal-asset-preview" class="preview-card">
+            <div id="disposal-asset-preview-card" class="preview-card">
                 <div class="flex items-center justify-center h-full text-slate-400">
                     <span class="text-[10px] font-bold uppercase tracking-widest">Scan barcode to load asset details</span>
                 </div>
             </div>
 
-            <!-- PHOTO SECTION: TWO PHOTOS -->
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <!-- 1. Initial/Before Photo -->
-                <div class="input-group">
-                    <label class="text-[10px] font-black text-indigo-500 uppercase tracking-wider flex items-center gap-2">
-                        <i class="fa-solid fa-camera"></i> 1. Initial/Before Photo *
-                    </label>
-                    <input type="file" id="initial-photo-input" capture="environment" accept="image/*" class="hidden" onchange="window.handleInitialPhotoUpload(event)">
-                    <button type="button" onclick="document.getElementById('initial-photo-input').click()" class="w-full py-4 border-2 border-dashed border-indigo-200 rounded-2xl text-indigo-600 font-bold flex flex-col items-center justify-center gap-1 hover:bg-indigo-50 transition-all">
-                        <i class="fa-solid fa-image text-xl"></i>
-                        <span id="initial-photo-btn-text" class="text-[9px] uppercase">Capture Before Photo</span>
-                    </button>
-                    <div id="before-photo-preview" class="hidden mt-2 h-32 rounded-xl overflow-hidden border border-indigo-100 relative">
-                        <img src="" class="w-full h-full object-cover">
+            <!-- Asset Details Grid -->
+            <div id="disposal-asset-details" class="hidden">
+                <div class="detail-grid" id="disposal-details-grid">
+                    <!-- Populated by JavaScript -->
+                </div>
+            </div>
+
+            <!-- Master Register Photo -->
+            <div id="disposal-master-photo-container" class="hidden">
+                <div class="text-center">
+                    <span class="text-[10px] font-bold text-gray-500 uppercase block mb-1">📷 Master Register Photo</span>
+                    <div class="w-full h-32 bg-gray-100 rounded-2xl border-2 border-dashed border-gray-300 flex flex-col items-center justify-center text-center p-2">
+                        <i class="fa-solid fa-image-slash text-gray-400 text-xl mb-1"></i>
+                        <span class="text-xs font-bold text-gray-400 uppercase">No Photo Available</span>
                     </div>
                 </div>
+            </div>
 
-                <!-- 2. Damage/Disposal Photo -->
-                <div class="input-group">
-                    <label class="text-[10px] font-black text-red-500 uppercase tracking-wider flex items-center gap-2">
-                        <i class="fa-solid fa-camera"></i> 2. Damage/After Photo *
-                    </label>
-                    <input type="file" id="damage-photo-input" capture="environment" accept="image/*" class="hidden" onchange="window.handleDamagePhotoUpload(event)">
-                    <button type="button" onclick="document.getElementById('damage-photo-input').click()" class="w-full py-4 border-2 border-dashed border-red-200 rounded-2xl text-red-600 font-bold flex flex-col items-center justify-center gap-1 hover:bg-red-50 transition-all">
-                        <i class="fa-solid fa-image text-xl"></i>
-                        <span id="damage-photo-btn-text" class="text-[9px] uppercase">Capture Damage Photo</span>
+            <!-- Disposal Photo Capture -->
+            <div class="input-group">
+                <label class="text-[10px] font-black text-red-500 uppercase tracking-wider flex items-center gap-2">
+                    <i class="fa-regular fa-image"></i> Disposal Photo (Required)
+                </label>
+                <input type="file"
+                       id="disposal-photo-upload"
+                       capture="environment"
+                       accept="image/*"
+                       class="hidden"
+                       onchange="window.handleDisposalPhotoUpload(event)">
+                <button type="button"
+                        onclick="document.getElementById('disposal-photo-upload').click()"
+                        class="w-full py-4 border-2 border-dashed border-red-200 rounded-2xl text-red-600 font-bold flex items-center justify-center gap-3 hover:bg-red-50 transition-all active:scale-[0.98]">
+                    <i class="fa-solid fa-camera text-xl"></i>
+                    <span id="disposal-photo-btn-text">Take Disposal Photo</span>
+                </button>
+                <div id="disposal-photo-preview" class="hidden mt-3 h-40 rounded-2xl overflow-hidden border-2 border-red-100 shadow-sm relative">
+                    <img id="disposal-photo-preview-img" src="" class="w-full h-full object-cover">
+                    <button type="button"
+                            onclick="window.removeDisposalPhoto()"
+                            class="absolute top-2 right-2 bg-red-500 text-white w-8 h-8 rounded-full shadow-lg flex items-center justify-center active:scale-90 transition-transform">
+                        <i class="fa-solid fa-trash-can text-xs"></i>
                     </button>
-                    <div id="disposal-photo-preview" class="hidden mt-2 h-32 rounded-xl overflow-hidden border border-red-100 relative">
-                        <img src="" class="w-full h-full object-cover">
-                    </div>
                 </div>
             </div>
 
@@ -336,11 +348,11 @@
             <div class="grid grid-cols-2 gap-3">
                 <div class="input-group">
                     <label class="text-[9px] font-black text-slate-400 uppercase">Current Date</label>
-                    <input type="text" id="disposal-date" readonly class="w-full p-3 bg-slate-100 border border-slate-200 rounded-xl text-[10px] font-bold">
+                    <input type="text" id="disposal-current-date" readonly class="w-full p-3 bg-slate-100 border border-slate-200 rounded-xl text-[10px] font-bold">
                 </div>
                 <div class="input-group">
                     <label class="text-[9px] font-black text-slate-400 uppercase">Current Time</label>
-                    <input type="text" id="disposal-time" readonly class="w-full p-3 bg-slate-100 border border-slate-200 rounded-xl text-[10px] font-bold">
+                    <input type="text" id="disposal-current-time" readonly class="w-full p-3 bg-slate-100 border border-slate-200 rounded-xl text-[10px] font-bold">
                 </div>
             </div>
 
@@ -349,7 +361,7 @@
                 <label class="text-[9px] font-black text-slate-400 uppercase flex items-center gap-1">
                     <i class="fa-regular fa-user"></i> Disposed By
                 </label>
-                <input type="text" id="disposed-by-name" readonly class="w-full p-3 bg-slate-100 border border-slate-200 rounded-xl text-[10px] font-bold text-red-600">
+                <input type="text" id="disposal-initiated-by" readonly class="w-full p-3 bg-slate-100 border border-slate-200 rounded-xl text-[10px] font-bold text-red-600">
             </div>
 
             <!-- Reason -->
@@ -357,17 +369,17 @@
                 <label class="text-[10px] font-black text-red-500 uppercase tracking-wider flex items-center gap-2">
                     <i class="fa-regular fa-pen-to-square"></i> Reason Of Disposal *
                 </label>
-                <textarea id="disposal-reason"
+                <textarea id="disposal-reason-input"
                           placeholder="Enter reason for disposal..."
                           class="w-full px-4 py-4 bg-slate-50 border-2 border-slate-200 rounded-xl focus:border-red-500 focus:bg-white outline-none transition-all h-24 resize-none text-[10px]"></textarea>
             </div>
 
             <!-- Submit Button -->
-            <button id="submit-disposal-btn"
-                    onclick="window.submitAssetDisposal()"
-                    class="btn-primary w-full py-5 bg-gradient-to-r from-red-600 to-red-800 text-white rounded-2xl font-black text-lg shadow-xl shadow-red-500/30 active:scale-[0.98] transition-all flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed"
+            <button id="disposal-submit-btn"
+                    onclick="window.submitDisposalRequest()"
+                    class="w-full py-5 bg-gradient-to-r from-red-600 to-red-800 text-white rounded-2xl font-black text-lg shadow-xl shadow-red-500/30 active:scale-[0.98] transition-all flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed"
                     disabled>
-                <i class="fa-solid fa-trash-can"></i> CONFIRM DISPOSAL
+                <i class="fa-solid fa-trash-can"></i> CONFIRM SCRAP & DISPOSE
             </button>
 
             <!-- Hidden fields -->
@@ -425,10 +437,6 @@
                         <div class="input-group">
                             <label>Collection Date *</label>
                             <input type="date" id="t_collection_date" required>
-                        </div>
-                        <div class="input-group">
-                            <label>Target Location / Destination *</label>
-                            <input type="text" id="t_target_location" placeholder="e.g. Building B, Room 102" required>
                         </div>
                     </div>
                 </div>
@@ -1287,34 +1295,22 @@
                 }
             }
 
-            // Create disposal record with all fields required for Admin Dashboard
+            // Create disposal record
             const requestId = `${barcode}_${Date.now()}`;
             const disposalRecord = {
                 requestId: requestId,
                 assetBarcode: barcode,
                 assetName: asset.assetName || asset.description || 'Unknown Asset',
-                assetDescription: asset.description || asset.assetName || '-',
                 assetCategory: asset.category || asset.majorCategory || 'Unknown',
-                assetMajorCategory: asset.majorCategory || '-',
-                assetMinorCategory: asset.minorCategory || '-',
-                assetSubMinorCategory: asset.subMinorCategory || '-',
                 assetLocation: asset.location || asset.roomName || 'Unknown',
-                assetLocationName: asset.location || asset.roomName || '-',
                 assetVendor: asset.vendor || asset.manufacturer || 'Unknown',
-                assetVendorName: asset.vendor || '-',
                 assetStatus: asset.assetStatus || 'Active',
                 assetSerial: asset.serialNo || '',
                 assetCustodian: asset.custodian || 'Unassigned',
                 assetDepartment: asset.department || '',
                 assetBuilding: asset.building || '',
-                assetSchoolBuildingName: asset.building || '-',
                 assetRoom: asset.roomNo || asset.roomName || '',
-                assetRoomNo: asset.roomNo || '-',
-                assetRoomName: asset.roomName || '-',
                 assetFloor: asset.floorNo || '',
-                assetFloorNo: asset.floorNo || '-',
-                assetFloorDescription: asset.floorDescription || '-',
-                datePlaceInService: asset.dateInService || '-',
                 reason: reason,
                 disposalPhotoUrl: photoUrl,
                 requestedBy: staffName,
@@ -1740,15 +1736,6 @@
 <script type="module" src="audit_module.js?v=4.1"></script>
 <script type="module" src="staff_asset_module.js?v=4.1"></script>
 <script src="asset_management.js?v=4.5"></script>
-
-<!-- ===== LOADING SPINNER (UPGRADED v3.3 - LOGO RING) ===== -->
-<div id="universal-logo-loader" style="display: none; position: fixed; inset: 0; width: 100vw; height: 100vh; background: rgba(15, 23, 42, 0.95); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); z-index: 99999999; flex-direction: column; align-items: center; justify-content: center;">
-    <div class="checkin-loader-overlay relative flex items-center justify-center">
-        <img src="schoollogo.png" class="logo-pulse-anim w-24 h-24 object-contain relative z-10" alt="JYS" onerror="this.src='jys_Icon.png'">
-        <div class="spinner-ring absolute inset-[-20px] border-4 border-indigo-500/20 border-t-indigo-500 rounded-full animate-spin" style="width: 140px; height: 140px;"></div>
-    </div>
-    <p id="universal-loader-text" style="color: #ffffff; font-weight: 800; margin-top: 32px; font-family: 'Poppins', sans-serif; letter-spacing: 2px; text-transform: uppercase; font-size: 14px; text-shadow: 0 2px 4px rgba(0,0,0,0.5);">Processing, please wait...</p>
-</div>
 
 </body>
 </html>
