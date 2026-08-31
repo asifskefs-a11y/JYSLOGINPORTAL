@@ -64,7 +64,8 @@ window.filterActiveAssets = function(assets) {
     return assets.filter(a => {
         if (!a) return false;
         const status = (a.assetStatus || a.status || '').toLowerCase();
-        return status !== 'disposed' && status !== 'pending_disposal' && status !== 'scrapped';
+        // Hide transferred and disposed items from the Primary Register
+        return status !== 'disposed' && status !== 'pending_disposal' && status !== 'scrapped' && status !== 'transferred';
     });
 };
 
@@ -220,7 +221,7 @@ window.initAdminRealTimeListeners = function() {
     registerListener('staff_attendance', 'attendance', 'tab-staff-logs', window.filterStaffTable);
     registerListener('tasks', 'tasks', 'tab-tasks');
     registerListener('staff', 'staff', 'tab-staff-list', window.filterStaffDirectory);
-    registerListener('ASSET_DISPOSAL_REGISTRY', 'disposalRegistry', 'tab-disposal');
+    registerListener('disposed_assets', 'disposalRegistry', 'tab-disposal');
     registerListener('asset_disposal_requests', 'disposalRequests', 'tab-disposal', window.filterDisposalTable);
     registerListener('asset_transfers', 'transfers', 'tab-transfers', window.filterTransferTable);
 
@@ -1056,6 +1057,156 @@ window.openAttendanceDetailModal = function(staffKey) {
     modal.style.display = 'flex';
 };
 
+/**
+ * Open Detailed Transfer/Movement Modal
+ */
+window.viewMovementDetails = function(transferId) {
+    if (!transferId) return;
+    const record = window.appCache.transfers.find(t => (t.transferId === transferId || t.firebaseKey === transferId));
+    if (!record) return alert("Movement record not found.");
+
+    const modal = document.getElementById('view-staff-modal');
+    if (!modal) return;
+
+    const assetRows = (record.assets || []).map((a, i) => `
+        <div class="p-3 bg-slate-50 rounded-xl border border-slate-100 flex items-center gap-3">
+            <div class="w-6 h-6 bg-indigo-100 rounded-full flex items-center justify-center text-[10px] font-bold text-indigo-600">${i+1}</div>
+            <div class="flex-1">
+                <p class="text-[10px] font-black text-slate-900 uppercase">${a.name}</p>
+                <p class="text-[8px] font-bold text-indigo-500 uppercase tracking-tighter">${a.barcode} • SN: ${a.serialNo || '-'}</p>
+            </div>
+        </div>
+    `).join('');
+
+    modal.innerHTML = `
+        <div class="bg-white w-full max-w-2xl rounded-[40px] overflow-hidden shadow-2xl p-8 relative fade-in max-h-[95vh] flex flex-col">
+            <div class="flex justify-between items-center mb-6 border-b border-slate-100 pb-5 shrink-0">
+                <div>
+                    <h3 class="text-2xl font-black text-indigo-900 uppercase tracking-tight">Transfer Manifest</h3>
+                    <p class="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] mt-1">ID: ${record.transferId}</p>
+                </div>
+                <button onclick="document.getElementById('view-staff-modal').classList.add('hidden')" class="w-10 h-10 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center hover:bg-red-50 hover:text-red-500 transition-all text-xl">&times;</button>
+            </div>
+
+            <div class="space-y-6 overflow-y-auto pr-2 custom-scrollbar flex-1">
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="bg-indigo-50 p-4 rounded-2xl border border-indigo-100">
+                        <span class="text-[9px] font-black text-indigo-400 uppercase block mb-1">Source Location</span>
+                        <span class="font-black text-slate-900 text-sm">${record.fromLocation || '-'}</span>
+                    </div>
+                    <div class="bg-indigo-600 p-4 rounded-2xl border border-indigo-700 shadow-lg">
+                        <span class="text-[9px] font-black text-white/60 uppercase block mb-1">Target Destination</span>
+                        <span class="font-black text-white text-sm">${record.toLocation || '-'}</span>
+                    </div>
+                </div>
+
+                <div class="bg-slate-50 p-5 rounded-3xl border border-slate-100">
+                    <span class="text-[9px] font-black text-slate-400 uppercase block mb-3 tracking-widest underline decoration-2 underline-offset-4 decoration-indigo-200">Asset Batch (${(record.assets || []).length} Items)</span>
+                    <div class="space-y-2">
+                        ${assetRows || '<p class="text-center py-4 text-slate-400 font-bold uppercase text-[10px]">No assets listed</p>'}
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm">
+                        <span class="text-[9px] font-black text-slate-400 uppercase block mb-1">Initiator</span>
+                        <span class="font-black text-slate-900 text-xs uppercase">${record.initiatorName}</span>
+                        <span class="block text-[7px] text-indigo-500 font-bold uppercase">${record.staffRole || 'Staff'}</span>
+                    </div>
+                    <div class="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm">
+                        <span class="text-[9px] font-black text-slate-400 uppercase block mb-1">Collector / Date</span>
+                        <span class="font-black text-slate-900 text-xs uppercase">${record.collectorName}</span>
+                        <span class="block text-[7px] text-slate-400 font-bold uppercase">${record.companyName} • ${record.collectionDate}</span>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="text-center bg-white p-4 rounded-2xl border border-slate-100">
+                        <span class="text-[8px] font-black text-indigo-400 uppercase block mb-2">Security: ${record.securityName || 'Signed'}</span>
+                        <img src="${record.securitySignatureUrl}" class="max-h-16 object-contain mx-auto mix-blend-multiply" onerror="this.style.display='none'">
+                    </div>
+                    <div class="text-center bg-white p-4 rounded-2xl border border-slate-100">
+                        <span class="text-[8px] font-black text-indigo-400 uppercase block mb-2">Receiver: ${record.receiverName || 'Signed'}</span>
+                        <img src="${record.receivedSignatureUrl}" class="max-h-16 object-contain mx-auto mix-blend-multiply" onerror="this.style.display='none'">
+                    </div>
+                </div>
+
+                ${record.transferPhotoUrl ? `
+                    <div class="rounded-3xl overflow-hidden border-2 border-indigo-50 shadow-inner">
+                        <img src="${window.getDirectDriveImageUrl(record.transferPhotoUrl)}" class="w-full h-48 object-cover cursor-pointer" onclick="window.openImageZoom('${record.transferPhotoUrl}')">
+                    </div>
+                ` : ''}
+            </div>
+
+            <button onclick="document.getElementById('view-staff-modal').classList.add('hidden')" class="w-full mt-6 py-4 bg-indigo-900 text-white rounded-2xl font-black text-sm uppercase tracking-[0.2em] shadow-xl active:scale-95 transition-all shrink-0">Close Manifest</button>
+        </div>
+    `;
+    modal.classList.remove('hidden');
+    modal.style.display = 'flex';
+};
+
+/**
+ * Open Detailed Disposal Modal
+ */
+window.viewDisposalDetails = function(requestId) {
+    if (!requestId) return;
+    const record = window.appCache.disposalRegistry.find(d => (d.requestId === requestId || d.assetBarcode === requestId));
+    if (!record) return alert("Disposal record not found.");
+
+    const modal = document.getElementById('view-staff-modal');
+    if (!modal) return;
+
+    modal.innerHTML = `
+        <div class="bg-white w-full max-w-xl rounded-[40px] overflow-hidden shadow-2xl p-8 relative fade-in">
+            <div class="flex justify-between items-center mb-8 border-b border-slate-100 pb-5">
+                <div>
+                    <h3 class="text-2xl font-black text-red-900 uppercase tracking-tight">Disposal Audit</h3>
+                    <p class="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] mt-1">Barcode: ${record.assetBarcode}</p>
+                </div>
+                <button onclick="document.getElementById('view-staff-modal').classList.add('hidden')" class="w-10 h-10 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center hover:bg-red-50 hover:text-red-500 transition-all text-xl">&times;</button>
+            </div>
+
+            <div class="space-y-6 text-gray-800">
+                <div class="flex items-center gap-5 bg-red-50 p-5 rounded-[2.5rem] border border-red-100 shadow-sm">
+                    <div class="w-16 h-16 bg-red-600 rounded-2xl flex items-center justify-center text-white text-2xl font-black shadow-lg">
+                        <i class="fa-solid fa-trash-can"></i>
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <h4 class="font-black text-red-950 uppercase text-lg truncate">${record.assetName || record["ASSET DESCRIPTION"]}</h4>
+                        <p class="text-[11px] font-black text-red-600 uppercase tracking-widest mt-0.5">${record.assetCategory || record["CATEGORY"]}</p>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200">
+                        <span class="text-[9px] font-black text-slate-400 uppercase block mb-1">Disposal Date</span>
+                        <span class="font-black text-slate-900 text-sm">${record.date || record["DISPOSAL DATE"] || '-'}</span>
+                    </div>
+                    <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200">
+                        <span class="text-[9px] font-black text-slate-400 uppercase block mb-1">Initiator</span>
+                        <span class="font-black text-slate-900 text-sm uppercase">${record.requestedBy || record["DISPOSED BY NAME"] || '-'}</span>
+                    </div>
+                </div>
+
+                <div class="bg-red-50/50 p-5 rounded-[2rem] border border-red-100 shadow-inner">
+                    <span class="text-[9px] font-black text-red-400 uppercase block mb-2 tracking-widest">Reason for Scrap</span>
+                    <p class="text-xs font-bold text-red-800 leading-relaxed">${record.reason || record["DISPOSAL REASON"] || '-'}</p>
+                </div>
+
+                ${(record.disposalPhotoUrl || record["DISPOSAL PHOTO"]) ? `
+                    <div class="rounded-3xl overflow-hidden border border-red-100 shadow-sm">
+                        <img src="${window.getDirectDriveImageUrl(record.disposalPhotoUrl || record["DISPOSAL PHOTO"])}" class="w-full h-48 object-cover cursor-pointer" onclick="window.openImageZoom('${record.disposalPhotoUrl || record["DISPOSAL PHOTO"]}')">
+                    </div>
+                ` : ''}
+            </div>
+
+            <button onclick="document.getElementById('view-staff-modal').classList.add('hidden')" class="w-full mt-10 py-5 bg-red-600 text-white rounded-2xl font-black text-sm uppercase tracking-[0.2em] shadow-xl active:scale-95 transition-all">Close Audit View</button>
+        </div>
+    `;
+    modal.classList.remove('hidden');
+    modal.style.display = 'flex';
+};
+
 // ================================================================ */
 // ✅ ASSET MANAGEMENT MODALS & ACTIONS                             */
 // ================================================================ */
@@ -1273,31 +1424,86 @@ window.loadAdminDisposalTable = function() {
     const body = document.getElementById('admin-disposal-list-body');
     if (!body) return;
 
-    const data = (window.appCache.disposalRequests || []).sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+    // Show finalized Disposed Assets by default
+    const data = (window.appCache.disposalRegistry || []).sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
 
     window.adminPaginators.disposal.init(data, (pageItems) => {
-        body.innerHTML = pageItems.length ? pageItems.map(d => `
-            <tr class="hover:bg-red-50 border-b text-[10px]">
+        body.innerHTML = pageItems.length ? pageItems.map(d => {
+            const assetName = d.assetName || d["ASSET DESCRIPTION"] || "Unknown Asset";
+            const assetSerial = d.assetSerial || "-";
+            const vendor = d.assetVendor || d["ASSET VENDOR NAME"] || "-";
+            const category = d.assetCategory || d["CATEGORY"] || "-";
+            const date = d.date || d["DISPOSAL DATE"] || "-";
+            const time = d.time || d["DISPOSAL TIME"] || "";
+            const lastLoc = d.assetLocation || d["LOCATION NAME"] || "-";
+            const building = d.assetBuilding || d["SCHOOL BUILDING NAME"] || "-";
+            const room = d.assetRoom || d["ROOM NAME"] || "-";
+            const reason = d.reason || d["DISPOSAL REASON"] || "-";
+            const initiator = d.requestedBy || d["DISPOSED BY NAME"] || "-";
+            const role = d.requestedByRole || d["DISPOSED BY ROLE"] || "Staff";
+            const photo = d.disposalPhotoUrl || d["DISPOSAL PHOTO"];
+            const logId = d.firebaseKey || d.requestId || d.assetBarcode;
+
+            return `
+            <tr class="hover:bg-red-50/50 border-b text-[10px]">
                 <td class="p-3 font-mono font-bold text-red-600">${d.assetBarcode || "-"}</td>
-                <td class="p-3 font-bold">${d.assetDescription || d.assetName || "-"}</td>
-                <td class="p-3">${d.assetVendorName || d.assetVendor || "-"}</td>
-                <td class="p-3">${d.assetCategory || "-"}</td>
-                <td class="p-3">${d.datePlaceInService || d.date || "-"}</td>
-                <td class="p-3">${d.assetFloorDescription || "-"}</td>
-                <td class="p-3">${d.assetFloorNo || d.assetFloor || "-"}</td>
-                <td class="p-3">${d.assetLocationName || d.assetLocation || "-"}</td>
-                <td class="p-3">${d.assetMajorCategory || "-"}</td>
-                <td class="p-3">${d.assetMinorCategory || "-"}</td>
-                <td class="p-3">${d.assetSchoolBuildingName || d.assetBuilding || "-"}</td>
-                <td class="p-3">${d.assetRoomNo || "-"}</td>
-                <td class="p-3">${d.assetRoomName || d.assetRoom || "-"}</td>
-                <td class="p-3">${d.assetSubMinorCategory || "-"}</td>
-                <td class="p-3 text-center">${d.disposalPhotoUrl ? `<img src="${window.getDirectDriveImageUrl(d.disposalPhotoUrl)}" class="h-6 mx-auto rounded shadow-sm" onclick="window.openImageZoom('${d.disposalPhotoUrl}')">` : 'No Photo'}</td>
-                <td class="p-3 text-center">
-                    <button onclick="window.approveDisposal('${d.requestId}')" class="text-emerald-600 hover:scale-110"><i class="fa-solid fa-check-circle"></i></button>
-                    <button onclick="window.rejectDisposal('${d.requestId}')" class="text-red-600 hover:scale-110 ml-2"><i class="fa-solid fa-circle-xmark"></i></button>
+                <td class="p-3">
+                    <div class="flex flex-col gap-1">
+                        <span class="font-black text-slate-900 uppercase leading-tight">${assetName}</span>
+                    </div>
                 </td>
-            </tr>`).join('') : '<tr><td colspan="16" class="p-8 text-center text-gray-400">No pending requests</td></tr>';
+                <td class="p-3">
+                    <span class="px-2 py-0.5 bg-slate-100 text-slate-600 rounded font-bold text-[8px]">SN: ${assetSerial}</span>
+                </td>
+                <td class="p-3 text-slate-600 font-bold">${vendor}</td>
+                <td class="p-3 font-black text-indigo-500 uppercase">${category}</td>
+                <td class="p-3 text-slate-500 font-bold">
+                    <div class="flex flex-col gap-1">
+                        <span>${date}</span>
+                        <span class="text-[7px] text-slate-400 font-bold">${time}</span>
+                    </div>
+                </td>
+                <td class="p-3">
+                    <div class="flex flex-col gap-1">
+                        <span class="text-[7px] font-black text-slate-400 uppercase tracking-widest">Last Location</span>
+                        <span class="font-bold text-slate-700">${lastLoc}</span>
+                    </div>
+                </td>
+                <td class="p-3">
+                    <div class="flex flex-col gap-1">
+                        <span class="font-bold text-slate-700 uppercase">${building}</span>
+                        <span class="text-[7px] text-slate-400 font-bold uppercase">${room}</span>
+                    </div>
+                </td>
+                <td class="p-3">
+                    <div class="italic text-red-700 font-bold bg-red-50 p-2 rounded border border-red-100/50 min-w-[120px] leading-tight">
+                        ${reason}
+                    </div>
+                </td>
+                <td class="p-3">
+                    <div class="flex flex-col gap-1">
+                        <span class="font-black text-slate-900 uppercase">${initiator}</span>
+                        <span class="text-[7px] text-slate-400 font-bold uppercase">${role}</span>
+                    </div>
+                </td>
+                <td class="p-3 text-center">
+                    ${photo ? `
+                        <img src="${window.getDirectDriveImageUrl(photo)}"
+                             class="h-10 w-10 object-cover rounded border border-red-100 shadow-sm mx-auto cursor-pointer"
+                             onclick="window.openImageZoom('${photo}')"
+                             onerror="this.src='jys_Icon.png'">
+                    ` : '<span class="text-slate-300 italic">No Photo</span>'}
+                </td>
+                <td class="p-3 text-center">
+                    <div class="flex flex-col items-center justify-center gap-2">
+                        <button onclick="window.viewDisposalDetails('${logId}')" class="w-8 h-8 rounded-lg bg-cyan-50 text-cyan-600 flex items-center justify-center hover:bg-cyan-600 hover:text-white transition-all shadow-sm">
+                            <i class="fa-solid fa-eye text-xs"></i>
+                        </button>
+                        <span class="px-2 py-0.5 bg-red-100 text-red-600 rounded-lg font-black uppercase text-[7px] border border-red-200">SCRAPPED</span>
+                    </div>
+                </td>
+            </tr>`;
+        }).join('') : '<tr><td colspan="12" class="p-8 text-center text-gray-400">No disposed assets in registry.</td></tr>';
     });
 };
 
@@ -1400,35 +1606,105 @@ window.renderStandardizedAssetTable = function(data, type) {
     const sortedData = (data || []).sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
 
     window.adminPaginators.transfers.init(sortedData, (pageItems) => {
-        body.innerHTML = pageItems.length ? pageItems.map(t => `
-            <tr class="hover:bg-slate-50 border-b text-[9px] whitespace-nowrap">
-                <td class="p-2 font-mono font-bold">${t.assetBarcode || "-"}</td>
-                <td class="p-2">${t.assetDescription || "-"}</td>
-                <td class="p-2">${t.assetVendorName || "-"}</td>
-                <td class="p-2">${t.category || "-"}</td>
-                <td class="p-2">${t.datePlaceInService || "-"}</td>
-                <td class="p-2">${t.floorDiscretion || "-"}</td>
-                <td class="p-2">${t.floorNo || "-"}</td>
-                <td class="p-2">${t.locationName || "-"}</td>
-                <td class="p-2">${t.majorCategory || "-"}</td>
-                <td class="p-2">${t.minorCategory || "-"}</td>
-                <td class="p-2">${t.schoolBuildingName || "-"}</td>
-                <td class="p-2">${t.roomNumber || "-"}</td>
-                <td class="p-2">${t.roomName || "-"}</td>
-                <td class="p-2">${t.subMinorCategory || "-"}</td>
-                <td class="p-2 text-center">${t.auditPhoto ? `<img src="${window.getDirectDriveImageUrl(t.auditPhoto)}" class="h-6 mx-auto rounded" onclick="window.openImageZoom('${t.auditPhoto}')">` : '-'}</td>
-                <td class="p-2 font-bold">${t.collectorName || "-"}</td>
-                <td class="p-2">${t.companyName || "-"}</td>
-                <td class="p-2">${t.collectionDate || "-"}</td>
-                <td class="p-2">${t.securityName || "-"}</td>
-                <td class="p-2">${t.receivedName || "-"}</td>
-                <td class="p-2 text-center">${t.securitySig ? `<img src="${t.securitySig}" class="h-5 mx-auto bg-white" onclick="window.openImageZoom('${t.securitySig}')">` : '-'}</td>
-                <td class="p-2 text-center">${t.receivedSig ? `<img src="${t.receivedSig}" class="h-5 mx-auto bg-white" onclick="window.openImageZoom('${t.receivedSig}')">` : '-'}</td>
-                <td class="p-2 text-center">${t.proofPhoto ? `<img src="${window.getDirectDriveImageUrl(t.proofPhoto)}" class="h-6 mx-auto rounded" onclick="window.openImageZoom('${t.proofPhoto}')">` : '-'}</td>
-                <td class="p-2 text-center">
-                    <button onclick="window.deleteTransferLog('${t.firebaseKey}')" class="text-red-500 hover:scale-110"><i class="fa-solid fa-trash-can"></i></button>
+        body.innerHTML = pageItems.length ? pageItems.map(t => {
+            const assetList = (t.assets || []).map(a => `<div class="bg-indigo-50/50 p-1 px-2 rounded mb-1 border border-indigo-100/50">
+                <span class="font-black text-indigo-700">${a.barcode}</span>: ${a.name}
+            </div>`).join('');
+            const logId = t.transferId || t.firebaseKey;
+
+            return `
+            <tr class="hover:bg-slate-50 border-b text-[9px]">
+                <!-- 1. Transfer ID -->
+                <td class="p-3 font-mono font-bold text-indigo-600">${t.transferId || "-"}</td>
+
+                <!-- 2. Initiator -->
+                <td class="p-3">
+                    <div class="flex flex-col gap-1">
+                        <span class="font-black text-slate-900 uppercase">${t.initiatorName || "-"}</span>
+                        <span class="text-[7px] text-slate-400 font-bold uppercase">${t.staffRole || "Staff"}</span>
+                    </div>
                 </td>
-            </tr>`).join('') : '<tr><td colspan="24" class="p-8 text-center text-gray-400">No logs found</td></tr>';
+
+                <!-- 3. Batch Details -->
+                <td class="p-3">
+                    <div class="flex flex-col gap-2">
+                        <div class="max-h-24 overflow-y-auto custom-scrollbar min-w-[150px]">
+                            ${assetList || '<span class="text-slate-300">No assets listed</span>'}
+                        </div>
+                        <span class="font-black text-indigo-500 uppercase tracking-tighter">${(t.assets || []).length} items in batch</span>
+                    </div>
+                </td>
+
+                <!-- 4. Source -->
+                <td class="p-3">
+                    <div class="flex flex-col gap-1">
+                        <span class="text-[7px] font-black text-slate-400 uppercase tracking-widest">Source / From</span>
+                        <span class="font-bold text-slate-700">${t.fromLocation || "-"}</span>
+                    </div>
+                </td>
+
+                <!-- 5. Destination -->
+                <td class="p-3">
+                    <div class="flex flex-col gap-1">
+                        <span class="text-[7px] font-black text-indigo-400 uppercase tracking-widest">Destination</span>
+                        <span class="font-bold text-indigo-700">${t.toLocation || "-"}</span>
+                    </div>
+                </td>
+
+                <!-- 6. Collector -->
+                <td class="p-3">
+                    <div class="flex flex-col gap-1">
+                        <span class="font-bold text-slate-800">${t.collectorName || "-"}</span>
+                        <span class="text-[7px] font-black text-slate-400 uppercase">${t.companyName || "-"}</span>
+                    </div>
+                </td>
+
+                <!-- 7. Date -->
+                <td class="p-3 font-mono text-slate-500">${t.collectionDate || "-"}</td>
+
+                <!-- 8. Security Sig -->
+                <td class="p-3 text-center">
+                    ${t.securitySignatureUrl ? `
+                        <div class="flex flex-col items-center gap-1">
+                            <img src="${t.securitySignatureUrl}" class="h-8 max-w-[80px] object-contain border bg-white rounded shadow-sm cursor-pointer" onclick="window.openImageZoom('${t.securitySignatureUrl}')">
+                            <span class="text-[6px] font-black uppercase text-indigo-400">Security: ${t.securityName || 'Signed'}</span>
+                        </div>
+                    ` : '<span class="text-slate-300 italic">No Signature</span>'}
+                </td>
+
+                <!-- 9. Receiver Sig -->
+                <td class="p-3 text-center">
+                    ${t.receivedSignatureUrl ? `
+                        <div class="flex flex-col items-center gap-1">
+                            <img src="${t.receivedSignatureUrl}" class="h-8 max-w-[80px] object-contain border bg-white rounded shadow-sm cursor-pointer" onclick="window.openImageZoom('${t.receivedSignatureUrl}')">
+                            <span class="text-[6px] font-black uppercase text-slate-400">Receiver: ${t.receiverName || 'Signed'}</span>
+                        </div>
+                    ` : '<span class="text-slate-300 italic">No Signature</span>'}
+                </td>
+
+                <!-- 10. Batch Photo -->
+                <td class="p-3 text-center">
+                    ${t.transferPhotoUrl ? `
+                        <img src="${window.getDirectDriveImageUrl(t.transferPhotoUrl)}"
+                             class="h-10 w-10 object-cover rounded border border-indigo-100 shadow-sm mx-auto cursor-pointer"
+                             onclick="window.openImageZoom('${t.transferPhotoUrl}')"
+                             onerror="this.src='jys_Icon.png'">
+                    ` : '<span class="text-slate-300">No Photo</span>'}
+                </td>
+
+                <!-- 11. Action -->
+                <td class="p-3 text-center">
+                    <div class="flex flex-col items-center gap-2">
+                        <button onclick="window.viewMovementDetails('${logId}')" class="w-8 h-8 rounded-lg bg-indigo-50 text-blue-600 flex items-center justify-center hover:bg-blue-600 hover:text-white transition-all shadow-sm">
+                            <i class="fa-solid fa-eye text-xs"></i>
+                        </button>
+                        <button onclick="window.deleteTransferLog('${t.firebaseKey || t.transferId}')" class="w-8 h-8 rounded-lg bg-red-50 text-red-400 hover:text-red-600 hover:scale-110 transition-all shadow-sm">
+                            <i class="fa-solid fa-trash-can text-xs"></i>
+                        </button>
+                    </div>
+                </td>
+            </tr>`;
+        }).join('') : '<tr><td colspan="11" class="p-8 text-center text-gray-400">No transfer records found</td></tr>';
     });
 };
 
@@ -1485,6 +1761,158 @@ window.openTaskInspector = function(taskId) {
         noAfter.classList.remove('hidden');
     }
 
+    modal.classList.remove('hidden');
+    modal.style.display = 'flex';
+};
+
+/**
+ * Open Detailed Transfer/Movement Modal
+ */
+window.viewMovementDetails = function(transferId) {
+    if (!transferId) return;
+    const record = window.appCache.transfers.find(t => (t.transferId === transferId || t.firebaseKey === transferId));
+    if (!record) return alert("Movement record not found.");
+
+    const modal = document.getElementById('view-staff-modal');
+    if (!modal) return;
+
+    const assetRows = (record.assets || []).map((a, i) => `
+        <div class="p-3 bg-slate-50 rounded-xl border border-slate-100 flex items-center gap-3">
+            <div class="w-6 h-6 bg-indigo-100 rounded-full flex items-center justify-center text-[10px] font-bold text-indigo-600">${i+1}</div>
+            <div class="flex-1">
+                <p class="text-[10px] font-black text-slate-900 uppercase">${a.name}</p>
+                <p class="text-[8px] font-bold text-indigo-500 uppercase tracking-tighter">${a.barcode} • SN: ${a.serialNo || '-'}</p>
+            </div>
+        </div>
+    `).join('');
+
+    modal.innerHTML = `
+        <div class="bg-white w-full max-w-2xl rounded-[40px] overflow-hidden shadow-2xl p-8 relative fade-in max-h-[95vh] flex flex-col">
+            <div class="flex justify-between items-center mb-6 border-b border-slate-100 pb-5 shrink-0">
+                <div>
+                    <h3 class="text-2xl font-black text-indigo-900 uppercase tracking-tight">Transfer Manifest</h3>
+                    <p class="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] mt-1">ID: ${record.transferId}</p>
+                </div>
+                <button onclick="document.getElementById('view-staff-modal').classList.add('hidden')" class="w-10 h-10 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center hover:bg-red-50 hover:text-red-500 transition-all text-xl">&times;</button>
+            </div>
+
+            <div class="space-y-6 overflow-y-auto pr-2 custom-scrollbar flex-1">
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="bg-indigo-50 p-4 rounded-2xl border border-indigo-100">
+                        <span class="text-[9px] font-black text-indigo-400 uppercase block mb-1">Source Location</span>
+                        <span class="font-black text-slate-900 text-sm">${record.fromLocation || '-'}</span>
+                    </div>
+                    <div class="bg-indigo-600 p-4 rounded-2xl border border-indigo-700 shadow-lg">
+                        <span class="text-[9px] font-black text-white/60 uppercase block mb-1">Target Destination</span>
+                        <span class="font-black text-white text-sm">${record.toLocation || '-'}</span>
+                    </div>
+                </div>
+
+                <div class="bg-slate-50 p-5 rounded-3xl border border-slate-100">
+                    <span class="text-[9px] font-black text-slate-400 uppercase block mb-3 tracking-widest underline decoration-2 underline-offset-4 decoration-indigo-200">Asset Batch (${(record.assets || []).length} Items)</span>
+                    <div class="space-y-2">
+                        ${assetRows || '<p class="text-center py-4 text-slate-400 font-bold uppercase text-[10px]">No assets listed</p>'}
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm">
+                        <span class="text-[9px] font-black text-slate-400 uppercase block mb-1">Initiator</span>
+                        <span class="font-black text-slate-900 text-xs uppercase">${record.initiatorName}</span>
+                        <span class="block text-[7px] text-indigo-500 font-bold uppercase">${record.staffRole || 'Staff'}</span>
+                    </div>
+                    <div class="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm">
+                        <span class="text-[9px] font-black text-slate-400 uppercase block mb-1">Collector / Date</span>
+                        <span class="font-black text-slate-900 text-xs uppercase">${record.collectorName}</span>
+                        <span class="block text-[7px] text-slate-400 font-bold uppercase">${record.companyName} • ${record.collectionDate}</span>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="text-center bg-white p-4 rounded-2xl border border-slate-100">
+                        <span class="text-[8px] font-black text-indigo-400 uppercase block mb-2">Security: ${record.securityName || 'Signed'}</span>
+                        <img src="${record.securitySignatureUrl}" class="max-h-16 object-contain mx-auto mix-blend-multiply" onerror="this.style.display='none'">
+                    </div>
+                    <div class="text-center bg-white p-4 rounded-2xl border border-slate-100">
+                        <span class="text-[8px] font-black text-indigo-400 uppercase block mb-2">Receiver: ${record.receiverName || 'Signed'}</span>
+                        <img src="${record.receivedSignatureUrl}" class="max-h-16 object-contain mx-auto mix-blend-multiply" onerror="this.style.display='none'">
+                    </div>
+                </div>
+
+                ${record.transferPhotoUrl ? `
+                    <div class="rounded-3xl overflow-hidden border-2 border-indigo-50 shadow-inner">
+                        <img src="${window.getDirectDriveImageUrl(record.transferPhotoUrl)}" class="w-full h-48 object-cover cursor-pointer" onclick="window.openImageZoom('${record.transferPhotoUrl}')">
+                    </div>
+                ` : ''}
+            </div>
+
+            <button onclick="document.getElementById('view-staff-modal').classList.add('hidden')" class="w-full mt-6 py-4 bg-indigo-900 text-white rounded-2xl font-black text-sm uppercase tracking-[0.2em] shadow-xl active:scale-95 transition-all shrink-0">Close Manifest</button>
+        </div>
+    `;
+    modal.classList.remove('hidden');
+    modal.style.display = 'flex';
+};
+
+/**
+ * Open Detailed Disposal Modal
+ */
+window.viewDisposalDetails = function(requestId) {
+    if (!requestId) return;
+    const record = window.appCache.disposalRegistry.find(d =>
+        (d.firebaseKey === requestId || d.requestId === requestId || d.assetBarcode === requestId)
+    );
+    if (!record) return alert("Disposal record not found.");
+
+    const modal = document.getElementById('view-staff-modal');
+    if (!modal) return;
+
+    modal.innerHTML = `
+        <div class="bg-white w-full max-w-xl rounded-[40px] overflow-hidden shadow-2xl p-8 relative fade-in max-h-[92vh] flex flex-col">
+            <div class="flex justify-between items-center mb-6 border-b border-slate-100 pb-5 shrink-0">
+                <div>
+                    <h3 class="text-2xl font-black text-red-900 uppercase tracking-tight">Disposal Audit</h3>
+                    <p class="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] mt-1">Barcode: ${record.assetBarcode || record["ASSET BARCODE"] || 'N/A'}</p>
+                </div>
+                <button onclick="document.getElementById('view-staff-modal').classList.add('hidden')" class="w-10 h-10 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center hover:bg-red-50 hover:text-red-500 transition-all text-xl">&times;</button>
+            </div>
+
+            <div class="space-y-6 text-gray-800 overflow-y-auto pr-2 custom-scrollbar flex-1">
+                <div class="flex items-center gap-5 bg-red-50 p-5 rounded-[2.5rem] border border-red-100 shadow-sm">
+                    <div class="w-16 h-16 bg-red-600 rounded-2xl flex items-center justify-center text-white text-2xl font-black shadow-lg">
+                        <i class="fa-solid fa-trash-can"></i>
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <h4 class="font-black text-red-950 uppercase text-lg truncate">${record.assetName || record["ASSET DESCRIPTION"] || "Unknown Asset"}</h4>
+                        <p class="text-[11px] font-black text-red-600 uppercase tracking-widest mt-0.5">${record.assetCategory || record["CATEGORY"] || "General"}</p>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200">
+                        <span class="text-[9px] font-black text-slate-400 uppercase block mb-1">Disposal Date</span>
+                        <span class="font-black text-slate-900 text-sm">${record.date || record["DISPOSAL DATE"] || '-'}</span>
+                    </div>
+                    <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200">
+                        <span class="text-[9px] font-black text-slate-400 uppercase block mb-1">Initiator</span>
+                        <span class="font-black text-slate-900 text-sm uppercase">${record.requestedBy || record["DISPOSED BY NAME"] || '-'}</span>
+                    </div>
+                </div>
+
+                <div class="bg-red-50/50 p-5 rounded-[2rem] border border-red-100 shadow-inner">
+                    <span class="text-[9px] font-black text-red-400 uppercase block mb-2 tracking-widest">Reason for Scrap</span>
+                    <p class="text-xs font-bold text-red-800 leading-relaxed">${record.reason || record["DISPOSAL REASON"] || '-'}</p>
+                </div>
+
+                ${(record.disposalPhotoUrl || record["DISPOSAL PHOTO"]) ? `
+                    <div class="rounded-3xl overflow-hidden border border-red-100 shadow-sm">
+                        <img src="${window.getDirectDriveImageUrl(record.disposalPhotoUrl || record["DISPOSAL PHOTO"])}" class="w-full h-auto max-h-[350px] object-contain bg-slate-50 cursor-pointer" onclick="window.openImageZoom('${record.disposalPhotoUrl || record["DISPOSAL PHOTO"]}')" onerror="this.src='jys_Icon.png'">
+                    </div>
+                ` : ''}
+            </div>
+
+            <button onclick="document.getElementById('view-staff-modal').classList.add('hidden')" class="w-full mt-6 py-4 bg-red-600 text-white rounded-2xl font-black text-sm uppercase tracking-[0.2em] shadow-xl active:scale-95 transition-all shrink-0">Close Audit View</button>
+        </div>
+    `;
     modal.classList.remove('hidden');
     modal.style.display = 'flex';
 };
@@ -1572,6 +2000,158 @@ window.openDetailedAuditModal = function(type, id) {
             </div>
 
             <button onclick="document.getElementById('view-staff-modal').classList.add('hidden')" class="w-full mt-10 py-5 bg-${accentColor}-600 text-white rounded-2xl font-black text-sm uppercase tracking-[0.2em] shadow-xl shadow-${accentColor}-500/20 active:scale-95 transition-all">Close Audit View</button>
+        </div>
+    `;
+    modal.classList.remove('hidden');
+    modal.style.display = 'flex';
+};
+
+/**
+ * Open Detailed Transfer/Movement Modal
+ */
+window.viewMovementDetails = function(transferId) {
+    if (!transferId) return;
+    const record = window.appCache.transfers.find(t => (t.transferId === transferId || t.firebaseKey === transferId));
+    if (!record) return alert("Movement record not found.");
+
+    const modal = document.getElementById('view-staff-modal');
+    if (!modal) return;
+
+    const assetRows = (record.assets || []).map((a, i) => `
+        <div class="p-3 bg-slate-50 rounded-xl border border-slate-100 flex items-center gap-3">
+            <div class="w-6 h-6 bg-indigo-100 rounded-full flex items-center justify-center text-[10px] font-bold text-indigo-600">${i+1}</div>
+            <div class="flex-1">
+                <p class="text-[10px] font-black text-slate-900 uppercase">${a.name}</p>
+                <p class="text-[8px] font-bold text-indigo-500 uppercase tracking-tighter">${a.barcode} • SN: ${a.serialNo || '-'}</p>
+            </div>
+        </div>
+    `).join('');
+
+    modal.innerHTML = `
+        <div class="bg-white w-full max-w-2xl rounded-[40px] overflow-hidden shadow-2xl p-8 relative fade-in max-h-[95vh] flex flex-col">
+            <div class="flex justify-between items-center mb-6 border-b border-slate-100 pb-5 shrink-0">
+                <div>
+                    <h3 class="text-2xl font-black text-indigo-900 uppercase tracking-tight">Transfer Manifest</h3>
+                    <p class="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] mt-1">ID: ${record.transferId}</p>
+                </div>
+                <button onclick="document.getElementById('view-staff-modal').classList.add('hidden')" class="w-10 h-10 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center hover:bg-red-50 hover:text-red-500 transition-all text-xl">&times;</button>
+            </div>
+
+            <div class="space-y-6 overflow-y-auto pr-2 custom-scrollbar flex-1">
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="bg-indigo-50 p-4 rounded-2xl border border-indigo-100">
+                        <span class="text-[9px] font-black text-indigo-400 uppercase block mb-1">Source Location</span>
+                        <span class="font-black text-slate-900 text-sm">${record.fromLocation || '-'}</span>
+                    </div>
+                    <div class="bg-indigo-600 p-4 rounded-2xl border border-indigo-700 shadow-lg">
+                        <span class="text-[9px] font-black text-white/60 uppercase block mb-1">Target Destination</span>
+                        <span class="font-black text-white text-sm">${record.toLocation || '-'}</span>
+                    </div>
+                </div>
+
+                <div class="bg-slate-50 p-5 rounded-3xl border border-slate-100">
+                    <span class="text-[9px] font-black text-slate-400 uppercase block mb-3 tracking-widest underline decoration-2 underline-offset-4 decoration-indigo-200">Asset Batch (${(record.assets || []).length} Items)</span>
+                    <div class="space-y-2">
+                        ${assetRows || '<p class="text-center py-4 text-slate-400 font-bold uppercase text-[10px]">No assets listed</p>'}
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm">
+                        <span class="text-[9px] font-black text-slate-400 uppercase block mb-1">Initiator</span>
+                        <span class="font-black text-slate-900 text-xs uppercase">${record.initiatorName}</span>
+                        <span class="block text-[7px] text-indigo-500 font-bold uppercase">${record.staffRole || 'Staff'}</span>
+                    </div>
+                    <div class="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm">
+                        <span class="text-[9px] font-black text-slate-400 uppercase block mb-1">Collector / Date</span>
+                        <span class="font-black text-slate-900 text-xs uppercase">${record.collectorName}</span>
+                        <span class="block text-[7px] text-slate-400 font-bold uppercase">${record.companyName} • ${record.collectionDate}</span>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="text-center bg-white p-4 rounded-2xl border border-slate-100">
+                        <span class="text-[8px] font-black text-indigo-400 uppercase block mb-2">Security: ${record.securityName || 'Signed'}</span>
+                        <img src="${record.securitySignatureUrl}" class="max-h-16 object-contain mx-auto mix-blend-multiply" onerror="this.style.display='none'">
+                    </div>
+                    <div class="text-center bg-white p-4 rounded-2xl border border-slate-100">
+                        <span class="text-[8px] font-black text-indigo-400 uppercase block mb-2">Receiver: ${record.receiverName || 'Signed'}</span>
+                        <img src="${record.receivedSignatureUrl}" class="max-h-16 object-contain mx-auto mix-blend-multiply" onerror="this.style.display='none'">
+                    </div>
+                </div>
+
+                ${record.transferPhotoUrl ? `
+                    <div class="rounded-3xl overflow-hidden border-2 border-indigo-50 shadow-inner">
+                        <img src="${window.getDirectDriveImageUrl(record.transferPhotoUrl)}" class="w-full h-48 object-cover cursor-pointer" onclick="window.openImageZoom('${record.transferPhotoUrl}')">
+                    </div>
+                ` : ''}
+            </div>
+
+            <button onclick="document.getElementById('view-staff-modal').classList.add('hidden')" class="w-full mt-6 py-4 bg-indigo-900 text-white rounded-2xl font-black text-sm uppercase tracking-[0.2em] shadow-xl active:scale-95 transition-all shrink-0">Close Manifest</button>
+        </div>
+    `;
+    modal.classList.remove('hidden');
+    modal.style.display = 'flex';
+};
+
+/**
+ * Open Detailed Disposal Modal
+ */
+window.viewDisposalDetails = function(requestId) {
+    if (!requestId) return;
+    const record = window.appCache.disposalRegistry.find(d =>
+        (d.firebaseKey === requestId || d.requestId === requestId || d.assetBarcode === requestId)
+    );
+    if (!record) return alert("Disposal record not found.");
+
+    const modal = document.getElementById('view-staff-modal');
+    if (!modal) return;
+
+    modal.innerHTML = `
+        <div class="bg-white w-full max-w-xl rounded-[40px] overflow-hidden shadow-2xl p-8 relative fade-in max-h-[92vh] flex flex-col">
+            <div class="flex justify-between items-center mb-6 border-b border-slate-100 pb-5 shrink-0">
+                <div>
+                    <h3 class="text-2xl font-black text-red-900 uppercase tracking-tight">Disposal Audit</h3>
+                    <p class="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] mt-1">Barcode: ${record.assetBarcode || record["ASSET BARCODE"] || 'N/A'}</p>
+                </div>
+                <button onclick="document.getElementById('view-staff-modal').classList.add('hidden')" class="w-10 h-10 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center hover:bg-red-50 hover:text-red-500 transition-all text-xl">&times;</button>
+            </div>
+
+            <div class="space-y-6 text-gray-800 overflow-y-auto pr-2 custom-scrollbar flex-1">
+                <div class="flex items-center gap-5 bg-red-50 p-5 rounded-[2.5rem] border border-red-100 shadow-sm">
+                    <div class="w-16 h-16 bg-red-600 rounded-2xl flex items-center justify-center text-white text-2xl font-black shadow-lg">
+                        <i class="fa-solid fa-trash-can"></i>
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <h4 class="font-black text-red-950 uppercase text-lg truncate">${record.assetName || record["ASSET DESCRIPTION"] || "Unknown Asset"}</h4>
+                        <p class="text-[11px] font-black text-red-600 uppercase tracking-widest mt-0.5">${record.assetCategory || record["CATEGORY"] || "General"}</p>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200">
+                        <span class="text-[9px] font-black text-slate-400 uppercase block mb-1">Disposal Date</span>
+                        <span class="font-black text-slate-900 text-sm">${record.date || record["DISPOSAL DATE"] || '-'}</span>
+                    </div>
+                    <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200">
+                        <span class="text-[9px] font-black text-slate-400 uppercase block mb-1">Initiator</span>
+                        <span class="font-black text-slate-900 text-sm uppercase">${record.requestedBy || record["DISPOSED BY NAME"] || '-'}</span>
+                    </div>
+                </div>
+
+                <div class="bg-red-50/50 p-5 rounded-[2rem] border border-red-100 shadow-inner">
+                    <span class="text-[9px] font-black text-red-400 uppercase block mb-2 tracking-widest">Reason for Scrap</span>
+                    <p class="text-xs font-bold text-red-800 leading-relaxed">${record.reason || record["DISPOSAL REASON"] || '-'}</p>
+                </div>
+
+                ${(record.disposalPhotoUrl || record["DISPOSAL PHOTO"]) ? `
+                    <div class="rounded-3xl overflow-hidden border border-red-100 shadow-sm">
+                        <img src="${window.getDirectDriveImageUrl(record.disposalPhotoUrl || record["DISPOSAL PHOTO"])}" class="w-full h-auto max-h-[350px] object-contain bg-slate-50 cursor-pointer" onclick="window.openImageZoom('${record.disposalPhotoUrl || record["DISPOSAL PHOTO"]}')" onerror="this.src='jys_Icon.png'">
+                    </div>
+                ` : ''}
+            </div>
+
+            <button onclick="document.getElementById('view-staff-modal').classList.add('hidden')" class="w-full mt-6 py-4 bg-red-600 text-white rounded-2xl font-black text-sm uppercase tracking-[0.2em] shadow-xl active:scale-95 transition-all shrink-0">Close Audit View</button>
         </div>
     `;
     modal.classList.remove('hidden');

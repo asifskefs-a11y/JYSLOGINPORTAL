@@ -85,261 +85,170 @@ window.fetchNormalizedAsset = async function(barcode) {
 };
 
 // ================================================
-// ASSET DISPOSAL - CORE LOGIC
+// ASSET DISPOSAL SUBMISSION
 // ================================================
-
-// Helper to map asset data to the strict 14 headers required for Disposal
-const mapToDisposalRegistry = (asset) => {
-    return {
-        "ASSET BARCODE": asset.barcode || "-",
-        "ASSET DESCRIPTION": asset.description || asset.assetName || "-",
-        "ASSET VENDOR NAME": asset.vendor || "-",
-        "CATEGORY": asset.category || "-",
-        "DATE PLACE IN SERVICE": asset.dateInService || "-",
-        "FLOOR DISCRETION": asset.floorDescription || "-",
-        "FLOOR NO": asset.floorNo || "-",
-        "LOCATION NAME": asset.location || "-",
-        "MAJOR CATEGORY": asset.majorCategory || "-",
-        "MINOR CATEGORY": asset.minorCategory || "-",
-        "SCHOOL BUILDING NAME": asset.building || "-",
-        "ROOM NUMBER": asset.roomNo || "-",
-        "ROOM NAME": asset.roomName || "-",
-        "SUB MINOR CATEGORY": asset.subMinorCategory || "-",
-        "AUDIT PHOTO": asset.photoUrl || "N/A"
-    };
-};
-
-window.fetchDisposalAssetDetails = async function(barcode) {
-    const cleanBarcode = (barcode || '').toString().trim().toUpperCase();
-
-    if (!cleanBarcode || cleanBarcode.length < 2) {
-        const previewArea = document.getElementById('disposal-asset-preview');
-        if (previewArea) {
-            previewArea.innerHTML = `
-                <div class="flex items-center justify-center h-full text-slate-400">
-                    <span class="text-[10px] font-bold uppercase tracking-widest">Scan barcode to load asset details</span>
-                </div>
-            `;
-        }
-        return;
-    }
-
-    try {
-        const normalizedAsset = await window.fetchNormalizedAsset(cleanBarcode);
-
-        if (normalizedAsset && normalizedAsset.barcode !== '-') {
-            const previewArea = document.getElementById('disposal-asset-preview') || document.getElementById('disposal-asset-preview-card');
-            const auditPhotoArea = document.getElementById('audit-photo-preview-container') || document.getElementById('disposal-master-photo-container');
-            const mirrorImg = document.getElementById('disposal-asset-img-preview');
-
-            // Map to strict headers for mirroring and payload integrity
-            const disposalData = mapToDisposalRegistry(normalizedAsset);
-            window.activeDisposalAsset = disposalData; // Store for submission
-
-            // Auto-detect staff
-            const currentStaff = window.currentStaff || JSON.parse(sessionStorage.getItem('active_staff_user') || '{}');
-            const staffName = currentStaff.name || currentStaff.fullName || "Auto-Detected Staff";
-            const staffRole = currentStaff.role || currentStaff.designation || "Staff";
-
-            // Populate UI fields
-            const disposedByInput = document.getElementById('disposed-by-name') || document.getElementById('disposal-initiated-by');
-            if (disposedByInput) disposedByInput.value = (disposedByInput.id === 'disposal-initiated-by') ? `${staffName} (${staffRole})` : staffName;
-
-            const now = new Date();
-            const dateEl = document.getElementById('disposal-date') || document.getElementById('disposal-current-date');
-            const timeEl = document.getElementById('disposal-time') || document.getElementById('disposal-current-time');
-            if (dateEl) dateEl.value = now.toLocaleDateString();
-            if (timeEl) timeEl.value = now.toLocaleTimeString();
-
-            // Live Image Mirroring
-            if (mirrorImg && disposalData["AUDIT PHOTO"] !== 'N/A') {
-                mirrorImg.src = window.getDirectDriveImageUrl ? window.getDirectDriveImageUrl(disposalData["AUDIT PHOTO"]) : disposalData["AUDIT PHOTO"];
-                mirrorImg.classList.remove('hidden');
-            } else if (mirrorImg) {
-                mirrorImg.classList.add('hidden');
-            }
-
-            // Render mirror grid (14 Headers)
-            if (previewArea) {
-                previewArea.innerHTML = `
-                    <div class="bg-red-50 border-2 border-red-200 rounded-3xl p-5 space-y-4 text-left shadow-sm animate-fade-in">
-                        <div class="flex justify-between items-center border-b border-red-200 pb-3">
-                            <div>
-                                <span class="text-[9px] font-black uppercase text-red-500 tracking-widest">Master Register Sync</span>
-                                <h3 class="text-lg font-black text-gray-900">${disposalData["ASSET BARCODE"]}</h3>
-                            </div>
-                            <span class="px-3 py-1 text-[10px] font-black uppercase rounded-lg bg-red-100 text-red-700 border border-red-300">VALIDATED</span>
-                        </div>
-                        <div class="grid grid-cols-2 gap-2 text-[10px]">
-                            ${Object.entries(disposalData).filter(([k]) => k !== "AUDIT PHOTO").map(([key, val]) => `
-                                <div class="bg-white p-2 rounded-xl border border-red-100">
-                                    <span class="text-[8px] font-bold text-gray-400 uppercase block">${key}</span>
-                                    <span class="font-black text-gray-800 truncate block">${val}</span>
-                                </div>
-                            `).join('')}
-                        </div>
-                        <div class="bg-red-100/60 p-2.5 rounded-2xl border border-red-200 flex justify-between items-center text-xs">
-                            <span class="font-bold text-red-800">Initiator:</span>
-                            <span class="font-black text-red-900">${staffName} (${staffRole})</span>
-                        </div>
-                    </div>
-                `;
-                if (previewArea.classList.contains('preview-card')) {
-                    previewArea.className = 'preview-card has-data has-data-red';
-                }
-            }
-
-            // Master photo display in disposal flow
-            if (auditPhotoArea) {
-                const photoUrl = disposalData["AUDIT PHOTO"];
-                if (photoUrl && photoUrl !== 'N/A' && photoUrl !== '-' && photoUrl !== 'null') {
-                    auditPhotoArea.innerHTML = `
-                        <div class="text-center w-full">
-                            <span class="text-[10px] font-bold text-gray-500 uppercase block mb-1">Master Register Photo</span>
-                            <img src="${window.getDirectDriveImageUrl ? window.getDirectDriveImageUrl(photoUrl) : photoUrl}" class="w-full h-32 object-cover rounded-2xl border border-gray-300 shadow-sm mx-auto">
-                        </div>`;
-                    auditPhotoArea.classList.remove('hidden');
-                } else {
-                    auditPhotoArea.innerHTML = `
-                        <div class="w-full h-32 bg-gray-100 rounded-2xl border-2 border-dashed border-gray-300 flex flex-col items-center justify-center text-center p-2">
-                            <i class="fa-solid fa-image-slash text-gray-400 text-xl mb-1"></i>
-                            <span class="text-xs font-bold text-gray-400 uppercase">No Photo Available</span>
-                        </div>`;
-                    auditPhotoArea.classList.remove('hidden');
-                }
-            }
-
-            const submitBtn = document.getElementById('submit-disposal-btn') || document.getElementById('disposal-submit-btn');
-            if (submitBtn) submitBtn.disabled = false;
-
-        } else {
-            const previewArea = document.getElementById('disposal-asset-preview') || document.getElementById('disposal-asset-preview-card');
-            if (previewArea) {
-                previewArea.innerHTML = `
-                    <div class="p-4 bg-red-100 border border-red-300 rounded-2xl text-center">
-                        <i class="fa-solid fa-triangle-exclamation text-red-500 text-lg block mb-1"></i>
-                        <span class="text-xs font-black text-red-600 uppercase">⚠️ Asset Barcode Not Found: ${cleanBarcode}</span>
-                    </div>`;
-                if (previewArea.classList.contains('preview-card')) {
-                    previewArea.className = 'preview-card error';
-                }
-            }
-            const submitBtn = document.getElementById('submit-disposal-btn') || document.getElementById('disposal-submit-btn');
-            if (submitBtn) submitBtn.disabled = true;
-        }
-
-    } catch (e) {
-        console.error("Error fetching disposal asset details:", e);
-    }
-};
-
-window.submitAssetDisposal = async () => {
-    const barcode = document.getElementById('disposal-barcode-input')?.value?.trim()?.toUpperCase() ||
-                    document.getElementById('f1_disposal_barcode_input')?.value?.trim()?.toUpperCase();
-    const reason = document.getElementById('disposal-reason-input')?.value?.trim() ||
-                   document.getElementById('disposal-reason')?.value?.trim();
-    const disposalPhoto = window.disposalBeforePhotoBase64;
-
-    if (!barcode || !reason || !disposalPhoto) {
-        return alert("Error: Barcode, Reason, and Proof Photo are all required!");
-    }
-
-    window.showGlobalSpinner("Finalizing Disposal...");
-
-    try {
-        // 1. Upload Proof Photo
-        let proofUrl = "N/A";
-        if (window.uploadToDrive) {
-            const res = await window.uploadToDrive({
-                category: 'DISPOSAL',
-                fileName: `DISPOSAL_PROOF_${barcode}_${Date.now()}.jpg`,
-                image: disposalPhoto
-            });
-            proofUrl = res.fileUrl || "N/A";
-        }
-
-        // 2. Fetch Initiator Details
-        const staff = window.currentStaff || JSON.parse(sessionStorage.getItem('active_staff_user') || '{}');
-        const now = new Date();
-
-        // 3. Build Full Payload
-        const payload = {
-            ...window.activeDisposalAsset, // Includes all normalized headers
-            "DISPOSAL REASON": reason,
-            "DISPOSAL PHOTO": proofUrl,
-            "DISPOSED BY NAME": staff.name || staff.fullName || "Unknown",
-            "DISPOSED BY ROLE": staff.role || "Staff",
-            "DISPOSAL DATE": now.toLocaleDateString(),
-            "DISPOSAL TIME": now.toLocaleTimeString(),
-            "STATUS": "DISPOSED",
-            "TIMESTAMP": Date.now()
-        };
-
-        const sanitizedKey = barcode.replace(/[.#$\[\]/]/g, '_');
-
-        // ✅ MANDATED FIX: Database Migration
-        // 4. Save to Disposed Assets Registry (Migration Node)
-        await set(ref(db, `disposed_assets/${sanitizedKey}`), payload);
-
-        // 5. Update or Remove from Primary Assets Registry
-        // Setting status to DISPOSED as a fallback to removal to maintain referential integrity
-        await update(ref(db, `assets/${sanitizedKey}`), {
-            assetStatus: 'DISPOSED',
-            status: 'DISPOSED',
-            isDisposed: true,
-            updatedAt: now.toISOString(),
-            lastMovement: 'DISPOSAL'
-        });
-
-        // 6. Record to Movement Logs
-        await push(ref(db, 'movement_logs'), {
-            assetBarcode: barcode,
-            action: 'ASSET_DISPOSAL',
-            performedBy: payload["DISPOSED BY NAME"],
-            role: payload["DISPOSED BY ROLE"],
-            timestamp: payload.TIMESTAMP,
-            date: payload["DISPOSAL DATE"],
-            type: 'disposal'
-        });
-
-        window.triggerSuccessPopup("Asset Disposed Successfully! ✅");
-        window.hideGlobalSpinner();
-
-        // Reset and Refresh
-        if (window.resetAssetDisposalForm) window.resetAssetDisposalForm();
-        window.showStaffView('staff-dash-area');
-
-    } catch (e) {
-        console.error("Disposal Submission Failed:", e);
-        alert("Failed to dispose asset: " + e.message);
-        window.hideGlobalSpinner();
-    }
-};
-
-/**
- * ✅ NEW: Unified photo capture handler for disposal with preview
- */
-window.handleDisposalPhotoSelect = function(event) {
+window.handleInitialPhotoUpload = (event) => {
     const file = event.target.files[0];
     if (!file) return;
-
-    const preview = document.getElementById('disposal-photo-preview');
-    const previewBox = document.getElementById('disposal-photo-preview-box');
-    const placeholder = document.getElementById('no-photo-placeholder');
-
     const reader = new FileReader();
-    reader.onload = function(e) {
-        window.disposalBeforePhotoBase64 = e.target.result;
-        if (preview) preview.src = e.target.result;
-        if (previewBox) previewBox.classList.remove('hidden');
-        if (placeholder) placeholder.style.display = 'none';
+    reader.onload = (e) => {
+        initialAuditPhotoBase64 = e.target.result;
+        const preview = document.getElementById('before-photo-preview');
+        if (preview) {
+            preview.classList.remove('hidden');
+            preview.querySelector('img').src = initialAuditPhotoBase64;
+        }
+        const btnText = document.getElementById('initial-photo-btn-text');
+        if (btnText) btnText.innerText = "Before Photo Captured ✅";
     };
     reader.readAsDataURL(file);
 };
 
-// Aliases for compatibility
-window.handleDisposalBarcodeInput = window.fetchDisposalAssetDetails;
+window.handleDamagePhotoUpload = (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        damageAuditPhotoBase64 = e.target.result;
+        const preview = document.getElementById('disposal-photo-preview');
+        if (preview) {
+            preview.classList.remove('hidden');
+            preview.querySelector('img').src = damageAuditPhotoBase64;
+        }
+        const btnText = document.getElementById('damage-photo-btn-text');
+        if (btnText) btnText.innerText = "Damage Photo Captured ✅";
+    };
+    reader.readAsDataURL(file);
+};
+
+window.resetAssetDisposalForm = () => {
+    const fields = ['f1_disposal_barcode_input', 'disposal-reason', 'disposed-by-name', 'disposal-date', 'disposal-time'];
+    fields.forEach(id => { const el = document.getElementById(id); if (el) el.value = ""; });
+
+    const previews = ['before-photo-preview', 'disposal-photo-preview', 'disposal-asset-preview'];
+    previews.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) {
+            el.classList.add('hidden');
+            if(id === 'disposal-asset-preview') el.innerHTML = '<div class="flex items-center justify-center h-full text-slate-400"><span class="text-[10px] font-bold uppercase tracking-widest">Scan barcode to load asset details</span></div>';
+        }
+    });
+
+    initialAuditPhotoBase64 = "";
+    damageAuditPhotoBase64 = "";
+
+    const initialBtnText = document.getElementById('initial-photo-btn-text');
+    if (initialBtnText) initialBtnText.innerText = "Capture Before Photo";
+
+    const damageBtnText = document.getElementById('damage-photo-btn-text');
+    if (damageBtnText) damageBtnText.innerText = "Capture Damage Photo";
+
+    const submitBtn = document.getElementById('submit-disposal-btn');
+    if (submitBtn) { submitBtn.disabled = true; }
+
+    // Re-fill date/time/name
+    const now = new Date();
+    const dateEl = document.getElementById('disposal-date');
+    const timeEl = document.getElementById('disposal-time');
+    if (dateEl) dateEl.value = now.toLocaleDateString();
+    if (timeEl) timeEl.value = now.toLocaleTimeString();
+
+    const staff = window.currentStaff || JSON.parse(sessionStorage.getItem('active_staff_user') || '{}');
+    const staffName = staff.fullName || staff.name || 'Unknown Staff';
+    const staffRole = staff.role || 'Staff';
+    const initiatedBy = document.getElementById('disposed-by-name');
+    if (initiatedBy) initiatedBy.value = `${staffName} (${staffRole})`;
+};
+
+window.submitAssetDisposal = async () => {
+    const barcode = document.getElementById('f1_disposal_barcode_input')?.value.trim();
+    if (!barcode) return alert("Scan barcode first!");
+    const reason = document.getElementById('disposal-reason')?.value.trim();
+    if (!reason || !initialAuditPhotoBase64 || !damageAuditPhotoBase64) return alert("Required fields (Reason and Both Photos) are missing!");
+
+    const btn = document.getElementById('submit-disposal-btn');
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Processing...';
+    }
+    window.showGlobalSpinner("Saving Disposal Record...");
+
+    try {
+        const [resBefore, resAfter] = await Promise.all([
+            window.uploadToDrive({ category: UPLOAD_CONFIG.CATEGORIES.DISPOSAL, fileName: `Disp_Before_${barcode}_${Date.now()}.jpg`, image: initialAuditPhotoBase64 }),
+            window.uploadToDrive({ category: UPLOAD_CONFIG.CATEGORIES.DISPOSAL, fileName: `Disp_After_${barcode}_${Date.now()}.jpg`, image: damageAuditPhotoBase64 })
+        ]);
+
+        const urlBefore = resBefore.fileUrl || "";
+        const urlAfter = resAfter.fileUrl || "";
+
+        const staff = window.currentStaff || JSON.parse(sessionStorage.getItem('active_staff_user') || '{}');
+        const staffName = staff.fullName || staff.name || "System";
+        const sanitizedKey = barcode.replace(/[.#$\[\]/]/g, '_');
+
+        const updates = {};
+        updates[`assets/${sanitizedKey}/assetStatus`] = 'Disposed';
+        updates[`assets/${sanitizedKey}/status`] = 'DISPOSED';
+        updates[`assets/${sanitizedKey}/disposalReason`] = reason;
+        updates[`assets/${sanitizedKey}/disposalPhotoUrl`] = urlAfter;
+        updates[`assets/${sanitizedKey}/beforePhotoUrl`] = urlBefore;
+        updates[`assets/${sanitizedKey}/disposedAt`] = Date.now();
+        updates[`assets/${sanitizedKey}/disposedBy`] = staffName;
+
+        updates[`asset_disposals/${sanitizedKey}_${Date.now()}`] = {
+            assetBarcode: barcode,
+            status: 'Disposed',
+            reason: reason,
+            date: new Date().toLocaleDateString(),
+            time: new Date().toLocaleTimeString(),
+            timestamp: Date.now(),
+            disposalPhotoUrl: urlAfter,
+            beforePhotoUrl: urlBefore,
+            disposedBy: staffName,
+            disposedByRole: staff.role || "Staff"
+        };
+
+        // Also add to movement logs
+        const logId = `LOG_DISPOSAL_${Date.now()}`;
+        updates[`movement_logs/${logId}`] = {
+            type: 'disposal',
+            assetBarcode: barcode,
+            action: 'ASSET_DISPOSAL',
+            performedBy: staffName,
+            reason: reason,
+            timestamp: Date.now(),
+            date: new Date().toLocaleDateString()
+        };
+
+        await update(ref(db), updates);
+
+        window.triggerSuccessPopup("Asset Disposed Successfully! ✅");
+        window.resetAssetDisposalForm();
+        window.showStaffView('staff-dash-area');
+
+    } catch (e) {
+        console.error("Disposal Error:", e);
+        alert("Error: " + e.message);
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fa-solid fa-trash-can"></i> CONFIRM DISPOSAL';
+        }
+        window.hideGlobalSpinner();
+    }
+};
+
+// Aliases for compatibility with other modules
 window.submitDisposalRequest = window.submitAssetDisposal;
+window.removeDisposalPhoto = () => {
+    // This is a partial reset for the damage photo specifically if needed
+    damageAuditPhotoBase64 = "";
+    const preview = document.getElementById('disposal-photo-preview');
+    if (preview) preview.classList.add('hidden');
+    const btnText = document.getElementById('damage-photo-btn-text');
+    if (btnText) btnText.innerText = "Capture Damage Photo";
+};
+window.handleDisposalPhotoUpload = window.handleDamagePhotoUpload;
 
 // ================================================
 // ASSET REGISTER SUBMISSION (MASTER)
@@ -565,7 +474,7 @@ window.removeTransferPhoto = function() {
 };
 
 /**
- * ✅ NEW: Submit Asset Transfer
+ * ✅ NEW: Submit Asset Transfer (Expanded Payload v5.0)
  */
 window.submitAssetTransfer = async function(event) {
     if (event) event.preventDefault();
@@ -578,11 +487,12 @@ window.submitAssetTransfer = async function(event) {
     const collectorName = document.getElementById('t_collector_name')?.value.trim();
     const companyName = document.getElementById('t_company_name')?.value.trim();
     const collectionDate = document.getElementById('t_collection_date')?.value;
+    const toLocation = document.getElementById('t_target_location')?.value.trim();
     const securityName = document.getElementById('t_security_name')?.value.trim();
     const receiverName = document.getElementById('t_received_name')?.value.trim();
 
-    if (!collectorName || !companyName || !collectionDate || !securityName || !receiverName) {
-        alert("Please fill in all required fields.");
+    if (!collectorName || !companyName || !collectionDate || !toLocation || !securityName || !receiverName) {
+        alert("Please fill in all required fields (including Target Location).");
         return;
     }
 
@@ -599,7 +509,7 @@ window.submitAssetTransfer = async function(event) {
         return;
     }
 
-    window.showGlobalSpinner("Processing Transfer...");
+    window.showGlobalSpinner("Processing State Migration...");
 
     try {
         let photoUrl = "";
@@ -614,33 +524,38 @@ window.submitAssetTransfer = async function(event) {
 
         const staff = window.currentStaff || JSON.parse(sessionStorage.getItem('active_staff_user') || '{}');
         const transferId = "TRF-" + Date.now();
+        const fromLocation = window.transferBatch[0]?.location || "Unknown";
 
         const transferData = {
             transferId: transferId,
+            initiatorName: staff.fullName || staff.name || "Unknown",
+            staffId: staff.mobile || "N/A",
+            staffRole: staff.role || "Staff",
             collectorName,
             companyName,
             collectionDate,
+            fromLocation: fromLocation,
+            toLocation: toLocation,
             securityName,
             receiverName,
-            staffName: staff.fullName || staff.name || "Unknown",
-            staffId: staff.mobile || "N/A",
             timestamp: Date.now(),
             assets: window.transferBatch.map(a => ({
                 barcode: a.barcode,
                 name: a.assetName || a.description,
-                category: a.category,
-                previousLocation: a.location
+                serialNo: a.serialNo || "",
+                category: a.category || "",
+                previousLocation: a.location || ""
             })),
             transferPhotoUrl: photoUrl,
-            securitySignatureUrl: securitySig,
+            securitySignatureUrl: securitySig, // This is the Digital Signature
             receivedSignatureUrl: receivedSig,
-            status: 'Transferred'
+            status: 'TRANSFERRED'
         };
 
-        // Save to transfers node
+        // 1. Save Complete Transfer Record
         await set(ref(db, `asset_transfers/${transferId}`), transferData);
 
-        // Update each asset status and location in Master Register
+        // 2. Perform Asset State Migration (Master Update)
         const updates = {};
         const timestamp = Date.now();
         const dateStr = new Date().toLocaleDateString();
@@ -648,24 +563,25 @@ window.submitAssetTransfer = async function(event) {
         for (const asset of window.transferBatch) {
             const assetKey = asset.barcode.replace(/[.#$\[\]/]/g, '_');
 
-            // 1. Update Master Asset Record
-            updates[`assets/${assetKey}/assetStatus`] = 'TRANSFERRED / IN TRANSIT';
+            // Update Master Asset Record
+            updates[`assets/${assetKey}/assetStatus`] = 'TRANSFERRED';
+            updates[`assets/${assetKey}/status`] = 'TRANSFERRED';
             updates[`assets/${assetKey}/previousLocation`] = asset.location || 'N/A';
-            updates[`assets/${assetKey}/currentLocation`] = 'IN TRANSIT'; // Marked as in transit
+            updates[`assets/${assetKey}/currentLocation`] = toLocation;
             updates[`assets/${assetKey}/lastTransferId`] = transferId;
             updates[`assets/${assetKey}/lastTransferDate`] = dateStr;
             updates[`assets/${assetKey}/updatedAt`] = new Date().toISOString();
 
-            // 2. Individual Asset Movement Log
+            // Push to Individual Asset Movement Log
             const logId = `LOG_${timestamp}_${assetKey}`;
             updates[`asset_movement_logs/${assetKey}/${logId}`] = {
-                action: 'TRANSFER_OUT',
+                action: 'TRANSFER_MIGRATION',
                 transferId: transferId,
                 fromLocation: asset.location || 'N/A',
-                toLocation: 'IN TRANSIT',
+                toLocation: toLocation,
                 collector: collectorName,
                 company: companyName,
-                performedBy: staff.fullName || staff.name,
+                performedBy: transferData.initiatorName,
                 timestamp: timestamp,
                 date: dateStr
             };
@@ -673,34 +589,38 @@ window.submitAssetTransfer = async function(event) {
 
         await update(ref(db), updates);
 
-        // Record to global movement logs
+        // 3. Record to Global Movement Logs
         const logEntry = {
             type: 'transfer',
             transferId: transferId,
-            action: 'Asset Batch Transfer',
+            action: 'Asset Batch Migration',
             count: window.transferBatch.length,
             collector: collectorName,
-            staff: transferData.staffName,
+            fromLocation: fromLocation,
+            toLocation: toLocation,
+            staff: transferData.initiatorName,
             timestamp: Date.now(),
-            date: new Date().toLocaleDateString()
+            date: dateStr
         };
         await push(ref(db, 'movement_logs'), logEntry);
 
-        window.triggerSuccessPopup("Batch Transfer Successful! ✅");
+        window.triggerSuccessPopup("Asset Migration Successful! ✅");
 
         // Reset
         window.transferBatch = [];
-        window.renderBatchUI();
+        if (typeof window.renderBatchUI === 'function') window.renderBatchUI();
         document.getElementById('transfer-form-multi')?.reset();
-        window.removeTransferPhoto();
-        window.clearSignaturePad('t_security_sig');
-        window.clearSignaturePad('t_received_sig');
+        if (typeof window.removeTransferPhoto === 'function') window.removeTransferPhoto();
+        if (typeof window.clearSignaturePad === 'function') {
+            window.clearSignaturePad('t_security_sig');
+            window.clearSignaturePad('t_received_sig');
+        }
 
         window.showStaffView('staff-dash-area');
 
     } catch (e) {
         console.error("Transfer error:", e);
-        alert("Failed to complete transfer: " + e.message);
+        alert("Failed to complete migration: " + e.message);
     } finally {
         window.hideGlobalSpinner();
     }

@@ -1049,21 +1049,17 @@
                             <table class="w-full text-left" id="asset-disposal-table">
                                 <thead class="bg-red-50 uppercase text-red-900 font-black text-[9px]">
                                     <tr>
-                                        <th class="p-3">Asset Barcode</th>
-                                        <th class="p-3">Asset Description</th>
-                                        <th class="p-3">Asset Vendor Name</th>
+                                        <th class="p-3">Barcode</th>
+                                        <th class="p-3">Asset Details</th>
+                                        <th class="p-3">Serial No</th>
+                                        <th class="p-3">Vendor</th>
                                         <th class="p-3">Category</th>
-                                        <th class="p-3">Date Place In Service</th>
-                                        <th class="p-3">Floor Discretion</th>
-                                        <th class="p-3">Floor No</th>
-                                        <th class="p-3">Location Name</th>
-                                        <th class="p-3">Major Category</th>
-                                        <th class="p-3">Minor Category</th>
-                                        <th class="p-3">School Building Name</th>
-                                        <th class="p-3">Room Number</th>
-                                        <th class="p-3">Room Name</th>
-                                        <th class="p-3">Sub Minor Category</th>
-                                        <th class="p-3">Audit Photo</th>
+                                        <th class="p-3">Date/Time</th>
+                                        <th class="p-3">Last Location</th>
+                                        <th class="p-3">Building/Room</th>
+                                        <th class="p-3">Reason</th>
+                                        <th class="p-3">Initiator</th>
+                                        <th class="p-3 text-center">Photo</th>
                                         <th class="p-3 text-center">Action</th>
                                     </tr>
                                 </thead>
@@ -1101,33 +1097,20 @@
                             <table class="w-full text-left text-[9px]" id="transfer-master-table">
                                 <thead class="bg-indigo-50 uppercase text-indigo-600 font-black sticky top-0 z-10 shadow-sm whitespace-nowrap">
                                     <tr>
-                                        <th class="p-2 min-w-[100px]">Asset Barcode</th>
-                                        <th class="p-2 min-w-[150px]">Asset Description</th>
-                                        <th class="p-2 min-w-[120px]">Asset Vendor Name</th>
-                                        <th class="p-2 min-w-[100px]">Category</th>
-                                        <th class="p-2 min-w-[100px]">Date Place In Service</th>
-                                        <th class="p-2 min-w-[120px]">Floor Discretion</th>
-                                        <th class="p-2 min-w-[60px]">Floor No</th>
-                                        <th class="p-2 min-w-[120px]">Location Name</th>
-                                        <th class="p-2 min-w-[120px]">Major Category</th>
-                                        <th class="p-2 min-w-[120px]">Minor Category</th>
-                                        <th class="p-2 min-w-[150px]">School Building Name</th>
-                                        <th class="p-2 min-w-[80px]">Room Number</th>
-                                        <th class="p-2 min-w-[120px]">Room Name</th>
-                                        <th class="p-2 min-w-[120px]">Sub Minor Category</th>
-                                        <th class="p-2 min-w-[80px] text-center">Audit Photo</th>
-                                        <th class="p-2 min-w-[120px]">Collector Name</th>
-                                        <th class="p-2 min-w-[120px]">Company Name</th>
-                                        <th class="p-2 min-w-[100px]">Collected Date</th>
-                                        <th class="p-2 min-w-[120px]">Security/Staff Name</th>
-                                        <th class="p-2 min-w-[120px]">Receiver Name</th>
-                                        <th class="p-2 min-w-[80px] text-center">Security Sig</th>
-                                        <th class="p-2 min-w-[80px] text-center">Receiver Sig</th>
-                                        <th class="p-2 min-w-[80px] text-center">Proof Photo</th>
-                                        <th class="p-2 min-w-[100px] text-center">Action</th>
+                                        <th class="p-3">Transfer ID</th>
+                                        <th class="p-3">Initiator</th>
+                                        <th class="p-3">Batch Details</th>
+                                        <th class="p-3">Source</th>
+                                        <th class="p-3">Destination</th>
+                                        <th class="p-3">Collector</th>
+                                        <th class="p-3">Date</th>
+                                        <th class="p-3 text-center">Security Sig</th>
+                                        <th class="p-3 text-center">Receiver Sig</th>
+                                        <th class="p-3 text-center">Batch Photo</th>
+                                        <th class="p-3 text-center">Action</th>
                                     </tr>
                                 </thead>
-                                <tbody id="transfer-logs-body" class="divide-y divide-slate-50"></tbody>
+                                <tbody id="transfer-logs-body" class="divide-y divide-slate-100"></tbody>
                             </table>
                         </div>
                         <div id="transfer-pagination" class="pagination-container"></div>
