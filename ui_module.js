@@ -1,6 +1,14 @@
 import { db } from './firebase_config.js';
 import { ref, get, child } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
+// 🔧 SECURITY: XSS Prevention - Sanitize user-facing text data
+window.sanitizeTextForDOM = (text) => {
+    if (!text) return '';
+    const div = document.createElement('div');
+    div.textContent = String(text).trim();
+    return div.innerHTML;
+};
+
 // ================================================================ */
 // WHATSAPP-STYLE TOAST ENGINE (FIXED v4.2)                        */
 // ================================================================ */
@@ -394,11 +402,13 @@ window.openAssetPreviewModal = function(assetData) {
         <div class="bg-indigo-950 border border-white/10 rounded-[2.5rem] p-8 max-w-md w-full text-white space-y-6 shadow-2xl animate-fade-in">
             <div class="flex justify-between items-center border-b border-white/5 pb-5">
                 <h3 class="text-xl font-black text-amber-400 uppercase tracking-tight">📦 Asset Details</h3>
-                <button onclick="window.closeAssetPreviewModal()" class="w-10 h-10 bg-white/10 rounded-full flex items-center justify-center text-white/60 hover:text-white transition-colors text-2xl font-bold">×</button>
+                <button onclick="window.closeAssetPreviewModal()" class="w-10 h-10 bg-white/10 rounded-full flex items-center justify-center text-white/60 hover:text-white transition-colors">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
             </div>
             <div class="space-y-4 text-xs">
                 ${(photo && photo !== 'N/A' && photo !== '-') ? `
-                    <img src="${window.getDirectDriveImageUrl ? window.getDirectDriveImageUrl(photo) : photo}" class="w-full h-48 object-cover rounded-3xl border border-white/10 mb-4 shadow-inner cursor-pointer" onclick="window.openImageZoom('${photo}')"/>
+                    <img src="${window.getDirectDriveImageUrl ? window.getDirectDriveImageUrl(photo) : photo}" class="w-full h-48 object-cover rounded-3xl border border-white/10 mb-4 shadow-inner" alt="Asset Photo" onerror="this.src='jys_Icon.png'">
                 ` : `
                     <div class="w-full h-32 bg-white/5 rounded-3xl flex flex-col items-center justify-center text-white/20 border-2 border-dashed border-white/5">
                         <i class="fa-solid fa-image text-3xl mb-2"></i>
@@ -432,7 +442,7 @@ window.openAssetPreviewModal = function(assetData) {
                     </div>
                 </div>
             </div>
-            <button onclick="window.closeAssetPreviewModal()" class="w-full py-4 bg-white/5 hover:bg-white/10 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] transition-all border border-white/5">Close Preview</button>
+            <button onclick="window.closeAssetPreviewModal()" class="w-full py-4 bg-white/5 hover:bg-white/10 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] transition-all border border-white/10">Close</button>
         </div>
     `;
     modal.classList.remove('hidden');
@@ -479,7 +489,7 @@ window.showGlobalSpinner = (message = "Loading...") => {
                 <div style="width: 100%; height: 4px; background: rgba(255,255,255,0.1); border-radius: 2px; overflow: hidden;">
                     <div id="loader-progress-bar" style="width: 0%; height: 100%; background: #6366f1; transition: width 0.3s ease-out;"></div>
                 </div>
-                <div style="display: flex; justify-between: space-between; align-items: center; margin-top: 8px; width: 100%;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 8px; width: 100%;">
                     <span id="loader-progress-pct" style="color: rgba(255,255,255,0.5); font-size: 9px; font-weight: 900; letter-spacing: 1px;">0%</span>
                     <button id="loader-abort-btn" style="margin-left: auto; background: transparent; border: none; color: #f87171; font-size: 9px; font-weight: 900; text-transform: uppercase; cursor: pointer; letter-spacing: 1px;">[ Abort ]</button>
                 </div>
@@ -585,7 +595,7 @@ window.generateLocalAvatar = function(name, background = "4f46e5", color = "fff"
         const initials = name.trim().split(/\s+/).map(n => n[0]).join('').substring(0, 2).toUpperCase();
 
         if (!initials) {
-            return 'data:image/svg+xml;utf8,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128"><rect width="100%" height="100%" fill="#4f46e5"/><text x="50%" y="50%" dominant-baseline="central" text-anchor="middle" fill="#ffffff" font-family="Arial, sans-serif" font-size="50" font-weight="bold">?</text></svg>');
+            return 'data:image/svg+xml;utf8,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128"><rect width="100%" height="100%" fill="#4f46e5"/><text x="50%" y="50%" dominant-baseline="central" text-anchor="middle" fill="#fff" font-family="Arial, sans-serif" font-size="50" font-weight="bold">?</text></svg>');
         }
 
         const svg = `
@@ -600,7 +610,7 @@ window.generateLocalAvatar = function(name, background = "4f46e5", color = "fff"
         return 'data:image/svg+xml;utf8,' + encodeURIComponent(svg);
     } catch (e) {
         console.error("Avatar generation error:", e);
-        return 'data:image/svg+xml;utf8,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128"><rect width="100%" height="100%" fill="#4f46e5"/><text x="50%" y="50%" dominant-baseline="central" text-anchor="middle" fill="#ffffff" font-family="Arial, sans-serif" font-size="50" font-weight="bold">U</text></svg>');
+        return 'data:image/svg+xml;utf8,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128"><rect width="100%" height="100%" fill="#4f46e5"/><text x="50%" y="50%" dominant-baseline="central" text-anchor="middle" fill="#fff" font-family="Arial, sans-serif" font-size="50" font-weight="bold">U</text></svg>');
     }
 };
 
@@ -789,8 +799,8 @@ window.initSidebarProfileAndRestrictions = function(staffData) {
     const imgEl = document.getElementById('sidebar-user-avatar') || document.getElementById('sidebar-profile-img') || document.querySelector('.sidebar-user-avatar');
     const initialsEl = document.getElementById('sidebar-initials');
 
-    if (nameEl) nameEl.innerText = displayName;
-    if (roleEl) roleEl.innerText = displayRole;
+    if (nameEl) nameEl.innerText = window.sanitizeTextForDOM(displayName);
+    if (roleEl) roleEl.innerText = window.sanitizeTextForDOM(displayRole);
 
     if (imgEl) {
         const photo = staff.photoUrl || staff.profilePic || staff.imageUrl || staff.photo || staff.profilePicUrl;
@@ -854,14 +864,14 @@ window.renderDashboardProfile = function(staffData) {
     const branchEl = document.getElementById('user-branch');
     const imgEl = document.getElementById('user-avatar');
 
-    if (nameEl) nameEl.innerText = staff.fullName || staff.name || "Staff Member";
+    if (nameEl) nameEl.innerText = window.sanitizeTextForDOM(staff.fullName || staff.name || "Staff Member");
     if (idEl) idEl.innerText = `ID: ${passId}`;
 
     const displayRole = staff.designation || staff.position || staff.role || "Employee";
-    if (roleEl) roleEl.innerText = displayRole;
+    if (roleEl) roleEl.innerText = window.sanitizeTextForDOM(displayRole);
 
     if (branchEl) {
-        branchEl.innerHTML = `<i class="fa-solid fa-location-dot text-indigo-400"></i> ${staff.school || staff.branch || 'Jern Yafoor School'}`;
+        branchEl.innerHTML = `<i class="fa-solid fa-location-dot text-indigo-400"></i> ${window.sanitizeTextForDOM(staff.school || staff.branch || 'Jern Yafoor School')}`;
     }
 
     if (imgEl) {
@@ -1552,84 +1562,15 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     observer.observe(document.body, { childList: true, subtree: true });
-});
 
-// ================================================================ */
-// AUTOMATIC SPINNER ATTACHMENT (FIXED v4.3 - VALIDATION SAFE)    */
-// ================================================================ */
+    // 🔧 FIXED: Store observer globally for cleanup
+    window._uiModuleObserver = observer;
 
-document.addEventListener('DOMContentLoaded', () => {
-    // Override existing logout buttons
-    const attachLogoutListeners = () => {
-        const logoutBtns = document.querySelectorAll('#logout-btn, .logout-btn, [onclick*="logoutStaff"]');
-        logoutBtns.forEach(btn => {
-            if (!btn.dataset.logoutBound) {
-                btn.onclick = (e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    if (typeof window.executeSecureLogout === 'function') {
-                        window.executeSecureLogout();
-                    }
-                };
-                btn.dataset.logoutBound = "true";
-            }
-        });
-    };
-
-    attachLogoutListeners();
-
-    if (typeof window.initSidebarProfileAndRestrictions === 'function') {
-        window.initSidebarProfileAndRestrictions();
-    }
-
-    // Auto-catch all form submit events ONLY IF valid
-    document.addEventListener('submit', (e) => {
-        const form = e.target;
-        if (form && typeof form.checkValidity === 'function' && !form.checkValidity()) {
-            return; // Don't show spinner if HTML5 form validation fails
+    // Disconnect observer on page unload to prevent memory leaks
+    window.addEventListener('beforeunload', () => {
+        if (window._uiModuleObserver) {
+            window._uiModuleObserver.disconnect();
+            console.log("✅ MutationObserver cleaned up on page unload");
         }
-        if (typeof window.showGlobalSpinner === 'function') {
-            window.showGlobalSpinner("Saving Data...");
-        }
-    }, true);
-
-    // Auto-catch all primary action buttons with validation check
-    const attachButtonListeners = () => {
-        document.querySelectorAll('button[type="submit"], .btn-primary, .submit-btn, .btn-submit-transfer').forEach(btn => {
-            if (!btn.dataset.spinnerBound) {
-                btn.addEventListener('click', (e) => {
-                    const form = btn.closest('form');
-
-                    // If button is inside a form, let form submit listener handle spinner safely
-                    if (form) {
-                        if (form.checkValidity()) {
-                            setTimeout(() => {
-                                if (typeof window.showGlobalSpinner === 'function') {
-                                    window.showGlobalSpinner("Please wait...");
-                                }
-                            }, 50);
-                        }
-                    } else {
-                        // Standalone buttons (not in forms)
-                        setTimeout(() => {
-                            if (typeof window.showGlobalSpinner === 'function') {
-                                window.showGlobalSpinner("Please wait...");
-                            }
-                        }, 50);
-                    }
-                });
-                btn.dataset.spinnerBound = "true";
-            }
-        });
-    };
-
-    attachButtonListeners();
-
-    // Observe DOM changes to attach listeners to dynamic elements
-    const observer = new MutationObserver(() => {
-        attachLogoutListeners();
-        attachButtonListeners();
     });
-
-    observer.observe(document.body, { childList: true, subtree: true });
 });

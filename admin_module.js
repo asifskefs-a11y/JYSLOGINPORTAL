@@ -298,7 +298,7 @@ function renderVisitorLogs(visitors) {
                 <td class="p-4"><span class="status-badge ${v.status === 'SIGNED OUT' ? 'closed' : 'open'}">${v.status || "Active"}</span></td>
                 <td class="p-4 text-center">${(v.keyCollected === 'YES' || v.keyCollected === true) ? '🔑 HELD' : '❌ NO'}</td>
                 <td class="p-4 text-center">${v.signatureUrl ? `<img src="${v.signatureUrl}" class="h-6 mx-auto rounded border shadow-sm" onclick="window.openImageZoom('${v.signatureUrl}')">` : 'No Sig'}</td>
-                <td class="p-4 text-center"><button onclick="window.openDetailedAuditModal('visitor', '${v.id}')" class="text-indigo-600 hover:scale-110"><i class="fa-solid fa-eye"></i></button></td>
+                <td class="p-4 text-center"><button onclick="window.openDetailedAuditModal('visitor', '${v.id}')" class="text-indigo-600 hover:scale-110 transition-transform"><i class="fa-solid fa-eye"></i></button></td>
             </tr>`).join('') : '<tr><td colspan="13" class="p-8 text-center text-gray-400">No records found</td></tr>';
     });
 }
@@ -322,7 +322,7 @@ function renderContractorLogs(contractors) {
                 <td class="p-4"><span class="status-badge ${c.status === 'SIGNED OUT' ? 'closed' : 'open'}">${c.status || "Active"}</span></td>
                 <td class="p-4 text-center">${(c.keyCollected === 'YES' || c.keyCollected === true) ? '🔑 HELD' : '❌ NO'}</td>
                 <td class="p-4 text-center">${c.signatureUrl ? `<img src="${c.signatureUrl}" class="h-6 mx-auto rounded border shadow-sm">` : 'No Sig'}</td>
-                <td class="p-4 text-center"><button onclick="window.openDetailedAuditModal('contractor', '${c.id}')" class="text-emerald-600 hover:scale-110"><i class="fa-solid fa-eye"></i></button></td>
+                <td class="p-4 text-center"><button onclick="window.openDetailedAuditModal('contractor', '${c.id}')" class="text-emerald-600 hover:scale-110 transition-transform"><i class="fa-solid fa-eye"></i></button></td>
             </tr>`).join('') : '<tr><td colspan="13" class="p-8 text-center text-gray-400">No records found</td></tr>';
     });
 }
@@ -346,7 +346,7 @@ function renderStaffAttendance(attendance) {
                 <td class="p-4 text-emerald-600 font-black">${a.timeIn || "-"}</td>
                 <td class="p-4 text-red-500 font-black">${a.checkOutTime || "-"}</td>
                 <td class="p-4 text-center font-bold">${a.keyStatus || "NONE"}</td>
-                <td class="p-4 text-center">${a.signatureUrl ? `<img src="${a.signatureUrl}" class="h-6 mx-auto rounded border shadow-sm" onclick="window.openImageZoom('${a.signatureUrl}')">` : 'No Sig'}</td>
+                <td class="p-4 text-center">${a.signatureUrl ? `<img src="${a.signatureUrl}" class="h-6 mx-auto rounded border shadow-sm" onclick="window.openImageZoom('${a.signatureUrl}')" alt="Sig">` : '<span class="text-slate-300">-</span>'}</td>
                 <td class="p-4 text-center">
                     <button
                         data-modal-id="attendance-detail-modal"
@@ -1030,7 +1030,9 @@ window.openAttendanceDetailModal = function(staffKey) {
                     <h3 class="text-2xl font-black text-indigo-900 uppercase tracking-tight">Attendance Record</h3>
                     <p class="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] mt-1">Detailed Shift Log</p>
                 </div>
-                <button onclick="document.getElementById('view-staff-modal').classList.add('hidden')" class="w-10 h-10 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center hover:bg-red-50 hover:text-red-500 transition-all text-xl">&times;</button>
+                <button onclick="document.getElementById('view-staff-modal').classList.add('hidden')" class="w-10 h-10 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center hover:bg-slate-200 active:scale-90 transition-all" aria-label="Close">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
             </div>
 
             <div class="space-y-6 text-gray-800">
@@ -1077,13 +1079,13 @@ window.openAttendanceDetailModal = function(staffKey) {
                     <div class="text-center bg-white p-5 rounded-3xl border border-slate-100 shadow-sm">
                         <span class="text-[9px] font-black text-indigo-400 uppercase block mb-3 tracking-widest underline decoration-2 underline-offset-4">Entry Signature</span>
                         <div class="h-24 flex items-center justify-center bg-slate-50 rounded-2xl border border-dashed border-slate-200">
-                            ${record.signatureUrl ? `<img src="${window.getDirectDriveImageUrl(record.signatureUrl)}" class="max-h-20 object-contain mix-blend-multiply" onclick="window.openImageZoom('${record.signatureUrl}')">` : '<span class="text-[10px] font-bold text-slate-300 uppercase">No Signature</span>'}
+                            ${record.signatureUrl ? `<img src="${window.getDirectDriveImageUrl(record.signatureUrl)}" class="max-h-20 object-contain mix-blend-multiply" onclick="window.openImageZoom('${record.signatureUrl}')" alt="Entry Sig">` : '<span class="text-white/20">No Signature</span>'}
                         </div>
                     </div>
                     <div class="text-center bg-white p-5 rounded-3xl border border-slate-100 shadow-sm">
                         <span class="text-[9px] font-black text-rose-400 uppercase block mb-3 tracking-widest underline decoration-2 underline-offset-4">Exit Signature</span>
                         <div class="h-24 flex items-center justify-center bg-slate-50 rounded-2xl border border-dashed border-slate-200">
-                            ${record.checkOutSignatureUrl ? `<img src="${window.getDirectDriveImageUrl(record.checkOutSignatureUrl)}" class="max-h-20 object-contain mix-blend-multiply" onclick="window.openImageZoom('${record.checkOutSignatureUrl}')">` : '<span class="text-[10px] font-bold text-slate-300 uppercase">No Signature</span>'}
+                            ${record.checkOutSignatureUrl ? `<img src="${window.getDirectDriveImageUrl(record.checkOutSignatureUrl)}" class="max-h-20 object-contain mix-blend-multiply" onclick="window.openImageZoom('${record.checkOutSignatureUrl}')" alt="Exit Sig">` : '<span class="text-white/20">No Signature</span>'}
                         </div>
                     </div>
                 </div>
@@ -1124,7 +1126,9 @@ window.viewMovementDetails = function(transferId) {
                     <h3 class="text-2xl font-black text-indigo-900 uppercase tracking-tight">Transfer Manifest</h3>
                     <p class="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] mt-1">ID: ${record.transferId}</p>
                 </div>
-                <button onclick="document.getElementById('view-staff-modal').classList.add('hidden')" class="w-10 h-10 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center hover:bg-red-50 hover:text-red-500 transition-all text-xl">&times;</button>
+                <button onclick="document.getElementById('view-staff-modal').classList.add('hidden')" class="w-10 h-10 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center hover:bg-slate-200 active:scale-90 transition-all" aria-label="Close">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
             </div>
 
             <div class="space-y-6 overflow-y-auto pr-2 custom-scrollbar flex-1">
@@ -1202,7 +1206,9 @@ window.viewDisposalDetails = function(requestId) {
                     <h3 class="text-2xl font-black text-red-900 uppercase tracking-tight">Disposal Audit</h3>
                     <p class="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] mt-1">Barcode: ${record.assetBarcode}</p>
                 </div>
-                <button onclick="document.getElementById('view-staff-modal').classList.add('hidden')" class="w-10 h-10 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center hover:bg-red-50 hover:text-red-500 transition-all text-xl">&times;</button>
+                <button onclick="document.getElementById('view-staff-modal').classList.add('hidden')" class="w-10 h-10 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center hover:bg-slate-200 active:scale-90 transition-all" aria-label="Close">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
             </div>
 
             <div class="space-y-6 text-gray-800">
@@ -1849,7 +1855,9 @@ window.viewMovementDetails = function(transferId) {
                     <h3 class="text-2xl font-black text-indigo-900 uppercase tracking-tight">Transfer Manifest</h3>
                     <p class="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] mt-1">ID: ${record.transferId}</p>
                 </div>
-                <button onclick="document.getElementById('view-staff-modal').classList.add('hidden')" class="w-10 h-10 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center hover:bg-red-50 hover:text-red-500 transition-all text-xl">&times;</button>
+                <button onclick="document.getElementById('view-staff-modal').classList.add('hidden')" class="w-10 h-10 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center hover:bg-slate-200 active:scale-90 transition-all" aria-label="Close">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
             </div>
 
             <div class="space-y-6 overflow-y-auto pr-2 custom-scrollbar flex-1">
@@ -1929,7 +1937,9 @@ window.viewDisposalDetails = function(requestId) {
                     <h3 class="text-2xl font-black text-red-900 uppercase tracking-tight">Disposal Audit</h3>
                     <p class="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] mt-1">Barcode: ${record.assetBarcode || record["ASSET BARCODE"] || 'N/A'}</p>
                 </div>
-                <button onclick="document.getElementById('view-staff-modal').classList.add('hidden')" class="w-10 h-10 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center hover:bg-red-50 hover:text-red-500 transition-all text-xl">&times;</button>
+                <button onclick="document.getElementById('view-staff-modal').classList.add('hidden')" class="w-10 h-10 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center hover:bg-slate-200 active:scale-90 transition-all" aria-label="Close">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
             </div>
 
             <div class="space-y-6 text-gray-800 overflow-y-auto pr-2 custom-scrollbar flex-1">
@@ -2009,7 +2019,9 @@ window.openDetailedAuditModal = function(type, id) {
                     <h3 class="text-2xl font-black text-${accentColor}-900 uppercase tracking-tight">${type} Detailed Entry</h3>
                     <p class="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] mt-1">Verification Log</p>
                 </div>
-                <button onclick="document.getElementById('view-staff-modal').classList.add('hidden')" class="w-10 h-10 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center hover:bg-red-50 hover:text-red-500 transition-all text-xl">&times;</button>
+                <button onclick="document.getElementById('view-staff-modal').classList.add('hidden')" class="w-10 h-10 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center hover:bg-slate-200 active:scale-90 transition-all" aria-label="Close">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
             </div>
 
             <div class="space-y-6 text-gray-800">
@@ -2090,7 +2102,9 @@ window.viewMovementDetails = function(transferId) {
                     <h3 class="text-2xl font-black text-indigo-900 uppercase tracking-tight">Transfer Manifest</h3>
                     <p class="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] mt-1">ID: ${record.transferId}</p>
                 </div>
-                <button onclick="document.getElementById('view-staff-modal').classList.add('hidden')" class="w-10 h-10 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center hover:bg-red-50 hover:text-red-500 transition-all text-xl">&times;</button>
+                <button onclick="document.getElementById('view-staff-modal').classList.add('hidden')" class="w-10 h-10 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center hover:bg-slate-200 active:scale-90 transition-all" aria-label="Close">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
             </div>
 
             <div class="space-y-6 overflow-y-auto pr-2 custom-scrollbar flex-1">
@@ -2170,7 +2184,9 @@ window.viewDisposalDetails = function(requestId) {
                     <h3 class="text-2xl font-black text-red-900 uppercase tracking-tight">Disposal Audit</h3>
                     <p class="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] mt-1">Barcode: ${record.assetBarcode || record["ASSET BARCODE"] || 'N/A'}</p>
                 </div>
-                <button onclick="document.getElementById('view-staff-modal').classList.add('hidden')" class="w-10 h-10 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center hover:bg-red-50 hover:text-red-500 transition-all text-xl">&times;</button>
+                <button onclick="document.getElementById('view-staff-modal').classList.add('hidden')" class="w-10 h-10 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center hover:bg-slate-200 active:scale-90 transition-all" aria-label="Close">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
             </div>
 
             <div class="space-y-6 text-gray-800 overflow-y-auto pr-2 custom-scrollbar flex-1">
