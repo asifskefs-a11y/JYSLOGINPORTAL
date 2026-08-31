@@ -150,6 +150,9 @@
                 </div>
 
                 <form id="staff-login-form" class="space-y-5" onsubmit="event.preventDefault(); event.stopPropagation(); if(typeof window.handleStaffLogin === 'function') window.handleStaffLogin(event); return false;">
+                    <!-- CSRF Protection Field -->
+                    <input type="hidden" id="csrf-token-field" name="csrf_token">
+
                     <div class="space-y-1.5">
                         <label for="s-log-adek" class="text-[10px] font-black text-indigo-500 uppercase tracking-wider flex items-center gap-1.5 select-none">
                             <i class="fa-regular fa-id-badge"></i> ADEK Pass Number
@@ -158,7 +161,7 @@
                             <div class="absolute left-5 top-1/2 -translate-y-1/2 text-indigo-400 group-focus-within:text-indigo-600 transition-colors pointer-events-none">
                                 <i class="fa-regular fa-user text-sm"></i>
                             </div>
-                            <input type="text" id="s-log-adek" name="username" autocomplete="username" placeholder="Enter number" required class="w-full pl-16 pr-4 py-3.5 bg-slate-50 border-2 border-slate-100 rounded-xl focus:border-indigo-500 focus:bg-white text-slate-900 outline-none transition-all text-sm font-medium" style="padding-left: 64px !important;">
+                            <input type="text" id="s-log-adek" name="username" autocomplete="username" placeholder="Enter number" required minlength="1" maxlength="10" pattern="[0-9]+" class="w-full pl-16 pr-4 py-3.5 bg-slate-50 border-2 border-slate-100 rounded-xl focus:border-indigo-500 focus:bg-white text-slate-900 outline-none transition-all text-sm font-medium" style="padding-left: 64px !important;">
                         </div>
                     </div>
 
@@ -170,7 +173,7 @@
                             <div class="absolute left-5 top-1/2 -translate-y-1/2 text-indigo-400 group-focus-within:text-indigo-600 transition-colors pointer-events-none">
                                 <i class="fa-solid fa-lock text-sm"></i>
                             </div>
-                            <input type="password" id="s-log-pass" name="password" autocomplete="current-password" placeholder="Enter password" required class="w-full pl-16 pr-12 py-3.5 bg-slate-50 border-2 border-slate-100 rounded-xl focus:border-indigo-500 focus:bg-white text-slate-900 outline-none transition-all text-sm font-medium" style="padding-left: 64px !important;">
+                            <input type="password" id="s-log-pass" name="password" autocomplete="current-password" placeholder="Enter password" required minlength="6" maxlength="50" class="w-full pl-16 pr-12 py-3.5 bg-slate-50 border-2 border-slate-100 rounded-xl focus:border-indigo-500 focus:bg-white text-slate-900 outline-none transition-all text-sm font-medium" style="padding-left: 64px !important;">
                             <button type="button" aria-label="Toggle password visibility" onclick="const p=document.getElementById('s-log-pass'); const icon=this.querySelector('i'); if(p.type==='password'){ p.type='text'; icon.classList.replace('fa-eye','fa-eye-slash'); } else { p.type='password'; icon.classList.replace('fa-eye-slash','fa-eye'); }" class="absolute right-3 top-1/2 -translate-y-1/2 p-1.5 text-slate-400 hover:text-indigo-600 transition-colors">
                                 <i class="fa-regular fa-eye text-sm"></i>
                             </button>
@@ -1586,6 +1589,12 @@
 <script type="module" src="audit_module.js?v=4.0"></script>
 <script type="module" src="staff_asset_module.js?v=4.0"></script>
 <script type="module" src="contractor_module.js?v=4.0"></script>
+<script type="module">
+    import { refreshCsrfToken } from './csrf_token_manager.js?v=1.0';
+    document.addEventListener('DOMContentLoaded', () => {
+        refreshCsrfToken();
+    });
+</script>
 
 <!-- FORCED GLOBAL SPINNER & OVERRIDE -->
 <style>

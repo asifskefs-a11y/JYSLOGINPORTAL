@@ -1,5 +1,6 @@
 import { db, UPLOAD_CONFIG } from './firebase_config.js';
 import { ref, get, update, push, set, onValue, off } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+import { PATHS, FirebasePathValidator } from './firebase_path_manager.js';
 
 // ================================================
 // TASK MANAGEMENT MODULE (v4.4 - FIXED)
@@ -287,7 +288,11 @@ window.executeFinalClosure = async () => {
             closedAt: new Date().toISOString()
         };
 
-        await update(ref(db, 'tasks/' + taskId), updateData);
+        const path = PATHS.TASKS + '/' + taskId;
+        if (!FirebasePathValidator.validatePath(path)) throw new Error("Invalid DB Path");
+        FirebasePathValidator.logOperation('update', path);
+
+        await update(ref(db, path), updateData);
 
         window.triggerSuccessPopup("Task Completed & Closed! ✅");
         window.closeClosureModal();
@@ -327,9 +332,12 @@ window.rejectTaskAction = async (taskId) => {
         return;
     }
 
-    window.showGlobalSpinner("Rejecting Task...");
+    const path = PATHS.TASKS + '/' + taskId;
+    if (!FirebasePathValidator.validatePath(path)) return;
+    FirebasePathValidator.logOperation('update', path);
+
     try {
-        await update(ref(db, 'tasks/' + taskId), {
+        await update(ref(db, path), {
             status: 'Rejected',
             rejectionReason: reason.trim(),
             solvedByName: window.currentStaff?.fullName || window.currentStaff?.name || "User",
@@ -439,7 +447,13 @@ window.handleCreateTaskSubmit = async function(event) {
             raisedByName: window.currentStaff?.fullName || window.currentStaff?.name || "Staff Member"
         };
 
-        await set(ref(db, 'tasks/' + taskId), data);
+        const path = PATHS.TASKS + '/' + taskId;
+        if (!FirebasePathValidator.validatePath(path) || !FirebasePathValidator.validateSchema(path, data)) {
+            throw new Error("Invalid Path or Schema");
+        }
+        FirebasePathValidator.logOperation('set', path);
+
+        await set(ref(db, path), data);
 
         window.triggerSuccessPopup("✅ Task Created Successfully!");
         const form = document.getElementById('raise-task-form');
@@ -679,7 +693,7 @@ window.loadRoleView = async (staff) => {
 
     // ✅ FIXED: Use onValue with cleanup
     taskListenerActive = true;
-    activeTaskListener = onValue(ref(db, 'tasks'), (snap) => {
+    activeTaskListener = onValue(ref(db, PATHS.TASKS), (snap) => {
         if (snap.exists()) {
             const data = snap.val();
             localStorage.setItem('cached_tasks', JSON.stringify(data));
@@ -749,7 +763,7 @@ window.filterStaffBySchoolAndRole = async () => {
     }
 
     try {
-        const snap = await get(ref(db, 'staff'));
+        const snap = await get(ref(db, PATHS.STAFF));
         if (snap.exists()) {
             const allStaff = Object.values(snap.val());
             const filtered = allStaff.filter(s => {
@@ -773,82 +787,146 @@ window.filterStaffBySchoolAndRole = async () => {
     }
 };
 
-function renderTasksList(tasks, container, isResolver, type) {
-    if (tasks.length === 0) {
-        container.innerHTML = `<p class="p-8 text-center text-slate-400 font-bold uppercase tracking-widest text-[10px]">No ${type} tasks found.</p>`;
-        return;
+/**
+ * Generic handler for task actions (Reject/Resolve)
+ * Using index-based lookup as requested by dynamic indexing requirement.
+ */
+window.handleTaskAction = (event, index) => {
+    try {
+        const btn = event.target.closest('button');
+        if (!btn) return;
+
+        const action = btn.getAttribute('data-action');
+        const container = event.target.closest('[id^="tasksContainer"]') || event.target.closest('.tasks-grid');
+        const tasks = container ? container._taskData : null;
+
+        if (!tasks || !tasks[index]) {
+            console.error("❌ handleTaskAction: Task not found at index", index);
+            return;
+        }
+
+        const task = tasks[index];
+        if (action === 'reject') {
+            window.rejectTaskAction(task.id);
+        } else if (action === 'resolve') {
+            window.closeTaskAction(task.id);
+        }
+    } catch (err) {
+        console.error("🛑 handleTaskAction Error Boundary:", err);
     }
+};
 
-    tasks.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+/**
+ * Renders a list of tasks into a container with safety checks and indexing.
+ */
+function renderTasksList(tasks, container, isResolver, type) {
+    try {
+        // 1. Comprehensive null/undefined checks for tasks parameter
+        if (tasks === null || tasks === undefined) {
+            console.error(`❌ renderTasksList: tasks parameter is ${tasks}`);
+            if (container) container.innerHTML = `<p class="p-4 text-red-500 font-bold">Error: Task data is missing.</p>`;
+            return;
+        }
 
-    const currentUser = window.currentStaff;
-    const isAdmin = localStorage.getItem('isAdminLoggedIn') === 'true' || (currentUser?.role || '').toLowerCase() === 'admin';
+        // 2. Validate array length before rendering
+        if (!Array.isArray(tasks)) {
+            console.error("❌ renderTasksList: tasks is not an array", tasks);
+            if (container) container.innerHTML = `<p class="p-4 text-red-500 font-bold">Error: Invalid data format.</p>`;
+            return;
+        }
 
-    container.innerHTML = tasks.map(t => {
-        const isHistory = t.status === 'Closed' || t.status === 'Rejected';
-        const statusClass = t.status === 'Open' ? 'bg-amber-500' : t.status === 'Closed' ? 'bg-emerald-500' : 'bg-red-500';
+        // 4. Add fallback UI if tasks array is empty
+        if (tasks.length === 0) {
+            if (container) container.innerHTML = `<p class="p-8 text-center text-slate-400 font-bold uppercase tracking-widest text-[10px]">No ${type} tasks available.</p>`;
+            return;
+        }
 
-        const beforePhoto = t.beforePhotoUrl || t.photoURL || t.beforePhoto || '';
-        const afterPhoto = t.afterPhotoUrl || t.completionPhoto || t.afterPhoto || '';
+        // Sort tasks by timestamp descending
+        const sortedTasks = [...tasks].sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
 
-        const isCreator = t.raisedByMobile === currentUser?.mobile;
-        const remark = t.completionComment || t.rejectionReason || '';
-        const material = t.materialUsed || '';
+        // Safety check for container
+        if (!container) {
+            console.error("❌ renderTasksList: Container element not found");
+            return;
+        }
 
-        return `
-            <div class="task-card bg-white p-5 rounded-[2rem] shadow-xl border border-indigo-50 flex flex-col gap-4 fade-in">
-                <div class="flex justify-between items-start">
-                    <div class="flex-1">
-                        <div class="flex items-center gap-2 mb-1">
-                            <span class="px-2 py-0.5 rounded text-[8px] font-black text-white uppercase ${statusClass}">${t.status}</span>
-                            <span class="text-[9px] text-slate-900 font-black uppercase tracking-tighter">${new Date(t.timestamp).toLocaleString()}</span>
+        // Store sorted tasks in container for handleTaskAction
+        container._taskData = sortedTasks;
+
+        const currentUser = window.currentStaff;
+        const isAdmin = localStorage.getItem('isAdminLoggedIn') === 'true' || (currentUser?.role || '').toLowerCase() === 'admin';
+
+        // Use array.map() with index parameter for rendering
+        container.innerHTML = sortedTasks.map((t, index) => {
+            const isHistory = t.status === 'Closed' || t.status === 'Rejected';
+            const statusClass = t.status === 'Open' ? 'bg-amber-500' : t.status === 'Closed' ? 'bg-emerald-500' : 'bg-red-500';
+            const beforePhoto = t.beforePhotoUrl || t.photoURL || t.beforePhoto || '';
+            const afterPhoto = t.afterPhotoUrl || t.completionPhoto || t.afterPhoto || '';
+            const isCreator = t.raisedByMobile === currentUser?.mobile;
+            const remark = t.completionComment || t.rejectionReason || '';
+            const material = t.materialUsed || '';
+
+            // 3. Assign unique DOM IDs using index
+            // 6. Add event listener parameter passing: onclick="handleTaskAction(event, ${index})"
+            return `
+                <div id="task-row-${index}" class="task-card bg-white p-5 rounded-[2rem] shadow-xl border border-indigo-50 flex flex-col gap-4 fade-in">
+                    <div class="flex justify-between items-start">
+                        <div class="flex-1">
+                            <div class="flex items-center gap-2 mb-1">
+                                <span class="px-2 py-0.5 rounded text-[8px] font-black text-white uppercase ${statusClass}">${t.status}</span>
+                                <span class="text-[9px] text-slate-900 font-black uppercase tracking-tighter">${new Date(t.timestamp).toLocaleString()}</span>
+                            </div>
+                            <h4 class="font-black text-indigo-900 uppercase text-sm leading-tight">${t.location}</h4>
                         </div>
-                        <h4 class="font-black text-indigo-900 uppercase text-sm leading-tight">${t.location}</h4>
-                    </div>
 
-                    <div class="flex gap-2">
-                        ${beforePhoto && beforePhoto !== 'N/A' && beforePhoto !== '-' ? `<img src="${window.getDirectDriveImageUrl(beforePhoto)}" class="w-12 h-12 rounded-xl object-cover border-2 border-indigo-50 shadow-sm" onclick="window.openImageZoom('${beforePhoto}')" title="Before Photo">` : ''}
-                        ${afterPhoto && afterPhoto !== 'N/A' && afterPhoto !== '-' ? `<img src="${window.getDirectDriveImageUrl(afterPhoto)}" class="w-12 h-12 rounded-xl object-cover border-2 border-emerald-50 shadow-sm" onclick="window.openImageZoom('${afterPhoto}')" title="After Photo">` : ''}
-                    </div>
-                </div>
-
-                <p class="text-xs text-slate-600 font-medium leading-relaxed">${t.details || t.description || '-'}</p>
-
-                ${material && material !== 'N/A' ? `
-                    <div class="bg-indigo-50 border border-indigo-100 p-3 rounded-2xl text-[9px] text-indigo-900 font-black uppercase tracking-wider">
-                        <i class="fa-solid fa-toolbox mr-1 text-indigo-500"></i> Material: ${material}
-                    </div>
-                ` : ''}
-
-                ${(isCreator || isAdmin) && remark ? `
-                    <div class="bg-amber-50 border border-amber-200 p-3 rounded-2xl text-[10px] text-amber-950 font-bold italic">
-                        <i class="fa-solid fa-comment-dots mr-1 text-amber-600"></i> Remark: ${remark}
-                    </div>
-                ` : ''}
-
-                <div class="flex items-center justify-between pt-2 border-t border-slate-50">
-                    <div class="flex flex-col">
-                        <span class="text-[8px] font-black text-slate-400 uppercase tracking-widest">Raised By</span>
-                        <span class="text-[10px] font-bold text-indigo-600">${t.raisedByName}</span>
-                    </div>
-
-                    ${!isHistory && isResolver ? `
                         <div class="flex gap-2">
-                            <button onclick="window.rejectTaskAction('${t.id}')" class="px-4 py-2 bg-red-50 text-red-600 rounded-xl text-[9px] font-black uppercase active:scale-95 transition-all">Reject</button>
-                            <button onclick="window.closeTaskAction('${t.id}')" class="px-4 py-2 bg-emerald-500 text-white rounded-xl text-[9px] font-black uppercase shadow-lg shadow-emerald-500/20 active:scale-95 transition-all">Resolve</button>
+                            ${beforePhoto && beforePhoto !== 'N/A' && beforePhoto !== '-' ? `<img src="${window.getDirectDriveImageUrl(beforePhoto)}" class="w-12 h-12 rounded-xl object-cover border-2 border-indigo-50 shadow-sm" onclick="window.openImageZoom('${beforePhoto}')" title="Before Photo">` : ''}
+                            ${afterPhoto && afterPhoto !== 'N/A' && afterPhoto !== '-' ? `<img src="${window.getDirectDriveImageUrl(afterPhoto)}" class="w-12 h-12 rounded-xl object-cover border-2 border-emerald-50 shadow-sm" onclick="window.openImageZoom('${afterPhoto}')" title="After Photo">` : ''}
+                        </div>
+                    </div>
+
+                    <p class="text-xs text-slate-600 font-medium leading-relaxed">${t.details || t.description || '-'}</p>
+
+                    ${material && material !== 'N/A' ? `
+                        <div class="bg-indigo-50 border border-indigo-100 p-3 rounded-2xl text-[9px] text-indigo-900 font-black uppercase tracking-wider">
+                            <i class="fa-solid fa-toolbox mr-1 text-indigo-500"></i> Material: ${material}
                         </div>
                     ` : ''}
 
-                    ${isHistory ? `
-                        <div class="flex flex-col items-end">
-                            <span class="text-[8px] font-black text-slate-400 uppercase tracking-widest">${t.status === 'Closed' ? 'Resolved' : 'Rejected'} By</span>
-                            <span class="text-[10px] font-bold text-slate-700">${t.solvedByName || 'System'}</span>
+                    ${(isCreator || isAdmin) && remark ? `
+                        <div class="bg-amber-50 border border-amber-200 p-3 rounded-2xl text-[10px] text-amber-950 font-bold italic">
+                            <i class="fa-solid fa-comment-dots mr-1 text-amber-600"></i> Remark: ${remark}
                         </div>
                     ` : ''}
+
+                    <div id="task-action-${index}" class="flex items-center justify-between pt-2 border-t border-slate-50">
+                        <div class="flex flex-col">
+                            <span class="text-[8px] font-black text-slate-400 uppercase tracking-widest">Raised By</span>
+                            <span class="text-[10px] font-bold text-indigo-600">${t.raisedByName}</span>
+                        </div>
+
+                        ${!isHistory && isResolver ? `
+                            <div class="flex gap-2">
+                                <button data-action="reject" onclick="handleTaskAction(event, ${index})" class="px-4 py-2 bg-red-50 text-red-600 rounded-xl text-[9px] font-black uppercase active:scale-95 transition-all">Reject</button>
+                                <button data-action="resolve" onclick="handleTaskAction(event, ${index})" class="px-4 py-2 bg-emerald-500 text-white rounded-xl text-[9px] font-black uppercase shadow-lg shadow-emerald-500/20 active:scale-95 transition-all">Resolve</button>
+                            </div>
+                        ` : ''}
+
+                        ${isHistory ? `
+                            <div class="flex flex-col items-end">
+                                <span class="text-[8px] font-black text-slate-400 uppercase tracking-widest">${t.status === 'Closed' ? 'Resolved' : 'Rejected'} By</span>
+                                <span class="text-[10px] font-bold text-slate-700">${t.solvedByName || 'System'}</span>
+                            </div>
+                        ` : ''}
+                    </div>
                 </div>
-            </div>
-        `;
-    }).join('');
+            `;
+        }).join('');
+    } catch (err) {
+        // 5. Implement error boundary that logs failures without crashing app
+        console.error("🛑 renderTasksList Exception Boundary:", err);
+        if (container) container.innerHTML = `<p class="p-4 text-red-400 font-medium">Rendering error. Details logged to console.</p>`;
+    }
 }
 
-console.log("✅ tasks_module.js: v4.4 Clean Architecture Deployed");
+console.log("✅ tasks_module.js: v4.5 Optimized Rendering Engine Deployed");

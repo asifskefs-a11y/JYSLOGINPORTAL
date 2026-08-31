@@ -2549,3 +2549,55 @@ h1:hover {
         background: radial-gradient(ellipse, rgba(79, 70, 229, 0.08) 0%, transparent 70%);
     }
 }
+
+/* ================================================================ */
+/* ✅ FRONTEND CLEANUP FIXES v1.0                                   */
+/* ================================================================ */
+
+/* 4, 5, 6. Stats Grid Responsiveness */
+.stats-grid {
+    display: grid !important;
+    grid-template-columns: repeat(4, 1fr) !important;
+    gap: 16px !important;
+    margin-bottom: 24px !important;
+}
+
+@media (max-width: 1024px) {
+    .stats-grid {
+        grid-template-columns: repeat(2, 1fr) !important;
+    }
+}
+
+@media (max-width: 640px) {
+    .stats-grid {
+        grid-template-columns: 1fr !important;
+    }
+}
+
+/* 11. KPI Horizontal Container Wrapping */
+.kpi-horizontal-container {
+    flex-wrap: wrap !important;
+}
+
+/* 12. Stat Card Spacing */
+.stat-card {
+    min-width: 200px !important;
+}
+
+/* 10. Reduced Motion Support */
+@media (prefers-reduced-motion: reduce) {
+    * {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+    }
+    .glass-effect,
+    #universal-logo-loader,
+    #global-success-popup,
+    .portal-card,
+    #add-staff-modal {
+        backdrop-filter: none !important;
+        -webkit-backdrop-filter: none !important;
+    }
+}

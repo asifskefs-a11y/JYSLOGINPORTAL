@@ -8,6 +8,7 @@ import {
     child
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 import { registerPushNotifications } from './fcm_module.js';
+import { validateCsrfToken, refreshCsrfToken } from './csrf_token_manager.js?v=1.0';
 
 console.log("📦 init_module.js: Starting to load...");
 
@@ -90,10 +91,22 @@ window.handleStaffLogin = async (e) => {
 
     const adekEl = document.getElementById('s-log-adek');
     const passEl = document.getElementById('s-log-pass');
+    const csrfEl = document.getElementById('csrf-token-field');
     const btn = e?.target?.querySelector('button[type="submit"]');
 
     if (!adekEl || !passEl) {
         console.error("❌ Staff Login: Missing inputs in DOM");
+        return false;
+    }
+
+    // --- CSRF VALIDATION ---
+    const csrfToken = csrfEl ? csrfEl.value : '';
+    const csrfResult = validateCsrfToken(csrfToken);
+
+    if (!csrfResult.isValid) {
+        console.warn("🛡️ CSRF Validation Failed:", csrfResult.error);
+        alert(csrfResult.error);
+        refreshCsrfToken(); // Force refresh on mismatch/expiry
         return false;
     }
 
@@ -132,6 +145,9 @@ window.handleStaffLogin = async (e) => {
 
             if (foundUser) {
                 console.log("✅ Staff Login: Authentication Successful for", foundUser.name);
+
+                // REGENERATE CSRF TOKEN ON SUCCESS (Requirement 4)
+                refreshCsrfToken();
 
                 // Register FCM after login
                 registerPushNotifications(foundUser.mobile);

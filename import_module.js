@@ -8,6 +8,21 @@
 
 import { db } from './firebase_config.js';
 import { ref, set, update, get, remove } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+import { CSVSchemaValidator, ASSET_SCHEMA } from './csv_schema_validator.js';
+
+// ================================================================ */
+// IMPORT STATE MACHINE (Requirement 7)                             */
+// ================================================================ */
+const IMPORT_STATE = {
+    IDLE: 'IDLE',
+    VALIDATING: 'VALIDATING',
+    INSERTING: 'INSERTING',
+    COMPLETED: 'COMPLETED',
+    FAILED: 'FAILED',
+    ROLLING_BACK: 'ROLLING_BACK'
+};
+
+let currentImportState = IMPORT_STATE.IDLE;
 
 // ================================================================ */
 // COMPLETE HEADER MAPPING - ALL 39 FIELDS FROM EXCEL              */
@@ -177,18 +192,27 @@ async function checkExistingAssets(barcodes) {
 // ================================================================ */
 
 function parseStandardAssetSheet(worksheet) {
+    currentImportState = IMPORT_STATE.VALIDATING;
+    const validator = new CSVSchemaValidator();
+
     const jsonData = XLSX.utils.sheet_to_json(worksheet, {
         defval: "",
         blankrows: false
     });
 
     if (!jsonData || jsonData.length === 0) {
+        currentImportState = IMPORT_STATE.FAILED;
         throw new Error("The worksheet appears to be empty.");
     }
 
     const rawHeaders = Object.keys(jsonData[0] || {});
     console.log("📋 Raw Headers Found:", rawHeaders);
-    console.log(`📊 Total Headers: ${rawHeaders.length}`);
+
+    // Requirement 2: Validate headers
+    if (!validator.validateHeaders(rawHeaders)) {
+        currentImportState = IMPORT_STATE.FAILED;
+        throw new Error(`Schema Validation Failed: ${validator.errors[0]}`);
+    }
 
     const headerMapping = {};
     let mappedCount = 0;
@@ -199,18 +223,10 @@ function parseStandardAssetSheet(worksheet) {
         if (mappedField) {
             headerMapping[header] = mappedField;
             mappedCount++;
-            console.log(`✅ "${header}" → "${mappedField}"`);
         } else {
             unmappedHeaders.push(header);
-            console.warn(`⚠️ No mapping for: "${header}"`);
         }
     });
-
-    if (unmappedHeaders.length > 0) {
-        console.warn(`⚠️ ${unmappedHeaders.length} headers unmapped:`, unmappedHeaders);
-    }
-
-    console.log(`📊 Mapped ${mappedCount}/${rawHeaders.length} headers`);
 
     const assets = [];
     const skipped = [];
@@ -218,20 +234,23 @@ function parseStandardAssetSheet(worksheet) {
 
     jsonData.forEach((row, index) => {
         try {
-            const assetObj = {};
+            // Requirement 3: Validate each row
+            if (!validator.validateRow(row, index + 2)) {
+                skipped.push({
+                    row: index + 2,
+                    reason: "Data type mismatch",
+                    errors: validator.errors.slice(-1)
+                });
+                return;
+            }
 
+            const assetObj = {};
             rawHeaders.forEach((header) => {
                 const mappedField = headerMapping[header];
                 let value = row[header];
 
-                // Clean up value
-                if (typeof value === 'string') {
-                    value = value.trim();
-                }
-                // Convert empty strings to null
-                if (value === '' || value === undefined || value === null) {
-                    value = null;
-                }
+                if (typeof value === 'string') value = value.trim();
+                if (value === '' || value === undefined || value === null) value = null;
 
                 if (mappedField) {
                     assetObj[mappedField] = value;
@@ -243,18 +262,12 @@ function parseStandardAssetSheet(worksheet) {
 
             const barcode = assetObj.assetBarcode;
             if (!barcode) {
-                skipped.push({
-                    row: index + 2,
-                    reason: "Missing Asset Barcode",
-                    data: assetObj
-                });
+                skipped.push({ row: index + 2, reason: "Missing Asset Barcode" });
                 return;
             }
 
             const cleanBarcode = String(barcode).trim();
             barcodes.push(cleanBarcode);
-
-            // ✅ FIXED: Use sanitized key for Firebase
             const sanitizedId = sanitizeFirebaseKey(cleanBarcode);
 
             assets.push({
@@ -263,21 +276,14 @@ function parseStandardAssetSheet(worksheet) {
                 _row: index + 2,
                 ...assetObj,
                 assetBarcode: cleanBarcode,
-                originalBarcode: cleanBarcode,
                 importedAt: new Date().toISOString(),
                 _version: 1
             });
 
         } catch (error) {
-            skipped.push({
-                row: index + 2,
-                reason: error.message,
-                data: row
-            });
+            skipped.push({ row: index + 2, reason: error.message });
         }
     });
-
-    console.log(`📊 Parsed ${assets.length} assets, ${skipped.length} skipped`);
 
     return {
         assets,
@@ -286,7 +292,8 @@ function parseStandardAssetSheet(worksheet) {
         mappedCount: mappedCount,
         totalHeaders: rawHeaders.length,
         skipped,
-        barcodes
+        barcodes,
+        validatorReport: validator.getReport()
     };
 }
 
@@ -295,103 +302,82 @@ function parseStandardAssetSheet(worksheet) {
 // ================================================================ */
 
 async function saveAssetsToFirebase(assets) {
-    if (!assets || assets.length === 0) {
-        console.warn("No assets to save — skipping Firebase write.");
-        return { saved: 0, failed: 0, errors: [] };
-    }
+    if (!assets || assets.length === 0) return { saved: 0, failed: 0, errors: [] };
 
+    currentImportState = IMPORT_STATE.INSERTING;
     let saved = 0;
     let failed = 0;
     const errors = [];
+    const writtenKeys = []; // For rollback
 
-    // ✅ FIXED: Smaller batch size for better reliability
     const BATCH_SIZE = 25;
+    window.showGlobalSpinner(`Importing ${assets.length} assets...`);
 
-    window.showGlobalSpinner(`Saving ${assets.length} assets to Database...`);
-    console.log(`💾 Saving ${assets.length} assets to Firebase in batches of ${BATCH_SIZE}...`);
-
-    // First, check for duplicates
+    // Requirement 7: Duplicate detection
     const barcodes = assets.map(a => a.assetBarcode).filter(Boolean);
-    if (barcodes.length > 0) {
-        const { existing, newAssets } = await checkExistingAssets(barcodes);
-        if (existing.length > 0) {
-            console.warn(`⚠️ ${existing.length} assets already exist in database. They will be updated.`);
-            // Continue - we'll update existing ones
+    const { existing } = await checkExistingAssets(barcodes);
+
+    if (existing.length > 0) {
+        if (!confirm(`${existing.length} assets already exist. Overwrite them?`)) {
+            currentImportState = IMPORT_STATE.FAILED;
+            return { saved: 0, failed: assets.length, errors: ["Import cancelled by user due to duplicates."] };
         }
     }
 
-    for (let i = 0; i < assets.length; i += BATCH_SIZE) {
-        const batch = assets.slice(i, i + BATCH_SIZE);
-        const updates = {};
+    try {
+        for (let i = 0; i < assets.length; i += BATCH_SIZE) {
+            const batch = assets.slice(i, i + BATCH_SIZE);
+            const updates = {};
+            const batchKeys = [];
 
-        batch.forEach((asset) => {
-            const { _id, _row, _rawBarcode, ...record } = asset;
+            batch.forEach((asset) => {
+                const { _id, _row, _rawBarcode, ...record } = asset;
+                if (!_id) return;
 
-            // Skip assets without a valid ID
-            if (!_id) {
-                failed++;
-                errors.push({ row: _row, error: "Missing Firebase key" });
-                return;
-            }
+                const completeRecord = {
+                    assetId: _id,
+                    assetBarcode: _rawBarcode || record.assetBarcode || 'N/A',
+                    importedAt: new Date().toISOString(),
+                    updatedAt: new Date().toISOString(),
+                    _version: 1
+                };
 
-            // Create complete record with ALL fields
-            const completeRecord = {
-                assetId: _id,
-                assetBarcode: _rawBarcode || record.assetBarcode || 'N/A',
-                importedAt: new Date().toISOString(),
-                updatedAt: new Date().toISOString(),
-                _version: 1
-            };
+                Object.keys(record).forEach(key => {
+                    const val = record[key];
+                    if (val !== undefined && val !== null && val !== '') completeRecord[key] = val;
+                });
 
-            // Add all mapped fields, filtering out null/undefined
-            Object.keys(record).forEach(key => {
-                const val = record[key];
-                if (val !== undefined && val !== null && val !== '') {
-                    completeRecord[key] = val;
-                }
+                if (!completeRecord.assetStatus) completeRecord.assetStatus = 'Active';
+
+                updates[`assets/${_id}`] = completeRecord;
+                batchKeys.push(`assets/${_id}`);
             });
 
-            // Ensure assetStatus is set
-            if (!completeRecord.assetStatus) {
-                completeRecord.assetStatus = 'Active';
-            }
+            try {
+                await update(ref(db), updates);
+                saved += Object.keys(updates).length;
+                writtenKeys.push(...batchKeys);
 
-            updates[`assets/${_id}`] = completeRecord;
-        });
-
-        if (Object.keys(updates).length === 0) {
-            console.warn(`⚠️ Batch ${i}-${i + batch.length}: No valid assets to save.`);
-            continue;
-        }
-
-        try {
-            await update(ref(db), updates);
-            saved += Object.keys(updates).length;
-
-            const progress = Math.min(100, Math.round(((i + batch.length) / assets.length) * 100));
-            showImportProgress(progress, i + batch.length, assets.length);
-
-            console.log(`✅ Batch ${i}-${i + batch.length}: ${Object.keys(updates).length} assets saved`);
-
-        } catch (error) {
-            console.error(`❌ Batch ${i} failed:`, error);
-            failed += Object.keys(updates).length;
-            errors.push({ batch: i, error: error.message });
-
-            // ✅ FIXED: Retry individual items if batch fails
-            console.log(`🔄 Retrying individual assets from failed batch...`);
-            for (const [path, data] of Object.entries(updates)) {
-                try {
-                    await set(ref(db, path), data);
-                    saved++;
-                    failed--; // Correct the count
-                    console.log(`✅ Individual save success: ${path}`);
-                } catch (singleError) {
-                    console.error(`❌ Failed to save ${path}:`, singleError);
-                    errors.push({ path, error: singleError.message });
-                }
+                const progress = Math.min(100, Math.round(((i + batch.length) / assets.length) * 100));
+                showImportProgress(progress, i + batch.length, assets.length);
+            } catch (error) {
+                console.error("❌ Batch insert failed. Initiating Rollback...", error);
+                throw error; // Trigger rollback
             }
         }
+        currentImportState = IMPORT_STATE.COMPLETED;
+    } catch (fatalError) {
+        // Requirement 4: Rollback mechanism
+        currentImportState = IMPORT_STATE.ROLLING_BACK;
+        window.showGlobalSpinner("Rolling back failed import...");
+
+        for (const path of writtenKeys) {
+            try { await remove(ref(db, path)); } catch (e) { console.error("Rollback failed for", path); }
+        }
+
+        currentImportState = IMPORT_STATE.FAILED;
+        window.hideGlobalSpinner();
+        throw new Error(`Import Failed and Rolled Back: ${fatalError.message}`);
     }
 
     window.hideGlobalSpinner();
@@ -469,7 +455,16 @@ window.handleAssetImport = function(event) {
 
             const result = parseStandardAssetSheet(worksheet);
 
-            console.log(`📊 Total Headers Found: ${result.totalHeaders}`);
+            // Requirement 6: Detailed import report
+            if (result.validatorReport && result.validatorReport.errors.length > 0) {
+                console.error("🛑 Schema Validation Errors:", result.validatorReport.errors);
+                const firstError = result.validatorReport.errors[0];
+                alert(`❌ Validation Failed!\n\n${firstError}\n\nPlease fix the file and try again.`);
+                window.hideGlobalSpinner();
+                return;
+            }
+
+            console.log(`📊 Total Headers Found: ${result.totalHeaders || result.headers.length}`);
             console.log(`📊 Headers Mapped: ${result.mappedCount}`);
             console.log(`📊 Assets Found: ${result.assets.length}`);
 
@@ -494,21 +489,20 @@ window.handleAssetImport = function(event) {
 
             let message = `✅ Import Complete!\n\n`;
             message += `📂 Sheet: "${sheetName}"\n`;
-            message += `📂 Total Headers: ${result.totalHeaders}\n`;
-            message += `📋 Headers Mapped: ${result.mappedCount}\n`;
-            message += `📊 Total Assets: ${result.assets.length}\n`;
-            message += `✅ Saved: ${saveResult.saved}\n`;
-            message += `❌ Failed: ${saveResult.failed}\n`;
-            message += `⚠️ Skipped: ${result.skipped.length}\n\n`;
-
-            if (saveResult.errors && saveResult.errors.length > 0) {
-                message += `⚠️ Errors encountered: ${saveResult.errors.length}\n`;
-                console.error('Import errors:', saveResult.errors);
-            }
+            message += `📊 Total Assets Found: ${result.assets.length}\n`;
+            message += `✅ Successfully Saved: ${saveResult.saved}\n`;
 
             if (result.skipped.length > 0) {
-                message += `⚠️ ${result.skipped.length} rows skipped due to missing barcode.\n`;
-                message += `Check console for details.`;
+                message += `⚠️ Validation Skipped Rows: ${result.skipped.length}\n`;
+                console.warn("Skipped Rows Detail:", result.skipped);
+            }
+
+            if (saveResult.failed > 0) {
+                message += `❌ Failed to Save: ${saveResult.failed}\n`;
+            }
+
+            if (saveResult.errors && saveResult.errors.length > 0) {
+                message += `\nFirst Error: ${saveResult.errors[0]}\n`;
             }
 
             alert(message);
@@ -656,10 +650,18 @@ window.renderDynamicAssetTable = function(assets, headers) {
             bodyHtml += `
                 <td class="p-3 text-center whitespace-nowrap sticky right-0 bg-white z-10 border-l shadow-sm">
                     <div class="flex items-center justify-center gap-2">
-                        <button type="button" onclick="event.preventDefault(); window.openAssetDetailsModal('${assetId}')" class="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-600 hover:bg-indigo-600 hover:text-white transition-all flex items-center justify-center shadow-sm" title="View Details">
+                        <button type="button"
+                            data-modal-id="asset-details-modal"
+                            data-modal-type="asset"
+                            data-payload="${encodeURIComponent(JSON.stringify({barcode: assetId}))}"
+                            class="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-600 hover:bg-indigo-600 hover:text-white transition-all flex items-center justify-center shadow-sm" title="View Details">
                             <i class="fa-solid fa-eye text-xs"></i>
                         </button>
-                        <button type="button" onclick="event.preventDefault(); window.openEditAssetModal('${assetId}')" class="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-600 hover:bg-indigo-600 hover:text-white transition-all flex items-center justify-center shadow-sm" title="Edit">
+                        <button type="button"
+                            data-modal-id="asset-edit-modal"
+                            data-modal-type="asset"
+                            data-payload="${encodeURIComponent(JSON.stringify({barcode: assetId}))}"
+                            class="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-600 hover:bg-indigo-600 hover:text-white transition-all flex items-center justify-center shadow-sm" title="Edit">
                             <i class="fa-solid fa-pen-to-square text-xs"></i>
                         </button>
                         <button type="button" onclick="event.preventDefault(); window.deleteAssetRecord('${assetId}')" class="w-8 h-8 rounded-lg bg-red-50 text-red-600 hover:bg-red-600 hover:text-white transition-all flex items-center justify-center shadow-sm" title="Delete">

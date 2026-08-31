@@ -1,5 +1,6 @@
 import { db, UPLOAD_CONFIG } from './firebase_config.js';
 import { ref, get, set, update, remove, onValue, push, query, orderByChild, equalTo, child, off } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+import { PATHS, FirebasePathValidator } from './firebase_path_manager.js';
 
 // ================================================================ */
 // ADMIN DASHBOARD CORE MODULE (FIXED v4.7 - REAL-TIME METRICS)     */
@@ -186,6 +187,7 @@ window.initAdminRealTimeListeners = function() {
     console.log("📡 Initializing Admin Real-Time Firebase Observers...");
 
     const registerListener = (node, cacheKey, tabId = null, filterFunc = null) => {
+        if (!FirebasePathValidator.validatePath(node)) return;
         activeListeners[node] = onValue(ref(db, node), (snapshot) => {
             if (snapshot.exists()) {
                 const rawData = snapshot.val();
@@ -216,17 +218,17 @@ window.initAdminRealTimeListeners = function() {
         });
     };
 
-    registerListener('visitors', 'visitors', 'tab-visitor-logs', window.filterVisitorTable);
-    registerListener('contractors', 'contractors', 'tab-contractor-logs', window.filterContractorTable);
-    registerListener('staff_attendance', 'attendance', 'tab-staff-logs', window.filterStaffTable);
-    registerListener('tasks', 'tasks', 'tab-tasks');
-    registerListener('staff', 'staff', 'tab-staff-list', window.filterStaffDirectory);
-    registerListener('disposed_assets', 'disposalRegistry', 'tab-disposal');
-    registerListener('asset_disposal_requests', 'disposalRequests', 'tab-disposal', window.filterDisposalTable);
-    registerListener('asset_transfers', 'transfers', 'tab-transfers', window.filterTransferTable);
+    registerListener(PATHS.VISITORS, 'visitors', 'tab-visitor-logs', window.filterVisitorTable);
+    registerListener(PATHS.CONTRACTORS, 'contractors', 'tab-contractor-logs', window.filterContractorTable);
+    registerListener(PATHS.ATTENDANCE, 'attendance', 'tab-staff-logs', window.filterStaffTable);
+    registerListener(PATHS.TASKS, 'tasks', 'tab-tasks');
+    registerListener(PATHS.STAFF, 'staff', 'tab-staff-list', window.filterStaffDirectory);
+    registerListener(PATHS.DISPOSED_ASSETS, 'disposalRegistry', 'tab-disposal');
+    registerListener(PATHS.DISPOSAL_REQUESTS, 'disposalRequests', 'tab-disposal', window.filterDisposalTable);
+    registerListener(PATHS.TRANSFERS, 'transfers', 'tab-transfers', window.filterTransferTable);
 
     // Assets needs special handling for local cache
-    activeListeners.assets = onValue(ref(db, 'assets'), (snapshot) => {
+    activeListeners.assets = onValue(ref(db, PATHS.ASSETS), (snapshot) => {
         if (snapshot.exists()) {
             window.appCache.assets = Object.values(snapshot.val());
             localStorage.setItem('cached_asset_register', JSON.stringify(window.appCache.assets));
@@ -346,7 +348,11 @@ function renderStaffAttendance(attendance) {
                 <td class="p-4 text-center font-bold">${a.keyStatus || "NONE"}</td>
                 <td class="p-4 text-center">${a.signatureUrl ? `<img src="${a.signatureUrl}" class="h-6 mx-auto rounded border shadow-sm" onclick="window.openImageZoom('${a.signatureUrl}')">` : 'No Sig'}</td>
                 <td class="p-4 text-center">
-                    <button onclick="window.openAttendanceDetailModal('${a.mobile}_${a.timestamp}')" class="text-indigo-600 hover:scale-110 transition-transform">
+                    <button
+                        data-modal-id="attendance-detail-modal"
+                        data-modal-type="attendance"
+                        data-payload="${encodeURIComponent(JSON.stringify({staffKey: `${a.mobile}_${a.timestamp}`}))}"
+                        class="text-indigo-600 hover:scale-110 transition-transform">
                         <i class="fa-solid fa-eye text-base"></i>
                     </button>
                 </td>
@@ -396,8 +402,20 @@ function renderStaffDirectory(staff) {
                 <td class="p-4 font-mono text-indigo-600 font-bold">${s.companyId || "-"}</td>
                 <td class="p-4 font-mono text-slate-500">${s.mobile || "-"}</td>
                 <td class="p-4 text-center">
-                    <button onclick="window.openEditStaffModal('${s.firebaseKey || s.mobile}')" class="text-indigo-400 hover:text-indigo-600 mr-2"><i class="fa-solid fa-user-pen"></i></button>
-                    <button onclick="window.openStaffDocumentReviewModal('${s.adekPass || s.mobile}')" class="text-emerald-500 hover:text-emerald-700"><i class="fa-solid fa-eye"></i></button>
+                    <button
+                        data-modal-id="edit-staff-modal"
+                        data-modal-type="staff"
+                        data-payload="${encodeURIComponent(JSON.stringify(s))}"
+                        class="text-indigo-400 hover:text-indigo-600 mr-2">
+                        <i class="fa-solid fa-user-pen"></i>
+                    </button>
+                    <button
+                        data-modal-id="view-staff-modal"
+                        data-modal-type="docReview"
+                        data-payload="${encodeURIComponent(JSON.stringify(s))}"
+                        class="text-emerald-500 hover:text-emerald-700">
+                        <i class="fa-solid fa-eye"></i>
+                    </button>
                 </td>
             </tr>`).join('') : '<tr><td colspan="10" class="p-8 text-center text-gray-400">No staff found</td></tr>';
     });
@@ -452,7 +470,9 @@ window.filterStaffDirectory = () => {
 window.updateAdminProfileHeader = async () => {
     try {
         const mobile = '961486864461';
-        const snap = await get(ref(db, `users/${mobile}`));
+        const path = `${PATHS.USERS}/${mobile}`;
+        if (!FirebasePathValidator.validatePath(path)) return;
+        const snap = await get(ref(db, path));
         if (snap.exists()) {
             const pic = document.getElementById('adminProfileHeaderPic');
             if (pic && snap.val().profilePicUrl) pic.src = window.getDirectDriveImageUrl(snap.val().profilePicUrl);
@@ -479,7 +499,13 @@ window.confirmAndDeleteAllAssets = async function() {
     const v = prompt("Type 'DELETE ALL' to confirm:");
     if (v !== "DELETE ALL") return;
     window.showGlobalSpinner("Clearing database...");
-    try { await set(ref(db, 'assets'), null); window.appCache.assets = []; alert("Success."); window.filterAssetTable(); }
+    try {
+        if (!FirebasePathValidator.validatePath(PATHS.ASSETS)) return;
+        await set(ref(db, PATHS.ASSETS), null);
+        window.appCache.assets = [];
+        alert("Success.");
+        window.filterAssetTable();
+    }
     catch (e) { alert(e.message); } finally { window.hideGlobalSpinner(); }
 };
 
@@ -489,7 +515,10 @@ window.bulkDeleteAssets = async () => {
     window.showLoader();
     try {
         const updates = {};
-        Array.from(window.selectedAssetKeys).forEach(b => { updates[`assets/${b.replace(/[.#$\[\]/]/g, '_')}`] = null; });
+        Array.from(window.selectedAssetKeys).forEach(b => {
+            const path = `${PATHS.ASSETS}/${b.replace(/[.#$\[\]/]/g, '_')}`;
+            updates[path] = null;
+        });
         await update(ref(db), updates);
         window.selectedAssetKeys.clear();
         alert("Deleted.");
@@ -742,21 +771,29 @@ window.handleStaffSubmit = async function(type) {
                 Object.keys(assignedDocs).forEach(id => {
                     docStatusNode[id] = { status: "NOT UPLOADED", documentType: id };
                 });
-                await set(ref(db, `staff_documents/${staffData.adekPass || mobile}`), {
-                    docs: docStatusNode,
-                    isAccountActivated: false,
-                    verificationProgress: "0%"
-                });
+                const docPath = `${PATHS.STAFF_DOCUMENTS}/${staffData.adekPass || mobile}`;
+                if (FirebasePathValidator.validatePath(docPath)) {
+                    await set(ref(db, docPath), {
+                        docs: docStatusNode,
+                        isAccountActivated: false,
+                        verificationProgress: "0%"
+                    });
+                }
             }
         }
 
         // STEP D: Push to Firebase (Edit vs Create)
         if (existingKey) {
             console.log("💾 Updating existing staff record:", existingKey);
-            await update(ref(db, `staff/${existingKey}`), staffData);
+            const staffPath = `${PATHS.STAFF}/${existingKey}`;
+            if (FirebasePathValidator.validatePath(staffPath)) {
+                await update(ref(db, staffPath), staffData);
+            }
         } else {
             console.log("🆕 Creating new unique staff record");
-            await push(ref(db, 'staff'), staffData);
+            if (FirebasePathValidator.validatePath(PATHS.STAFF)) {
+                await push(ref(db, PATHS.STAFF), staffData);
+            }
         }
 
         alert("✅ Staff Member Successfully Saved!");
@@ -824,7 +861,9 @@ window.openEditStaffModal = async function(dbKey) {
     try {
         if (window.showGlobalSpinner) window.showGlobalSpinner("Loading Staff Data...");
 
-        const snap = await get(ref(db, `staff/${dbKey}`));
+        const staffPath = `${PATHS.STAFF}/${dbKey}`;
+        if (!FirebasePathValidator.validatePath(staffPath)) return;
+        const snap = await get(ref(db, staffPath));
         if (!snap.exists()) {
             alert("❌ Staff record not found.");
             if (window.hideGlobalSpinner) window.hideGlobalSpinner();
@@ -1217,7 +1256,9 @@ window.openAssetDetailsModal = async function(barcode) {
 
     window.showGlobalSpinner("Loading Asset Details...");
     try {
-        const snap = await get(ref(db, `assets/${sanitized}`));
+        const assetPath = `${PATHS.ASSETS}/${sanitized}`;
+        if (!FirebasePathValidator.validatePath(assetPath)) return;
+        const snap = await get(ref(db, assetPath));
         if (!snap.exists()) {
             alert("Asset not found in database.");
             return;
@@ -1284,7 +1325,9 @@ window.openEditAssetModal = async function(barcode) {
 
     window.showGlobalSpinner("Unlocking Master Record...");
     try {
-        const snap = await get(ref(db, `assets/${sanitized}`));
+        const assetPath = `${PATHS.ASSETS}/${sanitized}`;
+        if (!FirebasePathValidator.validatePath(assetPath)) return;
+        const snap = await get(ref(db, assetPath));
         if (!snap.exists()) return alert("Asset not found in Master Register.");
 
         const data = snap.val();
@@ -1384,7 +1427,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
             window.showGlobalSpinner("Syncing All Properties...");
             try {
-                await update(ref(db, `assets/${sanitized}`), updates);
+                const assetPath = `${PATHS.ASSETS}/${sanitized}`;
+                if (FirebasePathValidator.validatePath(assetPath)) {
+                    await update(ref(db, assetPath), updates);
+                }
                 alert("✅ Master Register Updated Successfully! All changes synced.");
                 document.getElementById('asset-edit-modal').classList.add('hidden');
 
@@ -1406,7 +1452,10 @@ window.deleteAssetRecord = async function(barcode) {
     const sanitized = barcode.replace(/[.#$\[\]/]/g, '_');
     window.showGlobalSpinner("Deleting Record...");
     try {
-        await remove(ref(db, `assets/${sanitized}`));
+        const assetPath = `${PATHS.ASSETS}/${sanitized}`;
+        if (FirebasePathValidator.validatePath(assetPath)) {
+            await remove(ref(db, assetPath));
+        }
         alert("Record deleted.");
         window.filterAssetTable();
     } catch (e) {
@@ -1520,7 +1569,9 @@ window.approveDisposal = async function(requestId) {
 
     window.showGlobalSpinner("Processing Approval...");
     try {
-        const reqRef = ref(db, `asset_disposal_requests/${requestId}`);
+        const reqPath = `${PATHS.DISPOSAL_REQUESTS}/${requestId}`;
+        if (!FirebasePathValidator.validatePath(reqPath)) return;
+        const reqRef = ref(db, reqPath);
         const snap = await get(reqRef);
         if (!snap.exists()) throw new Error("Request not found.");
 
@@ -1530,11 +1581,11 @@ window.approveDisposal = async function(requestId) {
 
         const updates = {};
         // 1. Mark as DISPOSED in master registry
-        updates[`assets/${sanitizedBarcode}/assetStatus`] = "DISPOSED";
-        updates[`assets/${sanitizedBarcode}/disposedAt`] = Date.now();
+        updates[`${PATHS.ASSETS}/${sanitizedBarcode}/assetStatus`] = "DISPOSED";
+        updates[`${PATHS.ASSETS}/${sanitizedBarcode}/disposedAt`] = Date.now();
 
         // 2. Add to permanent registry
-        updates[`ASSET_DISPOSAL_REGISTRY/${requestId}`] = {
+        updates[`${PATHS.DISPOSAL_REGISTRY}/${requestId}`] = {
             ...data,
             status: "APPROVED",
             approvedAt: Date.now(),
@@ -1542,7 +1593,7 @@ window.approveDisposal = async function(requestId) {
         };
 
         // 3. Remove from pending requests
-        updates[`asset_disposal_requests/${requestId}`] = null;
+        updates[`${PATHS.DISPOSAL_REQUESTS}/${requestId}`] = null;
 
         await update(ref(db), updates);
         alert("✅ Disposal Approved & Registered.");
@@ -1560,7 +1611,9 @@ window.rejectDisposal = async function(requestId) {
 
     window.showGlobalSpinner("Processing Rejection...");
     try {
-        const reqRef = ref(db, `asset_disposal_requests/${requestId}`);
+        const reqPath = `${PATHS.DISPOSAL_REQUESTS}/${requestId}`;
+        if (!FirebasePathValidator.validatePath(reqPath)) return;
+        const reqRef = ref(db, reqPath);
         const snap = await get(reqRef);
         if (!snap.exists()) throw new Error("Request not found.");
 
@@ -1569,8 +1622,8 @@ window.rejectDisposal = async function(requestId) {
         const sanitizedBarcode = barcode.replace(/[.#$\[\]/]/g, '_');
 
         const updates = {};
-        updates[`assets/${sanitizedBarcode}/assetStatus`] = "Active"; // Restore status
-        updates[`asset_disposal_requests/${requestId}`] = null;
+        updates[`${PATHS.ASSETS}/${sanitizedBarcode}/assetStatus`] = "Active"; // Restore status
+        updates[`${PATHS.DISPOSAL_REQUESTS}/${requestId}`] = null;
 
         // Log rejection in history? (Optional)
 
@@ -1589,7 +1642,10 @@ window.deleteTransferLog = async function(key) {
 
     window.showGlobalSpinner("Deleting Log...");
     try {
-        await remove(ref(db, `asset_transfers/${key}`));
+        const transferPath = `${PATHS.TRANSFERS}/${key}`;
+        if (FirebasePathValidator.validatePath(transferPath)) {
+            await remove(ref(db, transferPath));
+        }
         alert("Log entry removed.");
         window.filterTransferTable();
     } catch (e) {

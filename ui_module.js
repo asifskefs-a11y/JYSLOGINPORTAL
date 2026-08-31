@@ -202,15 +202,77 @@ class SignaturePadManager {
     }
 }
 
+/**
+ * SignaturePadValidator Utility (Requirement: Add SignaturePadValidator utility function)
+ * Safely validates signature pad and canvas operations.
+ */
+const SignaturePadValidator = {
+    validatePad(id) {
+        if (!window.sigPadManager) return { valid: false, error: "sigPadManager unavailable" };
+        const pad = window.sigPadManager.getPad(id);
+        if (!pad) return { valid: false, error: `Pad with ID ${id} not found` };
+        return { valid: true, pad };
+    },
+    validateCanvas(id) {
+        const canvas = document.getElementById(id);
+        if (!canvas) return { valid: false, error: `Canvas element ${id} missing from DOM` };
+        if (canvas.tagName !== 'CANVAS') return { valid: false, error: `Element ${id} is not a canvas` };
+        return { valid: true, canvas };
+    }
+};
+
 window.sigPadManager = new SignaturePadManager();
-window.getCanvasBase64 = (id) => window.sigPadManager.getPad(id).toDataURL();
+
+/**
+ * FIXED: window.getCanvasBase64 (Requirement 1, 2, 4, 5, 6)
+ * Safely captures base64 from canvas with extensive validation.
+ */
+window.getCanvasBase64 = (id) => {
+    try {
+        // Requirement 1: sigPadManager existence validation
+        // Requirement 2: Check if pad element exists in DOM
+        const canvasRes = SignaturePadValidator.validateCanvas(id);
+        if (!canvasRes.valid) {
+            console.warn(`⚠️ getCanvasBase64: ${canvasRes.error}`);
+            return null; // Return null instead of crashing
+        }
+
+        const padRes = SignaturePadValidator.validatePad(id);
+        if (!padRes.valid) {
+             // Requirement 3: Fallback canvas initialization if sigPadManager unavailable
+             console.warn(`⚠️ sigPadManager method unavailable for ${id}, attempting direct canvas capture`);
+             return canvasRes.canvas.toDataURL("image/png");
+        }
+
+        const pad = padRes.pad;
+
+        // Requirement 6: Validate canvas context before calling toDataURL()
+        const ctx = canvasRes.canvas.getContext('2d');
+        if (!ctx) throw new Error("Could not acquire 2D context from canvas");
+
+        const data = pad.toDataURL();
+
+        // Requirement 4: Add error handling for failed signature capture
+        if (!data || data === "data:,") {
+             console.log(`ℹ️ Signature pad ${id} is empty.`);
+             return null;
+        }
+
+        return data;
+    } catch (err) {
+        // Requirement 5: Return meaningful error messages instead of undefined
+        console.error(`❌ getCanvasBase64 Critical Failure [${id}]:`, err.message);
+        return null;
+    }
+};
 
 // ✅ FIXED: Clear hone par canvas locked nahi hoga
 window.clearSignaturePad = (id) => {
-    const pad = window.sigPadManager.getPad(id);
+    // Optional chaining and null coalescing (Requirement 3, 6)
+    const pad = window.sigPadManager?.getPad(id);
     if (pad) {
-        pad.clear();
-        pad.unlock();
+        pad.clear?.();
+        pad.unlock?.();
     }
 };
 
@@ -267,7 +329,27 @@ window.unlockCanvas = (el, event) => {
     }
 };
 
-window.initVisitorCanvas = () => window.sigPadManager.getPad('v-sig-pad');
+window.initVisitorCanvas = () => {
+    try {
+        // Requirement 2: Check if pad element exists in DOM before initialization
+        const canvas = document.getElementById('v-sig-pad');
+        if (!canvas) {
+            console.warn("⚠️ initVisitorCanvas: v-sig-pad not found in current DOM view. Skipping init.");
+            return null;
+        }
+
+        // Requirement 1 & 3: sigPadManager existence validation & Fallback
+        if (!window.sigPadManager) {
+            console.error("❌ sigPadManager is missing. Signature functionality disabled.");
+            return null;
+        }
+
+        return window.sigPadManager.getPad('v-sig-pad');
+    } catch (err) {
+        console.error("❌ initVisitorCanvas Exception:", err);
+        return null;
+    }
+};
 
 // ================================================================ */
 // ASSET PREVIEW MODAL (FIXED v4.3)                                */
@@ -391,6 +473,17 @@ window.showGlobalSpinner = (message = "Loading...") => {
                 <div class="spinner-ring absolute inset-[-20px] border-4 border-indigo-500/20 border-t-indigo-500 rounded-full animate-spin"></div>
             </div>
             <p id="universal-loader-text" style="color: #ffffff; font-weight: 800; margin-top: 32px; font-family: 'Poppins', sans-serif; letter-spacing: 2px; text-transform: uppercase; font-size: 14px; text-shadow: 0 2px 4px rgba(0,0,0,0.5);">${message}</p>
+
+            <!-- PROGRESS FEEDBACK UI (Requirement 3) -->
+            <div id="loader-progress-container" style="display: none; width: 220px; margin-top: 24px;">
+                <div style="width: 100%; height: 4px; background: rgba(255,255,255,0.1); border-radius: 2px; overflow: hidden;">
+                    <div id="loader-progress-bar" style="width: 0%; height: 100%; background: #6366f1; transition: width 0.3s ease-out;"></div>
+                </div>
+                <div style="display: flex; justify-between: space-between; align-items: center; margin-top: 8px; width: 100%;">
+                    <span id="loader-progress-pct" style="color: rgba(255,255,255,0.5); font-size: 9px; font-weight: 900; letter-spacing: 1px;">0%</span>
+                    <button id="loader-abort-btn" style="margin-left: auto; background: transparent; border: none; color: #f87171; font-size: 9px; font-weight: 900; text-transform: uppercase; cursor: pointer; letter-spacing: 1px;">[ Abort ]</button>
+                </div>
+            </div>
         `;
         document.body.appendChild(spinner);
 
@@ -413,6 +506,27 @@ window.showGlobalSpinner = (message = "Loading...") => {
     const spText = document.getElementById('universal-loader-text');
     if (spText && message) spText.innerText = message;
 
+    // Ensure Progress UI exists if spinner was already in DOM (Requirement 3 fallback)
+    if (spinner && !document.getElementById('loader-progress-container')) {
+        const progDiv = document.createElement('div');
+        progDiv.id = 'loader-progress-container';
+        progDiv.style.cssText = 'display: none; width: 220px; margin-top: 24px;';
+        progDiv.innerHTML = `
+            <div style="width: 100%; height: 4px; background: rgba(255,255,255,0.1); border-radius: 2px; overflow: hidden;">
+                <div id="loader-progress-bar" style="width: 0%; height: 100%; background: #6366f1; transition: width 0.3s ease-out;"></div>
+            </div>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 8px; width: 100%;">
+                <span id="loader-progress-pct" style="color: rgba(255,255,255,0.5); font-size: 9px; font-weight: 900; letter-spacing: 1px;">0%</span>
+                <button id="loader-abort-btn" style="background: transparent; border: none; color: #f87171; font-size: 9px; font-weight: 900; text-transform: uppercase; cursor: pointer; letter-spacing: 1px;">[ Abort ]</button>
+            </div>
+        `;
+        spinner.appendChild(progDiv);
+    }
+
+    // Reset Progress UI
+    const progContainer = document.getElementById('loader-progress-container');
+    if (progContainer) progContainer.style.display = 'none';
+
     spinner.style.display = 'flex';
     spinnerActive = true;
 
@@ -421,7 +535,22 @@ window.showGlobalSpinner = (message = "Loading...") => {
         if (spinnerActive) {
             window.hideGlobalSpinner();
         }
-    }, 15000);
+    }, 30000); // Increased to 30s to allow for retries
+};
+
+/**
+ * Updates the global loader progress bar
+ */
+window.updateGlobalLoaderProgress = (percent, message) => {
+    const container = document.getElementById('loader-progress-container');
+    const bar = document.getElementById('loader-progress-bar');
+    const pctText = document.getElementById('loader-progress-pct');
+    const mainText = document.getElementById('universal-loader-text');
+
+    if (container) container.style.display = 'block';
+    if (bar) bar.style.width = Math.min(100, Math.max(0, percent)) + '%';
+    if (pctText) pctText.innerText = Math.round(percent) + '%';
+    if (mainText && message) mainText.innerText = message;
 };
 
 window.hideGlobalSpinner = () => {
@@ -905,72 +1034,153 @@ window.openImageZoom = (url) => {
 };
 
 // ================================================================ */
-// COMPRESSION & IMAGE HELPERS (FIXED v4.3 - WITH RETRY & SAFARI BUGFIX) */
+// COMPRESSION & IMAGE HELPERS (FIXED v4.4 - IMAGE LOAD MANAGER)   */
 // ================================================================ */
 
-window.compressImageFile = async (file, maxWidth = 1000, maxHeight = 1000, quality = 0.7) => {
-    return new Promise((resolve, reject) => {
-        try {
-            if (!file) {
-                return reject(new Error("No file provided for compression"));
+/**
+ * Requirement 1 & 2: ImageLoadManager handles timeouts and retries
+ */
+class ImageLoadManager {
+    constructor(options = {}) {
+        this.timeout = options.timeout || 10000;
+        this.maxRetries = options.maxRetries || 3;
+        this.onProgress = options.onProgress || (() => {});
+        this.controller = new AbortController();
+    }
+
+    async load(file) {
+        let attempt = 0;
+        let lastErr = null;
+
+        while (attempt < this.maxRetries) {
+            try {
+                if (this.controller.signal.aborted) throw new DOMException("Aborted", "AbortError");
+
+                const progress = Math.round((attempt / this.maxRetries) * 100);
+                this.onProgress(progress || 10, `Processing Image (Attempt ${attempt + 1})...`);
+
+                return await this._loadImage(file);
+            } catch (err) {
+                lastErr = err;
+                if (err.name === 'AbortError') throw err;
+
+                attempt++;
+                if (attempt >= this.maxRetries) break;
+
+                const backoff = Math.pow(2, attempt) * 500;
+                this.onProgress((attempt / this.maxRetries) * 100, `Load Failed. Retrying in ${backoff/1000}s...`);
+                await new Promise(r => setTimeout(r, backoff));
             }
+        }
+        throw lastErr || new Error("Image failed to load after multiple attempts.");
+    }
+
+    _loadImage(file) {
+        return new Promise((resolve, reject) => {
+            const timeoutId = setTimeout(() => {
+                this.controller.abort();
+                reject(new Error("Timeout: Image took too long to load (10s limit)"));
+            }, this.timeout);
 
             const reader = new FileReader();
+            const abortHandler = () => {
+                reader.abort();
+                clearTimeout(timeoutId);
+                reject(new DOMException("Image load cancelled by user", "AbortError"));
+            };
+
+            this.controller.signal.addEventListener('abort', abortHandler);
+
             reader.onload = (e) => {
                 const img = new Image();
                 img.onload = () => {
-                    try {
-                        const canvas = document.createElement('canvas');
-                        let w = img.width;
-                        let h = img.height;
-
-                        // Calculate aspect ratio with Math.floor to avoid fractional canvas bounds
-                        if (w > h) {
-                            if (w > maxWidth) {
-                                h = Math.round(h * (maxWidth / w));
-                                w = maxWidth;
-                            }
-                        } else {
-                            if (h > maxHeight) {
-                                w = Math.round(w * (maxHeight / h));
-                                h = maxHeight;
-                            }
-                        }
-
-                        canvas.width = Math.max(1, w);
-                        canvas.height = Math.max(1, h);
-
-                        const ctx = canvas.getContext('2d');
-                        if (!ctx) {
-                            return reject(new Error("Failed to get 2D context"));
-                        }
-
-                        ctx.imageSmoothingEnabled = true;
-                        ctx.imageSmoothingQuality = 'high';
-                        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-
-                        const compressedDataUrl = canvas.toDataURL("image/jpeg", quality);
-
-                        // Cleanup Canvas memory context
-                        canvas.width = 0;
-                        canvas.height = 0;
-
-                        resolve(compressedDataUrl);
-                    } catch (err) {
-                        reject(err);
-                    }
+                    clearTimeout(timeoutId);
+                    this.controller.signal.removeEventListener('abort', abortHandler);
+                    resolve(img);
                 };
-
-                img.onerror = () => reject(new Error("Failed to decode image data"));
+                img.onerror = () => {
+                    clearTimeout(timeoutId);
+                    this.controller.signal.removeEventListener('abort', abortHandler);
+                    reject(new Error("Critical: Image decoding failed (Corrupt data)"));
+                };
                 img.src = e.target.result;
             };
 
-            reader.onerror = () => reject(new Error("Failed to read image file"));
+            reader.onerror = () => {
+                clearTimeout(timeoutId);
+                this.controller.signal.removeEventListener('abort', abortHandler);
+                reject(new Error("Critical: Failed to read local file"));
+            };
+
             reader.readAsDataURL(file);
-        } catch (err) {
-            reject(err);
-        }
+        });
+    }
+
+    abort() {
+        this.controller.abort();
+    }
+}
+
+window.compressImageFile = async (file, maxWidth = 1000, maxHeight = 1000, quality = 0.7) => {
+    if (!file) throw new Error("No file provided for compression");
+
+    const manager = new ImageLoadManager({
+        onProgress: (pct, msg) => window.updateGlobalLoaderProgress(pct, msg)
     });
+
+    // Requirement 4: Abort mechanism
+    const abortBtn = document.getElementById('loader-abort-btn');
+    if (abortBtn) {
+        abortBtn.onclick = () => {
+            manager.abort();
+            window.hideGlobalSpinner();
+        };
+    }
+
+    try {
+        const img = await manager.load(file);
+
+        // Canvas Processing
+        const canvas = document.createElement('canvas');
+        let w = img.width;
+        let h = img.height;
+
+        if (w > h) {
+            if (w > maxWidth) {
+                h = Math.round(h * (maxWidth / w));
+                w = maxWidth;
+            }
+        } else {
+            if (h > maxHeight) {
+                w = Math.round(w * (maxHeight / h));
+                h = maxHeight;
+            }
+        }
+
+        canvas.width = Math.max(1, w);
+        canvas.height = Math.max(1, h);
+
+        const ctx = canvas.getContext('2d');
+        if (!ctx) throw new Error("Failed to initialize graphics context");
+
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = 'high';
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+        const compressedDataUrl = canvas.toDataURL("image/jpeg", quality);
+
+        // Requirement 6: Memory Cleanup
+        canvas.width = 0;
+        canvas.height = 0;
+        img.src = ""; // Clear image data from memory
+
+        return compressedDataUrl;
+    } catch (err) {
+        // Requirement 5: User-friendly error messages
+        const errMsg = err.name === 'AbortError' ? "Upload cancelled by user." : `Image Error: ${err.message}`;
+        window.showWhatsAppToast("❌ Process Failed", errMsg, "error");
+        throw err;
+    }
 };
 
 // ✅ FIXED: Compress with retry and exponential fallback

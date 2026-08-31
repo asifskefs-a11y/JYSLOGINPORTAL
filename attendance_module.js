@@ -1,5 +1,6 @@
 import { db, UPLOAD_CONFIG } from './firebase_config.js';
 import { ref, set, update, push, onValue, get, child, off } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+import { PATHS, FirebasePathValidator } from './firebase_path_manager.js';
 
 // ================================================================ */
 // NETWORK SPEED & OFFLINE SYNC HANDLERS (FIXED v4.3)               */
@@ -39,6 +40,19 @@ window.showSlowNetWarning = () => {
 
 async function safeFirebaseWrite(type, path, data) {
     try {
+        // Centralized Validation (Requirement 3, 4)
+        if (!FirebasePathValidator.validatePath(path)) {
+            console.error("❌ safeFirebaseWrite: Access Denied to Path:", path);
+            return { status: 'denied' };
+        }
+        if (!FirebasePathValidator.validateSchema(path, data)) {
+            console.error("❌ safeFirebaseWrite: Schema Validation Failed for:", path);
+            return { status: 'invalid_schema' };
+        }
+
+        // Operation Logging (Requirement 5)
+        FirebasePathValidator.logOperation(type, path);
+
         if (!navigator.onLine) {
             addToOfflineSync(type, path, data);
             return { status: 'offline_queued' };
@@ -154,7 +168,8 @@ async function getValidActiveSession(passId) {
     if (!passId) return { valid: false, session: null, reason: 'No Pass ID' };
 
     try {
-        const sessionRef = ref(db, `active_staff_sessions/${passId}`);
+        const path = PATHS.ACTIVE_SESSIONS + '/' + passId;
+        const sessionRef = ref(db, path);
         const sessionSnap = await get(sessionRef);
 
         if (!sessionSnap.exists()) {
@@ -168,7 +183,8 @@ async function getValidActiveSession(passId) {
 
         // ✅ CRITICAL: Verify attendance record exists
         if (session.key) {
-            const attSnap = await get(ref(db, `staff_attendance/${session.key}`));
+            const path = PATHS.ATTENDANCE + '/' + session.key;
+            const attSnap = await get(ref(db, path));
             if (!attSnap.exists()) {
                 console.warn(`🧹 Clearing stale session for ${passId}`);
                 await set(sessionRef, null);
@@ -534,7 +550,8 @@ window.proceedCheckIn = async function(staff, sigData, btn, hasKey, keyCode = nu
             name: staff.fullName || staff.name,
             role: staff.role
         };
-        updates[`active_staff_sessions/${passId}`] = sessionData;
+        const path = `${PATHS.ACTIVE_SESSIONS}/${passId}`;
+        updates[path] = sessionData;
 
         if (hasKey && pin) {
             updates[`security_key_control/${passId}`] = {
@@ -622,7 +639,8 @@ window.executeCheckOutProcess = async function(staffUser, sessionData, sigData, 
             updates[`staff_attendance/${attKey}/checkOutSignatureUrl`] = sigUrl;
             updates[`staff_attendance/${attKey}/keyStatus`] = 'RETURNED';
         }
-        updates[`active_staff_sessions/${passId}`] = null;
+        const path = `${PATHS.ACTIVE_SESSIONS}/${passId}`;
+        updates[path] = null;
         updates[`security_key_control/${passId}`] = null;
 
         await safeFirebaseWrite('update', '', updates);
@@ -720,7 +738,8 @@ window.handleStaffCheckOut = async function(staff, session, btn) {
         const enteredPin = prompt("🔑 KEY RETURN REQUIRED\n\nEnter the 4-digit PIN provided by Security:");
         if (enteredPin === null) return; // User cancelled
 
-        const attSnap = await get(ref(db, `staff_attendance/${session.key}`));
+        const path = PATHS.ATTENDANCE + '/' + session.key;
+        const attSnap = await get(ref(db, path));
         if (attSnap.exists() && (attSnap.val().keyReturnPin || "").toString() === enteredPin.trim()) {
             executeCheckOutProcess(staff, session, null, isSecurity); // Pass correct role flag
         } else {
@@ -752,7 +771,8 @@ window.handleSecurityCheckOut = function(event) {
     const coutBtn = document.getElementById('s-checkout-btn') || document.getElementById('security-checkout-btn');
     const passId = getStaffPassId(staff);
 
-    get(ref(db, `active_staff_sessions/${passId}`)).then(snap => {
+    const path = PATHS.ACTIVE_SESSIONS + '/' + passId;
+    get(ref(db, path)).then(snap => {
         if (snap.exists()) {
             window.handleStaffCheckOut(staff, snap.val(), coutBtn);
         } else {
@@ -769,7 +789,7 @@ window.loadSecurityPinControl = function() {
     const tbody = document.getElementById('security-pin-list-body');
     if (!tbody) return;
 
-    onValue(ref(db, 'security_key_control'), (snapshot) => {
+    onValue(ref(db, PATHS.SECURITY_KEYS), (snapshot) => {
         tbody.innerHTML = "";
 
         if (!snapshot.exists()) {
@@ -811,7 +831,8 @@ window.loadSecurityPinControl = function() {
 window.initiateKeyReturn = async (passId) => {
     window.showGlobalSpinner("Loading Session...");
     try {
-        const snap = await get(ref(db, `active_staff_sessions/${passId}`));
+        const path = PATHS.ACTIVE_SESSIONS + '/' + passId;
+        const snap = await get(ref(db, path));
         if (snap.exists()) {
             window.activeSessionForReturn = snap.val();
             window.activeSessionForReturn.passId = passId;
@@ -943,7 +964,8 @@ window.initUserDashboard = async (staff) => {
         activeSessionUnsubscribe = null;
     }
 
-    const sessionRef = ref(db, `active_staff_sessions/${passId}`);
+    const path = `${PATHS.ACTIVE_SESSIONS}/${passId}`;
+    const sessionRef = ref(db, path);
 
     activeSessionUnsubscribe = onValue(sessionRef, async (snapshot) => {
         const session = snapshot.val();
@@ -983,12 +1005,14 @@ window.confirmKeyReturn = async (event) => {
     const passId = getStaffPassId(active);
 
     try {
-        const snap = await get(ref(db, `staff_attendance/${active.key}`));
+        const path = PATHS.ATTENDANCE + '/' + active.key;
+        const snap = await get(ref(db, path));
         if (snap.exists() && enteredPin === (snap.val().keyReturnPin || "").toString()) {
             const updates = {};
             updates[`staff_attendance/${active.key}/keyStatus`] = 'RETURNED';
             updates[`security_key_control/${passId}`] = null;
-            updates[`active_staff_sessions/${passId}/keyStatus`] = 'RETURNED';
+            const path = `${PATHS.ACTIVE_SESSIONS}/${passId}/keyStatus`;
+            updates[path] = 'RETURNED';
 
             await safeFirebaseWrite('update', '', updates);
 
