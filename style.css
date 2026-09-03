@@ -105,6 +105,21 @@ button, a, .btn, [onclick] {
     display: none !important;
 }
 
+.custom-scrollbar::-webkit-scrollbar {
+    width: 5px;
+    height: 5px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+    background: rgba(79, 70, 229, 0.2);
+    border-radius: 10px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: rgba(79, 70, 229, 0.4);
+}
+
 /* ================================================================ */
 /* --- CAMERA SCANNER VIEWPORT OVERLAY FIX ---                      */
 /* ================================================================ */

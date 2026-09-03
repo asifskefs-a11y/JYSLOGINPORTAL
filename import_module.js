@@ -586,8 +586,8 @@ window.renderDynamicAssetTable = function(assets, headers) {
     const tableHeaderContainer = document.getElementById('asset-table-header');
     const tableBodyContainer = document.getElementById('asset-table-body');
 
+    // DEFENSIVE: Silently exit if elements are missing (we might be on a non-admin page)
     if (!tableHeaderContainer || !tableBodyContainer) {
-        console.error("❌ Required table elements missing.");
         return;
     }
 

@@ -488,7 +488,6 @@
 
             <div class="transfer-form-card">
                 <form id="master-asset-form" class="space-y-6 pb-24 text-gray-800" onsubmit="event.preventDefault(); event.stopPropagation(); if(typeof window.submitAssetAudit === 'function') window.submitAssetAudit(event); return false;">
-                    <div id="audit-asset-preview" class="min-h-[20px]"></div>
 
                     <div class="border border-indigo-100/60 rounded-2xl overflow-hidden shadow-sm bg-white transition-all duration-300">
                         <button type="button" id="accordion-header-a" onclick="if(typeof window.toggleAccordion === 'function') window.toggleAccordion('sec-a')" class="w-full flex justify-between items-center p-4 bg-indigo-50/50 text-indigo-900 font-bold hover:bg-indigo-50 transition-colors cursor-pointer touch-manipulation">
@@ -798,6 +797,11 @@
                         <input type="text" id="disposed-by-name" readonly class="w-full p-3 bg-slate-100 border border-slate-200 rounded-xl text-[10px] font-bold text-red-600 outline-none">
                     </div>
 
+                    <div class="space-y-1">
+                        <label for="disposal-destination-input" class="text-[9px] font-black text-slate-400 uppercase select-none">Disposal Destination / Scrap Yard *</label>
+                        <input type="text" id="disposal-destination-input" placeholder="e.g. Main Scrap Yard, External Vendor..." class="w-full p-3 bg-slate-50 border-2 border-slate-200 rounded-xl focus:border-red-500 outline-none text-[10px] font-bold text-slate-800">
+                    </div>
+
                     <div class="space-y-2">
                         <label for="disposal-reason" class="text-[10px] font-black text-slate-500 uppercase tracking-wider flex items-center gap-2 select-none">
                             <i class="fa-regular fa-pen-to-square"></i> Reason Of Disposal *
@@ -863,9 +867,15 @@
                                 <input type="text" id="t_company_name" name="companyName" placeholder="Company Name" required class="w-full px-4 py-3.5 bg-slate-50 border-2 border-slate-200 rounded-xl focus:border-indigo-500 focus:bg-white outline-none transition-all text-sm font-medium text-slate-800">
                             </div>
                         </div>
-                        <div class="space-y-1.5">
-                            <label for="t_collection_date" class="text-[9px] font-black text-slate-400 uppercase tracking-wider flex items-center gap-1.5 select-none">Collection Date *</label>
-                            <input type="date" id="t_collection_date" name="collectionDate" required class="w-full px-4 py-3.5 bg-slate-50 border-2 border-slate-200 rounded-xl focus:border-indigo-500 focus:bg-white outline-none transition-all text-sm font-medium text-slate-800">
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div class="space-y-1.5">
+                                <label for="t_collection_date" class="text-[9px] font-black text-slate-400 uppercase tracking-wider flex items-center gap-1.5 select-none">Collection Date *</label>
+                                <input type="date" id="t_collection_date" name="collectionDate" required class="w-full px-4 py-3.5 bg-slate-50 border-2 border-slate-200 rounded-xl focus:border-indigo-500 focus:bg-white outline-none transition-all text-sm font-medium text-slate-800">
+                            </div>
+                            <div class="space-y-1.5">
+                                <label for="t_destination_location" class="text-[9px] font-black text-slate-400 uppercase tracking-wider flex items-center gap-1.5 select-none">Destination Location *</label>
+                                <input type="text" id="t_destination_location" name="destinationLocation" placeholder="Target Site / Store" required class="w-full px-4 py-3.5 bg-slate-50 border-2 border-slate-200 rounded-xl focus:border-indigo-500 focus:bg-white outline-none transition-all text-sm font-medium text-slate-800">
+                            </div>
                         </div>
                     </div>
 
@@ -929,16 +939,19 @@
                                     <table class="batch-table w-full text-left border-collapse" id="batch-table">
                                         <thead>
                                         <tr class="bg-slate-100 text-[10px] font-black text-slate-500 uppercase border-b border-slate-200">
+                                            <th class="p-3 text-center">#</th>
                                             <th class="col-barcode p-3">Barcode</th>
+                                            <th class="col-category p-3">Asset Name</th>
+                                            <th class="col-description p-3">Serial No</th>
                                             <th class="col-category p-3">Category</th>
-                                            <th class="col-description p-3">Asset Description</th>
+                                            <th class="col-category p-3">Vendor</th>
                                             <th class="col-location p-3">Source Location</th>
                                             <th class="col-actions p-3 text-center">Actions</th>
                                         </tr>
                                         </thead>
                                         <tbody id="transfer-batch-body" class="text-xs font-semibold text-slate-700 divide-y divide-slate-100">
                                         <tr id="empty-batch-row">
-                                            <td colspan="5" class="empty-state p-8 text-center text-slate-400 font-medium">
+                                            <td colspan="8" class="empty-state p-8 text-center text-slate-400 font-medium">
                                                 <div class="flex flex-col items-center gap-2">
                                                     <i class="fa-solid fa-box-open text-2xl text-slate-300"></i>
                                                     <span class="text-xs">No assets added to batch yet.</span>
@@ -1100,54 +1113,47 @@
                 <button type="button" onclick="if(typeof window.showStaffView === 'function') window.showStaffView('staff-dash-area'); else if(typeof showStaffView === 'function') showStaffView('staff-dash-area');" class="section-back-btn-circle hover:bg-indigo-50 transition-colors">
                     <i class="fa-solid fa-arrow-left"></i>
                 </button>
-                <h2 class="text-xl font-black text-indigo-900 uppercase flex items-center gap-2">
-                    <i class="fa-solid fa-clock-rotate-left text-indigo-500"></i> Movement Logs
-                </h2>
-                <button type="button" onclick="if(typeof window.exportTransferReport === 'function') window.exportTransferReport(); else if(typeof exportTransferReport === 'function') exportTransferReport();" class="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-2 rounded-xl text-[9px] font-black uppercase shadow-lg active:scale-95 transition-all">
-                    <i class="fa-solid fa-file-excel"></i> Export
+                <div class="flex flex-col items-center">
+                    <h2 class="text-xl font-black text-indigo-900 uppercase flex items-center gap-2">
+                        <i class="fa-solid fa-clock-rotate-left text-indigo-500"></i> Movement History
+                    </h2>
+                    <p class="text-[8px] font-black text-indigo-400 uppercase tracking-[0.2em]">Activity Log Tracker</p>
+                </div>
+                <button type="button" onclick="if(typeof window.loadMovementLogs === 'function') window.loadMovementLogs();" class="bg-indigo-50 text-indigo-600 px-3 py-2 rounded-xl text-[9px] font-black uppercase active:scale-95 transition-all">
+                    <i class="fa-solid fa-rotate"></i> Sync
                 </button>
             </nav>
 
-            <!-- Search -->
-            <input type="text" id="transfer-search" placeholder="🔍 Search transfer logs..."
-                   class="w-full bg-slate-50 border border-slate-200 p-3 rounded-xl text-xs outline-none focus:border-indigo-500 mb-4 transition-all"
-                   oninput="if(typeof window.filterTransferTable === 'function') window.filterTransferTable(); else if(typeof filterTransferTable === 'function') filterTransferTable();">
+            <!-- Tabs & Search -->
+            <div class="space-y-4 mb-6">
+                <div class="flex flex-wrap items-center gap-2 bg-slate-100 p-1.5 rounded-2xl">
+                    <button onclick="window.filterLogsByType('all')" class="log-filter-btn active flex-1 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all" data-type="all">All</button>
+                    <button onclick="window.filterLogsByType('transfer')" class="log-filter-btn flex-1 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all" data-type="transfer">Transfers</button>
+                    <button onclick="window.filterLogsByType('audit')" class="log-filter-btn flex-1 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all" data-type="audit">Audits</button>
+                    <button onclick="window.filterLogsByType('disposal')" class="log-filter-btn flex-1 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all" data-type="disposal">Disposals</button>
+                </div>
 
-            <!-- Table -->
-            <div class="overflow-x-auto rounded-2xl border border-gray-100 bg-white shadow-sm">
-                <table class="w-full text-left text-[9px] text-gray-800">
-                    <thead class="bg-indigo-50 text-indigo-600 uppercase font-black whitespace-nowrap">
-                    <tr>
-                        <th class="p-2">Asset Barcode</th>
-                        <th class="p-2">Asset Description</th>
-                        <th class="p-2">Asset Vendor Name</th>
-                        <th class="p-2">Category</th>
-                        <th class="p-2">Date Place In Service</th>
-                        <th class="p-2">Floor Discretion</th>
-                        <th class="p-2">Floor No</th>
-                        <th class="p-2">Location Name</th>
-                        <th class="p-2">Major Category</th>
-                        <th class="p-2">Minor Category</th>
-                        <th class="p-2">School Building Name</th>
-                        <th class="p-2">Room Number</th>
-                        <th class="p-2">Room Name</th>
-                        <th class="p-2">Sub Minor Category</th>
-                        <th class="p-2">Audit Photo</th>
-                        <th class="p-2">Collector Name</th>
-                        <th class="p-2">Company Name</th>
-                        <th class="p-2">Collected Date</th>
-                        <th class="p-2">Security/Staff Name</th>
-                        <th class="p-2">Receiver Name</th>
-                        <th class="p-2">Security Sig</th>
-                        <th class="p-2">Receiver Sig</th>
-                        <th class="p-2">Proof Photo</th>
-                        <th class="p-2 text-center">Action</th>
-                    </tr>
-                    </thead>
-                    <tbody id="transfer-logs-body" class="divide-y divide-gray-50 text-gray-700"></tbody>
-                </table>
+                <div class="relative">
+                    <i class="fa-solid fa-search absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-sm"></i>
+                    <input type="text" id="movement-log-search" placeholder="Search by Barcode, Asset, or Staff..."
+                           class="w-full pl-12 pr-4 py-3.5 bg-white border border-slate-200 rounded-2xl text-xs font-bold outline-none focus:border-indigo-500 shadow-sm transition-all">
+                </div>
             </div>
-            <div id="transfer-pagination" class="pagination-container mt-4 flex items-center justify-between"></div>
+
+            <!-- Card Grid -->
+            <div id="movement-logs-container" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 pb-20">
+                <div class="col-span-full text-center py-12">
+                    <i class="fa-solid fa-spinner fa-spin text-3xl text-indigo-500 mb-3"></i>
+                    <p class="text-[10px] font-black text-slate-400 uppercase">Synchronizing Records...</p>
+                </div>
+            </div>
+
+            <!-- Pagination (Floating) -->
+            <div class="fixed bottom-6 left-1/2 -translate-x-1/2 bg-white/90 backdrop-blur-md border border-slate-200 px-6 py-3 rounded-full shadow-2xl z-50 flex items-center gap-6">
+                <button id="prev-log-page" class="text-indigo-600 disabled:opacity-30 transition-opacity"><i class="fa-solid fa-chevron-left text-lg"></i></button>
+                <span id="log-page-info" class="text-[10px] font-black text-slate-900 uppercase min-w-[80px] text-center">Page 1 / 1</span>
+                <button id="next-log-page" class="text-indigo-600 disabled:opacity-30 transition-opacity"><i class="fa-solid fa-chevron-right text-lg"></i></button>
+            </div>
         </div>
     </section>
 
@@ -1575,17 +1581,17 @@
 <script type="module" src="field_normalizer.js?v=4.0"></script>
 <script type="module" src="drive_module.js?v=4.0"></script>
 <script src="asset_management.js?v=4.5"></script>
-<script type="module" src="ui_module.js?v=4.0"></script>
-<script type="module" src="import_module.js?v=4.0"></script>
-<script type="module" src="export_module.js?v=4.0"></script>
-<script type="module" src="attendance_module.js?v=4.0"></script>
-<script type="module" src="tasks_module.js?v=4.0"></script>
-<script type="module" src="admin_module.js?v=4.0"></script>
-<script type="module" src="visitor_module.js?v=4.0"></script>
-<script type="module" src="init_module.js?v=4.0"></script>
-<script type="module" src="audit_module.js?v=4.0"></script>
-<script type="module" src="staff_asset_module.js?v=4.0"></script>
-<script type="module" src="contractor_module.js?v=4.0"></script>
+<script type="module" src="ui_module.js?v=4.5"></script>
+<script type="module" src="import_module.js?v=4.5"></script>
+<script type="module" src="export_module.js?v=4.5"></script>
+<script type="module" src="attendance_module.js?v=4.5"></script>
+<script type="module" src="tasks_module.js?v=4.5"></script>
+<script type="module" src="admin_module.js?v=4.5"></script>
+<script type="module" src="visitor_module.js?v=4.5"></script>
+<script type="module" src="init_module.js?v=4.5"></script>
+<script type="module" src="audit_module.js?v=4.5"></script>
+<script type="module" src="staff_asset_module.js?v=4.5"></script>
+<script type="module" src="contractor_module.js?v=4.5"></script>
 
 <!-- FORCED GLOBAL SPINNER & OVERRIDE -->
 <style>

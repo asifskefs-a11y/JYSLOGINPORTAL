@@ -300,7 +300,7 @@ window.openAssetPreviewModal = function(assetData) {
     }
 
     // Support both normalized and raw formats
-    const photo = data.photoUrl || data.imageUrl || data.photoURL || data.auditPhoto || data.photo || data["AUDIT PHOTO"];
+    const photo = data.photoUrl || data.imageUrl || data.photoURL || data.auditPhoto || data.photo || data["AUDIT PHOTO"] || data.transferPhotoUrl || data.disposalPhotoUrl;
     const barcode = data.barcode || data.assetBarcode || data["ASSET BARCODE"] || data.id || 'N/A';
     const desc = data.description || data.assetDescription || data.assetName || data["ASSET DESCRIPTION"] || data.name || 'N/A';
     const category = data.category || data["CATEGORY"] || 'N/A';
@@ -308,49 +308,120 @@ window.openAssetPreviewModal = function(assetData) {
     const location = data.location || data.locationName || data["LOCATION NAME"] || data.roomName || 'N/A';
     const status = data.assetStatus || data.status || data["STATUS"] || 'Active';
 
+    // Movement Meta Check
+    const hasMovement = data.collector || data.destination || data.performedBy || data.collectorName;
+
     modal.innerHTML = `
-        <div class="bg-indigo-950 border border-white/10 rounded-[2.5rem] p-8 max-w-md w-full text-white space-y-6 shadow-2xl animate-fade-in">
-            <div class="flex justify-between items-center border-b border-white/5 pb-5">
-                <h3 class="text-xl font-black text-amber-400 uppercase tracking-tight">📦 Asset Details</h3>
+        <div class="bg-indigo-950 border border-white/10 rounded-[2.5rem] p-8 max-w-lg w-full text-white space-y-6 shadow-2xl animate-fade-in flex flex-col max-h-[90vh]">
+            <div class="flex justify-between items-center border-b border-white/5 pb-5 shrink-0">
+                <div class="flex flex-col">
+                    <h3 class="text-xl font-black text-amber-400 uppercase tracking-tight">📦 Asset History</h3>
+                    <span class="text-[8px] font-black text-white/40 uppercase tracking-widest mt-0.5">${data.action || 'Detailed Record'}</span>
+                </div>
                 <button onclick="window.closeAssetPreviewModal()" class="w-10 h-10 bg-white/10 rounded-full flex items-center justify-center text-white/60 hover:text-white transition-colors text-2xl font-bold">×</button>
             </div>
-            <div class="space-y-4 text-xs">
-                ${(photo && photo !== 'N/A' && photo !== '-') ? `
-                    <img src="${window.getDirectDriveImageUrl ? window.getDirectDriveImageUrl(photo) : photo}" class="w-full h-48 object-cover rounded-3xl border border-white/10 mb-4 shadow-inner cursor-pointer" onclick="window.openImageZoom('${photo}')"/>
-                ` : `
-                    <div class="w-full h-32 bg-white/5 rounded-3xl flex flex-col items-center justify-center text-white/20 border-2 border-dashed border-white/5">
-                        <i class="fa-solid fa-image text-3xl mb-2"></i>
-                        <span class="font-black uppercase tracking-widest text-[8px]">No Photo Available</span>
+
+            <div class="space-y-6 text-xs overflow-y-auto pr-2 custom-scrollbar flex-1">
+                <!-- PRIMARY PHOTO -->
+                <div class="relative group">
+                    ${(photo && photo !== 'N/A' && photo !== '-') ? `
+                        <img src="${window.getDirectDriveImageUrl ? window.getDirectDriveImageUrl(photo) : photo}" class="w-full h-48 object-cover rounded-3xl border border-white/10 shadow-inner cursor-pointer" onclick="window.openImageZoom('${photo}')"/>
+                    ` : `
+                        <div class="w-full h-32 bg-white/5 rounded-3xl flex flex-col items-center justify-center text-white/20 border-2 border-dashed border-white/5">
+                            <i class="fa-solid fa-image text-3xl mb-2"></i>
+                            <span class="font-black uppercase tracking-widest text-[8px]">No Photo Available</span>
+                        </div>
+                    `}
+                </div>
+
+                <!-- MOVEMENT META (IF APPLICABLE) -->
+                ${hasMovement ? `
+                <div class="space-y-3 bg-white/5 p-4 rounded-3xl border border-white/10">
+                    <h4 class="text-[9px] font-black text-amber-400 uppercase tracking-[0.2em] mb-3">Movement Details</h4>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="space-y-1">
+                            <span class="text-white/40 uppercase font-black tracking-widest text-[7px]">Collector</span>
+                            <p class="font-bold text-white">${data.collector || data.collectorName || '-'}</p>
+                        </div>
+                        <div class="space-y-1">
+                            <span class="text-white/40 uppercase font-black tracking-widest text-[7px]">Destination</span>
+                            <p class="font-bold text-white truncate">${data.destination || data.destinationLocation || '-'}</p>
+                        </div>
+                        <div class="space-y-1">
+                            <span class="text-white/40 uppercase font-black tracking-widest text-[7px]">Staff / Initiator</span>
+                            <p class="font-bold text-white truncate">${data.staff || data.staffName || data.performedBy || '-'}</p>
+                        </div>
+                        <div class="space-y-1">
+                            <span class="text-white/40 uppercase font-black tracking-widest text-[7px]">Company</span>
+                            <p class="font-bold text-white truncate">${data.company || data.companyName || '-'}</p>
+                        </div>
                     </div>
-                `}
-                <div class="grid grid-cols-1 gap-3">
-                    <div class="bg-white/5 p-3 rounded-2xl border border-white/5 flex justify-between items-center">
-                        <span class="text-white/40 uppercase font-black tracking-widest text-[8px]">Asset Tag</span>
-                        <span class="font-bold text-white">${barcode}</span>
+
+                    <!-- SIGNATURES -->
+                    <div class="grid grid-cols-2 gap-4 pt-3 mt-3 border-t border-white/5">
+                        <div class="space-y-2">
+                             <span class="text-white/40 uppercase font-black tracking-widest text-[7px]">Security Sig</span>
+                             ${data.securitySig ? `<img src="${data.securitySig}" class="h-12 bg-white rounded-lg p-1 mx-auto" onclick="window.openImageZoom('${data.securitySig}')">` : `<div class="h-12 flex items-center justify-center text-white/10 italic text-[8px]">N/A</div>`}
+                        </div>
+                        <div class="space-y-2">
+                             <span class="text-white/40 uppercase font-black tracking-widest text-[7px]">Receiver Sig</span>
+                             ${data.receivedSig || data.receiverSig ? `<img src="${data.receivedSig || data.receiverSig}" class="h-12 bg-white rounded-lg p-1 mx-auto" onclick="window.openImageZoom('${data.receivedSig || data.receiverSig}')">` : `<div class="h-12 flex items-center justify-center text-white/10 italic text-[8px]">N/A</div>`}
+                        </div>
                     </div>
-                    <div class="bg-white/5 p-3 rounded-2xl border border-white/5 flex justify-between items-center">
-                        <span class="text-white/40 uppercase font-black tracking-widest text-[8px]">Description</span>
-                        <span class="font-bold text-white text-right ml-4">${desc}</span>
-                    </div>
-                    <div class="bg-white/5 p-3 rounded-2xl border border-white/5 flex justify-between items-center">
-                        <span class="text-white/40 uppercase font-black tracking-widest text-[8px]">Category</span>
-                        <span class="font-bold text-white">${category}</span>
-                    </div>
-                    <div class="bg-white/5 p-3 rounded-2xl border border-white/5 flex justify-between items-center">
-                        <span class="text-white/40 uppercase font-black tracking-widest text-[8px]">Building</span>
-                        <span class="font-bold text-white">${building}</span>
-                    </div>
-                    <div class="bg-white/5 p-3 rounded-2xl border border-white/5 flex justify-between items-center">
-                        <span class="text-white/40 uppercase font-black tracking-widest text-[8px]">Location</span>
-                        <span class="font-bold text-white">${location}</span>
-                    </div>
-                    <div class="bg-white/5 p-3 rounded-2xl border border-white/5 flex justify-between items-center">
-                        <span class="text-white/40 uppercase font-black tracking-widest text-[8px]">Status</span>
-                        <span class="px-2 py-0.5 bg-amber-500/20 text-amber-400 rounded-lg font-black uppercase tracking-widest text-[8px] border border-amber-500/30">${status}</span>
+                </div>
+                ` : ''}
+
+                <!-- ASSET METADATA -->
+                <div class="space-y-3">
+                    <h4 class="text-[9px] font-black text-indigo-400 uppercase tracking-[0.2em]">Asset Information</h4>
+                    <div class="grid grid-cols-1 gap-3">
+                        <div class="bg-white/5 p-3 rounded-2xl border border-white/5 flex justify-between items-center gap-4">
+                            <span class="text-white/40 uppercase font-black tracking-widest text-[8px] shrink-0">Asset Tag</span>
+                            <span class="font-bold text-white font-mono">${barcode}</span>
+                        </div>
+                        <div class="bg-white/5 p-3 rounded-2xl border border-white/5 flex flex-col gap-1">
+                            <span class="text-white/40 uppercase font-black tracking-widest text-[8px]">Description</span>
+                            <span class="font-bold text-white text-xs leading-relaxed">${desc}</span>
+                        </div>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div class="bg-white/5 p-3 rounded-2xl border border-white/5 flex flex-col gap-1">
+                                <span class="text-white/40 uppercase font-black tracking-widest text-[8px]">Category</span>
+                                <span class="font-bold text-white truncate">${category}</span>
+                            </div>
+                            <div class="bg-white/5 p-3 rounded-2xl border border-white/5 flex flex-col gap-1">
+                                <span class="text-white/40 uppercase font-black tracking-widest text-[8px]">Serial No</span>
+                                <span class="font-bold text-white truncate">${data.serialNo || data.assetSerial || '-'}</span>
+                            </div>
+                        </div>
+                        <div class="bg-white/5 p-3 rounded-2xl border border-white/5 flex flex-col gap-1">
+                            <span class="text-white/40 uppercase font-black tracking-widest text-[8px]">Current Building & Location</span>
+                            <span class="font-bold text-white truncate">${building} • ${location}</span>
+                        </div>
+                        <div class="grid grid-cols-2 gap-3">
+                             <div class="bg-white/5 p-3 rounded-2xl border border-white/5 flex flex-col gap-1">
+                                <span class="text-white/40 uppercase font-black tracking-widest text-[8px]">Room / Floor</span>
+                                <span class="font-bold text-white">${data.roomNo || data.roomNumber || '-'} / ${data.floorNo || '-'}</span>
+                            </div>
+                            <div class="bg-white/5 p-3 rounded-2xl border border-white/5 flex flex-col gap-1">
+                                <span class="text-white/40 uppercase font-black tracking-widest text-[8px]">Vendor</span>
+                                <span class="font-bold text-white truncate">${data.vendor || data.assetVendor || data.assetVendorName || '-'}</span>
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div class="bg-white/5 p-3 rounded-2xl border border-white/5 flex flex-col gap-1">
+                                <span class="text-white/40 uppercase font-black tracking-widest text-[8px]">Condition</span>
+                                <span class="font-bold text-emerald-400">${data.condition || data.assetCondition || 'Good'}</span>
+                            </div>
+                            <div class="bg-white/5 p-3 rounded-2xl border border-white/5 flex flex-col gap-1 text-center">
+                                <span class="text-white/40 uppercase font-black tracking-widest text-[8px] mb-1">Status</span>
+                                <span class="px-2 py-0.5 bg-amber-500/20 text-amber-400 rounded-lg font-black uppercase tracking-widest text-[7px] border border-amber-500/30">${status}</span>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
-            <button onclick="window.closeAssetPreviewModal()" class="w-full py-4 bg-white/5 hover:bg-white/10 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] transition-all border border-white/5">Close Preview</button>
+
+            <button onclick="window.closeAssetPreviewModal()" class="w-full py-4 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] transition-all shadow-xl shadow-indigo-500/20 shrink-0">Close Record</button>
         </div>
     `;
     modal.classList.remove('hidden');
@@ -616,6 +687,9 @@ window.executeSecureLogout = function() {
         console.warn("⚠️ Listener cleanup error on logout:", e);
     }
 
+    // Clear personal user avatar cache
+    localStorage.removeItem('jys_cached_user_avatar');
+
     // Clear Sessions
     sessionStorage.clear();
     localStorage.clear();
@@ -655,10 +729,26 @@ window.initSidebarProfileAndRestrictions = function(staffData) {
 
     if (imgEl) {
         const photo = staff.photoUrl || staff.profilePic || staff.imageUrl || staff.photo || staff.profilePicUrl;
-        if (photo && photo !== 'N/A' && photo !== '-') {
-            imgEl.src = window.getDirectDriveImageUrl ? window.getDirectDriveImageUrl(photo) : photo;
+
+        // 1. Check local cache first for instant render
+        const cached = localStorage.getItem('jys_cached_user_avatar');
+        if (cached && cached.startsWith('data:image')) {
+            imgEl.src = cached;
             imgEl.classList.remove('hidden');
             if (initialsEl) initialsEl.classList.add('hidden');
+        }
+
+        if (photo && photo !== 'N/A' && photo !== '-') {
+            const finalUrl = window.getDirectDriveImageUrl ? window.getDirectDriveImageUrl(photo) : photo;
+
+            // Background fetch and cache
+            window.getOrCacheImage(finalUrl).then(src => {
+                imgEl.src = src;
+                imgEl.classList.remove('hidden');
+                if (initialsEl) initialsEl.classList.add('hidden');
+                // Store as main profile avatar
+                localStorage.setItem('jys_cached_user_avatar', src);
+            });
         } else {
             const avatarUrl = window.generateLocalAvatar ? window.generateLocalAvatar(displayName) : `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName.charAt(0))}&background=f59e0b&color=fff`;
             imgEl.src = avatarUrl;
@@ -728,11 +818,27 @@ window.renderDashboardProfile = function(staffData) {
         const photo = staff.profilePicUrl || staff.photoUrl || staff.photo || staff.imageUrl;
         const displayName = staff.fullName || staff.name || "U";
 
-        if (photo && photo !== 'N/A' && photo !== '-') {
-            imgEl.src = window.getDirectDriveImageUrl ? window.getDirectDriveImageUrl(photo) : photo;
+        // 1. Check local cache first for instant render
+        const cached = localStorage.getItem('jys_cached_user_avatar');
+        if (cached && cached.startsWith('data:image')) {
+            imgEl.src = cached;
             imgEl.classList.remove('hidden');
             const placeholder = document.getElementById('avatar-placeholder');
             if (placeholder) placeholder.classList.add('hidden');
+        }
+
+        if (photo && photo !== 'N/A' && photo !== '-') {
+            const finalUrl = window.getDirectDriveImageUrl ? window.getDirectDriveImageUrl(photo) : photo;
+
+            // Background fetch and cache
+            window.getOrCacheImage(finalUrl).then(src => {
+                imgEl.src = src;
+                imgEl.classList.remove('hidden');
+                const placeholder = document.getElementById('avatar-placeholder');
+                if (placeholder) placeholder.classList.add('hidden');
+                // Store as main profile avatar
+                localStorage.setItem('jys_cached_user_avatar', src);
+            });
         } else {
             // Use locally generated avatar or UI-Avatars fallback
             const fallback = window.generateLocalAvatar ? window.generateLocalAvatar(displayName) : `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=4f46e5&color=fff`;
@@ -857,8 +963,62 @@ window.closeAttendanceHistoryModal = function() {
 };
 
 // ================================================================ */
-// MEDIA RENDERING & FALLBACKS (FIXED v4.3)                        */
+// MEDIA RENDERING & FALLBACKS (FIXED v4.4 - WITH LOCAL CACHING)            */
 // ================================================================ */
+
+// 🛑 RATE LIMIT COOLDOWN (Persistent in-session memory)
+const rateLimitedUrls = new Set();
+
+window.getOrCacheImage = async function(url) {
+    if (!url || url === 'N/A' || url === '-' || url === 'null' || url === 'undefined') {
+        return 'https://placehold.co/400x300/e2e8f0/64748b?text=No+Photo';
+    }
+
+    // Direct Data URLs don't need caching
+    if (url.startsWith('data:image')) return url;
+
+    // Check Cooldown to prevent spamming 429s
+    if (rateLimitedUrls.has(url)) {
+        return url;
+    }
+
+    const cacheKey = 'jys_img_cache_' + btoa(url).substring(0, 32).replace(/[/+=]/g, '_');
+    const cached = localStorage.getItem(cacheKey);
+    if (cached) return cached;
+
+    try {
+        const response = await fetch(url);
+
+        // Handle Rate Limiting (429) specifically
+        if (response.status === 429) {
+            console.warn("🛑 Google Rate Limit (429): Too many requests. Adding to cooldown.");
+            rateLimitedUrls.add(url);
+            // Remove from cooldown after 1 minute
+            setTimeout(() => rateLimitedUrls.delete(url), 60000);
+            return url;
+        }
+
+        if (!response.ok) throw new Error(`Fetch failed with status: ${response.status}`);
+
+        const blob = await response.blob();
+        return new Promise((resolve) => {
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                try {
+                    localStorage.setItem(cacheKey, reader.result);
+                } catch(e) {
+                    console.warn("localStorage quota full, serving live URL");
+                    // Optional: Clear old cache if full
+                }
+                resolve(reader.result);
+            };
+            reader.readAsDataURL(blob);
+        });
+    } catch (e) {
+        console.warn("⚠️ getOrCacheImage failed, using live URL:", e);
+        return url; // Fallback to live URL on error
+    }
+};
 
 window.getDirectDriveImageUrl = (driveUrl) => {
     if (!driveUrl || driveUrl === 'N/A' || driveUrl === '-' || driveUrl === 'null' || driveUrl === 'undefined') {
@@ -883,6 +1043,21 @@ window.getDirectDriveImageUrl = (driveUrl) => {
     if (match) fileId = match[1];
 
     return fileId ? `https://lh3.googleusercontent.com/d/${fileId}` : driveUrl;
+};
+
+window.lazyLoadCachedImages = function() {
+    document.querySelectorAll('img[data-cache-src]').forEach(img => {
+        const src = img.getAttribute('data-cache-src');
+        if (src && !img.dataset.cacheLoaded) {
+            window.getOrCacheImage(src).then(cachedSrc => {
+                img.src = cachedSrc;
+                img.dataset.cacheLoaded = "true";
+            }).catch(e => {
+                img.src = src; // Fallback
+                img.dataset.cacheLoaded = "true";
+            });
+        }
+    });
 };
 
 window.formatDriveImageUrl = window.getDirectDriveImageUrl;
@@ -1187,6 +1362,29 @@ window.toggleStaffTab = (tab) => {
         }
     } catch (e) {
         console.error("Toggle Tab Error:", e);
+    }
+};
+
+window.toggleAccordion = function(id) {
+    const content = document.getElementById(id + '-content');
+    const icon = document.getElementById(id + '-icon');
+    if (!content) return;
+
+    const isHidden = content.classList.contains('hidden');
+
+    // Toggle targeted section
+    if (isHidden) {
+        content.classList.remove('hidden');
+        if (icon) {
+            icon.classList.remove('fa-chevron-right');
+            icon.classList.add('fa-chevron-down');
+        }
+    } else {
+        content.classList.add('hidden');
+        if (icon) {
+            icon.classList.remove('fa-chevron-down');
+            icon.classList.add('fa-chevron-right');
+        }
     }
 };
 

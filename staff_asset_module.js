@@ -131,7 +131,11 @@ window.searchAssetByIdOrBarcode = async function(scannedCode) {
             const imgEl = document.getElementById('asset-display-img');
             if (imgEl) {
                 if (photoUrl && photoUrl !== 'N/A' && photoUrl !== '-') {
-                    imgEl.src = window.getDirectDriveImageUrl ? window.getDirectDriveImageUrl(photoUrl) : photoUrl;
+                    const finalUrl = window.getDirectDriveImageUrl ? window.getDirectDriveImageUrl(photoUrl) : photoUrl;
+                    imgEl.src = 'https://placehold.co/150x150/e2e8f0/64748b?text=...';
+                    window.getOrCacheImage(finalUrl).then(src => {
+                        imgEl.src = src;
+                    });
                 } else {
                     imgEl.src = 'https://placehold.co/150x150/e2e8f0/64748b?text=No+Photo';
                 }

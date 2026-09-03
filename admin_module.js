@@ -14,6 +14,7 @@ window.appCache = {
     assets: [],
     attendance: [], // Staff Attendance Logs
     transfers: [],
+    disposedAssets: [],
     disposalRegistry: [],
     disposalRequests: []
 };
@@ -63,8 +64,9 @@ window.filterActiveAssets = function(assets) {
     if (!assets || !Array.isArray(assets)) return [];
     return assets.filter(a => {
         if (!a) return false;
-        const status = (a.assetStatus || a.status || '').toLowerCase();
-        return status !== 'disposed' && status !== 'pending_disposal' && status !== 'scrapped';
+        const status = (a.assetStatus || a.status || '').toUpperCase();
+        const isArchived = a.isArchived === true || a.deletedFromMaster === true || a.isDisposed === true || a.isTransferred === true;
+        return status !== 'DISPOSED' && status !== 'PENDING_DISPOSAL' && status !== 'SCRAPPED' && status !== 'TRANSFERRED' && !isArchived;
     });
 };
 
@@ -220,6 +222,7 @@ window.initAdminRealTimeListeners = function() {
     registerListener('staff_attendance', 'attendance', 'tab-staff-logs', window.filterStaffTable);
     registerListener('tasks', 'tasks', 'tab-tasks');
     registerListener('staff', 'staff', 'tab-staff-list', window.filterStaffDirectory);
+    registerListener('disposed_assets', 'disposedAssets', 'tab-disposal', window.filterDisposalTable);
     registerListener('ASSET_DISPOSAL_REGISTRY', 'disposalRegistry', 'tab-disposal');
     registerListener('asset_disposal_requests', 'disposalRequests', 'tab-disposal', window.filterDisposalTable);
     registerListener('asset_transfers', 'transfers', 'tab-transfers', window.filterTransferTable);
@@ -227,7 +230,12 @@ window.initAdminRealTimeListeners = function() {
     // Assets needs special handling for local cache
     activeListeners.assets = onValue(ref(db, 'assets'), (snapshot) => {
         if (snapshot.exists()) {
-            window.appCache.assets = Object.values(snapshot.val());
+            const rawData = snapshot.val();
+            // Store as array while PRESERVING keys for consistency
+            window.appCache.assets = Object.entries(rawData).map(([key, val]) => {
+                return { ...val, firebaseKey: key, _key: key };
+            });
+
             localStorage.setItem('cached_asset_register', JSON.stringify(window.appCache.assets));
             if (document.querySelector('.tab-section.active')?.id === 'tab-assets') {
                 window.filterAssetTable();
@@ -450,16 +458,32 @@ window.filterStaffDirectory = () => {
 
 window.updateAdminProfileHeader = async () => {
     try {
+        // 1. Check local cache first for instant render
+        const cached = localStorage.getItem('jys_cached_user_avatar');
+        const pic = document.getElementById('adminProfileHeaderPic');
+        if (cached && cached.startsWith('data:image') && pic) {
+            pic.src = cached;
+        }
+
         const mobile = '961486864461';
         const snap = await get(ref(db, `users/${mobile}`));
-        if (snap.exists()) {
-            const pic = document.getElementById('adminProfileHeaderPic');
-            if (pic && snap.val().profilePicUrl) pic.src = window.getDirectDriveImageUrl(snap.val().profilePicUrl);
+        if (snap.exists() && pic) {
+            const photo = snap.val().profilePicUrl;
+            if (photo) {
+                const finalUrl = window.getDirectDriveImageUrl ? window.getDirectDriveImageUrl(photo) : photo;
+                window.getOrCacheImage(finalUrl).then(src => {
+                    pic.src = src;
+                    localStorage.setItem('jys_cached_user_avatar', src);
+                });
+            }
         }
     } catch (e) {}
 };
 
 window.filterAssetTable = window.debounce(() => {
+    // DEFENSIVE: Silently exit if table elements are missing (we are not on the Admin Dashboard)
+    if (!document.getElementById('asset-table-body')) return;
+
     const q = document.getElementById('asset-search')?.value?.toLowerCase() || '';
     let f = window.filterActiveAssets(window.appCache.assets || []);
     if (q) f = f.filter(a => Object.values(a).some(v => String(v).toLowerCase().includes(q)));
@@ -1273,38 +1297,71 @@ window.loadAdminDisposalTable = function() {
     const body = document.getElementById('admin-disposal-list-body');
     if (!body) return;
 
-    const data = (window.appCache.disposalRequests || []).sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+    // Combine data from all disposal nodes
+    const requests = (window.appCache.disposalRequests || []);
+    const registry = (window.appCache.disposalRegistry || []);
+    const directDisposed = (window.appCache.disposedAssets || []);
+
+    const combinedData = [...requests, ...registry, ...directDisposed];
+    const data = combinedData.sort((a, b) => (b.timestamp || b.TIMESTAMP || 0) - (a.timestamp || a.TIMESTAMP || 0));
 
     window.adminPaginators.disposal.init(data, (pageItems) => {
-        body.innerHTML = pageItems.length ? pageItems.map(d => `
+        body.innerHTML = pageItems.length ? pageItems.map(d => {
+            // Normalize Field Mapping for Disposal Table
+            const barcode = d.assetBarcode || d.barcode || d["ASSET BARCODE"] || d["BARCODE"] || "-";
+            const name = d.assetName || d.name || d["ASSET DESCRIPTION"] || d["ASSET NAME"] || "-";
+            const vendor = d.assetVendor || d.assetVendorName || d.vendor || d["ASSET VENDOR NAME"] || d["VENDOR"] || "-";
+            const category = d.assetCategory || d.category || d["CATEGORY"] || "-";
+            const date = d.date || d["DISPOSAL DATE"] || d.disposalDate || "-";
+            const photo = d.disposalPhotoUrl || d["DISPOSAL PHOTO"] || d.proofPhoto || d.auditPhoto || "";
+            const location = d.assetLocation || d.locationName || d.location || d["LOCATION NAME"] || d["LOCATION"] || "-";
+            const reason = d.reason || d["DISPOSAL REASON"] || d.disposalReason || "-";
+
+            const status = (d.status || d.STATUS || 'Pending').toUpperCase();
+            const statusColor = status === 'APPROVED' || status === 'DISPOSED' ? 'text-red-600' : 'text-amber-600';
+
+            return `
             <tr class="hover:bg-red-50 border-b text-[10px]">
-                <td class="p-3 font-mono font-bold text-red-600">${d.assetBarcode || "-"}</td>
-                <td class="p-3 font-bold">${d.assetName || "-"}</td>
-                <td class="p-3">${d.assetVendor || "-"}</td>
-                <td class="p-3">${d.assetCategory || "-"}</td>
-                <td class="p-3">${d.date || "-"}</td>
-                <td class="p-3">${d.assetFloor || "-"}</td>
-                <td class="p-3">${d.assetFloor || "-"}</td>
-                <td class="p-3">${d.assetLocation || "-"}</td>
-                <td class="p-3">${d.assetCategory || "-"}</td>
-                <td class="p-3">${d.assetCategory || "-"}</td>
-                <td class="p-3">${d.assetBuilding || "-"}</td>
-                <td class="p-3">${d.assetRoom || "-"}</td>
-                <td class="p-3">${d.assetRoom || "-"}</td>
-                <td class="p-3">${d.assetCategory || "-"}</td>
-                <td class="p-3 text-center">${d.disposalPhotoUrl ? `<img src="${window.getDirectDriveImageUrl(d.disposalPhotoUrl)}" class="h-6 mx-auto rounded shadow-sm" onclick="window.openImageZoom('${d.disposalPhotoUrl}')">` : 'No Photo'}</td>
+                <td class="p-3 font-mono font-bold ${statusColor}">${barcode}</td>
+                <td class="p-3 font-bold">${name}</td>
+                <td class="p-3">${vendor}</td>
+                <td class="p-3">${category}</td>
+                <td class="p-3">${date}</td>
+                <td class="p-3">${d.floorDiscretion || d.floorNo || d.assetFloor || d["FLOOR DISCRETION"] || d["FLOOR NO"] || "-"}</td>
+                <td class="p-3">${d.floorNo || d.assetFloor || d["FLOOR NO"] || "-"}</td>
+                <td class="p-3">${location}</td>
+                <td class="p-3">${d.majorCategory || d["MAJOR CATEGORY"] || "-"}</td>
+                <td class="p-3">${d.minorCategory || d["MINOR CATEGORY"] || "-"}</td>
+                <td class="p-3">${d.schoolBuildingName || d.building || d.assetBuilding || d["SCHOOL BUILDING NAME"] || d["BUILDING"] || "-"}</td>
+                <td class="p-3">${d.roomNumber || d.roomNo || d["ROOM NUMBER"] || d["ROOM NO"] || "-"}</td>
+                <td class="p-3">${d.roomName || d["ROOM NAME"] || "-"}</td>
+                <td class="p-3">${d.subMinorCategory || d["SUB MINOR CATEGORY"] || "-"}</td>
                 <td class="p-3 text-center">
-                    <button onclick="window.approveDisposal('${d.requestId}')" class="text-emerald-600 hover:scale-110"><i class="fa-solid fa-check-circle"></i></button>
-                    <button onclick="window.rejectDisposal('${d.requestId}')" class="text-red-600 hover:scale-110 ml-2"><i class="fa-solid fa-circle-xmark"></i></button>
+                    ${photo ? `<img src="https://placehold.co/40x30/e2e8f0/64748b?text=..." data-cache-src="${window.getDirectDriveImageUrl(photo)}" class="h-6 mx-auto rounded shadow-sm cursor-pointer" onclick="window.openImageZoom('${photo}')">` : 'No Photo'}
                 </td>
-            </tr>`).join('') : '<tr><td colspan="16" class="p-8 text-center text-gray-400">No pending requests</td></tr>';
+                <td class="p-3 text-center">
+                    <div class="flex items-center justify-center gap-2">
+                        <button onclick="window.openAssetDetailsModal('${barcode}')" class="text-indigo-600 hover:scale-110" title="View Details"><i class="fa-solid fa-eye"></i></button>
+                        ${status === 'PENDING' ? `
+                            <button onclick="window.approveDisposal('${d.requestId || d.firebaseKey}')" class="text-emerald-600 hover:scale-110" title="Approve"><i class="fa-solid fa-check-circle"></i></button>
+                            <button onclick="window.rejectDisposal('${d.requestId || d.firebaseKey}')" class="text-red-600 hover:scale-110 ml-1" title="Reject"><i class="fa-solid fa-circle-xmark"></i></button>
+                        ` : `
+                            <button onclick="window.revertDisposal('${d.requestId || d.firebaseKey}', '${barcode}')" class="text-amber-600 hover:scale-110" title="Revert to Active"><i class="fa-solid fa-rotate-left"></i></button>
+                        `}
+                    </div>
+                </td>
+            </tr>`;
+        }).join('') : '<tr><td colspan="16" class="p-8 text-center text-gray-400">No disposal records found</td></tr>';
+
+        if (window.lazyLoadCachedImages) window.lazyLoadCachedImages();
     });
 };
 
 window.filterDisposalTable = () => {
     const q = document.getElementById('disposal-search')?.value?.toLowerCase() || '';
-    let f = window.appCache.disposalRequests;
-    if (q) f = f.filter(d => (d.assetName||'').toLowerCase().includes(q) || (d.assetBarcode||'').includes(q));
+    const combined = [...(window.appCache.disposalRequests || []), ...(window.appCache.disposalRegistry || []), ...(window.appCache.disposedAssets || [])];
+    let f = combined;
+    if (q) f = f.filter(d => JSON.stringify(d).toLowerCase().includes(q));
     window.currentFilteredData.disposal = f;
     window.loadAdminDisposalTable();
 };
@@ -1416,7 +1473,9 @@ window.renderStandardizedAssetTable = function(data, type) {
                 <td class="p-2">${t.roomNumber || "-"}</td>
                 <td class="p-2">${t.roomName || "-"}</td>
                 <td class="p-2">${t.subMinorCategory || "-"}</td>
-                <td class="p-2 text-center">${t.auditPhoto ? `<img src="${window.getDirectDriveImageUrl(t.auditPhoto)}" class="h-6 mx-auto rounded" onclick="window.openImageZoom('${t.auditPhoto}')">` : '-'}</td>
+                <td class="p-2 text-center">
+                    ${(t.auditPhoto && t.auditPhoto !== 'N/A') ? `<img src="https://placehold.co/40x30/e2e8f0/64748b?text=..." data-cache-src="${window.getDirectDriveImageUrl(t.auditPhoto)}" class="h-6 mx-auto rounded shadow-sm cursor-pointer" onclick="window.openImageZoom('${t.auditPhoto}')">` : '<span class="text-[7px] text-slate-300 font-bold uppercase">N/A</span>'}
+                </td>
                 <td class="p-2 font-bold">${t.collectorName || "-"}</td>
                 <td class="p-2">${t.companyName || "-"}</td>
                 <td class="p-2">${t.collectionDate || "-"}</td>
@@ -1424,12 +1483,55 @@ window.renderStandardizedAssetTable = function(data, type) {
                 <td class="p-2">${t.receivedName || "-"}</td>
                 <td class="p-2 text-center">${t.securitySig ? `<img src="${t.securitySig}" class="h-5 mx-auto bg-white" onclick="window.openImageZoom('${t.securitySig}')">` : '-'}</td>
                 <td class="p-2 text-center">${t.receivedSig ? `<img src="${t.receivedSig}" class="h-5 mx-auto bg-white" onclick="window.openImageZoom('${t.receivedSig}')">` : '-'}</td>
-                <td class="p-2 text-center">${t.proofPhoto ? `<img src="${window.getDirectDriveImageUrl(t.proofPhoto)}" class="h-6 mx-auto rounded" onclick="window.openImageZoom('${t.proofPhoto}')">` : '-'}</td>
                 <td class="p-2 text-center">
-                    <button onclick="window.deleteTransferLog('${t.firebaseKey}')" class="text-red-500 hover:scale-110"><i class="fa-solid fa-trash-can"></i></button>
+                    ${(t.proofPhoto || t.transferPhotoUrl || t.disposalPhotoUrl) ? `<img src="https://placehold.co/40x30/e2e8f0/64748b?text=..." data-cache-src="${window.getDirectDriveImageUrl(t.proofPhoto || t.transferPhotoUrl || t.disposalPhotoUrl)}" class="h-6 mx-auto rounded shadow-sm cursor-pointer" onclick="window.openImageZoom('${t.proofPhoto || t.transferPhotoUrl || t.disposalPhotoUrl}')">` : '-'}
+                </td>
+                <td class="p-2 text-center">
+                    <div class="flex items-center justify-center gap-2">
+                        <button onclick="window.openAssetDetailsModal('${t.assetBarcode}')" class="text-indigo-600 hover:scale-110" title="View Details"><i class="fa-solid fa-eye"></i></button>
+                        <button onclick="window.revertTransfer('${t.firebaseKey}', '${t.assetBarcode}')" class="text-amber-600 hover:scale-110" title="Revert Transfer"><i class="fa-solid fa-rotate-left"></i></button>
+                        <button onclick="window.deleteTransferLog('${t.firebaseKey}')" class="text-red-500 hover:scale-110" title="Delete Log Only"><i class="fa-solid fa-trash-can"></i></button>
+                    </div>
                 </td>
             </tr>`).join('') : '<tr><td colspan="24" class="p-8 text-center text-gray-400">No logs found</td></tr>';
+
+        if (window.lazyLoadCachedImages) window.lazyLoadCachedImages();
     });
+};
+
+window.revertTransfer = async function(key, barcode) {
+    if (!confirm(`Revert transfer for asset ${barcode}? This will restore its status to Active.`)) return;
+    window.showGlobalSpinner("Reverting Transfer...");
+    try {
+        const sanitized = barcode.replace(/[.#$\[\]/]/g, '_');
+        const updates = {};
+        updates[`assets/${sanitized}/assetStatus`] = "Active";
+        updates[`assets/${sanitized}/status`] = "Active";
+        updates[`assets/${sanitized}/isTransferred`] = false;
+        updates[`assets/${sanitized}/isAvailable`] = true;
+        updates[`asset_transfers/${key}`] = null;
+        await update(ref(db), updates);
+        alert("✅ Transfer reverted successfully.");
+    } catch (e) { alert("Revert failed: " + e.message); } finally { window.hideGlobalSpinner(); }
+};
+
+window.revertDisposal = async function(key, barcode) {
+    if (!confirm(`Revert disposal for asset ${barcode}? This will restore it to the Master Register.`)) return;
+    window.showGlobalSpinner("Reverting Disposal...");
+    try {
+        const sanitized = barcode.replace(/[.#$\[\]/]/g, '_');
+        const updates = {};
+        updates[`assets/${sanitized}/assetStatus`] = "Active";
+        updates[`assets/${sanitized}/status`] = "Active";
+        updates[`assets/${sanitized}/isDisposed`] = false;
+        updates[`assets/${sanitized}/isArchived`] = false;
+        updates[`assets/${sanitized}/deletedFromMaster`] = false;
+        updates[`assets/${sanitized}/isAvailable`] = true;
+        updates[`disposed_assets/${sanitized}`] = null;
+        updates[`asset_disposal_requests/${key}`] = null;
+        await update(ref(db), updates);
+        alert("✅ Disposal reverted successfully.");
+    } catch (e) { alert("Revert failed: " + e.message); } finally { window.hideGlobalSpinner(); }
 };
 
 // ================================================================ */
