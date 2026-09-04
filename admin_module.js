@@ -621,8 +621,11 @@ window.openAddStaffModal = function() {
     const roleSelect = document.getElementById('staff-role');
     if (roleSelect) {
         roleSelect.addEventListener('change', (e) => {
-            if (window.renderDocAssignmentUI) {
-                window.renderDocAssignmentUI(e.target.value, 'staff-doc-assignment-container');
+            if (e.target.value) {
+                // Trigger Configuration Modal
+                if (window.openOnboardingConfigModal) {
+                    window.openOnboardingConfigModal(e.target.value);
+                }
             }
         });
     }
@@ -639,13 +642,13 @@ window.openAddStaffModal = function() {
 // ================================================================ */
 // ✅ 2. PREVIEW PHOTO - Universal File Reader
 // ================================================================ */
-window.previewStaffPhoto = function(input) {
+window.previewStaffPhoto = async function(input) {
     if (input.files && input.files[0]) {
         const file = input.files[0];
 
-        // ✅ Check file size (max 5MB)
-        if (file.size > 5 * 1024 * 1024) {
-            alert("❌ Image size must be less than 5MB. Please compress your image.");
+        // ✅ Check file size (max 10MB for raw check, will compress anyway)
+        if (file.size > 10 * 1024 * 1024) {
+            alert("❌ Image is too large. Please select a smaller photo.");
             input.value = '';
             return;
         }
@@ -657,25 +660,33 @@ window.previewStaffPhoto = function(input) {
             return;
         }
 
-        const reader = new FileReader();
-        reader.onload = function(e) {
+        try {
+            // ✅ AUTO-COMPRESS before preview/store (Ensures small payload for Drive)
+            if (window.showGlobalSpinner) window.showGlobalSpinner("Optimizing Photo...");
+
+            const compressedBase64 = await window.compressImageFile(file, 600, 600, 0.7);
+
             const preview = document.getElementById('staff-photo-preview');
             const icon = document.getElementById('staff-photo-icon');
+
             if (preview) {
-                preview.src = e.target.result;
+                preview.src = compressedBase64;
                 preview.style.display = 'block';
                 preview.classList.remove('hidden');
                 if (icon) {
                     icon.style.display = 'none';
                     icon.classList.add('hidden');
                 }
-                staffPhotoBase64 = e.target.result;
+                staffPhotoBase64 = compressedBase64;
             }
-        };
-        reader.onerror = function() {
-            alert("❌ Failed to read image. Please try again.");
-        };
-        reader.readAsDataURL(file);
+
+            if (window.hideGlobalSpinner) window.hideGlobalSpinner();
+
+        } catch (err) {
+            console.error("Compression Error:", err);
+            if (window.hideGlobalSpinner) window.hideGlobalSpinner();
+            alert("❌ Failed to process image. Please try another one.");
+        }
     }
 };
 
@@ -713,21 +724,34 @@ window.handleStaffSubmit = async function(type) {
 
         // STEP A: Upload to Google Drive if new image is selected
         if (staffPhotoBase64 && window.uploadToDrive) {
-            const uploadConfigCat = (typeof UPLOAD_CONFIG !== 'undefined' && UPLOAD_CONFIG.CATEGORIES)
-                ? UPLOAD_CONFIG.CATEGORIES.STAFF_PHOTOS
-                : 'STAFF_PHOTOS';
+            const adekPass = document.getElementById('staff-adek')?.value?.trim() ||
+                             document.getElementById('staff-mobile')?.value?.trim() ||
+                             mobile || "TEMP_PASS";
 
-            const uploadRes = await window.uploadToDrive({
-                category: uploadConfigCat,
-                fileName: `Staff_Profile_${mobile}_${Date.now()}.jpg`,
+            const uploadParams = {
+                category: 'PROFILES_AND_SIGS',
+                documentType: 'ProfilePhoto',
+                adekPassNumber: adekPass,
+                fileName: `PROFILE_${adekPass}_${Date.now()}.jpg`,
                 image: staffPhotoBase64
-            });
+            };
+
+            const uploadRes = window.uploadToDriveWithRetry ?
+                await window.uploadToDriveWithRetry(uploadParams) :
+                await window.uploadToDrive(uploadParams);
 
             if (uploadRes && uploadRes.status === 'success') {
                 finalPhotoUrl = uploadRes.fileUrl;
             } else {
-                // ✅ Continue without photo if upload fails (but log error)
-                console.warn("⚠️ Photo upload failed, continuing without photo.");
+                console.warn("⚠️ Photo upload failed:", uploadRes?.message);
+                if (!confirm("⚠️ Profile photo failed to upload to Drive. Register staff without photo?")) {
+                    if (btn) {
+                         btn.disabled = false;
+                         btn.textContent = existingKey ? "UPDATE STAFF DETAILS" : "Register Staff Member";
+                    }
+                    if (window.hideGlobalSpinner) window.hideGlobalSpinner();
+                    return;
+                }
             }
         }
 
@@ -755,22 +779,30 @@ window.handleStaffSubmit = async function(type) {
         }
 
         // STEP C: Collect and Save Assigned Documents
-        if (window.getAssignedDocsFromUI) {
+        let docsToInitialize = null;
+
+        if (window._pendingOnboardingConfig) {
+            staffData.onboardingRequirements = window._pendingOnboardingConfig.requiredDocuments || {};
+            staffData.bioDataRequirements = window._pendingOnboardingConfig.requiredBioData || [];
+            staffData.isAccountActive = false; // Default inactive for new staff
+            docsToInitialize = staffData.onboardingRequirements;
+        } else if (window.getAssignedDocsFromUI) {
             const assignedDocs = window.getAssignedDocsFromUI();
             staffData.requiredVerificationDocs = assignedDocs;
+            docsToInitialize = assignedDocs;
+        }
 
-            // Initialize verification node for NEW staff
-            if (!existingKey && assignedDocs && Object.keys(assignedDocs).length > 0) {
-                const docStatusNode = {};
-                Object.keys(assignedDocs).forEach(id => {
-                    docStatusNode[id] = { status: "NOT UPLOADED", documentType: id };
-                });
-                await set(ref(db, `staff_documents/${staffData.adekPass || mobile}`), {
-                    docs: docStatusNode,
-                    isAccountActivated: false,
-                    verificationProgress: "0%"
-                });
-            }
+        // Initialize verification node for NEW staff
+        if (!existingKey && docsToInitialize && Object.keys(docsToInitialize).length > 0) {
+            const docStatusNode = {};
+            Object.keys(docsToInitialize).forEach(id => {
+                docStatusNode[id] = { status: "NOT UPLOADED", documentType: id };
+            });
+            await set(ref(db, `staff_documents/${staffData.adekPass || mobile}`), {
+                docs: docStatusNode,
+                isAccountActivated: false,
+                verificationProgress: "0%"
+            });
         }
 
         // STEP D: Push to Firebase (Edit vs Create)
@@ -782,7 +814,13 @@ window.handleStaffSubmit = async function(type) {
             await push(ref(db, 'staff'), staffData);
         }
 
-        alert("✅ Staff Member Successfully Saved!");
+        if (finalPhotoUrl) {
+            window.triggerSuccessPopup("✅ Staff Member Saved & Photo Synced to Drive!");
+        } else {
+            window.triggerSuccessPopup("✅ Staff Member Saved Successfully!");
+        }
+
+        window._pendingOnboardingConfig = null;
         window.closeStaffModal(type);
 
         // Refresh list

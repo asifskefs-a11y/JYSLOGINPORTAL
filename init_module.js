@@ -119,13 +119,13 @@ window.handleStaffLogin = async (e) => {
 
             console.log("🛡️ Staff Login: Comparing against", allStaff.length, "staff records");
 
-            for (const u of allStaff) {
+            for (const [key, u] of Object.entries(val)) {
                 if (!u) continue;
                 const adekCheck = (u.adekPass || u.adcPassNumber || u.username || u.mobile || "").toString().toLowerCase().trim();
                 const inputAdek = adek.toLowerCase();
 
                 if (adekCheck === inputAdek && u.password === pass) {
-                    foundUser = u;
+                    foundUser = { ...u, firebaseKey: key };
                     break;
                 }
             }

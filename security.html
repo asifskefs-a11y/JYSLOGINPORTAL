@@ -45,6 +45,11 @@
 </head>
 <body class="text-white">
 
+    <!-- ✅ ACCOUNT ACTIVATION BANNER (v5.0) -->
+    <div id="account-activation-banner" class="hidden bg-rose-600 text-white px-4 py-2 text-center text-[9px] font-black uppercase tracking-[0.2em] animate-pulse sticky top-0 z-[100009]">
+        <i class="fa-solid fa-triangle-exclamation mr-2"></i> Account Inactive: Upload required documents to unlock features
+    </div>
+
 <!-- SIDE MENU OVERLAY -->
 <div id="side-menu" class="fixed inset-0 bg-black/60 z-[200000] hidden backdrop-blur-sm transition-opacity duration-300" onclick="if(event.target === this) window.toggleSideMenu()">
     <div id="side-menu-content" class="absolute left-0 top-0 h-full w-[85%] max-w-[340px] shadow-2xl p-6 transform -translate-x-full transition-transform duration-300 ease-in-out flex flex-col bg-indigo-950">
@@ -99,6 +104,11 @@
                     <button onclick="window.toggleSideMenu(); window.showStaffView('staff-docs-section')" class="menu-item-btn w-full flex items-center gap-3 p-4 bg-white/5 rounded-2xl text-white/80 hover:bg-white/10 transition-all">
                         <i class="fa-solid fa-file-shield text-emerald-400"></i>
                         <span>My Documents</span>
+                    </button>
+                    <!-- ✅ Biometric Enrollment Toggle -->
+                    <button type="button" id="biometric-toggle-btn" onclick="window.enrollBiometrics()" class="menu-item-btn w-full flex items-center gap-3 p-4 bg-white/5 rounded-2xl text-white/80 hover:bg-white/10 transition-all">
+                        <i class="fa-solid fa-fingerprint text-indigo-400"></i>
+                        <span>Enable Biometrics</span>
                     </button>
                 </div>
             </div>
@@ -163,6 +173,7 @@
                 <p class="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-0.5" id="user-pass-id">ID: -</p>
                 <div class="flex flex-wrap items-center gap-2 mt-1.5">
                     <span class="role-badge" id="user-role">Security</span>
+                    <span id="account-status-badge" class="px-2.5 py-0.5 bg-rose-100 text-rose-700 text-[10px] font-extrabold rounded-md uppercase hidden">Inactive</span>
                     <span class="text-[9px] font-bold text-slate-400 uppercase tracking-tighter flex items-center gap-1" id="user-branch">
                             <i class="fa-solid fa-location-dot text-indigo-400"></i>
                             School Location
@@ -783,12 +794,21 @@
                 </p>
             </div>
 
-            <div id="staff-docs-container" class="space-y-4 min-h-[300px] text-gray-800">
+            <div id="staff-docs-container" class="space-y-4 text-gray-800">
                 <!-- Cards will be injected here via docs_ui.js -->
-                <div class="flex flex-col items-center justify-center py-20 text-slate-300">
-                    <i class="fa-solid fa-spinner fa-spin fa-3x mb-4"></i>
-                    <p class="text-[10px] font-black uppercase tracking-widest">Syncing Requirements...</p>
-                </div>
+            </div>
+
+            <!-- ✅ BIO-DATA SECTION (v5.0) -->
+            <div id="staff-biodata-container" class="mt-8 space-y-4 hidden">
+                <h3 class="text-lg font-black text-indigo-900 uppercase tracking-tight flex items-center gap-2 mb-4">
+                    <i class="fa-solid fa-address-card text-indigo-500"></i> Personal Information
+                </h3>
+                <form id="staff-biodata-form" class="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-slate-50 p-6 rounded-[2rem] border border-slate-200">
+                    <!-- Fields injected via docs_ui.js -->
+                </form>
+                <button type="button" onclick="window.submitBioData()" id="bio-submit-btn" class="w-full py-4 bg-indigo-600 text-white rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl shadow-indigo-500/20 active:scale-95 transition-all">
+                    Update Personal Details
+                </button>
             </div>
         </div>
     </div>
@@ -1749,20 +1769,40 @@
     }
 </script>
 
-<script type="module" src="firebase_config.js?v=4.0"></script>
-<script type="module" src="modules/staff_documents/docs_firebase.js?v=2.0"></script>
-<script type="module" src="modules/staff_documents/docs_ui.js?v=2.1"></script>
-<script type="module" src="field_normalizer.js?v=4.0"></script>
-<script type="module" src="drive_module.js?v=4.0"></script>
-<script type="module" src="ui_module.js?v=4.5"></script>
-<script type="module" src="visitor_module.js?v=4.5"></script>
-<script type="module" src="attendance_module.js?v=4.5"></script>
-<script type="module" src="tasks_module.js?v=4.5"></script>
-<script type="module" src="admin_module.js?v=4.5"></script>
-<script type="module" src="init_module.js?v=4.5"></script>
-<script type="module" src="audit_module.js?v=4.5"></script>
-<script type="module" src="staff_asset_module.js?v=4.5"></script>
-<script src="asset_management.js?v=4.5"></script>
+<script type="module" src="firebase_config.js?v=5.0"></script>
+<script type="module" src="modules/staff_documents/docs_firebase.js?v=5.0"></script>
+<script type="module" src="modules/staff_documents/docs_ui.js?v=5.0"></script>
+<script type="module" src="field_normalizer.js?v=5.0"></script>
+<script type="module" src="drive_module.js?v=5.0"></script>
+<script type="module" src="ui_module.js?v=5.0"></script>
+<script type="module" src="visitor_module.js?v=5.0"></script>
+<script type="module" src="attendance_module.js?v=5.0"></script>
+<script type="module" src="tasks_module.js?v=5.0"></script>
+<script type="module" src="admin_module.js?v=5.0"></script>
+<script type="module" src="init_module.js?v=5.0"></script>
+<script type="module" src="biometric_module.js?v=5.0"></script>
+<script type="module" src="audit_module.js?v=5.0"></script>
+<script type="module" src="staff_asset_module.js?v=5.0"></script>
+<script src="asset_management.js?v=5.0"></script>
+
+<!-- ✅ ACCOUNT ACTIVATION LOCK OVERLAY (v5.0) -->
+<div id="account-lock-overlay" class="fixed inset-0 bg-slate-900/90 backdrop-blur-xl z-[100008] hidden flex-col items-center justify-center p-6 text-center">
+    <div class="w-24 h-24 bg-amber-500/20 rounded-full flex items-center justify-center mb-6 animate-pulse">
+        <i class="fa-solid fa-user-shield text-4xl text-amber-500"></i>
+    </div>
+    <h2 class="text-2xl font-black text-white uppercase tracking-tight mb-2">Account Pending Activation</h2>
+    <p class="text-slate-400 text-xs max-w-xs mb-8 leading-relaxed">
+        Please submit all required onboarding documents and bio-data details to activate your account. Check-in and Check-out features are locked until complete verification.
+    </p>
+    <div class="flex flex-col w-full max-w-xs gap-3">
+        <button onclick="window.showStaffView('staff-docs-section')" class="w-full py-4 bg-indigo-600 text-white rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl shadow-indigo-500/20 active:scale-95 transition-all">
+            <i class="fa-solid fa-file-upload mr-2"></i> Upload Documents Now
+        </button>
+        <button onclick="window.logoutStaff()" class="w-full py-4 bg-slate-800 text-slate-400 rounded-2xl font-black text-xs uppercase tracking-widest active:scale-95 transition-all">
+            Logout
+        </button>
+    </div>
+</div>
 
 </body>
 </html>

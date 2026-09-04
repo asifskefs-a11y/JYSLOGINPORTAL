@@ -253,7 +253,8 @@ window.executeFinalClosure = async () => {
         while (retries > 0 && !uploadSuccess) {
             try {
                 const res = await window.uploadToDrive({
-                    category: UPLOAD_CONFIG.CATEGORIES.TASK_PHOTOS,
+                    category: 'TASK_PHOTOS',
+                    documentType: 'TaskAfter',
                     fileName: `Task_After_${taskId}_${Date.now()}.jpg`,
                     image: capturedAfterPhotoBase64
                 });
@@ -411,7 +412,8 @@ window.handleCreateTaskSubmit = async function(event) {
         if (capturedTaskPhotoBase64) {
             try {
                 const res = await window.uploadToDrive({
-                    category: UPLOAD_CONFIG.CATEGORIES.TASK_PHOTOS,
+                    category: 'TASK_PHOTOS',
+                    documentType: 'TaskBefore',
                     fileName: `Task_Before_${Date.now()}.jpg`,
                     image: capturedTaskPhotoBase64
                 });

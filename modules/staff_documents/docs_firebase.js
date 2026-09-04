@@ -285,6 +285,25 @@ window.recalculateVerificationProgress = async function(userId) {
 
         await update(ref(db), updates);
 
+        // ✅ MANDATED FIX: Sync Activation to Master Staff User Node (v5.0)
+        if (isActivated) {
+            const staffSnap = await get(ref(db, 'staff'));
+            if (staffSnap.exists()) {
+                const allStaff = staffSnap.val();
+                let staffKey = null;
+                for (const [key, val] of Object.entries(allStaff)) {
+                    if ((val.adekPass === userId || val.mobile === userId)) {
+                        staffKey = key;
+                        break;
+                    }
+                }
+                if (staffKey) {
+                    await update(ref(db, `staff/${staffKey}`), { isAccountActive: true });
+                    console.log(`✅ Staff account ${userId} auto-activated!`);
+                }
+            }
+        }
+
         console.log(`📊 Progress updated: ${progress}% (${approved}/${total})`);
 
         return { progress, isActivated };
@@ -310,7 +329,9 @@ window.processDocUpload = async function(userId, docType, base64, metadata = {})
         let driveFileUrl = '';
         if (window.uploadToDrive) {
             const uploadRes = await window.uploadToDrive({
-                category: 'STAFF_DOCUMENTS',
+                category: 'DOCUMENTS',
+                documentType: docType,
+                adekPassNumber: userId,
                 fileName: `${userId}_${docType}_${Date.now()}.jpg`,
                 image: base64
             });
@@ -348,4 +369,20 @@ window.processDocUpload = async function(userId, docType, base64, metadata = {})
     }
 };
 
-console.log("✅ docs_firebase.js v2.0 Loaded");
+/**
+ * ✅ UPDATE STAFF BIO-DATA (v5.0)
+ */
+window.updateStaffBioData = async function(staffKey, bioData) {
+    try {
+        await update(ref(db, `staff/${staffKey}`), {
+            bioData: bioData,
+            bioDataLastUpdated: Date.now()
+        });
+        return true;
+    } catch (e) {
+        console.error("Bio-Data Save Error:", e);
+        throw e;
+    }
+};
+
+console.log("✅ docs_firebase.js v5.0 Loaded");

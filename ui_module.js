@@ -853,6 +853,52 @@ window.renderDashboardProfile = function(staffData) {
     if (typeof window.initSidebarProfileAndRestrictions === 'function') {
         window.initSidebarProfileAndRestrictions(staff);
     }
+
+    // ✅ MANDATED FIX: Sync Account Activation State
+    if (window.updateAccountActivationUI) {
+        window.updateAccountActivationUI(staff.isAccountActive);
+    }
+};
+
+/**
+ * ✅ UPDATE ACCOUNT ACTIVATION UI (v5.0)
+ * Handles the "Parda / Overlay" Lock and Status Badges
+ */
+window.updateAccountActivationUI = function(isActive) {
+    const banner = document.getElementById('account-activation-banner');
+    const overlay = document.getElementById('account-lock-overlay');
+    const badge = document.getElementById('account-status-badge');
+
+    // Check-in / Out Buttons to lock
+    const cinBtn = document.getElementById('s-checkin-btn') || document.getElementById('security-checkin-btn');
+    const coutBtn = document.getElementById('s-checkout-btn') || document.getElementById('security-checkout-btn');
+
+    if (isActive === true) {
+        if (banner) banner.classList.add('hidden');
+        if (overlay) overlay.classList.add('hidden');
+        if (badge) {
+            badge.innerText = "Active";
+            badge.classList.remove('bg-rose-100', 'text-rose-700', 'hidden');
+            badge.classList.add('bg-emerald-100', 'text-emerald-700');
+        }
+        if (cinBtn) cinBtn.disabled = false;
+        if (coutBtn) coutBtn.disabled = false;
+    } else {
+        if (banner) banner.classList.remove('hidden');
+        if (overlay) overlay.classList.remove('hidden');
+        if (badge) {
+            badge.innerText = "Inactive";
+            badge.classList.remove('bg-emerald-100', 'text-emerald-700', 'hidden');
+            badge.classList.add('bg-rose-100', 'text-rose-700');
+        }
+        if (cinBtn) cinBtn.disabled = true;
+        if (coutBtn) coutBtn.disabled = true;
+
+        // Ensure buttons look disabled
+        [cinBtn, coutBtn].forEach(btn => {
+            if (btn) btn.style.opacity = '0.5';
+        });
+    }
 };
 
 window.renderDashboard = window.renderDashboardProfile; // Alias for compatibility

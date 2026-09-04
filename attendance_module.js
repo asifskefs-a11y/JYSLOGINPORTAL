@@ -490,7 +490,8 @@ window.proceedCheckIn = async function(staff, sigData, btn, hasKey, keyCode = nu
         if (window.uploadToDrive && sigData) {
             try {
                 const res = await window.uploadToDrive({
-                    category: UPLOAD_CONFIG.CATEGORIES.STAFF_ATTENDANCE,
+                    category: 'PROFILES_AND_SIGS',
+                    documentType: 'CheckInSig',
                     fileName: `In_${passId}_${Date.now()}.png`,
                     image: sigData
                 });
@@ -602,7 +603,8 @@ window.executeCheckOutProcess = async function(staffUser, sessionData, sigData, 
         if (sigData && window.uploadToDrive) {
             try {
                 const res = await window.uploadToDrive({
-                    category: UPLOAD_CONFIG.CATEGORIES.STAFF_ATTENDANCE,
+                    category: 'PROFILES_AND_SIGS',
+                    documentType: 'CheckOutSig',
                     fileName: `Out_${passId}_${Date.now()}.png`,
                     image: sigData
                 });
@@ -671,7 +673,7 @@ window.confirmKeyCollection = (hasKey) => {
 /**
  * 1. STAFF CHECK-IN: Password -> Signature -> Key Prompt
  */
-window.handleStaffCheckIn = function(staff, btn) {
+window.handleStaffCheckIn = async function(staff, btn) {
     if (!staff || !staff.mobile) {
         alert('Please login first.');
         return;
@@ -679,32 +681,36 @@ window.handleStaffCheckIn = function(staff, btn) {
 
     console.log(`🔐 handleStaffCheckIn started for: ${staff.fullName || staff.name}`);
     const isSecurity = (staff.role || '').toLowerCase().includes('security');
-    console.log(`🔐 Role: ${staff.role}, isSecurity: ${isSecurity}`);
 
-    window.openPasswordModal("Verify Identity to Check-In", (enteredPass) => {
-        if (enteredPass !== staff.password) {
-            alert("❌ Incorrect Password!");
-            return;
-        }
+    // ✅ MANDATED FIX: Biometric Verification Fast-Track
+    let biometricVerified = false;
+    if (staff.biometricEnabled) {
+        biometricVerified = await window.biometricManager.verify();
+    }
 
+    const startWorkflow = () => {
         window.openSignatureModal("Staff Signature Required", (sigData) => {
             window.openKeyCollectionModal((hasKey) => {
                 let generatedPin = hasKey ?
                     Math.floor(1000 + Math.random() * 9000).toString() :
                     null;
 
-                console.log(`🔐 Calling proceedCheckIn with isSecurity: ${isSecurity}`);
-                window.proceedCheckIn(
-                    staff,
-                    sigData,
-                    btn,
-                    hasKey,
-                    generatedPin,
-                    isSecurity
-                );
+                window.proceedCheckIn(staff, sigData, btn, hasKey, generatedPin, isSecurity);
             });
         });
-    });
+    };
+
+    if (biometricVerified) {
+        startWorkflow();
+    } else {
+        window.openPasswordModal("Verify Identity to Check-In", (enteredPass) => {
+            if (enteredPass !== staff.password) {
+                alert("❌ Incorrect Password!");
+                return;
+            }
+            startWorkflow();
+        });
+    }
 };
 
 /**
@@ -714,6 +720,12 @@ window.handleStaffCheckOut = async function(staff, session, btn) {
     console.log("🚪 handleStaffCheckOut started");
     const hasKey = (session.keyStatus === 'HELD' || session.keyCollected === 'YES');
     const isSecurity = (staff.role || '').toLowerCase().includes('security');
+
+    // ✅ MANDATED FIX: Biometric Verification Fast-Track
+    if (staff.biometricEnabled) {
+        const verified = await window.biometricManager.verify();
+        if (!verified) return; // Stop if biometric cancelled/failed
+    }
 
     if (hasKey) {
         // Case A: Key WAS Taken -> Ask for PIN
@@ -931,6 +943,24 @@ window.initUserDashboard = async (staff) => {
     // ✅ Sync Dashboard Header Data
     if (typeof window.renderDashboardProfile === 'function') {
         window.renderDashboardProfile(staff);
+    }
+
+    // ✅ MANDATED FIX: Real-time Account Activation Observer (v5.0)
+    const staffNodeKey = staff.firebaseKey || staff.id || staff.mobile;
+    if (staffNodeKey) {
+        const staffRef = ref(db, `staff/${staffNodeKey}`);
+        onValue(staffRef, (snap) => {
+            if (snap.exists()) {
+                const updatedStaff = snap.val();
+                window.currentStaff = { ...updatedStaff, firebaseKey: staffNodeKey };
+                sessionStorage.setItem('active_staff_user', JSON.stringify(window.currentStaff));
+
+                // Update UI based on account status
+                if (window.updateAccountActivationUI) {
+                    window.updateAccountActivationUI(window.currentStaff.isAccountActive);
+                }
+            }
+        });
     }
 
     // ✅ NEW: Initialize Document Verification & Guard

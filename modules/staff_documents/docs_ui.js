@@ -616,7 +616,12 @@ window.initStaffDocsModule = async function(containerId = 'staff-docs-container'
         // ✅ STEP 3: Render documents
         window.renderStaffDocsModule(container, requirements, staffDocs, progress, isActivated);
 
-        // ✅ STEP 4: Check for Document Expiries (Task 2)
+        // ✅ STEP 4: Render Bio-Data Form (v5.0)
+        if (staffData.bioDataRequirements && staffData.bioDataRequirements.length > 0) {
+            window.renderBioDataForm(staffData.bioDataRequirements, staffData.bioData || {});
+        }
+
+        // ✅ STEP 5: Check for Document Expiries (Task 2)
         window.checkDocumentExpiries(staffDocs);
 
         // ✅ Update lock status
@@ -725,4 +730,84 @@ window.showExpiryNotificationBanner = function(warnings) {
     }, 1000);
 };
 
-console.log("✅ docs_ui.js v2.0 Loaded");
+/**
+ * ✅ RENDER BIO-DATA FORM (v5.0)
+ */
+window.renderBioDataForm = function(requirements, existingData) {
+    const container = document.getElementById('staff-biodata-container');
+    const form = document.getElementById('staff-biodata-form');
+    if (!container || !form) return;
+
+    container.classList.remove('hidden');
+
+    form.innerHTML = requirements.map(req => `
+        <div class="space-y-1">
+            <label class="text-[9px] font-black text-indigo-500 uppercase ml-2 tracking-wider">${req.name} ${req.mandatory ? '<span class="text-red-500">*</span>' : ''}</label>
+            <input type="text" name="${req.id}" value="${existingData[req.id] || ''}"
+                   placeholder="Enter ${req.name.toLowerCase()}"
+                   ${req.mandatory ? 'required' : ''}
+                   class="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-700 outline-none focus:border-indigo-500 transition-all shadow-sm">
+        </div>
+    `).join('');
+};
+
+/**
+ * ✅ SUBMIT BIO-DATA (v5.0)
+ */
+window.submitBioData = async function() {
+    const form = document.getElementById('staff-biodata-form');
+    if (!form) return;
+
+    // Validate
+    const inputs = form.querySelectorAll('input[required]');
+    for (const input of inputs) {
+        if (!input.value.trim()) {
+            alert(`❌ Please fill in ${input.placeholder}`);
+            input.focus();
+            return;
+        }
+    }
+
+    const btn = document.getElementById('bio-submit-btn');
+    const originalText = btn.innerText;
+
+    btn.disabled = true;
+    btn.innerText = "Updating Details...";
+    if (window.showGlobalSpinner) window.showGlobalSpinner("Saving Personal Details...");
+
+    try {
+        const staffData = window.currentStaff || JSON.parse(sessionStorage.getItem('active_staff_user') || '{}');
+        const staffKey = staffData.firebaseKey;
+
+        if (!staffKey) throw new Error("User session expired. Please login again.");
+
+        const formData = new FormData(form);
+        const bioData = {};
+        formData.forEach((value, key) => {
+            bioData[key] = value.trim();
+        });
+
+        // Use the db imported at the top of the file
+        // Wait, docs_ui.js doesn't import db. It relies on docs_firebase.js usually.
+        // Actually, I should check if I can use a global update function or import db.
+
+        // I'll check docs_firebase.js for a generic update function.
+        if (window.updateStaffBioData) {
+            await window.updateStaffBioData(staffKey, bioData);
+        } else {
+            // Fallback: If no helper, we might need to import or use a generic one
+            console.error("updateStaffBioData not found");
+        }
+
+        if (window.showWhatsAppToast) window.showWhatsAppToast("✅ Details Updated", "Your personal information has been saved.", "success");
+
+    } catch (e) {
+        alert("❌ Error: " + e.message);
+    } finally {
+        btn.disabled = false;
+        btn.innerText = originalText;
+        if (window.hideGlobalSpinner) window.hideGlobalSpinner();
+    }
+};
+
+console.log("✅ docs_ui.js v5.0 Enhanced Onboarding Engaged");

@@ -995,14 +995,7 @@
                                     <button onclick="document.getElementById('excel-import-input').click()" class="btn-import">
                                         <i class="fa-regular fa-upload"></i> Import
                                     </button>
-                                    <button onclick="debugImportHeaders()" class="btn-debug">
-                                        <i class="fa-regular fa-bug"></i> Debug Headers
-                                    </button>
-                                    <button onclick="window.bulkDeleteAssets()" class="px-4 py-2 bg-red-500 text-white rounded-xl text-[9px] font-black uppercase shadow-lg">Bulk Delete</button>
                                     <button onclick="window.downloadMasterAssetReport()" class="px-4 py-2 bg-cyan-600 text-white rounded-xl text-[9px] font-black uppercase shadow-lg">Export Assets</button>
-                                    <button id="btn-delete-all-assets" onclick="window.confirmAndDeleteAllAssets()" class="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs rounded-xl shadow-md flex items-center gap-2 transition-all active:scale-95">
-                                        <i class="fa-solid fa-trash-can"></i> Delete All Assets (Bulk Clear)
-                                    </button>
                                 </div>
                             </div>
                         </div>
@@ -1140,42 +1133,62 @@
                     <!-- SETTINGS TAB -->
                     <div id="tab-settings" class="tab-section space-y-6">
                         <div class="flex items-center justify-between mb-4 px-2">
-                            <h3 class="text-slate-900 font-black text-lg uppercase flex items-center gap-2">
-                                <i class="fa-solid fa-gears text-slate-500"></i> System Configuration
+                            <h3 class="text-white font-black text-lg uppercase flex items-center gap-2 drop-shadow-md">
+                                <i class="fa-solid fa-gears text-white"></i> System Configuration
                             </h3>
                         </div>
 
                         <!-- Google Drive Settings Card -->
-                        <div class="bg-white rounded-3xl p-6 border border-slate-100 shadow-sm space-y-4">
-                            <div class="flex items-center gap-3 pb-4 border-b border-slate-50">
-                                <div class="w-10 h-10 bg-indigo-50 rounded-xl flex items-center justify-center text-indigo-600">
-                                    <i class="fa-brands fa-google-drive text-xl"></i>
+                        <div class="bg-white rounded-[2.5rem] p-8 border border-slate-100 shadow-xl space-y-8 max-w-3xl mx-auto">
+                            <!-- Card Header: Title & Storage Badges -->
+                            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-slate-50">
+                                <div class="flex items-center gap-4">
+                                    <div class="w-14 h-14 bg-indigo-50 rounded-2xl flex items-center justify-center text-indigo-600 shadow-inner">
+                                        <i class="fa-brands fa-google-drive text-2xl"></i>
+                                    </div>
+                                    <div>
+                                        <h4 class="font-black text-[#0F172A] uppercase text-base tracking-tight">Google Drive Sync Settings</h4>
+                                        <p class="text-[10px] text-indigo-600 font-black uppercase tracking-[0.15em]">Direct Media Pipeline Configuration</p>
+                                    </div>
                                 </div>
-                                <div>
-                                    <h4 class="font-black text-indigo-900 uppercase text-sm">Google Drive Sync Settings</h4>
-                                    <p class="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Direct Media Pipeline Configuration</p>
+
+                                <!-- Storage Metrics Moved to Top Right -->
+                                <div id="driveStorageInfo" class="hidden flex items-center gap-3">
+                                    <div class="flex flex-col items-end px-4 py-2 bg-slate-100 rounded-2xl border border-slate-200">
+                                        <span class="text-[7px] font-black text-slate-500 uppercase tracking-widest">Used Storage</span>
+                                        <span id="driveStorageUsed" class="text-[11px] font-black text-[#0F172A]">0 MB</span>
+                                    </div>
+                                    <div class="flex flex-col items-end px-4 py-2 bg-slate-100 rounded-2xl border border-slate-200">
+                                        <span class="text-[7px] font-black text-slate-500 uppercase tracking-widest">Drive Limit</span>
+                                        <span id="driveStorageTotal" class="text-[11px] font-black text-[#0F172A]">15 GB</span>
+                                    </div>
                                 </div>
                             </div>
 
-                            <div class="space-y-2">
-                                <label class="text-[10px] font-black text-slate-400 uppercase ml-1">Apps Script Web App URL</label>
+                            <!-- URL Input Field -->
+                            <div class="space-y-3">
+                                <label class="text-[10px] font-black text-slate-400 uppercase ml-2 block tracking-widest">Apps Script Web App URL</label>
                                 <div class="relative group">
-                                    <div class="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300">
+                                    <div class="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-600 transition-colors">
                                         <i class="fa-solid fa-link"></i>
                                     </div>
                                     <input type="url" id="driveUrlInput" placeholder="https://script.google.com/macros/s/.../exec"
-                                           class="w-full pl-10 pr-4 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-indigo-500 focus:bg-white outline-none transition-all font-mono text-xs">
+                                           class="w-full pl-12 pr-6 py-5 bg-slate-50 border-2 border-slate-100 rounded-[1.5rem] focus:border-indigo-500 focus:bg-white outline-none transition-all font-mono text-[11px] text-[#0F172A] shadow-inner">
                                 </div>
+                                <p class="text-[9px] font-bold text-slate-400 uppercase tracking-wide ml-2">Paste your Apps Script Web App URL to bridge this portal with your Google Drive storage</p>
                             </div>
 
-                            <div class="flex flex-col sm:flex-row items-center justify-between gap-4 pt-2">
-                                <div class="flex items-center gap-2 px-3 py-2 bg-slate-50 rounded-xl border border-slate-100">
-                                    <span class="w-2 h-2 rounded-full bg-slate-300" id="driveStatusDot"></span>
-                                    <span class="text-[10px] font-bold text-slate-500 uppercase tracking-tighter" id="driveStatusText">Status: Checking...</span>
+                            <!-- Status & Action Row -->
+                            <div class="flex flex-col sm:flex-row items-center justify-between gap-6 pt-2">
+                                <div class="flex items-center gap-3 px-5 py-3 bg-slate-50 rounded-2xl border border-slate-100 shadow-sm self-start sm:self-center">
+                                    <span class="w-2.5 h-2.5 rounded-full bg-slate-300" id="driveStatusDot"></span>
+                                    <span class="text-[11px] font-black text-slate-500 uppercase tracking-wider" id="driveStatusText">Status: Not Connected</span>
                                 </div>
+
                                 <button id="saveDriveUrlBtn" onclick="window.saveGoogleDriveConfig()"
-                                        class="w-full sm:w-auto px-8 py-4 bg-indigo-600 text-white rounded-2xl font-black text-xs uppercase tracking-widest shadow-lg shadow-indigo-500/20 active:scale-95 transition-all flex items-center justify-center gap-2">
-                                    <i class="fa-solid fa-cloud-arrow-up"></i> Save & Connect Drive
+                                        class="w-full sm:w-auto px-10 py-5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-[1.5rem] font-black text-xs uppercase tracking-[0.2em] shadow-xl shadow-indigo-500/30 active:scale-95 transition-all flex items-center justify-center gap-3 group">
+                                    <i class="fa-solid fa-rotate group-hover:rotate-180 transition-transform duration-500"></i>
+                                    Update & Test Connection
                                 </button>
                             </div>
                         </div>
@@ -1197,6 +1210,26 @@
     <div id="view-transfer-modal" class="fixed inset-0 bg-black/90 backdrop-blur-md z-[100002] hidden flex items-center justify-center p-4"></div>
     <div id="notification-modal" class="fixed inset-0 bg-black/90 backdrop-blur-md z-[100003] hidden flex items-center justify-center p-4"></div>
     <div id="disposal-inspector-modal" class="fixed inset-0 bg-black/90 backdrop-blur-md z-[100004] hidden flex items-center justify-center p-4"></div>
+
+    <!-- ✅ ONBOARDING CONFIGURATION MODAL (v5.0) -->
+    <div id="onboarding-config-modal" class="fixed inset-0 bg-black/90 backdrop-blur-md z-[100005] hidden flex items-center justify-center p-4">
+        <div class="bg-white w-full max-w-2xl rounded-[2.5rem] overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
+            <div class="bg-indigo-600 text-white p-6 flex justify-between items-center flex-shrink-0">
+                <div class="flex flex-col">
+                    <h3 class="font-black uppercase tracking-tight text-xl">Onboarding Requirements</h3>
+                    <p class="text-[10px] font-bold text-indigo-200 uppercase tracking-widest mt-1">Configure Documents & Bio-Data</p>
+                </div>
+                <button type="button" onclick="document.getElementById('onboarding-config-modal').classList.add('hidden')" class="text-white hover:text-indigo-200 transition-colors"><i class="fa-solid fa-xmark text-2xl"></i></button>
+            </div>
+            <div id="onboarding-config-content" class="overflow-y-auto flex-1 p-8">
+                <!-- Content injected via window.openOnboardingConfigModal -->
+            </div>
+            <div class="p-6 bg-slate-50 border-t border-slate-100 flex justify-end gap-3 flex-shrink-0">
+                <button type="button" onclick="document.getElementById('onboarding-config-modal').classList.add('hidden')" class="px-8 py-4 bg-white text-slate-400 border border-slate-200 rounded-2xl font-black text-xs uppercase tracking-widest active:scale-95 transition-all">Cancel</button>
+                <button type="button" onclick="window.saveOnboardingConfig()" class="px-8 py-4 bg-indigo-600 text-white rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl shadow-indigo-500/20 active:scale-95 transition-all">Apply Requirements</button>
+            </div>
+        </div>
+    </div>
 
     <!-- TASK INSPECTION MODAL (POPUP WITH BEFORE/AFTER PHOTOS) -->
     <div id="task-inspector-modal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-md z-[100004] hidden flex items-center justify-center p-4">
@@ -1483,22 +1516,22 @@
         </div>
     </div>
 
-    <script type="module" src="firebase_config.js?v=4.0"></script>
-    <script type="module" src="field_normalizer.js?v=4.0"></script>
-    <script type="module" src="drive_module.js?v=4.0"></script>
-    <script src="asset_management.js?v=4.5"></script>
-    <script type="module" src="ui_module.js?v=4.5"></script>
-    <script type="module" src="import_module.js?v=4.5"></script>
-    <script type="module" src="export_module.js?v=4.5"></script>
-    <script type="module" src="audit_module.js?v=4.5"></script>
-    <script type="module" src="attendance_module.js?v=4.5"></script>
-    <script type="module" src="tasks_module.js?v=4.5"></script>
-    <script type="module" src="admin_module.js?v=4.5"></script>
-    <script type="module" src="modules/staff_documents/docs_firebase.js?v=1.0"></script>
-    <script type="module" src="modules/staff_documents/docs_admin.js?v=1.0"></script>
-    <script type="module" src="modules/staff_documents/docs_verification.js?v=1.0"></script>
-    <script type="module" src="contractor_module.js?v=4.0"></script>
-    <script type="module" src="init_module.js?v=4.0"></script>
+    <script type="module" src="firebase_config.js?v=5.1"></script>
+    <script type="module" src="field_normalizer.js?v=5.1"></script>
+    <script type="module" src="drive_module.js?v=5.1"></script>
+    <script src="asset_management.js?v=5.1"></script>
+    <script type="module" src="ui_module.js?v=5.1"></script>
+    <script type="module" src="import_module.js?v=5.1"></script>
+    <script type="module" src="export_module.js?v=5.1"></script>
+    <script type="module" src="audit_module.js?v=5.1"></script>
+    <script type="module" src="attendance_module.js?v=5.1"></script>
+    <script type="module" src="tasks_module.js?v=5.1"></script>
+    <script type="module" src="admin_module.js?v=5.1"></script>
+    <script type="module" src="modules/staff_documents/docs_firebase.js?v=5.1"></script>
+    <script type="module" src="modules/staff_documents/docs_admin.js?v=5.1"></script>
+    <script type="module" src="modules/staff_documents/docs_verification.js?v=5.1"></script>
+    <script type="module" src="contractor_module.js?v=5.1"></script>
+    <script type="module" src="init_module.js?v=5.1"></script>
 
     <script>
         // ================================================
@@ -1609,11 +1642,13 @@
         };
 
         window.updateKPIStats = (stats) => {
+            if (!stats) return;
             Object.keys(stats).forEach(id => {
                 const el = document.getElementById(id);
                 if (el) {
                     el.textContent = stats[id].value;
-                    const bar = document.getElementById('bar-' + id.replace('kpi-', ''));
+                    const barId = id && typeof id === 'string' ? 'bar-' + id.replace('kpi-', '') : null;
+                    const bar = barId ? document.getElementById(barId) : null;
                     if (bar) bar.style.width = stats[id].pct + '%';
                 }
             });

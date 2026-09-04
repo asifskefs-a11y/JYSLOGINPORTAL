@@ -6,20 +6,31 @@ import { ref, get, set, update } from "https://www.gstatic.com/firebasejs/10.7.1
  * Global Document Templates (Master List)
  */
 window.ALL_DOCUMENTS_MASTER = {
-    'EMIRATES_ID': { name: 'EMIRATES_ID', icon: 'fa-id-card' },
-    'PASSPORT': { name: 'PASSPORT', icon: 'fa-passport' },
-    'SIRA_LICENSE': { name: 'SIRA_LICENSE', icon: 'fa-certificate' },
-    'VISA_COPY': { name: 'VISA_COPY', icon: 'fa-stamp' },
-    'DRIVING_LICENSE': { name: 'DRIVING LICENSE', icon: 'fa-id-card' },
-    'MEDICAL_REPORT': { name: 'MEDICAL REPORT', icon: 'fa-file-medical' },
-    'POLICE_CLEARANCE': { name: 'POLICE CLEARANCE', icon: 'fa-file-shield' },
-    'TRAINING_CERTIFICATE': { name: 'TRAINING CERTIFICATE', icon: 'fa-graduation-cap' },
-    'DEGREE_CERTIFICATE': { name: 'DEGREE CERTIFICATE', icon: 'fa-file-alt' },
-    'EXPERIENCE_LETTER': { name: 'EXPERIENCE LETTER', icon: 'fa-file-signature' },
-    'SECURITY_LICENSE': { name: 'SECURITY LICENSE', icon: 'fa-shield-alt' },
-    'TECHNICAL_LICENSE': { name: 'TECHNICAL LICENSE', icon: 'fa-microchip' },
-    'LEADERSHIP_CERTIFICATE': { name: 'LEADERSHIP CERTIFICATE', icon: 'fa-user-tie' },
-    'SUPERVISOR_CERTIFICATE': { name: 'SUPERVISOR CERTIFICATE', icon: 'fa-users' }
+    'QCC': { name: 'QCC', icon: 'fa-certificate' },
+    'EMIRATES_ID': { name: 'Emirates ID (EID)', icon: 'fa-id-card' },
+    'DRIVING_LICENSE': { name: 'Driving License', icon: 'fa-id-card' },
+    'PERMIT': { name: 'Permit', icon: 'fa-file-contract' },
+    'PASSPORT': { name: 'Passport', icon: 'fa-passport' },
+    'LABOUR_CARD': { name: 'Labour Card', icon: 'fa-address-card' },
+    'COMPANY_ID': { name: 'Company ID Card', icon: 'fa-id-badge' },
+    'RESUME': { name: 'Resume', icon: 'fa-file-pdf' },
+    'VISA_COPY': { name: 'Visa Copy', icon: 'fa-stamp' },
+    'TRAINING_CERTIFICATE': { name: 'Training Certificate', icon: 'fa-graduation-cap' }
+};
+
+/**
+ * Global Bio-Data Templates
+ */
+window.BIO_DATA_FIELDS_MASTER = {
+    'email': { name: 'Email Address', type: 'email' },
+    'phone': { name: 'Phone Number', type: 'tel' },
+    'religion': { name: 'Religion', type: 'text' },
+    'marital_status': { name: 'Marital Status', type: 'text' },
+    'passport_issue_place': { name: 'Passport Place of Issue', type: 'text' },
+    'home_country_address': { name: 'Home Country Address', type: 'text' },
+    'home_country_mobile': { name: 'Home Country Mobile Number', type: 'tel' },
+    'uae_full_address': { name: 'UAE Full Address (Including Room No)', type: 'text' },
+    'uae_contact_number': { name: 'UAE Contact Number', type: 'tel' }
 };
 
 /**
@@ -96,6 +107,170 @@ window.renderDocAssignmentUI = async function(roleId, containerId) {
             </div>
         `;
     }
+};
+
+/**
+ * ✅ NEW: Open Onboarding Configuration Modal (v5.0)
+ */
+window.openOnboardingConfigModal = async function(roleId) {
+    const modal = document.getElementById('onboarding-config-modal');
+    const content = document.getElementById('onboarding-config-content');
+    if (!modal || !content) return;
+
+    modal.classList.remove('hidden');
+    content.innerHTML = `
+        <div class="flex flex-col items-center justify-center py-12">
+            <i class="fa-solid fa-spinner fa-spin text-4xl text-indigo-500 mb-4"></i>
+            <p class="text-xs font-black text-slate-400 uppercase tracking-widest">Fetching requirements for ${roleId}...</p>
+        </div>
+    `;
+
+    try {
+        // Load existing global role requirements if any
+        const existingDocs = await window.getRoleRequirements(roleId);
+
+        let html = `
+            <div class="space-y-8">
+                <!-- 1. MANDATORY DOCUMENTS -->
+                <div class="space-y-4">
+                    <div class="flex items-center gap-2 border-b border-slate-100 pb-2">
+                        <i class="fa-solid fa-file-shield text-indigo-600"></i>
+                        <h4 class="text-xs font-black text-indigo-900 uppercase tracking-wider">Mandatory Upload Requirements</h4>
+                    </div>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2" id="onboarding-docs-grid">
+        `;
+
+        Object.entries(window.ALL_DOCUMENTS_MASTER).forEach(([id, doc]) => {
+            const isChecked = existingDocs && existingDocs[id];
+            html += `
+                <label class="flex items-center gap-3 p-3 bg-slate-50 border border-slate-100 rounded-xl cursor-pointer hover:bg-white hover:border-indigo-300 transition-all">
+                    <input type="checkbox" class="doc-req-checkbox w-4 h-4 rounded border-slate-300 text-indigo-600" value="${id}" data-name="${doc.name}" ${isChecked ? 'checked' : ''}>
+                    <div class="flex flex-col">
+                        <span class="text-[10px] font-black text-slate-700 uppercase leading-none">${doc.name}</span>
+                    </div>
+                </label>
+            `;
+        });
+
+        html += `
+                        <!-- Custom Document Entry -->
+                        <div class="col-span-full pt-2">
+                            <div class="flex gap-2">
+                                <input type="text" id="custom-doc-input" placeholder="Custom Document Name (e.g. Health Card)" class="flex-1 px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-[10px] outline-none focus:border-indigo-500">
+                                <button type="button" onclick="window.addCustomOnboardingDoc()" class="px-4 bg-slate-800 text-white rounded-lg text-[8px] font-black uppercase">Add</button>
+                            </div>
+                            <div id="custom-docs-list" class="flex flex-wrap gap-2 mt-2"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 2. MANDATORY BIO-DATA FIELDS -->
+                <div class="space-y-4">
+                    <div class="flex items-center gap-2 border-b border-slate-100 pb-2">
+                        <i class="fa-solid fa-address-card text-indigo-600"></i>
+                        <h4 class="text-xs font-black text-indigo-900 uppercase tracking-wider">Required Bio-Data Information</h4>
+                    </div>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2" id="onboarding-biodata-grid">
+        `;
+
+        Object.entries(window.BIO_DATA_FIELDS_MASTER).forEach(([id, field]) => {
+            // By default, common fields might be checked
+            const isChecked = true;
+            html += `
+                <label class="flex items-center gap-3 p-3 bg-slate-50 border border-slate-100 rounded-xl cursor-pointer hover:bg-white hover:border-indigo-300 transition-all">
+                    <input type="checkbox" class="bio-req-checkbox w-4 h-4 rounded border-slate-300 text-indigo-600" value="${id}" data-name="${field.name}" ${isChecked ? 'checked' : ''}>
+                    <div class="flex flex-col">
+                        <span class="text-[10px] font-black text-slate-700 uppercase leading-none">${field.name}</span>
+                    </div>
+                </label>
+            `;
+        });
+
+        html += `
+                    </div>
+                </div>
+            </div>
+        `;
+
+        content.innerHTML = html;
+
+    } catch (e) {
+        content.innerHTML = `<div class="p-8 text-center text-red-500 font-bold uppercase text-xs">Error: ${e.message}</div>`;
+    }
+};
+
+/**
+ * ✅ Add custom document to the temporary onboarding list
+ */
+window.addCustomOnboardingDoc = function() {
+    const input = document.getElementById('custom-doc-input');
+    const name = input?.value?.trim();
+    const list = document.getElementById('custom-docs-list');
+    if (!name || !list) return;
+
+    const id = "CUSTOM_" + Date.now();
+    const tag = document.createElement('div');
+    tag.className = "flex items-center gap-2 px-3 py-1.5 bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-full text-[9px] font-black uppercase fade-in";
+    tag.innerHTML = `
+        <input type="hidden" class="doc-req-checkbox" value="${id}" data-name="${name}" checked>
+        <span>${name}</span>
+        <button type="button" onclick="this.parentElement.remove()" class="text-indigo-400 hover:text-indigo-900">&times;</button>
+    `;
+    list.appendChild(tag);
+    input.value = "";
+};
+
+/**
+ * ✅ Save the configuration back to the main registration form
+ */
+window.saveOnboardingConfig = function() {
+    // Collect selected documents
+    const requiredDocs = {};
+    document.querySelectorAll('.doc-req-checkbox:checked').forEach(cb => {
+        requiredDocs[cb.value] = {
+            name: cb.dataset.name,
+            mandatory: true,
+            status: 'pending'
+        };
+    });
+
+    // Collect selected bio-data fields
+    const requiredBio = [];
+    document.querySelectorAll('.bio-req-checkbox:checked').forEach(cb => {
+        requiredBio.push({
+            id: cb.value,
+            name: cb.dataset.name,
+            mandatory: true
+        });
+    });
+
+    // Store in global window variable to be picked up by handleStaffSubmit
+    window._pendingOnboardingConfig = {
+        requiredDocuments: requiredDocs,
+        requiredBioData: requiredBio
+    };
+
+    // Update the visual indicator in the main form
+    const container = document.getElementById('staff-doc-assignment-container');
+    if (container) {
+        container.innerHTML = `
+            <div class="p-4 bg-emerald-50 border border-emerald-200 rounded-2xl flex items-center justify-between shadow-sm fade-in">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 bg-emerald-600 text-white rounded-xl flex items-center justify-center text-xl shadow-lg shadow-emerald-500/20">
+                        <i class="fa-solid fa-check-double"></i>
+                    </div>
+                    <div>
+                        <h4 class="text-[10px] font-black text-emerald-900 uppercase">Onboarding Requirements Configured</h4>
+                        <p class="text-[8px] font-bold text-emerald-600 uppercase tracking-widest">${Object.keys(requiredDocs).length} Documents • ${requiredBio.length} Bio-Data Fields</p>
+                    </div>
+                </div>
+                <button type="button" onclick="window.openOnboardingConfigModal(document.getElementById('staff-role').value)" class="px-4 py-2 bg-white text-emerald-600 border border-emerald-200 rounded-lg text-[8px] font-black uppercase hover:bg-emerald-600 hover:text-white transition-all">Edit</button>
+            </div>
+        `;
+    }
+
+    document.getElementById('onboarding-config-modal').classList.add('hidden');
+    if (window.showWhatsAppToast) window.showWhatsAppToast("✅ Config Saved", "Onboarding requirements applied successfully.", "success");
 };
 
 /**

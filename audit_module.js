@@ -337,7 +337,8 @@ window.submitAssetDisposal = async () => {
         let proofUrl = "N/A";
         if (window.uploadToDrive) {
             const res = await window.uploadToDrive({
-                category: 'DISPOSAL',
+                category: 'ASSET_LOGS',
+                documentType: 'DisposalScrap',
                 fileName: `DISPOSAL_PROOF_${barcode}_${Date.now()}.jpg`,
                 image: disposalPhoto
             });
@@ -519,7 +520,8 @@ window.submitAssetAudit = async (event) => {
             const base64 = await window.compressImageFile(file, 800, 800, 0.7);
             if (window.uploadToDrive) {
                 const res = await window.uploadToDrive({
-                    category: 'ASSET_PHOTOS',
+                    category: 'ASSET_LOGS',
+                    documentType: 'AuditPhoto',
                     fileName: `Asset_${barcode}_${Date.now()}.jpg`,
                     image: base64
                 });
@@ -786,7 +788,8 @@ window.submitAssetTransfer = async function(event) {
         let photoUrl = "";
         if (transferPhotoBase64) {
             const res = await window.uploadToDrive({
-                category: 'TRANSFERS',
+                category: 'ASSET_LOGS',
+                documentType: 'TransferProof',
                 fileName: `Transfer_${Date.now()}.jpg`,
                 image: transferPhotoBase64
             });

@@ -22,6 +22,21 @@ const DOC_TITLE_MAP = {
 };
 
 /**
+ * Human-readable mapping for bio-data fields
+ */
+const BIO_DATA_TITLE_MAP = {
+    'email': 'Email Address',
+    'phone': 'Phone Number',
+    'religion': 'Religion',
+    'marital_status': 'Marital Status',
+    'passport_issue_place': 'Passport Place of Issue',
+    'home_country_address': 'Home Country Address',
+    'home_country_mobile': 'Home Country Mobile',
+    'uae_full_address': 'UAE Full Address',
+    'uae_contact_number': 'UAE Contact Number'
+};
+
+/**
  * Opens a modal for Admin to review staff documents
  */
 window.openStaffDocumentReviewModal = async function(staffMobile) {
@@ -32,6 +47,32 @@ window.openStaffDocumentReviewModal = async function(staffMobile) {
         const docRef = ref(db, `staff_documents/${staffMobile}`);
         const snap = await get(docRef);
         const docData = snap.exists() ? snap.val() : { docs: {} };
+
+        // Fetch staff profile for bio-data
+        let bioDataHtml = "";
+        const staffSnap = await get(ref(db, 'staff'));
+        if (staffSnap.exists()) {
+            const allStaff = staffSnap.val();
+            const staffUser = Object.values(allStaff).find(u => u.adekPass === staffMobile || u.mobile === staffMobile);
+
+            if (staffUser && staffUser.bioData) {
+                bioDataHtml = `
+                    <div class="mb-6 p-6 bg-indigo-50/50 rounded-3xl border border-indigo-100 shadow-inner">
+                        <h4 class="text-[10px] font-black text-indigo-900 uppercase tracking-widest mb-4 flex items-center gap-2">
+                            <i class="fa-solid fa-address-card text-indigo-600"></i> Bio-Data Profile
+                        </h4>
+                        <div class="grid grid-cols-1 gap-3">
+                            ${Object.entries(staffUser.bioData).map(([key, val]) => `
+                                <div class="flex justify-between items-center border-b border-indigo-100/50 pb-2">
+                                    <span class="text-[9px] font-bold text-indigo-400 uppercase">${BIO_DATA_TITLE_MAP[key] || key}</span>
+                                    <span class="text-[10px] font-black text-indigo-950">${val || '-'}</span>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                `;
+            }
+        }
 
         const modal = document.getElementById('view-staff-modal');
         if (!modal) return;
@@ -112,6 +153,7 @@ window.openStaffDocumentReviewModal = async function(staffMobile) {
 
                 <!-- Scrollable Body -->
                 <div class="p-8 overflow-y-auto bg-[#f8fafc] custom-scrollbar" style="flex: 1;">
+                    ${bioDataHtml}
                     ${docsHtml || `
                         <div class="py-20 text-center">
                             <i class="fa-solid fa-folder-open text-4xl text-slate-200 mb-4"></i>
