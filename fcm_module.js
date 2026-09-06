@@ -13,8 +13,8 @@ export async function registerPushNotifications(userId) {
         if (permission === 'granted') {
             const messaging = getMessaging();
 
-            // Register Service Worker
-            const registration = await navigator.serviceWorker.register('/firebase-messaging-sw.js');
+            // Register Service Worker (Relative Path Fix)
+            const registration = await navigator.serviceWorker.register('./firebase-messaging-sw.js');
 
             // Get Token
             const token = await getToken(messaging, {

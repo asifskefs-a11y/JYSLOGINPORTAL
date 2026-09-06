@@ -599,12 +599,12 @@ window.initStaffDocsModule = async function(containerId = 'staff-docs-container'
             return;
         }
 
-        // ✅ STEP 1: Get role requirements (assigned by admin)
-        console.log(`🔍 Fetching requirements for role: ${role}`);
-        const requirements = await window.getRoleRequirements(role);
+        // ✅ STEP 1: Get requirements (Prioritizing Individual Node)
+        console.log(`🔍 Fetching requirements for: ${userId} (${role})`);
+        const { requirements, bioRequirements } = await window.getStaffOnboardingRequirements(userId, role);
 
-        // ✅ STEP 2: Get staff uploaded documents
-        console.log(`🔍 Fetching staff documents for: ${userId}`);
+        // ✅ STEP 2: Get staff uploaded documents & data
+        console.log(`🔍 Fetching staff data for: ${userId}`);
         const docData = await window.getStaffDocuments(userId);
         const staffDocs = docData.docs || {};
         const progress = docData.verificationProgress || "0%";
@@ -617,8 +617,8 @@ window.initStaffDocsModule = async function(containerId = 'staff-docs-container'
         window.renderStaffDocsModule(container, requirements, staffDocs, progress, isActivated);
 
         // ✅ STEP 4: Render Bio-Data Form (v5.0)
-        if (staffData.bioDataRequirements && staffData.bioDataRequirements.length > 0) {
-            window.renderBioDataForm(staffData.bioDataRequirements, staffData.bioData || {});
+        if (bioRequirements && bioRequirements.length > 0) {
+            window.renderBioDataForm(bioRequirements, staffData.bioData || {});
         }
 
         // ✅ STEP 5: Check for Document Expiries (Task 2)
@@ -809,5 +809,7 @@ window.submitBioData = async function() {
         if (window.hideGlobalSpinner) window.hideGlobalSpinner();
     }
 };
+
+window.loadStaffDocumentsView = window.initStaffDocsModule;
 
 console.log("✅ docs_ui.js v5.0 Enhanced Onboarding Engaged");

@@ -131,10 +131,16 @@ window.handleStaffLogin = async (e) => {
             }
 
             if (foundUser) {
-                console.log("✅ Staff Login: Authentication Successful for", foundUser.name);
+                console.log("✅ Staff Login: Authentication Successful for", foundUser.fullName || foundUser.name || "User");
 
-                // Register FCM after login
-                registerPushNotifications(foundUser.mobile);
+                // Register FCM after login (Safe wrapper)
+                try {
+                    if (typeof registerPushNotifications === 'function') {
+                        registerPushNotifications(foundUser.mobile);
+                    }
+                } catch(fcmErr) {
+                    console.warn("⚠️ FCM Registration skipped:", fcmErr);
+                }
 
                 // REDIRECT ALL STAFF ROLES TO DASHBOARD
                 if ((foundUser.role || "").toLowerCase().trim() === 'security') {
@@ -167,17 +173,38 @@ window.handleStaffLogin = async (e) => {
                 if (loginForm) loginForm.reset();
 
                 // INITIALIZE USER DASHBOARD (PROFILE, ATTENDANCE, TASKS)
-                if (window.initUserDashboard) {
-                    console.log("🛡️ Staff Login: Initializing User Dashboard Logic");
-                    window.initUserDashboard(foundUser);
-                } else if (window.renderDashboard) {
-                    window.renderDashboard(foundUser);
+                try {
+                    if (window.initUserDashboard) {
+                        console.log("🛡️ Staff Login: Initializing User Dashboard Logic");
+                        await window.initUserDashboard(foundUser);
+                        console.log("🛡️ Staff Login: Dashboard Initialized Successfully");
+                    } else if (window.renderDashboard) {
+                        console.log("🛡️ Staff Login: Initializing Fallback Dashboard Logic");
+                        window.renderDashboard(foundUser);
+                    }
+                } catch (dashboardErr) {
+                    console.error("❌ Dashboard Init Error:", dashboardErr);
                 }
 
-                // SHOW DASHBOARD VIEW
-                if (window.showStaffView) {
-                    window.showStaffView('staff-dash-area');
-                }
+                // SHOW DASHBOARD VIEW (With small delay to ensure DOM is ready)
+                setTimeout(() => {
+                    const dashArea = document.getElementById('staff-dash-area');
+                    console.log("🛡️ Dashboard Area State (Pre-Switch):", dashArea ? dashArea.className : "NOT FOUND");
+
+                    if (window.showStaffView) {
+                        window.showStaffView('staff-dash-area');
+                    } else {
+                        // Fallback unhide if showStaffView is missing
+                        if (dashArea) {
+                            dashArea.classList.remove('hidden');
+                            dashArea.style.display = 'block';
+                        }
+                    }
+                    console.log("🛡️ Dashboard Area State (Post-Switch):", dashArea ? dashArea.className : "NOT FOUND");
+
+                    // Force refresh layout
+                    window.dispatchEvent(new Event('resize'));
+                }, 300);
             } else {
                 console.warn("❌ Staff Login: No matching credentials found");
                 alert("❌ Invalid Credentials. Please check your Pass Number and Password.");

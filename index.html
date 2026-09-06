@@ -337,13 +337,16 @@
 
 <body class="text-white">
 
-<!-- APP LAUNCH VIDEO OVERLAY (Local Asset Version) -->
-<div id="launchVideoOverlay" class="fixed inset-0 w-full h-full bg-black z-[999999] items-center justify-center transition-opacity duration-1000 hidden">
-    <video id="appLaunchVideo" class="w-full h-full object-cover" autoplay muted playsinline webkit-playsinline disablePictureInPicture preload="metadata" style="pointer-events: none;">
+<!-- APP LAUNCH VIDEO OVERLAY (Improved with Robust Skip) -->
+<div id="launchVideoOverlay" class="fixed inset-0 w-full h-full bg-black z-[9999999] flex items-center justify-center transition-opacity duration-1000 hidden overflow-hidden">
+    <video id="appLaunchVideo" class="w-full h-full object-cover" autoplay muted playsinline disablePictureInPicture preload="auto" style="pointer-events: none;">
         <source src="launch_video.mp4" type="video/mp4">
         <img src="jys_Icon.png" alt="Loading...">
     </video>
-    <button id="skipVideoBtn" class="absolute top-8 right-8 px-8 py-3 bg-black/40 backdrop-blur-md text-white border border-white/20 rounded-full font-bold text-[10px] uppercase tracking-widest hover:bg-black/60 transition-all z-[1000000] active:scale-95 shadow-2xl">Skip Intro</button>
+    <!-- Direct onclick handler for maximum reliability -->
+    <button id="skipVideoBtn" onclick="if(window.skipLaunchVideo) window.skipLaunchVideo(); else this.parentElement.remove();" class="absolute top-8 right-8 px-10 py-4 bg-black/60 backdrop-blur-xl text-white border-2 border-white/30 rounded-full font-black text-xs uppercase tracking-[0.2em] hover:bg-white hover:text-black transition-all z-[10000000] active:scale-95 shadow-[0_0_30px_rgba(255,255,255,0.2)] cursor-pointer">
+        Skip Intro <i class="fa-solid fa-chevron-right ml-1"></i>
+    </button>
 </div>
 
 <div class="app-container">
@@ -567,18 +570,18 @@
 <!-- ============================================ -->
 <!-- SCRIPTS -->
 <!-- ============================================ -->
-<script type="module" src="firebase_config.js?v=4.0"></script>
-<script type="module" src="field_normalizer.js?v=4.0"></script>
-<script type="module" src="drive_module.js?v=4.0"></script>
-<script type="module" src="ui_module.js?v=4.5"></script>
-<script type="module" src="import_module.js?v=4.5"></script>
-<script type="module" src="export_module.js?v=4.5"></script>
-<script type="module" src="audit_module.js?v=4.5"></script>
-<script type="module" src="attendance_module.js?v=4.5"></script>
-<script type="module" src="tasks_module.js?v=4.5"></script>
-<script type="module" src="admin_module.js?v=4.5"></script>
-<script type="module" src="visitor_module.js?v=4.5"></script>
-<script type="module" src="init_module.js?v=4.5"></script>
+<script type="module" src="firebase_config.js?v=5.2"></script>
+<script type="module" src="field_normalizer.js?v=5.2"></script>
+<script type="module" src="drive_module.js?v=5.2"></script>
+<script type="module" src="ui_module.js?v=5.2"></script>
+<script type="module" src="import_module.js?v=5.2"></script>
+<script type="module" src="export_module.js?v=5.2"></script>
+<script type="module" src="audit_module.js?v=5.2"></script>
+<script type="module" src="attendance_module.js?v=5.2"></script>
+<script type="module" src="tasks_module.js?v=5.2"></script>
+<script type="module" src="admin_module.js?v=5.2"></script>
+<script type="module" src="visitor_module.js?v=5.2"></script>
+<script type="module" src="init_module.js?v=5.2"></script>
 
 <script>
     // 🚫 GLOBAL RELOAD KILL-SWITCH

@@ -2,6 +2,37 @@ import { db } from './firebase_config.js';
 import { ref, get, child } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
 // ================================================================ */
+// ✅ MASTER STAFF POSITIONS & ROLES (v5.5)                          */
+// ================================================================ */
+window.MASTER_STAFF_ROLES = [
+    "Cleaner",
+    "Cleaner Leader",
+    "Technician",
+    "Office Boy",
+    "Bus Monitor",
+    "Bus Driver",
+    "Bus Supervisor",
+    "Supervisor",
+    "Gardener",
+    "Security",
+    "Admin"
+];
+
+/**
+ * Universal helper to populate any role dropdown from master list
+ */
+window.syncRoleDropdown = function(selectId, defaultOptionText = "Select Role", includeAll = false) {
+    const select = document.getElementById(selectId);
+    if (!select) return;
+
+    let html = `<option value="${includeAll ? 'all' : ''}">${defaultOptionText}</option>`;
+    window.MASTER_STAFF_ROLES.forEach(role => {
+        html += `<option value="${role}">${role}</option>`;
+    });
+    select.innerHTML = html;
+};
+
+// ================================================================ */
 // WHATSAPP-STYLE TOAST ENGINE (FIXED v4.2)                        */
 // ================================================================ */
 
@@ -724,11 +755,18 @@ window.initSidebarProfileAndRestrictions = function(staffData) {
     const imgEl = document.getElementById('sidebar-user-avatar') || document.getElementById('sidebar-profile-img') || document.querySelector('.sidebar-user-avatar');
     const initialsEl = document.getElementById('sidebar-initials');
 
-    if (nameEl) nameEl.innerText = displayName;
+    if (nameEl) {
+        nameEl.innerText = displayName;
+        // Task 1: Fix Side Menu Text Overflow
+        nameEl.style.whiteSpace = 'normal';
+        nameEl.style.wordBreak = 'break-word';
+        nameEl.style.lineHeight = '1.2';
+        nameEl.classList.remove('truncate', 'whitespace-nowrap');
+    }
     if (roleEl) roleEl.innerText = displayRole;
 
     if (imgEl) {
-        const photo = staff.photoUrl || staff.profilePic || staff.imageUrl || staff.photo || staff.profilePicUrl;
+        const photo = staff.profilePicUrl || staff.photoUrl || staff.profilePic || staff.imageUrl || staff.photo || staff.avatar;
 
         // 1. Check local cache first for instant render
         const cached = localStorage.getItem('jys_cached_user_avatar');
@@ -786,77 +824,83 @@ window.updateSideMenuProfile = window.initSidebarProfileAndRestrictions;
 // ================================================================ */
 
 window.renderDashboardProfile = function(staffData) {
-    const staff = staffData || window.currentStaff || JSON.parse(sessionStorage.getItem('active_staff_user') || '{}');
+    try {
+        const staff = staffData || window.currentStaff || JSON.parse(sessionStorage.getItem('active_staff_user') || '{}');
+        const safeStaff = (staff && typeof staff === 'object') ? staff : {};
+        const passId = safeStaff.adekPass || safeStaff.adekNumber || safeStaff.adcPassNumber || safeStaff.username || safeStaff.mobile;
 
-    // Expanded safety check to support ADEK Pass Number
-    const passId = staff.adekPass || staff.adekNumber || staff.adcPassNumber || staff.username || staff.mobile;
+        console.log("👤 Syncing Dashboard Profile Header for:", safeStaff.fullName || safeStaff.name || "Unknown");
 
-    if (!staff || !passId) {
-        console.warn("⚠️ renderDashboardProfile: No active staff data found.");
-        return;
-    }
+        const nameEl = document.getElementById('user-name');
+        const idEl = document.getElementById('user-pass-id');
+        const roleEl = document.getElementById('user-role') || document.getElementById('menuUserRole');
+        const branchEl = document.getElementById('user-branch');
+        const imgEl = document.getElementById('user-avatar');
 
-    console.log("👤 Syncing Dashboard Profile Header for:", staff.fullName || staff.name);
+        if (nameEl) nameEl.innerText = safeStaff.fullName || safeStaff.name || "Staff Member";
+        if (idEl) idEl.innerText = `ID: ${passId || '-'}`;
 
-    const nameEl = document.getElementById('user-name');
-    const idEl = document.getElementById('user-pass-id');
-    const roleEl = document.getElementById('user-role') || document.getElementById('menuUserRole');
-    const branchEl = document.getElementById('user-branch');
-    const imgEl = document.getElementById('user-avatar');
+        const displayRole = safeStaff.designation || safeStaff.position || safeStaff.role || "Employee";
+        if (roleEl) roleEl.innerText = displayRole;
 
-    if (nameEl) nameEl.innerText = staff.fullName || staff.name || "Staff Member";
-    if (idEl) idEl.innerText = `ID: ${passId}`;
-
-    const displayRole = staff.designation || staff.position || staff.role || "Employee";
-    if (roleEl) roleEl.innerText = displayRole;
-
-    if (branchEl) {
-        branchEl.innerHTML = `<i class="fa-solid fa-location-dot text-indigo-400"></i> ${staff.school || staff.branch || 'Jern Yafoor School'}`;
-    }
-
-    if (imgEl) {
-        const photo = staff.profilePicUrl || staff.photoUrl || staff.photo || staff.imageUrl;
-        const displayName = staff.fullName || staff.name || "U";
-
-        // 1. Check local cache first for instant render
-        const cached = localStorage.getItem('jys_cached_user_avatar');
-        if (cached && cached.startsWith('data:image')) {
-            imgEl.src = cached;
-            imgEl.classList.remove('hidden');
-            const placeholder = document.getElementById('avatar-placeholder');
-            if (placeholder) placeholder.classList.add('hidden');
+            if (branchEl) {
+            branchEl.innerHTML = `<i class="fa-solid fa-location-dot text-indigo-400"></i> ${safeStaff.school || safeStaff.branch || 'Jern Yafoor School'}`;
         }
 
-        if (photo && photo !== 'N/A' && photo !== '-') {
-            const finalUrl = window.getDirectDriveImageUrl ? window.getDirectDriveImageUrl(photo) : photo;
+        if (imgEl) {
+            const photo = safeStaff.profilePicUrl || safeStaff.photoUrl || safeStaff.profilePic || safeStaff.imageUrl || safeStaff.photo || safeStaff.avatar;
+            const displayName = safeStaff.fullName || safeStaff.name || "U";
 
-            // Background fetch and cache
-            window.getOrCacheImage(finalUrl).then(src => {
-                imgEl.src = src;
+            const cached = localStorage.getItem('jys_cached_user_avatar');
+            if (cached && cached.startsWith('data:image')) {
+                imgEl.src = cached;
                 imgEl.classList.remove('hidden');
                 const placeholder = document.getElementById('avatar-placeholder');
                 if (placeholder) placeholder.classList.add('hidden');
-                // Store as main profile avatar
-                localStorage.setItem('jys_cached_user_avatar', src);
-            });
-        } else {
-            // Use locally generated avatar or UI-Avatars fallback
-            const fallback = window.generateLocalAvatar ? window.generateLocalAvatar(displayName) : `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=4f46e5&color=fff`;
-            imgEl.src = fallback;
-            imgEl.classList.remove('hidden');
-            const placeholder = document.getElementById('avatar-placeholder');
-            if (placeholder) placeholder.classList.add('hidden');
+            }
+
+            if (photo && photo !== 'N/A' && photo !== '-') {
+                const finalUrl = window.getDirectDriveImageUrl ? window.getDirectDriveImageUrl(photo) : photo;
+                window.getOrCacheImage(finalUrl).then(src => {
+                    imgEl.src = src;
+                    imgEl.classList.remove('hidden');
+                    const placeholder = document.getElementById('avatar-placeholder');
+                    if (placeholder) placeholder.classList.add('hidden');
+                    localStorage.setItem('jys_cached_user_avatar', src);
+                }).catch(e => console.warn("Image cache failed:", e));
+            } else {
+                const fallback = window.generateLocalAvatar ? window.generateLocalAvatar(displayName) : `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=4f46e5&color=fff`;
+                imgEl.src = fallback;
+                imgEl.classList.remove('hidden');
+                const placeholder = document.getElementById('avatar-placeholder');
+                if (placeholder) placeholder.classList.add('hidden');
+            }
         }
-    }
 
-    // ✅ CRITICAL: Also update the side menu profile
-    if (typeof window.initSidebarProfileAndRestrictions === 'function') {
-        window.initSidebarProfileAndRestrictions(staff);
-    }
+        if (typeof window.initSidebarProfileAndRestrictions === 'function') {
+            window.initSidebarProfileAndRestrictions(safeStaff);
+        }
 
-    // ✅ MANDATED FIX: Sync Account Activation State
-    if (window.updateAccountActivationUI) {
-        window.updateAccountActivationUI(staff.isAccountActive);
+        if (window.updateAccountActivationUI) {
+            window.updateAccountActivationUI(safeStaff.isAccountActive);
+        }
+
+        // Final safeguard: Ensure the dashboard section is actually VISIBLE
+        const dashArea = document.getElementById('staff-dash-area');
+        if (dashArea) {
+            dashArea.classList.remove('hidden');
+            dashArea.style.display = 'block';
+            dashArea.style.visibility = 'visible';
+            dashArea.style.opacity = '1';
+        }
+
+    } catch (renderErr) {
+        console.error("❌ Dashboard Render Crash:", renderErr);
+        const dashAreaFallback = document.getElementById('staff-dash-area');
+        if (dashAreaFallback) {
+            dashAreaFallback.classList.remove('hidden');
+            dashAreaFallback.style.display = 'block';
+        }
     }
 };
 
@@ -869,37 +913,72 @@ window.updateAccountActivationUI = function(isActive) {
     const overlay = document.getElementById('account-lock-overlay');
     const badge = document.getElementById('account-status-badge');
 
-    // Check-in / Out Buttons to lock
-    const cinBtn = document.getElementById('s-checkin-btn') || document.getElementById('security-checkin-btn');
-    const coutBtn = document.getElementById('s-checkout-btn') || document.getElementById('security-checkout-btn');
+    // UI Elements for status color mapping
+    const colorActive = '#10B981';
+    const colorInactive = '#EF4444';
 
     if (isActive === true) {
         if (banner) banner.classList.add('hidden');
         if (overlay) overlay.classList.add('hidden');
         if (badge) {
             badge.innerText = "Active";
-            badge.classList.remove('bg-rose-100', 'text-rose-700', 'hidden');
-            badge.classList.add('bg-emerald-100', 'text-emerald-700');
+            badge.style.backgroundColor = 'rgba(16, 185, 129, 0.1)';
+            badge.style.color = colorActive;
+            badge.classList.remove('hidden');
         }
-        if (cinBtn) cinBtn.disabled = false;
-        if (coutBtn) coutBtn.disabled = false;
     } else {
-        if (banner) banner.classList.remove('hidden');
-        if (overlay) overlay.classList.remove('hidden');
+        if (banner) {
+            banner.classList.remove('hidden');
+            banner.style.backgroundColor = colorInactive;
+        }
+        if (overlay) {
+            overlay.classList.remove('hidden');
+            // Ensure overlay is a centered modal, not full-screen block
+            overlay.className = 'onboarding-modal-overlay';
+        }
         if (badge) {
             badge.innerText = "Inactive";
-            badge.classList.remove('bg-emerald-100', 'text-emerald-700', 'hidden');
-            badge.classList.add('bg-rose-100', 'text-rose-700');
+            badge.style.backgroundColor = 'rgba(239, 68, 68, 0.1)';
+            badge.style.color = colorInactive;
+            badge.classList.remove('hidden');
         }
-        if (cinBtn) cinBtn.disabled = true;
-        if (coutBtn) coutBtn.disabled = true;
+    }
 
-        // Ensure buttons look disabled
-        [cinBtn, coutBtn].forEach(btn => {
-            if (btn) btn.style.opacity = '0.5';
-        });
+    // Check-in / Out Buttons: Keep enabled but they will be intercepted in attendance_module.js
+    const cinBtn = document.getElementById('s-checkin-btn') || document.getElementById('security-checkin-btn');
+    const coutBtn = document.getElementById('s-checkout-btn') || document.getElementById('security-checkout-btn');
+
+    if (cinBtn) {
+        cinBtn.disabled = false;
+        cinBtn.style.opacity = isActive ? '1' : '0.7';
+    }
+    if (coutBtn) {
+        coutBtn.disabled = false;
+        coutBtn.style.opacity = isActive ? '1' : '0.7';
     }
 };
+
+// Re-bind the Upload Documents button explicitly
+document.addEventListener('DOMContentLoaded', () => {
+    const observer = new MutationObserver(() => {
+        const btn = document.getElementById('btn_upload_docs_now');
+        if (btn && !btn.dataset.listenerBound) {
+            btn.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                console.log("📂 Opening Document Upload Interface...");
+                if (typeof window.showStaffView === 'function') {
+                    window.showStaffView('staff-docs-section');
+                }
+                // Also hide the modal
+                const overlay = document.getElementById('account-lock-overlay');
+                if (overlay) overlay.classList.add('hidden');
+            });
+            btn.dataset.listenerBound = "true";
+        }
+    });
+    observer.observe(document.body, { childList: true, subtree: true });
+});
 
 window.renderDashboard = window.renderDashboardProfile; // Alias for compatibility
 
@@ -1204,10 +1283,13 @@ window.compressImageWithRetry = async (file, maxWidth = 800, maxHeight = 800, qu
 // APP LAUNCH VIDEO LOGIC (FIXED v4.3)                             */
 // ================================================================ */
 
+// ================================================================ */
+// APP LAUNCH VIDEO LOGIC (FIXED v4.5)                             */
+// ================================================================ */
+
 window.handleLaunchVideo = () => {
     const overlay = document.getElementById('launchVideoOverlay');
     const video = document.getElementById('appLaunchVideo');
-    const skipBtn = document.getElementById('skipVideoBtn');
 
     if (!overlay || !video) return;
 
@@ -1218,54 +1300,59 @@ window.handleLaunchVideo = () => {
 
     overlay.classList.remove('hidden');
     overlay.style.display = 'flex';
+    overlay.style.opacity = '1';
 
     let hasHidden = false;
     let safetyTimeout = null;
 
-    const hideOverlay = () => {
+    // Define Global Skip Function for immediate access
+    window.skipLaunchVideo = () => {
         if (hasHidden) return;
         hasHidden = true;
+
+        console.log("🎬 Skipping Launch Video...");
 
         if (safetyTimeout) clearTimeout(safetyTimeout);
         sessionStorage.setItem('videoPlayedThisSession', 'true');
 
-        overlay.style.transition = 'opacity 0.6s ease-out';
+        // Smooth Fade Out
+        overlay.style.transition = 'opacity 0.5s ease-out, visibility 0.5s ease-out';
         overlay.style.opacity = '0';
+        overlay.style.visibility = 'hidden';
 
         setTimeout(() => {
             if (overlay && overlay.parentNode) {
                 overlay.remove();
             }
-        }, 600);
+        }, 500);
     };
 
-    // Auto-hide fallback after 6 seconds if video gets stuck or is too long
-    safetyTimeout = setTimeout(hideOverlay, 6000);
+    // Auto-hide fallback after 7 seconds
+    safetyTimeout = setTimeout(window.skipLaunchVideo, 7000);
 
-    video.onended = hideOverlay;
-    video.onerror = hideOverlay;
+    video.onended = window.skipLaunchVideo;
+    video.onerror = window.skipLaunchVideo;
 
-    if (skipBtn) {
-        skipBtn.onclick = hideOverlay;
+    // Force play with muted state
+    video.muted = true;
+    const playPromise = video.play();
+
+    if (playPromise !== undefined) {
+        playPromise.catch((err) => {
+            console.warn("⚠️ Autoplay restricted, hiding overlay:", err);
+            window.skipLaunchVideo();
+        });
     }
-
-    video.play().catch((err) => {
-        console.warn("⚠️ Autoplay restricted or failed, hiding video overlay:", err);
-        hideOverlay();
-    });
 };
 
 document.addEventListener('DOMContentLoaded', window.handleLaunchVideo);
 
 window.addEventListener('load', () => {
+    // Secondary safety cleanup
     setTimeout(() => {
         const o = document.getElementById('launchVideoOverlay');
-        if (o) {
-            o.style.transition = 'opacity 0.5s ease-out';
-            o.style.opacity = '0';
-            setTimeout(() => o.remove(), 500);
-        }
-    }, 6500);
+        if (o) window.skipLaunchVideo();
+    }, 8000);
 });
 
 // ================================================================ */
@@ -1448,61 +1535,95 @@ window.openTransferLogs = window.openMovementLogModal;
 // ================================================================ */
 
 window.showStaffView = function(viewId) {
-    console.log(`📂 Switching to view: ${viewId}`);
+    try {
+        console.log(`📂 Switching to view: ${viewId}`);
 
-    const authArea = document.getElementById('staff-auth-area');
-    if (authArea) {
-        authArea.classList.add('hidden');
-        authArea.style.display = 'none';
-    }
-
-    const views = [
-        'staff-dash-area',
-        'security-main-container',
-        'tasks-management-section',
-        'asset-audit-section',
-        'asset-disposal-section',
-        'asset-transfer-section',
-        'transfer-logs-section',
-        'staff-docs-section'
-    ];
-
-    views.forEach(id => {
-        const el = document.getElementById(id);
-        if (el) {
-            el.classList.add('hidden');
-            el.style.display = 'none';
+        // Hide Auth Area
+        const authArea = document.getElementById('staff-auth-area');
+        if (authArea) {
+            authArea.classList.add('hidden');
+            authArea.style.display = 'none';
         }
-    });
 
-    const target = document.getElementById(viewId);
-    if (target) {
-        target.classList.remove('hidden');
-        // Clear inline display style so element preserves its native flex/grid CSS layout
-        target.style.display = '';
+        // 1. Hide all modern view sections (Class-based)
+        const allSections = document.querySelectorAll('.transfer-workflow-container, .view-section, .staff-view-section');
+        allSections.forEach(s => {
+            s.classList.add('hidden');
+            s.style.display = 'none';
+        });
+
+        // 2. Define legacy view IDs for deep-cleanup
+        const views = [
+            'staff-dash-area',
+            'security-main-container',
+            'tasks-management-section',
+            'asset-audit-section',
+            'asset-disposal-section',
+            'asset-transfer-section',
+            'transfer-logs-section',
+            'staff-docs-section'
+        ];
+
+        views.forEach(id => {
+            const el = document.getElementById(id);
+            if (el) {
+                el.classList.add('hidden');
+                el.style.display = 'none';
+            }
+        });
+
+        // 3. Resolve Target Element (Flexible Mapping)
+        const target = document.getElementById(viewId) ||
+                       document.getElementById(`staff_view_${viewId}`) ||
+                       document.getElementById(`${viewId}_section`);
+
+        if (target) {
+            target.classList.remove('hidden');
+            // Clear inline display style so element preserves its native flex/grid CSS layout
+            target.style.display = '';
+            console.log(`✅ View ${viewId} is now visible`);
+
+            // Ensure parent section is visible (if nested)
+            const parentSection = target.closest('.view-section');
+            if (parentSection) {
+                parentSection.classList.remove('hidden');
+                parentSection.style.display = '';
+            }
+        } else {
+            console.error(`❌ View Switcher Error: Element with ID "${viewId}" not found in DOM`);
+            // Fallback: If dash area exists, show it at least
+            const dashFallback = document.getElementById('staff-dash-area');
+            if (dashFallback && viewId !== 'staff-dash-area') {
+                dashFallback.classList.remove('hidden');
+                dashFallback.style.display = '';
+            }
+        }
+
+        // 4. Trigger Module-Specific Inits
+        if ((viewId === 'tasks-management-section' || viewId === 'tasks') && typeof window.loadRoleView === 'function') {
+            window.loadRoleView(window.currentStaff);
+        }
+
+        if ((viewId === 'staff-docs-section' || viewId === 'docs') && typeof window.loadStaffDocumentsView === 'function') {
+            window.loadStaffDocumentsView('staff-docs-container');
+        }
+
+        if (typeof window.initTopBackButton === 'function') {
+            window.initTopBackButton();
+        }
+
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    } catch (err) {
+        console.error("❌ showStaffView Runtime Error:", err);
     }
-
-    if (viewId === 'tasks-management-section' && typeof window.loadRoleView === 'function') {
-        window.loadRoleView(window.currentStaff);
-    }
-
-    if (viewId === 'staff-docs-section' && typeof window.initStaffDocsModule === 'function') {
-        window.initStaffDocsModule('staff-docs-container');
-    }
-
-    if (typeof window.initTopBackButton === 'function') {
-        window.initTopBackButton();
-    }
-
-    window.scrollTo({ top: 0, behavior: 'smooth' });
 };
 
 // ================================================================ */
-// AUTOMATIC SPINNER ATTACHMENT (FIXED v4.3 - VALIDATION SAFE)    */
+// AUTOMATIC SPINNER ATTACHMENT (FIXED v4.4 - VALIDATION SAFE)    */
 // ================================================================ */
 
 document.addEventListener('DOMContentLoaded', () => {
-    // Override existing logout buttons
+    // 1. Override existing logout buttons
     const attachLogoutListeners = () => {
         const logoutBtns = document.querySelectorAll('#logout-btn, .logout-btn, [onclick*="logoutStaff"]');
         logoutBtns.forEach(btn => {
@@ -1525,7 +1646,7 @@ document.addEventListener('DOMContentLoaded', () => {
         window.initSidebarProfileAndRestrictions();
     }
 
-    // Auto-catch all form submit events ONLY IF valid
+    // 2. Auto-catch all form submit events ONLY IF valid
     document.addEventListener('submit', (e) => {
         const form = e.target;
         if (form && typeof form.checkValidity === 'function' && !form.checkValidity()) {
@@ -1536,7 +1657,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }, true);
 
-    // Auto-catch all primary action buttons with validation check
+    // 3. Auto-catch all primary action buttons with validation check
     const attachButtonListeners = () => {
         document.querySelectorAll('button[type="submit"], .btn-primary, .submit-btn, .btn-submit-transfer').forEach(btn => {
             if (!btn.dataset.spinnerBound) {
@@ -1577,82 +1698,4 @@ document.addEventListener('DOMContentLoaded', () => {
     observer.observe(document.body, { childList: true, subtree: true });
 });
 
-// ================================================================ */
-// AUTOMATIC SPINNER ATTACHMENT (FIXED v4.3 - VALIDATION SAFE)    */
-// ================================================================ */
-
-document.addEventListener('DOMContentLoaded', () => {
-    // Override existing logout buttons
-    const attachLogoutListeners = () => {
-        const logoutBtns = document.querySelectorAll('#logout-btn, .logout-btn, [onclick*="logoutStaff"]');
-        logoutBtns.forEach(btn => {
-            if (!btn.dataset.logoutBound) {
-                btn.onclick = (e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    if (typeof window.executeSecureLogout === 'function') {
-                        window.executeSecureLogout();
-                    }
-                };
-                btn.dataset.logoutBound = "true";
-            }
-        });
-    };
-
-    attachLogoutListeners();
-
-    if (typeof window.initSidebarProfileAndRestrictions === 'function') {
-        window.initSidebarProfileAndRestrictions();
-    }
-
-    // Auto-catch all form submit events ONLY IF valid
-    document.addEventListener('submit', (e) => {
-        const form = e.target;
-        if (form && typeof form.checkValidity === 'function' && !form.checkValidity()) {
-            return; // Don't show spinner if HTML5 form validation fails
-        }
-        if (typeof window.showGlobalSpinner === 'function') {
-            window.showGlobalSpinner("Saving Data...");
-        }
-    }, true);
-
-    // Auto-catch all primary action buttons with validation check
-    const attachButtonListeners = () => {
-        document.querySelectorAll('button[type="submit"], .btn-primary, .submit-btn, .btn-submit-transfer').forEach(btn => {
-            if (!btn.dataset.spinnerBound) {
-                btn.addEventListener('click', (e) => {
-                    const form = btn.closest('form');
-
-                    // If button is inside a form, let form submit listener handle spinner safely
-                    if (form) {
-                        if (form.checkValidity()) {
-                            setTimeout(() => {
-                                if (typeof window.showGlobalSpinner === 'function') {
-                                    window.showGlobalSpinner("Please wait...");
-                                }
-                            }, 50);
-                        }
-                    } else {
-                        // Standalone buttons (not in forms)
-                        setTimeout(() => {
-                            if (typeof window.showGlobalSpinner === 'function') {
-                                window.showGlobalSpinner("Please wait...");
-                            }
-                        }, 50);
-                    }
-                });
-                btn.dataset.spinnerBound = "true";
-            }
-        });
-    };
-
-    attachButtonListeners();
-
-    // Observe DOM changes to attach listeners to dynamic elements
-    const observer = new MutationObserver(() => {
-        attachLogoutListeners();
-        attachButtonListeners();
-    });
-
-    observer.observe(document.body, { childList: true, subtree: true });
-});
+console.log("✅ ui_module.js (v5.0 Stable) Loaded");

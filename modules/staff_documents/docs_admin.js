@@ -188,6 +188,14 @@ window.openOnboardingConfigModal = async function(roleId) {
 
         html += `
                     </div>
+                    <!-- Custom Bio-Data Entry -->
+                    <div class="col-span-full pt-2">
+                        <div class="flex gap-2">
+                            <input type="text" id="custom-bio-input" placeholder="Custom Information Label (e.g. Blood Group)" class="flex-1 px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-[10px] outline-none focus:border-indigo-500">
+                            <button type="button" onclick="window.addCustomBioField()" class="px-4 bg-indigo-900 text-white rounded-lg text-[8px] font-black uppercase">+ Add Custom Field</button>
+                        </div>
+                        <div id="custom-bio-list" class="flex flex-wrap gap-2 mt-2"></div>
+                    </div>
                 </div>
             </div>
         `;
@@ -197,6 +205,27 @@ window.openOnboardingConfigModal = async function(roleId) {
     } catch (e) {
         content.innerHTML = `<div class="p-8 text-center text-red-500 font-bold uppercase text-xs">Error: ${e.message}</div>`;
     }
+};
+
+/**
+ * ✅ Add custom bio-data field to the temporary onboarding list
+ */
+window.addCustomBioField = function() {
+    const input = document.getElementById('custom-bio-input');
+    const name = input?.value?.trim();
+    const list = document.getElementById('custom-bio-list');
+    if (!name || !list) return;
+
+    const id = "CUSTOM_BIO_" + Date.now();
+    const tag = document.createElement('div');
+    tag.className = "flex items-center gap-2 px-3 py-1.5 bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-full text-[9px] font-black uppercase fade-in";
+    tag.innerHTML = `
+        <input type="hidden" class="bio-req-checkbox" value="${id}" data-name="${name}" checked>
+        <span>${name}</span>
+        <button type="button" onclick="this.parentElement.remove()" class="text-indigo-400 hover:text-indigo-900">&times;</button>
+    `;
+    list.appendChild(tag);
+    input.value = "";
 };
 
 /**

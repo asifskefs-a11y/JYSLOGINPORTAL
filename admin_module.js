@@ -16,7 +16,8 @@ window.appCache = {
     transfers: [],
     disposedAssets: [],
     disposalRegistry: [],
-    disposalRequests: []
+    disposalRequests: [],
+    staffDocs: {} // Added for expiry tracking
 };
 
 window.currentFilteredData = {
@@ -142,28 +143,7 @@ window.updateAdminKPIs = function() {
 
     // 4. Staff Census Breakdown
     const staffDir = window.appCache.staff;
-    const totalStaff = staffDir.length;
-
-    const countByRole = (roleKeywords) => {
-        return staffDir.filter(s => {
-            const role = (s.role || s.position || '').toLowerCase();
-            return roleKeywords.some(kw => role.includes(kw));
-        }).length;
-    };
-
-    const securityCount = countByRole(['security']);
-    const cleanerLeaderCount = countByRole(['cleaner leader', 'cleaner_leader', 'leader']);
-    const technicianCount = countByRole(['technician', 'tech']);
-    const cleanerCount = staffDir.filter(s => {
-        const role = (s.role || s.position || '').toLowerCase();
-        return role.includes('cleaner') && !role.includes('leader');
-    }).length;
-
-    safeUpdateText('cntTotalStaff', totalStaff);
-    safeUpdateText('cntSecurity', securityCount);
-    safeUpdateText('cntCleanerLeader', cleanerLeaderCount);
-    safeUpdateText('cntCleaner', cleanerCount);
-    safeUpdateText('cntTechnician', technicianCount);
+    window.renderCensusCards(staffDir);
 
     // 5. Update Progress Bars
     const updateBar = (id, val, max) => {
@@ -177,6 +157,57 @@ window.updateAdminKPIs = function() {
     updateBar('bar-staff', staffPresent, 30);
     updateBar('bar-alerts', urgentAlerts, 10);
 };
+
+// ================================================================ */
+// ✅ STAFF CENSUS GRID RENDERER (v5.5)                             */
+// ================================================================ */
+
+const ALL_ROLES_CENSUS = [
+    { name: "Cleaner", icon: "fa-broom" },
+    { name: "Cleaner Leader", icon: "fa-user-tie" },
+    { name: "Technician", icon: "fa-tools" },
+    { name: "Office Boy", icon: "fa-concierge-bell" },
+    { name: "Bus Monitor", icon: "fa-user-shield" },
+    { name: "Bus Driver", icon: "fa-bus" },
+    { name: "Bus Supervisor", icon: "fa-id-badge" },
+    { name: "Supervisor", icon: "fa-user-check" },
+    { name: "Gardener", icon: "fa-seedling" },
+    { name: "Security", icon: "fa-shield-alt" },
+    { name: "Admin", icon: "fa-user-cog" }
+];
+
+window.renderCensusCards = function(staffList) {
+    const container = document.getElementById('staff-census-grid-container');
+    if (!container) return;
+
+    container.innerHTML = '';
+
+    // 1. Total Staff Card First
+    container.appendChild(createCensusCard("Total Staff", staffList.length, "fa-users", "total-card"));
+
+    // 2. Individual Role Cards
+    ALL_ROLES_CENSUS.forEach(role => {
+        const count = staffList.filter(s => {
+            const staffRole = (s.position || s.role || '').toString().trim().toLowerCase();
+            return staffRole === role.name.trim().toLowerCase();
+        }).length;
+
+        container.appendChild(createCensusCard(role.name, count, role.icon, "role-card"));
+    });
+};
+
+function createCensusCard(title, count, icon, cardClass) {
+    const card = document.createElement('div');
+    card.className = `census-op-card ${cardClass}`;
+    card.innerHTML = `
+        <div class="census-card-icon"><i class="fas ${icon}"></i></div>
+        <div class="census-card-info">
+            <span class="census-card-title">${title}</span>
+            <span class="census-card-count">${count}</span>
+        </div>
+    `;
+    return card;
+}
 
 // ================================================================ */
 // ✅ REAL-TIME DATA LISTENERS                                      */
@@ -227,6 +258,17 @@ window.initAdminRealTimeListeners = function() {
     registerListener('asset_disposal_requests', 'disposalRequests', 'tab-disposal', window.filterDisposalTable);
     registerListener('asset_transfers', 'transfers', 'tab-transfers', window.filterTransferTable);
 
+    // ✅ ADDED: Staff Documents Listener for Expiry tracking
+    activeListeners.staff_docs = onValue(ref(db, 'staff_documents'), (snap) => {
+        if (snap.exists()) {
+            window.appCache.staffDocs = snap.val();
+            // Refresh staff directory if active to show badges
+            if (document.querySelector('.tab-section.active')?.id === 'tab-staff-list') {
+                window.filterStaffDirectory();
+            }
+        }
+    });
+
     // Assets needs special handling for local cache
     activeListeners.assets = onValue(ref(db, 'assets'), (snapshot) => {
         if (snapshot.exists()) {
@@ -251,6 +293,13 @@ window.initAdminRealTimeListeners = function() {
 window.loadAdminDashboard = () => {
     window.initAdminRealTimeListeners();
     window.updateAdminProfileHeader();
+
+    // ✅ SYNC MASTER ROLES TO DROPDOWNS
+    if (window.syncRoleDropdown) {
+        window.syncRoleDropdown('staff-role-filter', 'All Positions', true);
+        window.syncRoleDropdown('directory-role-filter', 'All Positions', true);
+    }
+
     setTimeout(() => {
         window.renderTabFromAppCache('tab-visitor-logs');
         window.appCache.isInitialized = true;
@@ -390,11 +439,41 @@ function renderGlobalTaskAudit(tasks) {
 function renderStaffDirectory(staff) {
     const body = document.getElementById('admin-staff-list-body');
     if (!body) return;
+
     window.adminPaginators.directory.init(staff || [], (pageItems) => {
-        body.innerHTML = pageItems.length ? pageItems.map(s => `
+        body.innerHTML = pageItems.length ? pageItems.map(s => {
+            // Task 3: Visual Expiry Badge logic
+            const userId = s.adekPass || s.mobile;
+            const docNode = window.appCache.staffDocs ? window.appCache.staffDocs[userId] : null;
+            let expiryBadge = "";
+
+            if (docNode && docNode.docs) {
+                let worstDays = 999;
+                let worstDoc = "";
+                Object.entries(docNode.docs).forEach(([key, d]) => {
+                    if (d.expiryDate && d.status === 'APPROVED') {
+                        const days = Math.ceil((new Date(d.expiryDate) - new Date()) / (1000 * 60 * 60 * 24));
+                        if (days < worstDays) {
+                            worstDays = days;
+                            worstDoc = key.replace(/_/g, ' ');
+                        }
+                    }
+                });
+
+                if (worstDays <= 0) {
+                    expiryBadge = `<div class="mt-1 px-2 py-0.5 bg-rose-600 text-white text-[7px] font-black rounded-full pulse-badge uppercase">❌ EXPIRED (${worstDoc})</div>`;
+                } else if (worstDays <= 30) {
+                    expiryBadge = `<div class="mt-1 px-2 py-0.5 bg-amber-500 text-white text-[7px] font-black rounded-full uppercase">⚠️ EXPIRING SOON (${worstDoc}: ${worstDays}d)</div>`;
+                }
+            }
+
+            return `
             <tr class="hover:bg-slate-50 border-b text-[10px]">
-                <td class="p-4 text-center"><img src="${s.profilePicUrl || ''}" class="w-8 h-8 rounded-full border shadow-sm mx-auto" onerror="this.src=window.generateLocalAvatar('${s.fullName || 'U'}')"></td>
-                <td class="p-4 font-black text-indigo-900 uppercase">${s.fullName || s.name || "-"}</td>
+                <td class="p-4 text-center"><img src="${s.profilePicUrl || s.photoUrl || ''}" class="w-8 h-8 rounded-full border shadow-sm mx-auto" onerror="this.src=window.generateLocalAvatar('${s.fullName || 'U'}')"></td>
+                <td class="p-4">
+                    <div class="font-black text-indigo-900 uppercase">${s.fullName || s.name || "-"}</div>
+                    ${expiryBadge}
+                </td>
                 <td class="p-4 font-mono text-slate-400">${s.password || "-"}</td>
                 <td class="p-4 font-mono text-slate-500">${s.adekPass || "-"}</td>
                 <td class="p-4 font-bold text-slate-600">${s.school || s.branch || "-"}</td>
@@ -406,7 +485,8 @@ function renderStaffDirectory(staff) {
                     <button onclick="window.openEditStaffModal('${s.firebaseKey || s.mobile}')" class="text-indigo-400 hover:text-indigo-600 mr-2"><i class="fa-solid fa-user-pen"></i></button>
                     <button onclick="window.openStaffDocumentReviewModal('${s.adekPass || s.mobile}')" class="text-emerald-500 hover:text-emerald-700"><i class="fa-solid fa-eye"></i></button>
                 </td>
-            </tr>`).join('') : '<tr><td colspan="10" class="p-8 text-center text-gray-400">No staff found</td></tr>';
+            </tr>`;
+        }).join('') : '<tr><td colspan="10" class="p-8 text-center text-gray-400">No staff found</td></tr>';
     });
 }
 
@@ -439,16 +519,36 @@ window.filterStaffTable = window.debounce(() => {
     let f = window.appCache.attendance;
     if (q) f = f.filter(a => (a.name||'').toLowerCase().includes(q) || (a.mobile||'').includes(q));
     if (d) f = f.filter(a => a.date === new Date(d).toLocaleDateString());
-    if (r && r !== 'all') f = f.filter(a => (a.role||'').toLowerCase().includes(r.replace('_',' ')));
+    if (r && r !== 'all') f = f.filter(a => (a.role||'').toLowerCase().trim() === r.toLowerCase().trim());
     window.currentFilteredData.staff = f; renderStaffAttendance(f);
 }, 300);
 
 window.filterStaffDirectory = () => {
     const q = document.getElementById('directory-search')?.value?.toLowerCase() || '';
     const r = document.getElementById('directory-role-filter')?.value;
+    const e = document.getElementById('directory-expiry-filter')?.value || 'all';
+
     let f = window.appCache.staff;
     if (q) f = f.filter(s => (s.fullName||'').toLowerCase().includes(q) || (s.mobile||'').includes(q));
-    if (r && r !== 'all') f = f.filter(s => (s.role||'').toLowerCase().includes(r.replace('_',' ')));
+    if (r && r !== 'all') f = f.filter(s => (s.role||'').toLowerCase().trim() === r.toLowerCase().trim());
+
+    // Task 3: Expiry Quick Filter Logic
+    if (e !== 'all') {
+        f = f.filter(s => {
+            const userId = s.adekPass || s.mobile;
+            const docNode = window.appCache.staffDocs ? window.appCache.staffDocs[userId] : null;
+            if (!docNode || !docNode.docs) return false;
+
+            return Object.values(docNode.docs).some(d => {
+                if (!d.expiryDate || d.status !== 'APPROVED') return false;
+                const days = Math.ceil((new Date(d.expiryDate) - new Date()) / (1000 * 60 * 60 * 24));
+                if (e === 'expiring') return days > 0 && days <= 30;
+                if (e === 'expired') return days <= 0;
+                return false;
+            });
+        });
+    }
+
     renderStaffDirectory(f);
 };
 
@@ -572,15 +672,7 @@ window.openAddStaffModal = function() {
                     <div class="input-field-group">
                         <select id="staff-role" required class="pro-select">
                             <option value="">Select Role</option>
-                            <option value="Security">Security</option>
-                            <option value="Cleaner">Cleaner</option>
-                            <option value="Cleaner Leader">Cleaner Leader</option>
-                            <option value="Technician">Technician</option>
-                            <option value="Gardener">Gardener</option>
-                            <option value="Admin">Admin</option>
-                            <option value="Bus Monitor">Bus Monitor</option>
-                            <option value="Bus Driver">Bus Driver</option>
-                            <option value="Supervisor">Supervisor</option>
+                            ${(window.MASTER_STAFF_ROLES || []).map(r => `<option value="${r}">${r}</option>`).join('')}
                         </select>
                     </div>
 

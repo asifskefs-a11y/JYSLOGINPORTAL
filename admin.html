@@ -568,16 +568,22 @@
                     </div>
                 </div>
                 <!-- TOTAL STAFF BREAKDOWN KPI -->
-                <div class="stat-card bg-slate-900 p-6 rounded-3xl shadow-2xl border border-indigo-500/30 flex items-center gap-5 lg:col-span-5">
-                    <div class="w-16 h-16 bg-gradient-to-br from-indigo-600 to-purple-700 rounded-2xl flex items-center justify-center text-white text-3xl shadow-lg"><i class="fa-solid fa-address-book"></i></div>
-                    <div class="flex-1">
-                        <p class="text-[10px] font-black text-white uppercase tracking-[0.3em] mb-2">Detailed Staff Census Breakdown</p>
-                        <div id="staffCensusCard" class="text-white font-bold flex flex-wrap gap-4 items-center">
-                            <span>Total Staff: <span id="cntTotalStaff" class="text-indigo-300 font-extrabold">0</span></span> |
-                            <span>Security: <span id="cntSecurity" class="text-emerald-400 font-extrabold">0</span></span> |
-                            <span>Cleaner Leader: <span id="cntCleanerLeader" class="text-amber-300 font-extrabold">0</span></span> |
-                            <span>Cleaner: <span id="cntCleaner" class="text-sky-300 font-extrabold">0</span></span> |
-                            <span>Technician: <span id="cntTechnician" class="text-purple-300 font-extrabold">0</span></span>
+                <div class="stat-card bg-slate-900 rounded-3xl shadow-2xl border border-indigo-500/30 lg:col-span-5 overflow-hidden">
+                    <div class="census-breakdown-card-wrapper">
+                        <!-- Header Section -->
+                        <div class="census-header-block flex items-center gap-4 mb-6 border-b border-white/10 pb-4">
+                            <div class="w-12 h-12 bg-gradient-to-br from-indigo-600 to-purple-700 rounded-xl flex items-center justify-center text-white text-2xl shadow-lg">
+                                <i class="fa-solid fa-address-book"></i>
+                            </div>
+                            <div>
+                                <h4 class="text-white font-black uppercase tracking-[0.2em] text-xs m-0">Detailed Staff Census Breakdown</h4>
+                                <p class="text-indigo-300 font-bold uppercase tracking-widest text-[9px] mt-1">Operational Role Quantities</p>
+                            </div>
+                        </div>
+
+                        <!-- Dynamic Grid -->
+                        <div id="staff-census-grid-container">
+                            <!-- Dynamically generated via renderCensusCards() -->
                         </div>
                     </div>
                 </div>
@@ -717,16 +723,17 @@
                             <input type="date" id="staff-date-filter" class="bg-slate-50 border border-slate-100 p-3 rounded-xl text-xs outline-none" onchange="window.filterStaffTable()">
                             <select id="staff-role-filter" class="bg-slate-50 border border-slate-100 p-3 rounded-xl text-xs outline-none" onchange="window.filterStaffTable()">
                                 <option value="all">All Positions</option>
-                                <option value="cleaner">Cleaner</option>
-                                <option value="cleaner_leader">Cleaner Leader</option>
-                                <option value="technician">Technician</option>
-                                <option value="office_boy">Office Boy</option>
-                                <option value="bus_monitor">Bus Monitor</option>
-                                <option value="bus_Driver">Bus Driver</option>
-                                <option value="bus_supervisor">Bus Supervisor</option>
-                                <option value="gardener">Gardener</option>
-                                <option value="security">Security</option>
-                                <option value="admin">Admin</option>
+                                <option value="Cleaner">Cleaner</option>
+                                <option value="Cleaner Leader">Cleaner Leader</option>
+                                <option value="Technician">Technician</option>
+                                <option value="Office Boy">Office Boy</option>
+                                <option value="Bus Monitor">Bus Monitor</option>
+                                <option value="Bus Driver">Bus Driver</option>
+                                <option value="Bus Supervisor">Bus Supervisor</option>
+                                <option value="Supervisor">Supervisor</option>
+                                <option value="Gardener">Gardener</option>
+                                <option value="Security">Security</option>
+                                <option value="Admin">Admin</option>
                             </select>
                         </div>
 
@@ -935,16 +942,23 @@
                             </select>
                             <select id="directory-role-filter" class="bg-slate-50 border border-slate-100 p-3 rounded-xl text-xs outline-none" onchange="window.filterStaffDirectory()">
                                 <option value="all">All Positions</option>
-                                <option value="cleaner">Cleaner</option>
-                                <option value="cleaner_leader">Cleaner Leader</option>
-                                <option value="technician">Technician</option>
-                                <option value="office_boy">Office Boy</option>
-                                <option value="bus_monitor">Bus Monitor</option>
-                                <option value="bus_driver">Bus Driver</option>
-                                <option value="bus_Supervisor">Bus Supervisor</option>
-                                <option value="gardener">Gardener</option>
-                                <option value="security">Security</option>
-                                <option value="admin">Admin</option>
+                                <option value="Cleaner">Cleaner</option>
+                                <option value="Cleaner Leader">Cleaner Leader</option>
+                                <option value="Technician">Technician</option>
+                                <option value="Office Boy">Office Boy</option>
+                                <option value="Bus Monitor">Bus Monitor</option>
+                                <option value="Bus Driver">Bus Driver</option>
+                                <option value="Bus Supervisor">Bus Supervisor</option>
+                                <option value="Supervisor">Supervisor</option>
+                                <option value="Gardener">Gardener</option>
+                                <option value="Security">Security</option>
+                                <option value="Admin">Admin</option>
+                            </select>
+                            <!-- Task 3: Expiry Alert Notification Filter -->
+                            <select id="directory-expiry-filter" class="bg-rose-50 border border-rose-200 text-rose-700 p-3 rounded-xl text-xs font-black uppercase outline-none" onchange="window.filterStaffDirectory()">
+                                <option value="all">📅 All Staff</option>
+                                <option value="expiring">⚠️ Expiring Soon (< 30 Days)</option>
+                                <option value="expired">❌ Expired Documents</option>
                             </select>
                         </div>
 
@@ -1516,22 +1530,22 @@
         </div>
     </div>
 
-    <script type="module" src="firebase_config.js?v=5.1"></script>
-    <script type="module" src="field_normalizer.js?v=5.1"></script>
-    <script type="module" src="drive_module.js?v=5.1"></script>
-    <script src="asset_management.js?v=5.1"></script>
-    <script type="module" src="ui_module.js?v=5.1"></script>
-    <script type="module" src="import_module.js?v=5.1"></script>
-    <script type="module" src="export_module.js?v=5.1"></script>
-    <script type="module" src="audit_module.js?v=5.1"></script>
-    <script type="module" src="attendance_module.js?v=5.1"></script>
-    <script type="module" src="tasks_module.js?v=5.1"></script>
-    <script type="module" src="admin_module.js?v=5.1"></script>
-    <script type="module" src="modules/staff_documents/docs_firebase.js?v=5.1"></script>
-    <script type="module" src="modules/staff_documents/docs_admin.js?v=5.1"></script>
-    <script type="module" src="modules/staff_documents/docs_verification.js?v=5.1"></script>
-    <script type="module" src="contractor_module.js?v=5.1"></script>
-    <script type="module" src="init_module.js?v=5.1"></script>
+    <script type="module" src="firebase_config.js?v=5.4"></script>
+    <script type="module" src="field_normalizer.js?v=5.4"></script>
+    <script type="module" src="drive_module.js?v=5.4"></script>
+    <script src="asset_management.js?v=5.4"></script>
+    <script type="module" src="ui_module.js?v=5.4"></script>
+    <script type="module" src="import_module.js?v=5.4"></script>
+    <script type="module" src="export_module.js?v=5.4"></script>
+    <script type="module" src="audit_module.js?v=5.4"></script>
+    <script type="module" src="attendance_module.js?v=5.4"></script>
+    <script type="module" src="tasks_module.js?v=5.4"></script>
+    <script type="module" src="admin_module.js?v=5.4"></script>
+    <script type="module" src="modules/staff_documents/docs_firebase.js?v=5.4"></script>
+    <script type="module" src="modules/staff_documents/docs_admin.js?v=5.4"></script>
+    <script type="module" src="modules/staff_documents/docs_verification.js?v=5.4"></script>
+    <script type="module" src="contractor_module.js?v=5.4"></script>
+    <script type="module" src="init_module.js?v=5.4"></script>
 
     <script>
         // ================================================

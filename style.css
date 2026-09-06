@@ -17,19 +17,18 @@
     display: flex !important;
     align-items: center !important;
     justify-content: center !important;
-    transition: opacity 0.4s ease-out, visibility 0.4s ease-out !important;
+    transition: opacity 0.5s ease-out, visibility 0.5s ease-out !important;
 }
 
 #appLaunchVideo {
-    width: auto !important;
-    height: auto !important;
+    width: 100% !important;
+    height: 100% !important;
     max-width: 100% !important;
     max-height: 100% !important;
-    object-fit: contain !important;
+    object-fit: cover !important;
     object-position: center !important;
     background: #000000;
     pointer-events: none !important;
-    margin: auto !important;
 }
 
 #appLaunchVideo::-webkit-media-controls,
@@ -43,11 +42,15 @@
 
 #skipVideoBtn {
     position: absolute !important;
-    top: max(20px, env(safe-area-inset-top)) !important;
-    right: max(20px, env(safe-area-inset-right)) !important;
-    z-index: 1000000 !important;
+    top: 40px !important;
+    right: 30px !important;
+    z-index: 10000001 !important;
     pointer-events: auto !important;
     cursor: pointer !important;
+    display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+}
 }
 
 .fade-out {
@@ -2563,4 +2566,163 @@ h1:hover {
     .portal-card::after {
         background: radial-gradient(ellipse, rgba(79, 70, 229, 0.08) 0%, transparent 70%);
     }
+}
+
+/* ✅ EXPIRY ALERT: ANIMATED RUNNING RED BORDER */
+@keyframes runningRedBorder {
+    0% { background-position: 0% 0%; }
+    100% { background-position: 100% 100%; }
+}
+.expiring-border-animated {
+    border: 2px dashed #ff2d55 !important;
+    background-image: linear-gradient(90deg, #ff2d55 50%, transparent 50%), linear-gradient(90deg, #ff2d55 50%, transparent 50%), linear-gradient(0deg, #ff2d55 50%, transparent 50%), linear-gradient(0deg, #ff2d55 50%, transparent 50%);
+    background-repeat: repeat-x, repeat-x, repeat-y, repeat-y;
+    background-size: 15px 2px, 15px 2px, 2px 15px, 2px 15px;
+    background-position: 0 0, 0 100%, 0 0, 100% 0;
+    animation: runningRedBorder 2s linear infinite;
+    box-shadow: 0 0 15px rgba(255, 45, 85, 0.3);
+}
+
+/* 🔴 EXPIRY PULSE BADGE */
+.pulse-badge {
+    animation: pulseRed 1.5s infinite;
+}
+@keyframes pulseRed {
+    0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(225, 29, 72, 0.7); }
+    70% { transform: scale(1); box-shadow: 0 0 0 6px rgba(225, 29, 72, 0); }
+    100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(225, 29, 72, 0); }
+}
+
+/* GLOBAL CENTERED MODAL STYLING (Onboarding) */
+.onboarding-modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(15, 23, 42, 0.4); /* Reduced opacity, no blur for visibility */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+    padding: 16px;
+    pointer-events: none; /* Allow interaction with background */
+}
+.onboarding-modal-card {
+    pointer-events: auto; /* Enable interaction with modal itself */
+    width: 100%;
+    max-width: 480px; /* Responsive for Mobile and PC */
+    margin: auto;
+    border-radius: 2rem;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.4);
+    background: #ffffff;
+    overflow: hidden;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+@keyframes modalUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+.animate-modal-up {
+    animation: modalUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* ================================================================ */
+/* ✅ STAFF CENSUS GRID STYLES (v5.7 - OVERLAP & SPACING FIX)       */
+/* ================================================================ */
+
+.census-breakdown-card-wrapper {
+    display: flex !important;
+    flex-direction: column !important;
+    width: 100% !important;
+    padding: 24px !important;
+    box-sizing: border-box !important;
+    background: transparent !important;
+}
+
+.census-header-block {
+    display: flex !important;
+    align-items: center !important;
+    gap: 16px !important;
+    margin-bottom: 24px !important;
+}
+
+#staff-census-grid-container {
+    display: grid !important;
+    grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)) !important;
+    gap: 16px !important;
+    width: 100% !important;
+    margin-top: 5px !important;
+}
+
+.census-op-card {
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    background: rgba(255, 255, 255, 0.03) !important;
+    border: 1px solid rgba(255, 255, 255, 0.08) !important;
+    border-radius: 16px !important;
+    padding: 12px 16px !important;
+    transition: all 0.3s ease !important;
+    min-height: 64px !important;
+}
+
+.census-op-card:hover {
+    transform: translateY(-3px) !important;
+    border-color: #6366f1 !important;
+    background: rgba(255, 255, 255, 0.07) !important;
+    box-shadow: 0 12px 24px -10px rgba(0, 0, 0, 0.5) !important;
+}
+
+.census-op-card.total-card {
+    background: linear-gradient(135deg, #4f46e5 0%, #312e81 100%) !important;
+    border: none !important;
+    box-shadow: 0 10px 20px -5px rgba(79, 70, 229, 0.3) !important;
+}
+
+.census-card-icon {
+    width: 40px !important;
+    height: 40px !important;
+    border-radius: 12px !important;
+    background: rgba(255, 255, 255, 0.08) !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    font-size: 18px !important;
+    color: #818cf8 !important;
+    flex-shrink: 0 !important;
+    margin-right: 14px !important; /* ✅ Guarantees spacing between icon and text */
+}
+
+.total-card .census-card-icon {
+    color: #ffffff !important;
+    background: rgba(255, 255, 255, 0.2) !important;
+}
+
+.census-card-info {
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: center !important;
+    overflow: hidden !important;
+}
+
+.census-card-title {
+    font-size: 9px !important;
+    text-transform: uppercase !important;
+    letter-spacing: 1px !important;
+    color: #94a3b8 !important;
+    font-weight: 800 !important;
+    margin-bottom: 2px !important;
+}
+
+.total-card .census-card-title {
+    color: rgba(255, 255, 255, 0.7) !important;
+}
+
+.census-card-count {
+    font-size: 20px !important;
+    font-weight: 900 !important;
+    color: #ffffff !important;
+    line-height: 1 !important;
 }

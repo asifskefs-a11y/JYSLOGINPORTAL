@@ -55,19 +55,36 @@ window.openStaffDocumentReviewModal = async function(staffMobile) {
             const allStaff = staffSnap.val();
             const staffUser = Object.values(allStaff).find(u => u.adekPass === staffMobile || u.mobile === staffMobile);
 
-            if (staffUser && staffUser.bioData) {
+            if (staffUser && (staffUser.bioData || staffUser.mobile)) {
                 bioDataHtml = `
-                    <div class="mb-6 p-6 bg-indigo-50/50 rounded-3xl border border-indigo-100 shadow-inner">
-                        <h4 class="text-[10px] font-black text-indigo-900 uppercase tracking-widest mb-4 flex items-center gap-2">
-                            <i class="fa-solid fa-address-card text-indigo-600"></i> Bio-Data Profile
+                    <div class="mb-8 p-6 bg-white rounded-[2rem] border border-slate-100 shadow-xl overflow-hidden relative group">
+                        <div class="absolute top-0 left-0 w-2 h-full bg-indigo-600"></div>
+                        <h4 class="text-xs font-black text-indigo-900 uppercase tracking-[0.2em] mb-6 flex items-center gap-2">
+                            <i class="fa-solid fa-address-card text-indigo-500"></i> Staff Bio-Data Profile
                         </h4>
-                        <div class="grid grid-cols-1 gap-3">
-                            ${Object.entries(staffUser.bioData).map(([key, val]) => `
-                                <div class="flex justify-between items-center border-b border-indigo-100/50 pb-2">
-                                    <span class="text-[9px] font-bold text-indigo-400 uppercase">${BIO_DATA_TITLE_MAP[key] || key}</span>
-                                    <span class="text-[10px] font-black text-indigo-950">${val || '-'}</span>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-y-4 gap-x-6">
+                            <div class="flex flex-col border-b border-slate-50 pb-2">
+                                <span class="text-[8px] font-black text-slate-400 uppercase tracking-widest">Full Name</span>
+                                <span class="text-[11px] font-bold text-slate-800 uppercase">${staffUser.fullName || staffUser.name || '-'}</span>
+                            </div>
+                            <div class="flex flex-col border-b border-slate-50 pb-2">
+                                <span class="text-[8px] font-black text-slate-400 uppercase tracking-widest">Staff ID / Pass</span>
+                                <span class="text-[11px] font-bold text-indigo-600 font-mono">${staffUser.adekPass || staffUser.mobile || '-'}</span>
+                            </div>
+                            <div class="flex flex-col border-b border-slate-50 pb-2">
+                                <span class="text-[8px] font-black text-slate-400 uppercase tracking-widest">Mobile Number</span>
+                                <span class="text-[11px] font-bold text-slate-800">${staffUser.mobile || '-'}</span>
+                            </div>
+                            <div class="flex flex-col border-b border-slate-50 pb-2">
+                                <span class="text-[8px] font-black text-slate-400 uppercase tracking-widest">Designation / Role</span>
+                                <span class="text-[11px] font-bold text-amber-600 uppercase tracking-tighter">${staffUser.role || staffUser.position || '-'}</span>
+                            </div>
+                            ${staffUser.bioData ? Object.entries(staffUser.bioData).map(([key, val]) => `
+                                <div class="flex flex-col border-b border-slate-50 pb-2">
+                                    <span class="text-[8px] font-black text-slate-400 uppercase tracking-widest">${BIO_DATA_TITLE_MAP[key] || key.replace(/_/g, ' ').toUpperCase()}</span>
+                                    <span class="text-[11px] font-bold text-slate-800">${val || '-'}</span>
                                 </div>
-                            `).join('')}
+                            `).join('') : ''}
                         </div>
                     </div>
                 `;
@@ -83,8 +100,22 @@ window.openStaffDocumentReviewModal = async function(staffMobile) {
             const status = d.status || "NOT UPLOADED";
             const isUploaded = status !== "NOT UPLOADED";
 
+            // Task 2: Calculate Expiry & Animated Border
+            let expiryClass = "";
+            let expiryAlert = "";
+            if (isUploaded && d.expiryDate) {
+                const daysLeft = Math.ceil((new Date(d.expiryDate) - new Date()) / (1000 * 60 * 60 * 24));
+                if (daysLeft <= 30) {
+                    expiryClass = "expiring-border-animated";
+                    expiryAlert = `<div class="mt-2 px-2 py-1 bg-rose-500 text-white text-[8px] font-black uppercase rounded animate-pulse text-center">
+                        <i class="fa-solid fa-triangle-exclamation"></i>
+                        ${daysLeft <= 0 ? "EXPIRED" : `Expiring in ${daysLeft} Days`}
+                    </div>`;
+                }
+            }
+
             return `
-                <div class="p-5 bg-white rounded-2xl border border-slate-200 mb-4 shadow-sm transition-all hover:border-indigo-200">
+                <div class="p-5 bg-white rounded-2xl border border-slate-200 mb-4 shadow-sm transition-all hover:border-indigo-200 ${expiryClass}">
                     <div class="flex justify-between items-start mb-3">
                         <div class="flex flex-col">
                             <span class="font-bold text-[#1e293b] text-sm uppercase tracking-tight">${friendlyTitle}</span>
@@ -92,6 +123,7 @@ window.openStaffDocumentReviewModal = async function(staffMobile) {
                                 <i class="fa-solid fa-calendar-day mr-1 opacity-50"></i> Issue: ${d.issueDate || '-'} |
                                 <i class="fa-solid fa-calendar-xmark mr-1 opacity-50 ml-1"></i> Expiry: ${d.expiryDate || '-'}
                             </div>
+                            ${expiryAlert}
                         </div>
                         <span class="px-3 py-1 rounded-full text-[9px] font-black tracking-widest uppercase ${
                             status === 'APPROVED' ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' :

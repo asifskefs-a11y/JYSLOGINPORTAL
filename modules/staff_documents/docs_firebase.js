@@ -151,6 +151,60 @@ function getDefaultRequirements(role) {
 }
 
 /**
+ * ✅ NEW: Get combined requirements (Individual > Role Defaults)
+ */
+window.getStaffOnboardingRequirements = async function(userId, role) {
+    try {
+        // 1. Fetch direct document node first (Individual Override)
+        const docRef = ref(db, `staff_documents/${userId}`);
+        const docSnap = await get(docRef);
+
+        let customDocs = null;
+        let bioRequirements = [];
+
+        if (docSnap.exists()) {
+            const data = docSnap.val();
+            if (data.docs && Object.keys(data.docs).length > 0) {
+                // Transform into requirement format
+                customDocs = {};
+                Object.keys(data.docs).forEach(key => {
+                    customDocs[key] = {
+                        name: key.replace(/_/g, ' '),
+                        mandatory: true,
+                        icon: window.getDocIcon ? window.getDocIcon(key) : 'fa-file'
+                    };
+                });
+                console.log("🎯 Individual document requirements detected for:", userId);
+            }
+        }
+
+        // 2. Fetch staff profile for bio-data requirements
+        const staffSnap = await get(ref(db, 'staff'));
+        if (staffSnap.exists()) {
+            const allStaff = staffSnap.val();
+            const staff = Object.values(allStaff).find(u =>
+                (u.adekPass === userId || u.mobile === userId)
+            );
+            if (staff && staff.bioDataRequirements) {
+                bioRequirements = staff.bioDataRequirements;
+            }
+        }
+
+        // 3. Fallback to Role Requirements only if individual node is empty
+        const finalDocs = customDocs || await window.getRoleRequirements(role);
+
+        return {
+            requirements: finalDocs,
+            bioRequirements: bioRequirements
+        };
+
+    } catch (e) {
+        console.error("Error getting staff onboarding requirements:", e);
+        return { requirements: {}, bioRequirements: [] };
+    }
+};
+
+/**
  * ✅ Get staff documents
  */
 window.getStaffDocuments = async function(userId) {
@@ -321,20 +375,25 @@ window.processDocUpload = async function(userId, docType, base64, metadata = {})
     try {
         console.log(`📤 Processing upload for: ${docType}`);
 
-        if (!userId) throw new Error("User ID is required");
+        const activeStaff = window.currentStaff || JSON.parse(sessionStorage.getItem('active_staff_user') || '{}');
+        const adekPass = userId || activeStaff.adekPassNumber || activeStaff.mobile || "UNKNOWN_ADEK";
+
+        if (!adekPass) throw new Error("User ID is required");
         if (!docType) throw new Error("Document type is required");
         if (!base64) throw new Error("File data is required");
 
         // ✅ Step 1: Upload to Google Drive
         let driveFileUrl = '';
         if (window.uploadToDrive) {
-            const uploadRes = await window.uploadToDrive({
-                category: 'DOCUMENTS',
-                documentType: docType,
-                adekPassNumber: userId,
-                fileName: `${userId}_${docType}_${Date.now()}.jpg`,
+            const uploadPayload = {
+                adekPassNumber: adekPass,
+                documentType: docType || "EMIRATES_ID",
+                category: "DOCUMENTS",
+                fileName: `${adekPass}_${docType}_${Date.now()}.jpg`,
                 image: base64
-            });
+            };
+
+            const uploadRes = await window.uploadToDrive(uploadPayload);
 
             if (uploadRes && uploadRes.status === 'success') {
                 driveFileUrl = uploadRes.fileUrl;

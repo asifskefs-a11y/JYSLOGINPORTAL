@@ -4,67 +4,51 @@ import { db, UPLOAD_CONFIG } from './firebase_config.js';
 // DYNAMIC GOOGLE DRIVE SYNC ENGINE                                 */
 // ================================================================ */
 
-window.uploadToDrive = async function(paramsOrBase64, categoryParam = 'PROFILES_AND_SIGS') {
-    const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyXZpA-mlmctWy4HTdEiu_EsS1gmTuEe5SREu5KQ0_3LliIWzGwDNhXQArqVuz4PM-ygA/exec";
-
+window.uploadToDrive = async function(payload = {}) {
     try {
-        const config = await window.driveConfigCache?.getConfig() || { url: APPS_SCRIPT_URL };
-        const scriptUrl = config.url || APPS_SCRIPT_URL;
-
         const activeStaff = window.currentStaff || JSON.parse(sessionStorage.getItem('active_staff_user') || '{}');
 
-        let image = '';
-        let category = 'PROFILES_AND_SIGS';
-        let documentType = 'GENERAL';
-        let adekPassNumber = '';
-        let creatorAdekPass = '';
-        let closerAdekPass = '';
-        let fileName = '';
+        // SAFE STRING FALLBACKS TO PREVENT REGEX REPLACE CRASHES
+        const rawAdekPass = payload.adekPassNumber || payload.staffId || payload.userId || activeStaff.adekPass || activeStaff.adekPassNumber || activeStaff.mobile || "UNKNOWN_ADEK";
+        const safeAdekPass = String(rawAdekPass).replace(/[.#$\[\]/]/g, '_');
 
-        // Handle both Object payload and Legacy (base64, category)
-        if (typeof paramsOrBase64 === 'object' && paramsOrBase64 !== null) {
-            image = paramsOrBase64.image || paramsOrBase64.base64 || '';
-            category = paramsOrBase64.category || paramsOrBase64.folderCategory || 'PROFILES_AND_SIGS';
-            documentType = paramsOrBase64.documentType || category;
-            adekPassNumber = paramsOrBase64.adekPassNumber || paramsOrBase64.userId || '';
-            creatorAdekPass = paramsOrBase64.creatorAdekPass || '';
-            closerAdekPass = paramsOrBase64.closerAdekPass || '';
-            fileName = paramsOrBase64.fileName || paramsOrBase64.filename || '';
-        } else {
-            image = paramsOrBase64;
-            category = categoryParam;
-            documentType = category;
-        }
+        const rawDocType = payload.documentType || payload.docType || payload.category || "DOCUMENT";
+        const safeDocType = String(rawDocType).replace(/[.#$\[\]/]/g, '_');
 
-        if (!image) throw new Error('No Base64 image data provided.');
+        const rawFileName = payload.fileName || payload.filename || `${safeAdekPass}_${safeDocType}_${Date.now()}.jpg`;
+        const safeFileName = String(rawFileName).replace(/[.#$\[\]/]/g, '_');
 
-        // SAFE SANITIZATION FALLBACK FIX
-        const safeAdekPass = String(adekPassNumber || activeStaff.adekPass || activeStaff.adekPassNumber || activeStaff.mobile || "UNKNOWN_ADEK").replace(/[.#$\[\]/]/g, '_');
-        const safeFileName = String(fileName || `${safeAdekPass}_${documentType}_${Date.now()}.jpg`).replace(/[.#$\[\]/]/g, '_');
-        const safeCategory = String(category || 'GENERAL').replace(/[.#$\[\]/]/g, '_');
-        const safeDocumentType = String(documentType || safeCategory).replace(/[.#$\[\]/]/g, '_');
+        const safeCategory = String(payload.category || 'DOCUMENTS').replace(/[.#$\[\]/]/g, '_');
+        const base64Image = payload.image || payload.base64Data || payload.fileData || "";
 
-        if (!image || image.length < 100) {
-            console.warn("⚠️ Upload aborted: Base64 image payload is missing or invalid.");
+        if (!base64Image || base64Image.length < 50) {
+            console.warn("⚠️ Upload aborted: Invalid or empty image payload provided.");
             return { status: 'skipped', fileUrl: 'N/A' };
         }
 
-        const payload = {
+        const normalizedPayload = {
+            ...payload,
             adekPassNumber: safeAdekPass,
-            creatorAdekPass: String(creatorAdekPass || safeAdekPass).replace(/[.#$\[\]/]/g, '_'),
-            closerAdekPass: String(closerAdekPass || safeAdekPass).replace(/[.#$\[\]/]/g, '_'),
-            category: safeCategory,
-            documentType: safeDocumentType,
+            documentType: safeDocType,
             fileName: safeFileName,
-            base64Data: image,
+            category: safeCategory,
+            base64Data: base64Image,
             action: 'upload',
             timestamp: Date.now()
         };
 
-        const response = await fetch(scriptUrl, {
+        // Get script URL from cache or storage
+        const savedUrl = localStorage.getItem('jys_drive_script_url');
+        const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyXZpA-mlmctWy4HTdEiu_EsS1gmTuEe5SREu5KQ0_3LliIWzGwDNhXQArqVuz4PM-ygA/exec";
+        const targetScriptUrl = savedUrl || (await window.driveConfigCache?.getConfig())?.url || APPS_SCRIPT_URL;
+
+        if (!targetScriptUrl) {
+            throw new Error("Missing Google Apps Script Web App URL in System Configuration.");
+        }
+
+        const response = await fetch(targetScriptUrl, {
             method: 'POST',
-            body: JSON.stringify(payload)
-            // Removed headers to prevent CORS pre-flight (OPTIONS) request
+            body: JSON.stringify(normalizedPayload)
         });
 
         if (!response.ok) throw new Error(`HTTP Error Status: ${response.status}`);
@@ -77,8 +61,6 @@ window.uploadToDrive = async function(paramsOrBase64, categoryParam = 'PROFILES_
             throw new Error("Invalid JSON response from Drive API: " + resultText.substring(0, 50));
         }
 
-        if (!result) throw new Error("Empty response from Drive API");
-
         if (result.status === 'success' || result.fileUrl) {
             return {
                 status: 'success',
@@ -88,11 +70,9 @@ window.uploadToDrive = async function(paramsOrBase64, categoryParam = 'PROFILES_
             };
         }
 
-        // Defensive check for message
-        const errMsg = result.message ? result.message.toString() : 'No Drive URL returned.';
-        throw new Error(errMsg);
+        throw new Error(result.message || 'No Drive URL returned.');
     } catch (error) {
-        console.error('❌ Google Drive Sync Error:', error);
+        console.error("❌ Google Drive Sync Error:", error);
         return { status: 'error', message: error.message };
     }
 };

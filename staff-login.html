@@ -61,19 +61,19 @@
                 <div class="space-y-2">
 
                     <!-- ✅ Asset Transfer - Accessible to ALL ROLES -->
-                    <button type="button" id="menu-asset-transfer" onclick="window.toggleSideMenu(); window.showStaffView('asset-transfer-section'); if(typeof window.initTransferSigPads === 'function') window.initTransferSigPads()" class="menu-item-btn w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold hover:bg-white/10 active:scale-95 transition-all text-white/90 hover:text-white">
+                    <button type="button" id="menu-asset-transfer" onclick="if(typeof window.showStaffView === 'function'){ window.toggleSideMenu(); window.showStaffView('asset-transfer-section'); if(typeof window.initTransferSigPads === 'function') window.initTransferSigPads(); } else { console.error('showStaffView not ready'); }" class="menu-item-btn w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold hover:bg-white/10 active:scale-95 transition-all text-white/90 hover:text-white">
                         <i class="fa-solid fa-truck-ramp-box w-5 text-indigo-400 text-center text-base"></i>
                         <span>Asset Transfer</span>
                     </button>
 
                     <!-- ✅ Asset Audit - Accessible to ALL ROLES -->
-                    <button type="button" id="menu-asset-audit" onclick="window.toggleSideMenu(); window.showStaffView('asset-audit-section')" class="menu-item-btn w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold hover:bg-white/10 active:scale-95 transition-all text-white/90 hover:text-white">
+                    <button type="button" id="menu-asset-audit" onclick="if(typeof window.showStaffView === 'function'){ window.toggleSideMenu(); window.showStaffView('asset-audit-section'); } else { console.error('showStaffView not ready'); }" class="menu-item-btn w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold hover:bg-white/10 active:scale-95 transition-all text-white/90 hover:text-white">
                         <i class="fa-solid fa-barcode w-5 text-indigo-400 text-center text-base"></i>
                         <span>Item Audit</span>
                     </button>
 
                     <!-- ✅ Asset Disposal - Accessible to ALL ROLES -->
-                    <button type="button" id="menu-asset-dispose" onclick="window.toggleSideMenu(); window.showStaffView('asset-disposal-section')" class="menu-item-btn w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold hover:bg-white/10 active:scale-95 transition-all text-white/90 hover:text-white">
+                    <button type="button" id="menu-asset-dispose" onclick="if(typeof window.showStaffView === 'function'){ window.toggleSideMenu(); window.showStaffView('asset-disposal-section'); } else { console.error('showStaffView not ready'); }" class="menu-item-btn w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold hover:bg-white/10 active:scale-95 transition-all text-white/90 hover:text-white">
                         <i class="fa-solid fa-trash-can w-5 text-indigo-400 text-center text-base"></i>
                         <span>Dispose Item</span>
                     </button>
@@ -95,18 +95,18 @@
                         <span>Attendance History</span>
                     </button>
 
-                    <button type="button" id="menu-create-task-btn" onclick="window.toggleSideMenu(); window.showStaffView('tasks-management-section'); if(typeof window.switchTaskTab === 'function') window.switchTaskTab('create')" class="menu-item-btn hidden w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold hover:bg-white/10 active:scale-95 transition-all text-white/90 hover:text-white">
+                    <button type="button" id="menu-create-task-btn" onclick="if(typeof window.showStaffView === 'function'){ window.toggleSideMenu(); window.showStaffView('tasks-management-section'); if(typeof window.switchTaskTab === 'function') window.switchTaskTab('create'); } else { console.error('showStaffView not ready'); }" class="menu-item-btn hidden w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold hover:bg-white/10 active:scale-95 transition-all text-white/90 hover:text-white">
                         <i class="fa-solid fa-plus-circle w-5 text-emerald-400 text-center text-base"></i>
                         <span>Create Task</span>
                     </button>
 
-                    <button type="button" id="menu-tasks-btn" onclick="window.toggleSideMenu(); window.showStaffView('tasks-management-section')" class="menu-item-btn w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold hover:bg-white/10 active:scale-95 transition-all text-white/90 hover:text-white">
+                    <button type="button" id="menu-tasks-btn" onclick="if(typeof window.showStaffView === 'function'){ window.toggleSideMenu(); window.showStaffView('tasks-management-section'); } else { console.error('showStaffView not ready'); }" class="menu-item-btn w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold hover:bg-white/10 active:scale-95 transition-all text-white/90 hover:text-white">
                         <i class="fa-solid fa-list-check w-5 text-indigo-400 text-center text-base"></i>
                         <span>Task History</span>
                     </button>
 
                     <!-- ✅ Document Verification - NEW -->
-                    <button type="button" id="menu-docs-btn" onclick="window.toggleSideMenu(); window.showStaffView('staff-docs-section')" class="menu-item-btn w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold hover:bg-white/10 active:scale-95 transition-all text-white/90 hover:text-white">
+                    <button type="button" id="menu-docs-btn" onclick="if(typeof window.showStaffView === 'function'){ window.toggleSideMenu(); window.showStaffView('staff-docs-section'); } else { console.error('showStaffView not ready'); }" class="menu-item-btn w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold hover:bg-white/10 active:scale-95 transition-all text-white/90 hover:text-white">
                         <i class="fa-solid fa-file-shield w-5 text-emerald-400 text-center text-base"></i>
                         <span>My Documents</span>
                     </button>
@@ -136,7 +136,7 @@
 
 <div class="app-container min-h-screen">
     <!-- STAFF VIEW -->
-    <section id="view-staff" class="view-section active p-4 flex flex-col justify-center min-h-[95vh] sm:min-h-screen">
+    <section id="view-staff" class="view-section active p-0 flex flex-col min-h-screen">
 
         <!-- STAFF LOGIN AREA (UPGRADED v3.6.0 DESKTOP PREMIUM) -->
         <div id="staff-auth-area" class="w-full max-w-md md:max-w-lg mx-auto bg-white text-gray-800 rounded-[2.5rem] shadow-2xl shadow-indigo-500/10 overflow-hidden transition-all duration-300 border border-white/50">
@@ -203,7 +203,7 @@
         </div>
 
         <!-- DASHBOARD AREA -->
-        <div id="staff-dash-area" class="hidden w-full lg:max-w-[95%] mx-auto space-y-6 px-0">
+        <div id="staff-dash-area" class="hidden w-full lg:max-w-[95%] mx-auto space-y-6 px-0 relative z-[100]">
             <!-- TOP NAV -->
             <nav class="top-nav fade-in flex items-center justify-between p-2">
                 <button type="button" onclick="window.toggleSideMenu()" class="nav-pill-purple no-underline border-none !justify-start flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold transition-all active:scale-95">
@@ -432,9 +432,17 @@
                                 <label for="taskRoleSelect" class="text-[9px] font-black text-indigo-500 uppercase ml-2 tracking-wider select-none">Target Department *</label>
                                 <select id="taskRoleSelect" name="role" required class="transfer-input-field w-full py-3 px-4 bg-slate-50 border-2 border-slate-100 rounded-xl text-xs font-semibold text-slate-800 outline-none focus:border-indigo-500 transition-all" onchange="if(typeof window.filterStaffBySchoolAndRole === 'function') window.filterStaffBySchoolAndRole()">
                                     <option value="">Choose Dept</option>
+                                    <option value="Cleaner">Cleaner</option>
                                     <option value="Cleaner Leader">Cleaner Leader</option>
                                     <option value="Technician">Technician</option>
-                                    <option value="Housekeeping">Housekeeping</option>
+                                    <option value="Office Boy">Office Boy</option>
+                                    <option value="Bus Monitor">Bus Monitor</option>
+                                    <option value="Bus Driver">Bus Driver</option>
+                                    <option value="Bus Supervisor">Bus Supervisor</option>
+                                    <option value="Supervisor">Supervisor</option>
+                                    <option value="Gardener">Gardener</option>
+                                    <option value="Security">Security</option>
+                                    <option value="Admin">Admin</option>
                                 </select>
                             </div>
                         </div>
@@ -1587,11 +1595,8 @@
         const style = document.createElement('style');
         style.id = 'force-light-theme-js';
         style.textContent = `
-            #asset-batch-container, .asset-batch-container { background: #ffffff !important; color: #0f172a !important; }
-            .batch-card { background: #f8fafc !important; color: #0f172a !important; border: 1px solid #cbd5e1 !important; }
-            .asset-details-modal .modal-container { background: #ffffff !important; color: #0f172a !important; }
-            .asset-details-modal .modal-body { background: #f8fafc !important; }
-            .detail-item { background: #ffffff !important; border: 1px solid #e2e8f0 !important; }
+            #staff-dash-area { min-height: 500px; width: 100% !important; max-width: 100% !important; margin: 0 !important; padding: 20px !important; }
+            .top-nav { margin-top: 0 !important; }
             @media (prefers-color-scheme: dark) {
                 .asset-batch-container, .batch-card, .modal-container, .modal-body, .detail-item {
                     background-color: white !important; color: #0f172a !important;
@@ -1602,24 +1607,24 @@
     })();
 </script>
 
-<script type="module" src="firebase_config.js?v=5.0"></script>
-<script type="module" src="modules/staff_documents/docs_firebase.js?v=5.0"></script>
-<script type="module" src="modules/staff_documents/docs_ui.js?v=5.0"></script>
-<script type="module" src="field_normalizer.js?v=5.0"></script>
-<script type="module" src="drive_module.js?v=5.0"></script>
-<script src="asset_management.js?v=5.0"></script>
-<script type="module" src="ui_module.js?v=5.0"></script>
-<script type="module" src="import_module.js?v=5.0"></script>
-<script type="module" src="export_module.js?v=5.0"></script>
-<script type="module" src="attendance_module.js?v=5.0"></script>
-<script type="module" src="tasks_module.js?v=5.0"></script>
-<script type="module" src="admin_module.js?v=5.0"></script>
-<script type="module" src="visitor_module.js?v=5.0"></script>
-<script type="module" src="init_module.js?v=5.0"></script>
-<script type="module" src="biometric_module.js?v=5.0"></script>
-<script type="module" src="audit_module.js?v=5.0"></script>
-<script type="module" src="staff_asset_module.js?v=5.0"></script>
-<script type="module" src="contractor_module.js?v=5.0"></script>
+<script type="module" src="firebase_config.js?v=5.4"></script>
+<script type="module" src="modules/staff_documents/docs_firebase.js?v=5.4"></script>
+<script type="module" src="modules/staff_documents/docs_ui.js?v=5.4"></script>
+<script type="module" src="field_normalizer.js?v=5.4"></script>
+<script type="module" src="drive_module.js?v=5.4"></script>
+<script src="asset_management.js?v=5.4"></script>
+<script type="module" src="ui_module.js?v=5.4"></script>
+<script type="module" src="import_module.js?v=5.4"></script>
+<script type="module" src="export_module.js?v=5.4"></script>
+<script type="module" src="attendance_module.js?v=5.4"></script>
+<script type="module" src="tasks_module.js?v=5.4"></script>
+<script type="module" src="admin_module.js?v=5.4"></script>
+<script type="module" src="visitor_module.js?v=5.4"></script>
+<script type="module" src="init_module.js?v=5.4"></script>
+<script type="module" src="biometric_module.js?v=5.4"></script>
+<script type="module" src="audit_module.js?v=5.4"></script>
+<script type="module" src="staff_asset_module.js?v=5.4"></script>
+<script type="module" src="contractor_module.js?v=5.4"></script>
 
 <!-- FORCED GLOBAL SPINNER & OVERRIDE -->
 <style>
@@ -1670,22 +1675,24 @@
     };
     document.addEventListener('submit', function() { window.showGlobalSpinner("Saving Data..."); }, true);
 </script>
-<!-- ✅ ACCOUNT ACTIVATION LOCK OVERLAY (v5.0) -->
-<div id="account-lock-overlay" class="fixed inset-0 bg-slate-900/90 backdrop-blur-xl z-[100008] hidden flex-col items-center justify-center p-6 text-center">
-    <div class="w-24 h-24 bg-amber-500/20 rounded-full flex items-center justify-center mb-6 animate-pulse">
-        <i class="fa-solid fa-user-shield text-4xl text-amber-500"></i>
-    </div>
-    <h2 class="text-2xl font-black text-white uppercase tracking-tight mb-2">Account Pending Activation</h2>
-    <p class="text-slate-400 text-xs max-w-xs mb-8 leading-relaxed">
-        Please submit all required onboarding documents and bio-data details to activate your account. Check-in and Check-out features are locked until complete verification.
-    </p>
-    <div class="flex flex-col w-full max-w-xs gap-3">
-        <button onclick="window.showStaffView('staff-docs-section')" class="w-full py-4 bg-indigo-600 text-white rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl shadow-indigo-500/20 active:scale-95 transition-all">
-            <i class="fa-solid fa-file-upload mr-2"></i> Upload Documents Now
-        </button>
-        <button onclick="window.logoutStaff()" class="w-full py-4 bg-slate-800 text-slate-400 rounded-2xl font-black text-xs uppercase tracking-widest active:scale-95 transition-all">
-            Logout
-        </button>
+<!-- ✅ ACCOUNT ACTIVATION LOCK MODAL (v5.1 - CENTERED) -->
+<div id="account-lock-overlay" class="onboarding-modal-overlay hidden">
+    <div class="onboarding-modal-card bg-white p-8 text-center animate-modal-up">
+        <div class="w-20 h-20 bg-amber-500/10 rounded-full flex items-center justify-center mx-auto mb-6 animate-pulse">
+            <i class="fa-solid fa-user-shield text-3xl text-amber-500"></i>
+        </div>
+        <h2 class="text-xl font-black text-indigo-950 uppercase tracking-tight mb-2">Account Pending Activation</h2>
+        <p class="text-slate-500 text-[10px] font-bold uppercase tracking-widest mb-8 leading-relaxed">
+            Please submit all required onboarding documents and bio-data details to activate your account.
+        </p>
+        <div class="flex flex-col w-full gap-3">
+            <button id="btn_upload_docs_now" class="w-full py-4 bg-indigo-600 text-white rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl shadow-indigo-500/20 active:scale-95 transition-all">
+                <i class="fa-solid fa-file-upload mr-2"></i> Upload Documents Now
+            </button>
+            <button onclick="window.logoutStaff()" class="w-full py-4 bg-slate-100 text-slate-400 rounded-2xl font-black text-xs uppercase tracking-widest active:scale-95 transition-all">
+                Logout
+            </button>
+        </div>
     </div>
 </div>
 

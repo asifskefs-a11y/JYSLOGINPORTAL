@@ -730,9 +730,17 @@
                             <label>Target Department *</label>
                             <select id="taskRoleSelect" required onchange="window.filterStaffBySchoolAndRole()">
                                 <option value="">Choose Dept</option>
+                                <option value="Cleaner">Cleaner</option>
                                 <option value="Cleaner Leader">Cleaner Leader</option>
                                 <option value="Technician">Technician</option>
-                                <option value="Housekeeping">Housekeeping</option>
+                                <option value="Office Boy">Office Boy</option>
+                                <option value="Bus Monitor">Bus Monitor</option>
+                                <option value="Bus Driver">Bus Driver</option>
+                                <option value="Bus Supervisor">Bus Supervisor</option>
+                                <option value="Supervisor">Supervisor</option>
+                                <option value="Gardener">Gardener</option>
+                                <option value="Security">Security</option>
+                                <option value="Admin">Admin</option>
                             </select>
                         </div>
                     </div>
@@ -1769,38 +1777,40 @@
     }
 </script>
 
-<script type="module" src="firebase_config.js?v=5.0"></script>
-<script type="module" src="modules/staff_documents/docs_firebase.js?v=5.0"></script>
-<script type="module" src="modules/staff_documents/docs_ui.js?v=5.0"></script>
-<script type="module" src="field_normalizer.js?v=5.0"></script>
-<script type="module" src="drive_module.js?v=5.0"></script>
-<script type="module" src="ui_module.js?v=5.0"></script>
-<script type="module" src="visitor_module.js?v=5.0"></script>
-<script type="module" src="attendance_module.js?v=5.0"></script>
-<script type="module" src="tasks_module.js?v=5.0"></script>
-<script type="module" src="admin_module.js?v=5.0"></script>
-<script type="module" src="init_module.js?v=5.0"></script>
-<script type="module" src="biometric_module.js?v=5.0"></script>
-<script type="module" src="audit_module.js?v=5.0"></script>
-<script type="module" src="staff_asset_module.js?v=5.0"></script>
-<script src="asset_management.js?v=5.0"></script>
+<script type="module" src="firebase_config.js?v=5.4"></script>
+<script type="module" src="modules/staff_documents/docs_firebase.js?v=5.4"></script>
+<script type="module" src="modules/staff_documents/docs_ui.js?v=5.4"></script>
+<script type="module" src="field_normalizer.js?v=5.4"></script>
+<script type="module" src="drive_module.js?v=5.4"></script>
+<script type="module" src="ui_module.js?v=5.4"></script>
+<script type="module" src="visitor_module.js?v=5.4"></script>
+<script type="module" src="attendance_module.js?v=5.4"></script>
+<script type="module" src="tasks_module.js?v=5.4"></script>
+<script type="module" src="admin_module.js?v=5.4"></script>
+<script type="module" src="init_module.js?v=5.4"></script>
+<script type="module" src="biometric_module.js?v=5.4"></script>
+<script type="module" src="audit_module.js?v=5.4"></script>
+<script type="module" src="staff_asset_module.js?v=5.4"></script>
+<script src="asset_management.js?v=5.4"></script>
 
-<!-- ✅ ACCOUNT ACTIVATION LOCK OVERLAY (v5.0) -->
-<div id="account-lock-overlay" class="fixed inset-0 bg-slate-900/90 backdrop-blur-xl z-[100008] hidden flex-col items-center justify-center p-6 text-center">
-    <div class="w-24 h-24 bg-amber-500/20 rounded-full flex items-center justify-center mb-6 animate-pulse">
-        <i class="fa-solid fa-user-shield text-4xl text-amber-500"></i>
-    </div>
-    <h2 class="text-2xl font-black text-white uppercase tracking-tight mb-2">Account Pending Activation</h2>
-    <p class="text-slate-400 text-xs max-w-xs mb-8 leading-relaxed">
-        Please submit all required onboarding documents and bio-data details to activate your account. Check-in and Check-out features are locked until complete verification.
-    </p>
-    <div class="flex flex-col w-full max-w-xs gap-3">
-        <button onclick="window.showStaffView('staff-docs-section')" class="w-full py-4 bg-indigo-600 text-white rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl shadow-indigo-500/20 active:scale-95 transition-all">
-            <i class="fa-solid fa-file-upload mr-2"></i> Upload Documents Now
-        </button>
-        <button onclick="window.logoutStaff()" class="w-full py-4 bg-slate-800 text-slate-400 rounded-2xl font-black text-xs uppercase tracking-widest active:scale-95 transition-all">
-            Logout
-        </button>
+<!-- ✅ ACCOUNT ACTIVATION LOCK MODAL (v5.1 - CENTERED) -->
+<div id="account-lock-overlay" class="onboarding-modal-overlay hidden">
+    <div class="onboarding-modal-card bg-white p-8 text-center animate-modal-up">
+        <div class="w-20 h-20 bg-amber-500/10 rounded-full flex items-center justify-center mx-auto mb-6 animate-pulse">
+            <i class="fa-solid fa-user-shield text-3xl text-amber-500"></i>
+        </div>
+        <h2 class="text-xl font-black text-indigo-950 uppercase tracking-tight mb-2">Account Pending Activation</h2>
+        <p class="text-slate-500 text-[10px] font-bold uppercase tracking-widest mb-8 leading-relaxed">
+            Please submit all required onboarding documents and bio-data details to activate your account.
+        </p>
+        <div class="flex flex-col w-full gap-3">
+            <button id="btn_upload_docs_now" class="w-full py-4 bg-indigo-600 text-white rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl shadow-indigo-500/20 active:scale-95 transition-all">
+                <i class="fa-solid fa-file-upload mr-2"></i> Upload Documents Now
+            </button>
+            <button onclick="window.logoutStaff()" class="w-full py-4 bg-slate-100 text-slate-400 rounded-2xl font-black text-xs uppercase tracking-widest active:scale-95 transition-all">
+                Logout
+            </button>
+        </div>
     </div>
 </div>
 

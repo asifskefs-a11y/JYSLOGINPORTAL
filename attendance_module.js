@@ -869,6 +869,16 @@ window.initSecurityCheckInButton = function() {
             return;
         }
 
+        // ✅ MANDATED FIX: Soft Lock for Inactive Accounts
+        if (staff.isAccountActive === false) {
+            if (window.showWhatsAppToast) {
+                window.showWhatsAppToast("🔒 Access Restricted", "You need to upload your required documents before you can Check-In.", "error");
+            } else {
+                alert("🔒 Access Restricted! You need to upload your required documents before you can Check-In.");
+            }
+            return;
+        }
+
         console.log("👆 Check-In Button Pressed for:", staff.fullName || staff.name);
         window.handleStaffCheckIn(staff, newBtn);
     });
@@ -910,6 +920,16 @@ window.initSecurityCheckOutButton = function(staff, session) {
             return;
         }
 
+        // ✅ MANDATED FIX: Soft Lock for Inactive Accounts
+        if (activeStaff.isAccountActive === false) {
+            if (window.showWhatsAppToast) {
+                window.showWhatsAppToast("🔒 Access Restricted", "You need to upload your required documents before you can Check-Out.", "error");
+            } else {
+                alert("🔒 Access Restricted! You need to upload your required documents before you can Check-Out.");
+            }
+            return;
+        }
+
         const isSecurity = (activeStaff.role || '').toLowerCase().includes('security');
 
         if (isSecurity) {
@@ -943,6 +963,11 @@ window.initUserDashboard = async (staff) => {
     // ✅ Sync Dashboard Header Data
     if (typeof window.renderDashboardProfile === 'function') {
         window.renderDashboardProfile(staff);
+    }
+
+    // ✅ SYNC MASTER ROLES TO DROPDOWNS (v5.5)
+    if (window.syncRoleDropdown) {
+        window.syncRoleDropdown('taskRoleSelect', 'Choose Dept');
     }
 
     // ✅ MANDATED FIX: Real-time Account Activation Observer (v5.0)

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'jys-portal-v4.0';
+const CACHE_NAME = 'jys-portal-v5.3';
 const ASSETS_TO_CACHE = [
     './',
     './index.html',
@@ -74,8 +74,22 @@ self.addEventListener('fetch', (event) => {
 
     event.respondWith(
         caches.match(event.request).then((cachedResponse) => {
-            const fetchPromise = fetch(event.request).then((networkResponse) => {
-                // Update cache with new response
+            // Return cached version immediately if found
+            if (cachedResponse) {
+                // Background update cache if online
+                if (navigator.onLine) {
+                    fetch(event.request).then((networkResponse) => {
+                        if (networkResponse && networkResponse.status === 200) {
+                            const responseToCache = networkResponse.clone();
+                            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, responseToCache));
+                        }
+                    }).catch(() => {});
+                }
+                return cachedResponse;
+            }
+
+            // Otherwise fetch from network
+            return fetch(event.request).then((networkResponse) => {
                 if (networkResponse && networkResponse.status === 200) {
                     const responseToCache = networkResponse.clone();
                     caches.open(CACHE_NAME).then((cache) => {
@@ -84,9 +98,6 @@ self.addEventListener('fetch', (event) => {
                 }
                 return networkResponse;
             });
-
-            // Return cached response if available, else wait for network
-            return cachedResponse || fetchPromise;
         }).catch(() => {
             // Offline fallback for HTML pages
             if (event.request.mode === 'navigate') {
