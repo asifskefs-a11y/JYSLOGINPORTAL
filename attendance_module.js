@@ -977,8 +977,12 @@ window.initUserDashboard = async (staff) => {
         onValue(staffRef, (snap) => {
             if (snap.exists()) {
                 const updatedStaff = snap.val();
-                window.currentStaff = { ...updatedStaff, firebaseKey: staffNodeKey };
+
+                // ✅ CRITICAL: Deep merge to preserve Firebase metadata
+                window.currentStaff = { ...window.currentStaff, ...updatedStaff, firebaseKey: staffNodeKey };
                 sessionStorage.setItem('active_staff_user', JSON.stringify(window.currentStaff));
+
+                console.log(`📡 Real-time Staff Update for [${staffNodeKey}]: Active=${window.currentStaff.isAccountActive}, Submitted=${window.currentStaff.isProfileSubmitted}`);
 
                 // Update UI based on account status
                 if (window.updateAccountActivationUI) {

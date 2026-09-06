@@ -795,8 +795,12 @@ window.submitBioData = async function() {
         if (window.updateStaffBioData) {
             await window.updateStaffBioData(staffKey, bioData);
         } else {
-            // Fallback: If no helper, we might need to import or use a generic one
             console.error("updateStaffBioData not found");
+        }
+
+        // Auto-refresh Dashboard UI to hide modal/banner
+        if (window.updateAccountActivationUI) {
+            window.updateAccountActivationUI(staffData.isAccountActive);
         }
 
         if (window.showWhatsAppToast) window.showWhatsAppToast("✅ Details Updated", "Your personal information has been saved.", "success");

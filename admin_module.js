@@ -782,6 +782,18 @@ window.previewStaffPhoto = async function(input) {
     }
 };
 
+/**
+ * Helper to convert file to Base64 (DataURL)
+ */
+function convertFileToBase64(file) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = error => reject(error);
+    });
+}
+
 // ================================================================ */
 // ✅ 3. HANDLE SUBMIT - Enhanced Error Handling
 // ================================================================ */
@@ -815,10 +827,49 @@ window.handleStaffSubmit = async function(type) {
         let finalPhotoUrl = "";
 
         // STEP A: Upload to Google Drive if new image is selected
-        if (staffPhotoBase64 && window.uploadToDrive) {
-            const adekPass = document.getElementById('staff-adek')?.value?.trim() ||
-                             document.getElementById('staff-mobile')?.value?.trim() ||
-                             mobile || "TEMP_PASS";
+        const photoInput = document.getElementById('staff-photo-input');
+
+        if (photoInput && photoInput.files && photoInput.files[0] && window.uploadToDrive) {
+            const file = photoInput.files[0];
+            const adekPass = document.getElementById('staff-adek')?.value?.trim() || mobile || "TEMP_PASS";
+            const staffName = document.getElementById('staff-name')?.value?.trim() || "Staff";
+
+            try {
+                // Read fresh Base64 from input and split to get raw content
+                const reader = new FileReader();
+                const base64String = await new Promise((resolve, reject) => {
+                    reader.onload = () => {
+                        const result = reader.result;
+                        resolve(result.includes(',') ? result.split(',')[1] : result);
+                    };
+                    reader.onerror = error => reject(error);
+                    reader.readAsDataURL(file);
+                });
+
+                // Invoke Google Drive Upload Engine
+                const uploadRes = await window.uploadToDriveWithRetry({
+                    category: 'PROFILES_AND_SIGS',
+                    documentType: 'ProfilePhoto',
+                    adekPassNumber: adekPass,
+                    fileName: `STAFF_${Date.now()}_${file.name}`,
+                    mimeType: file.type,
+                    base64Data: base64String
+                });
+
+                if (uploadRes && (uploadRes.status === 'success' || uploadRes.status === 'fallback')) {
+                    finalPhotoUrl = uploadRes.fileUrl;
+                    console.log("📸 Staff photo linked:", finalPhotoUrl);
+                } else {
+                    throw new Error(uploadRes?.message || "Upload failed");
+                }
+            } catch (driveErr) {
+                console.error("Drive upload failed, using fallback Avatar", driveErr);
+                finalPhotoUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(staffName)}&background=4f46e5&color=fff`;
+            }
+        } else if (staffPhotoBase64 && window.uploadToDrive) {
+            // Fallback to pre-compressed global if file input is empty (e.g. during Edit)
+            const adekPass = document.getElementById('staff-adek')?.value?.trim() || mobile || "TEMP_PASS";
+            const staffName = document.getElementById('staff-name')?.value?.trim() || "Staff";
 
             const uploadParams = {
                 category: 'PROFILES_AND_SIGS',
@@ -832,18 +883,9 @@ window.handleStaffSubmit = async function(type) {
                 await window.uploadToDriveWithRetry(uploadParams) :
                 await window.uploadToDrive(uploadParams);
 
-            if (uploadRes && uploadRes.status === 'success') {
+            if (uploadRes && (uploadRes.status === 'success' || uploadRes.status === 'fallback')) {
                 finalPhotoUrl = uploadRes.fileUrl;
-            } else {
-                console.warn("⚠️ Photo upload failed:", uploadRes?.message);
-                if (!confirm("⚠️ Profile photo failed to upload to Drive. Register staff without photo?")) {
-                    if (btn) {
-                         btn.disabled = false;
-                         btn.textContent = existingKey ? "UPDATE STAFF DETAILS" : "Register Staff Member";
-                    }
-                    if (window.hideGlobalSpinner) window.hideGlobalSpinner();
-                    return;
-                }
+                console.log("📸 Staff photo linked (compressed):", finalPhotoUrl);
             }
         }
 

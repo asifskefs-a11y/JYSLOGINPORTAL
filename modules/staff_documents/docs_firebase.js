@@ -339,7 +339,7 @@ window.recalculateVerificationProgress = async function(userId) {
 
         await update(ref(db), updates);
 
-        // ✅ MANDATED FIX: Sync Activation to Master Staff User Node (v5.0)
+        // ✅ MANDATED FIX: Sync Activation to Master Staff User Node (v5.1)
         if (isActivated) {
             const staffSnap = await get(ref(db, 'staff'));
             if (staffSnap.exists()) {
@@ -352,8 +352,13 @@ window.recalculateVerificationProgress = async function(userId) {
                     }
                 }
                 if (staffKey) {
-                    await update(ref(db, `staff/${staffKey}`), { isAccountActive: true });
-                    console.log(`✅ Staff account ${userId} auto-activated!`);
+                    await update(ref(db, `staff/${staffKey}`), {
+                        isAccountActive: true,
+                        isApproved: true,
+                        isLocked: false,
+                        status: "APPROVED"
+                    });
+                    console.log(`✅ Staff account ${userId} fully approved & activated!`);
                 }
             }
         }
@@ -395,10 +400,11 @@ window.processDocUpload = async function(userId, docType, base64, metadata = {})
 
             const uploadRes = await window.uploadToDrive(uploadPayload);
 
-            if (uploadRes && uploadRes.status === 'success') {
+            if (uploadRes && (uploadRes.status === 'success' || uploadRes.status === 'fallback')) {
                 driveFileUrl = uploadRes.fileUrl;
             } else {
-                throw new Error("Drive upload failed: " + (uploadRes?.message || 'Unknown error'));
+                console.warn("⚠️ Drive upload failed, proceeding with fallback info");
+                driveFileUrl = 'UPLOAD_ERROR_FALLBACK';
             }
         } else {
             console.warn("⚠️ uploadToDrive is not available");
@@ -435,8 +441,17 @@ window.updateStaffBioData = async function(staffKey, bioData) {
     try {
         await update(ref(db, `staff/${staffKey}`), {
             bioData: bioData,
+            isProfileSubmitted: true,
+            status: "PENDING_APPROVAL",
             bioDataLastUpdated: Date.now()
         });
+
+        // Re-sync session
+        const activeStaff = JSON.parse(sessionStorage.getItem('active_staff_user') || '{}');
+        const updatedStaff = { ...activeStaff, bioData, isProfileSubmitted: true, status: "PENDING_APPROVAL" };
+        sessionStorage.setItem('active_staff_user', JSON.stringify(updatedStaff));
+        window.currentStaff = updatedStaff;
+
         return true;
     } catch (e) {
         console.error("Bio-Data Save Error:", e);

@@ -913,11 +913,18 @@ window.updateAccountActivationUI = function(isActive) {
     const overlay = document.getElementById('account-lock-overlay');
     const badge = document.getElementById('account-status-badge');
 
+    // Get current staff data for deep check
+    const staff = window.currentStaff || JSON.parse(sessionStorage.getItem('active_staff_user') || '{}');
+
+    // Unified Logic for unlocking
+    const isActuallyApproved = (isActive === true || staff.isApproved === true || staff.documentsApproved === true || staff.status === "APPROVED");
+    const canUnlock = isActuallyApproved && staff.isProfileSubmitted === true;
+
     // UI Elements for status color mapping
     const colorActive = '#10B981';
     const colorInactive = '#EF4444';
 
-    if (isActive === true) {
+    if (canUnlock) {
         if (banner) banner.classList.add('hidden');
         if (overlay) overlay.classList.add('hidden');
         if (badge) {
@@ -932,9 +939,13 @@ window.updateAccountActivationUI = function(isActive) {
             banner.style.backgroundColor = colorInactive;
         }
         if (overlay) {
-            overlay.classList.remove('hidden');
-            // Ensure overlay is a centered modal, not full-screen block
-            overlay.className = 'onboarding-modal-overlay';
+            // ONLY show modal if profile is NOT submitted yet
+            if (staff.isProfileSubmitted !== true) {
+                overlay.classList.remove('hidden');
+                overlay.className = 'onboarding-modal-overlay';
+            } else {
+                overlay.classList.add('hidden');
+            }
         }
         if (badge) {
             badge.innerText = "Inactive";

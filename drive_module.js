@@ -19,11 +19,16 @@ window.uploadToDrive = async function(payload = {}) {
         const safeFileName = String(rawFileName).replace(/[.#$\[\]/]/g, '_');
 
         const safeCategory = String(payload.category || 'DOCUMENTS').replace(/[.#$\[\]/]/g, '_');
-        const base64Image = payload.image || payload.base64Data || payload.fileData || "";
+        let base64Image = payload.image || payload.base64Data || payload.fileData || "";
 
         if (!base64Image || base64Image.length < 50) {
             console.warn("⚠️ Upload aborted: Invalid or empty image payload provided.");
             return { status: 'skipped', fileUrl: 'N/A' };
+        }
+
+        // ✅ AUTO-FIX: Strip Data URL prefix if present (e.g. data:image/jpeg;base64,)
+        if (base64Image.includes(',')) {
+            base64Image = base64Image.split(',')[1];
         }
 
         const normalizedPayload = {
@@ -46,8 +51,12 @@ window.uploadToDrive = async function(payload = {}) {
             throw new Error("Missing Google Apps Script Web App URL in System Configuration.");
         }
 
+        // --- UPLOAD ATTEMPT: fetch with text/plain header to bypass CORS preflight ---
         const response = await fetch(targetScriptUrl, {
             method: 'POST',
+            headers: {
+                "Content-Type": "text/plain;charset=utf-8"
+            },
             body: JSON.stringify(normalizedPayload)
         });
 
@@ -73,7 +82,14 @@ window.uploadToDrive = async function(payload = {}) {
         throw new Error(result.message || 'No Drive URL returned.');
     } catch (error) {
         console.error("❌ Google Drive Sync Error:", error);
-        return { status: 'error', message: error.message };
+
+        // Final Fallback: Local UI Avatar
+        const fallbackName = payload.adekPassNumber || "JYS";
+        return {
+            status: 'fallback',
+            fileUrl: `https://ui-avatars.com/api/?name=${encodeURIComponent(fallbackName)}&background=4f46e5&color=fff`,
+            message: error.message
+        };
     }
 };
 

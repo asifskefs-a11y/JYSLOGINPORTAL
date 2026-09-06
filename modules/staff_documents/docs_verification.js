@@ -55,7 +55,21 @@ window.openStaffDocumentReviewModal = async function(staffMobile) {
             const allStaff = staffSnap.val();
             const staffUser = Object.values(allStaff).find(u => u.adekPass === staffMobile || u.mobile === staffMobile);
 
-            if (staffUser && (staffUser.bioData || staffUser.mobile)) {
+            if (staffUser) {
+                const bio = staffUser.bioData || {};
+                const fields = [
+                    { label: 'Full Name', val: staffUser.fullName || staffUser.name },
+                    { label: 'Staff ID', val: staffUser.adekPass || staffUser.mobile },
+                    { label: 'Company ID', val: staffUser.companyId || 'N/A' },
+                    { label: 'Email Address', val: bio.email || 'N/A' },
+                    { label: 'UAE Mobile', val: bio.phone || staffUser.mobile || 'N/A' },
+                    { label: 'Religion', val: bio.religion || 'N/A' },
+                    { label: 'Marital Status', val: bio.marital_status || 'N/A' },
+                    { label: 'Passport Issue Place', val: bio.passport_issue_place || 'N/A' },
+                    { label: 'Home Country Address', val: bio.home_country_address || 'N/A' },
+                    { label: 'UAE Address', val: bio.uae_full_address || 'N/A' }
+                ];
+
                 bioDataHtml = `
                     <div class="mb-8 p-6 bg-white rounded-[2rem] border border-slate-100 shadow-xl overflow-hidden relative group">
                         <div class="absolute top-0 left-0 w-2 h-full bg-indigo-600"></div>
@@ -63,28 +77,20 @@ window.openStaffDocumentReviewModal = async function(staffMobile) {
                             <i class="fa-solid fa-address-card text-indigo-500"></i> Staff Bio-Data Profile
                         </h4>
                         <div class="grid grid-cols-1 sm:grid-cols-2 gap-y-4 gap-x-6">
-                            <div class="flex flex-col border-b border-slate-50 pb-2">
-                                <span class="text-[8px] font-black text-slate-400 uppercase tracking-widest">Full Name</span>
-                                <span class="text-[11px] font-bold text-slate-800 uppercase">${staffUser.fullName || staffUser.name || '-'}</span>
-                            </div>
-                            <div class="flex flex-col border-b border-slate-50 pb-2">
-                                <span class="text-[8px] font-black text-slate-400 uppercase tracking-widest">Staff ID / Pass</span>
-                                <span class="text-[11px] font-bold text-indigo-600 font-mono">${staffUser.adekPass || staffUser.mobile || '-'}</span>
-                            </div>
-                            <div class="flex flex-col border-b border-slate-50 pb-2">
-                                <span class="text-[8px] font-black text-slate-400 uppercase tracking-widest">Mobile Number</span>
-                                <span class="text-[11px] font-bold text-slate-800">${staffUser.mobile || '-'}</span>
-                            </div>
-                            <div class="flex flex-col border-b border-slate-50 pb-2">
-                                <span class="text-[8px] font-black text-slate-400 uppercase tracking-widest">Designation / Role</span>
-                                <span class="text-[11px] font-bold text-amber-600 uppercase tracking-tighter">${staffUser.role || staffUser.position || '-'}</span>
-                            </div>
-                            ${staffUser.bioData ? Object.entries(staffUser.bioData).map(([key, val]) => `
+                            ${fields.map(f => `
+                                <div class="flex flex-col border-b border-slate-50 pb-2">
+                                    <span class="text-[8px] font-black text-slate-400 uppercase tracking-widest">${f.label}</span>
+                                    <span class="text-[11px] font-bold text-slate-800 uppercase">${f.val || 'Not Provided'}</span>
+                                </div>
+                            `).join('')}
+
+                            <!-- Custom Fields if any -->
+                            ${Object.entries(bio).filter(([k]) => !fields.find(f => f.label.toLowerCase().includes(k.replace(/_/g,' ').toLowerCase()))).map(([key, val]) => `
                                 <div class="flex flex-col border-b border-slate-50 pb-2">
                                     <span class="text-[8px] font-black text-slate-400 uppercase tracking-widest">${BIO_DATA_TITLE_MAP[key] || key.replace(/_/g, ' ').toUpperCase()}</span>
-                                    <span class="text-[11px] font-bold text-slate-800">${val || '-'}</span>
+                                    <span class="text-[11px] font-bold text-slate-800 uppercase">${val || 'Not Provided'}</span>
                                 </div>
-                            `).join('') : ''}
+                            `).join('')}
                         </div>
                     </div>
                 `;
