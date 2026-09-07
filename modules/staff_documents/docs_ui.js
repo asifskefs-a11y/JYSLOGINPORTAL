@@ -373,12 +373,6 @@ window.executeFinalDocUpload = async function() {
 };
 
 /**
- * ✅ Compress image file
- */
-    });
-};
-
-/**
  * ✅ [DEPRECATED] Internal compressImageFile removed.
  * Using window.compressImageFile from ui_module.js for consistency.
  */
@@ -391,13 +385,19 @@ window.renderStaffDocsModule = function(container, requirements, staffDocs, prog
     const requirementKeys = Object.keys(requirements || {});
 
     if (requirementKeys.length === 0) {
-        // ✅ Show empty state
+        // ✅ Show empty state with URGENT action
         container.innerHTML = `
-            <div class="doc-empty-state text-center p-8 bg-white rounded-3xl border-2 border-dashed border-slate-200">
-                <i class="fas fa-check-circle text-4xl text-emerald-500 mb-4"></i>
-                <h3 class="text-xl font-black text-indigo-900 uppercase">No Documents Required</h3>
-                <p class="text-sm text-slate-500 mt-2 font-medium">Your role "${container.dataset.role || 'Staff'}" does not require any documents.</p>
-                <p class="text-[10px] text-slate-400 mt-4 uppercase font-bold tracking-widest">You can access all features without document verification.</p>
+            <div class="doc-empty-state text-center p-12 bg-white rounded-[2.5rem] border-2 border-dashed border-slate-200 shadow-inner">
+                <div class="w-20 h-20 bg-amber-50 rounded-full flex items-center justify-center mx-auto mb-6">
+                    <i class="fa-solid fa-file-circle-exclamation text-4xl text-amber-500"></i>
+                </div>
+                <h3 class="text-xl font-black text-indigo-900 uppercase tracking-tight">No Requirements Assigned</h3>
+                <p class="text-xs text-slate-500 mt-3 font-bold uppercase tracking-wider leading-relaxed">Admin has not assigned any specific documents to your account yet.</p>
+                <div class="mt-8 pt-8 border-t border-slate-50">
+                    <button onclick="window.initStaffDocsModule()" class="px-8 py-3 bg-indigo-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest active:scale-95 transition-all shadow-lg shadow-indigo-500/20">
+                        <i class="fa-solid fa-sync mr-1"></i> Refresh Dashboard
+                    </button>
+                </div>
             </div>
         `;
         return;
@@ -569,11 +569,13 @@ window.initStaffDocsModule = async function(containerId = 'staff-docs-container'
         }
 
         // ✅ STEP 1: Get requirements (Prioritizing Individual Node)
-        console.log(`🔍 Fetching requirements for: ${userId} (${role})`);
-        const { requirements, bioRequirements } = await window.getStaffOnboardingRequirements(userId, role);
+        console.log(`🔍 [InitDocs] Fetching requirements for: ${userId} (${role})`);
+        const result = await window.getStaffOnboardingRequirements(userId, role);
+        const requirements = result.requirements || {};
+        const bioRequirements = result.bioRequirements || [];
 
         // ✅ STEP 2: Get staff uploaded documents & data
-        console.log(`🔍 Fetching staff data for: ${userId}`);
+        console.log(`🔍 [InitDocs] Fetching current uploads for: ${userId}`);
         const docData = await window.getStaffDocuments(userId);
         const staffDocs = docData.docs || {};
         const progress = docData.verificationProgress || "0%";
@@ -583,11 +585,28 @@ window.initStaffDocsModule = async function(containerId = 'staff-docs-container'
         container.dataset.role = role;
 
         // ✅ STEP 3: Render documents
-        window.renderStaffDocsModule(container, requirements, staffDocs, progress, isActivated);
+        console.log(`🏗️ [InitDocs] Rendering ${Object.keys(requirements).length} cards in container...`);
+        if (container) {
+            container.style.display = 'block'; // Ensure container itself is visible
+            container.style.opacity = '1';
+
+            try {
+                window.renderStaffDocsModule(container, requirements, staffDocs, progress, isActivated);
+                console.log("✅ [InitDocs] renderStaffDocsModule executed successfully");
+            } catch (renderErr) {
+                console.error("❌ [InitDocs] renderStaffDocsModule CRASHED:", renderErr);
+                container.innerHTML = `<div class="p-4 text-red-500 font-bold">Rendering Error: ${renderErr.message}</div>`;
+            }
+        }
 
         // ✅ STEP 4: Render Bio-Data Form (v5.0)
         if (bioRequirements && bioRequirements.length > 0) {
+            console.log(`🏗️ [InitDocs] Rendering Bio-Data form with ${bioRequirements.length} fields`);
             window.renderBioDataForm(bioRequirements, staffData.bioData || {});
+        } else {
+            console.log(`ℹ️ [InitDocs] No bio-data requirements found for this staff member`);
+            const bioContainer = document.getElementById('staff-biodata-container');
+            if (bioContainer) bioContainer.classList.add('hidden');
         }
 
         // ✅ STEP 5: Check for Document Expiries (Task 2)
@@ -611,10 +630,11 @@ window.initStaffDocsModule = async function(containerId = 'staff-docs-container'
                 dashStatus.className = "text-[9px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded uppercase tracking-tighter";
             } else {
                 dashStatus.innerText = "Pending Verification";
+                dashStatus.className = "text-[9px] font-bold text-amber-600 bg-amber-50 px-2 py-0.5 rounded uppercase tracking-tighter";
             }
         }
 
-        console.log(`✅ Documents loaded: ${Object.keys(requirements).length} requirements, ${Object.keys(staffDocs).length} uploaded`);
+        console.log(`✅ [InitDocs] Module fully initialized.`);
 
     } catch (error) {
         console.error("❌ Init error:", error);
@@ -706,44 +726,57 @@ window.renderBioDataForm = function(requirements, existingData) {
     const container = document.getElementById('staff-biodata-container');
     const form = document.getElementById('staff-biodata-form');
     const submitBtn = document.getElementById('bio-submit-btn');
-    const staffData = window.currentStaff || JSON.parse(sessionStorage.getItem('active_staff_user') || '{}');
+
+    // Always read latest from session to catch real-time submissions
+    const sessionStaff = JSON.parse(sessionStorage.getItem('active_staff_user') || '{}');
+    const staffData = window.currentStaff || sessionStaff;
+    const bioValues = staffData.bioData || existingData || {};
 
     if (!container || !form) return;
 
     container.classList.remove('hidden');
 
-    if (staffData.isProfileSubmitted) {
+    if (staffData.isProfileSubmitted === true || staffData.status === "PENDING_APPROVAL" || staffData.status === "APPROVED") {
         // ✅ RENDER VIEW MODE (Convert Form to Static Card)
+        console.log("🔒 Staff Bio-Data: Rendering in LOCKED View Mode");
         form.classList.remove('grid-cols-1', 'sm:grid-cols-2');
         form.classList.add('flex', 'flex-col');
         form.innerHTML = `
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4 w-full">
                 ${requirements.map(req => `
                     <div class="flex flex-col border-b border-indigo-100/50 pb-2">
                         <span class="text-[8px] font-black text-indigo-400 uppercase tracking-widest">${req.name}</span>
-                        <span class="text-[11px] font-bold text-indigo-950 uppercase">${existingData[req.id] || 'N/A'}</span>
+                        <span class="text-[11px] font-bold text-indigo-950 uppercase">${bioValues[req.id] || 'N/A'}</span>
                     </div>
                 `).join('')}
             </div>
         `;
         if (submitBtn) {
             submitBtn.innerHTML = '<i class="fa-solid fa-user-check"></i> PROFILE SUBMITTED';
-            submitBtn.classList.remove('bg-indigo-600');
-            submitBtn.classList.add('bg-emerald-500', 'cursor-not-allowed');
+            submitBtn.className = "w-full py-4 bg-emerald-500 text-white rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl transition-all cursor-not-allowed opacity-90";
             submitBtn.disabled = true;
             submitBtn.onclick = null;
         }
     } else {
         // ✅ RENDER EDIT MODE
+        console.log("✏️ Staff Bio-Data: Rendering in EDIT Mode");
+        form.classList.add('grid-cols-1', 'sm:grid-cols-2');
         form.innerHTML = requirements.map(req => `
             <div class="space-y-1">
                 <label class="text-[9px] font-black text-indigo-500 uppercase ml-2 tracking-wider">${req.name} ${req.mandatory ? '<span class="text-red-500">*</span>' : ''}</label>
-                <input type="text" name="${req.id}" value="${existingData[req.id] || ''}"
+                <input type="text" name="${req.id}" value="${bioValues[req.id] || ''}"
                        placeholder="Enter ${req.name.toLowerCase()}"
                        ${req.mandatory ? 'required' : ''}
                        class="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-700 outline-none focus:border-indigo-500 transition-all shadow-sm">
             </div>
         `).join('');
+
+        if (submitBtn) {
+            submitBtn.innerHTML = 'Update Personal Details';
+            submitBtn.className = "w-full py-4 bg-indigo-600 text-white rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl shadow-indigo-500/20 active:scale-95 transition-all";
+            submitBtn.disabled = false;
+            submitBtn.onclick = window.submitBioData;
+        }
     }
 };
 
@@ -789,22 +822,28 @@ window.submitBioData = async function() {
 
         // I'll check docs_firebase.js for a generic update function.
         if (window.updateStaffBioData) {
-            await window.updateStaffBioData(staffKey, bioData);
+            const success = await window.updateStaffBioData(staffKey, bioData);
+            if (success) {
+                 // Force Update local state for immediate re-render
+                 window.currentStaff.isProfileSubmitted = true;
+                 window.currentStaff.bioData = bioData;
+                 sessionStorage.setItem('active_staff_user', JSON.stringify(window.currentStaff));
+            }
         } else {
             console.error("updateStaffBioData not found");
         }
 
-        // Auto-refresh Dashboard UI to hide modal/banner
-        if (window.updateAccountActivationUI) {
-            window.updateAccountActivationUI(staffData.isAccountActive);
-        }
-
-        // ✅ REFRESH MODAL TO SHOW VIEW MODE
+        // ✅ MANDATED FIX: Instant UI State Switch (Form to Card)
         if (window.initStaffDocsModule) {
             await window.initStaffDocsModule('staff-docs-container');
         }
 
-        if (window.showWhatsAppToast) window.showWhatsAppToast("✅ Details Updated", "Your personal information has been saved.", "success");
+        // Auto-refresh Dashboard UI to hide modal/banner
+        if (window.updateAccountActivationUI) {
+            window.updateAccountActivationUI(window.currentStaff.isAccountActive);
+        }
+
+        if (window.showWhatsAppToast) window.showWhatsAppToast("✅ Details Updated", "Your personal information has been saved and locked for review.", "success");
 
     } catch (e) {
         alert("❌ Error: " + e.message);

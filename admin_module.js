@@ -218,10 +218,20 @@ window.initAdminRealTimeListeners = function() {
     console.log("📡 Initializing Admin Real-Time Firebase Observers...");
 
     const registerListener = (node, cacheKey, tabId = null, filterFunc = null) => {
+        // ✅ DEBOUNCED RENDERER: Prevents rapid re-renders on bulk Firebase updates
+        const debouncedRender = window.debounce(() => {
+            window.updateAdminKPIs();
+            const activeTab = document.querySelector('.tab-section.active')?.id;
+            if (activeTab === tabId && filterFunc) {
+                filterFunc();
+            } else if (activeTab === tabId) {
+                window.renderTabFromAppCache(tabId);
+            }
+        }, 150);
+
         activeListeners[node] = onValue(ref(db, node), (snapshot) => {
             if (snapshot.exists()) {
                 const rawData = snapshot.val();
-                // ✅ Convert to array while PRESERVING Firebase keys for isolation and editing
                 if (rawData && typeof rawData === 'object') {
                     window.appCache[cacheKey] = Object.entries(rawData).map(([key, val]) => {
                         if (val && typeof val === 'object') {
@@ -235,16 +245,7 @@ window.initAdminRealTimeListeners = function() {
             } else {
                 window.appCache[cacheKey] = [];
             }
-
-            window.updateAdminKPIs();
-
-            // Auto-refresh visible tab if it matches
-            const activeTab = document.querySelector('.tab-section.active')?.id;
-            if (activeTab === tabId && filterFunc) {
-                filterFunc();
-            } else if (activeTab === tabId) {
-                window.renderTabFromAppCache(tabId);
-            }
+            debouncedRender();
         });
     };
 

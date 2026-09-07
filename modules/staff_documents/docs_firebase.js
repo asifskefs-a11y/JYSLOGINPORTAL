@@ -85,6 +85,13 @@ window.saveRoleRequirements = async function(roleId, selectedDocs) {
  * ✅ Default requirements for roles
  */
 function getDefaultRequirements(role) {
+    const DEFAULT_REQUIRED_DOCUMENTS = {
+        'EMIRATES_ID': { name: "Emirates ID (Front & Back)", mandatory: true, icon: 'fa-id-card' },
+        'PASSPORT': { name: "Passport Copy", mandatory: true, icon: 'fa-passport' },
+        'VISA_COPY': { name: "UAE Residence Visa / Entry Permit", mandatory: true, icon: 'fa-stamp' },
+        'LABOUR_CARD': { name: "Work Permit / Labor Card", mandatory: false, icon: 'fa-address-card' }
+    };
+
     const defaults = {
         'Security': {
             'EMIRATES_ID': { name: 'EMIRATES_ID', mandatory: true },
@@ -142,12 +149,22 @@ function getDefaultRequirements(role) {
         }
     };
 
-    // ✅ Find matching role (case-insensitive)
-    const roleKey = Object.keys(defaults).find(key =>
-        key.toLowerCase() === (role || '').toLowerCase()
-    );
+    // ✅ Normalization for fuzzy mapping
+    const formattedRole = (role || '').toString().trim().toLowerCase();
 
-    return roleKey ? defaults[roleKey] : {};
+    // 1. Check exact defined roles
+    const roleKey = Object.keys(defaults).find(key =>
+        key.toLowerCase() === formattedRole
+    );
+    if (roleKey) return defaults[roleKey];
+
+    // 2. Fuzzy mapping for sub-roles
+    if (formattedRole.includes('cleaner')) return defaults['Cleaner'];
+    if (formattedRole.includes('bus')) return defaults['Bus Monitor']; // Default for any bus staff
+    if (formattedRole.includes('supervisor')) return defaults['Supervisor'];
+
+    // 3. Catch-all fallback
+    return DEFAULT_REQUIRED_DOCUMENTS;
 }
 
 /**
@@ -155,51 +172,77 @@ function getDefaultRequirements(role) {
  */
 window.getStaffOnboardingRequirements = async function(userId, role) {
     try {
-        // 1. Fetch direct document node first (Individual Override)
-        const docRef = ref(db, `staff_documents/${userId}`);
-        const docSnap = await get(docRef);
+        console.log(`🔍 [Onboarding] Resolving requirements for: ${userId} (${role})`);
 
+        const cleanId = String(userId || '').trim().toLowerCase();
         let customDocs = null;
         let bioRequirements = [];
 
-        if (docSnap.exists()) {
-            const data = docSnap.val();
-            if (data.docs && Object.keys(data.docs).length > 0) {
-                // Transform into requirement format
-                customDocs = {};
-                Object.keys(data.docs).forEach(key => {
-                    customDocs[key] = {
-                        name: key.replace(/_/g, ' '),
-                        mandatory: true,
-                        icon: window.getDocIcon ? window.getDocIcon(key) : 'fa-file'
-                    };
-                });
-                console.log("🎯 Individual document requirements detected for:", userId);
-            }
-        }
-
-        // 2. Fetch staff profile for bio-data requirements
+        // 1. Check direct staff node for "onboardingRequirements" (Admin Assigned)
         const staffSnap = await get(ref(db, 'staff'));
         if (staffSnap.exists()) {
             const allStaff = staffSnap.val();
-            const staff = Object.values(allStaff).find(u =>
-                (u.adekPass === userId || u.mobile === userId)
-            );
-            if (staff && staff.bioDataRequirements) {
-                bioRequirements = staff.bioDataRequirements;
+            // Search robustly for the staff member
+            for (const [key, u] of Object.entries(allStaff)) {
+                if (!u) continue;
+                const uPass = String(u.adekPass || '').trim().toLowerCase();
+                const uMobile = String(u.mobile || '').trim().toLowerCase();
+                const uName = String(u.fullName || u.name || '').trim().toLowerCase();
+
+                // Match by ID, Mobile, or even exact Name if IDs are missing (Fallback)
+                if ((uPass && uPass === cleanId) || (uMobile && uMobile === cleanId)) {
+                    if (u.onboardingRequirements && Object.keys(u.onboardingRequirements).length > 0) {
+                        customDocs = u.onboardingRequirements;
+                        console.log("✅ [Onboarding] Found custom document allocation in staff record");
+                    }
+                    if (u.bioDataRequirements) {
+                        bioRequirements = u.bioDataRequirements;
+                    }
+                    break;
+                }
             }
         }
 
-        // 3. Fallback to Role Requirements only if individual node is empty
+        // 2. Check "staff_documents" node for individual overrides if not found in staff node
+        if (!customDocs) {
+            // Check both current userId and potential variations
+            const variations = [userId];
+            const staff = window.currentStaff || JSON.parse(sessionStorage.getItem('active_staff_user') || '{}');
+            if (staff.mobile && staff.mobile !== userId) variations.push(staff.mobile);
+            if (staff.adekPass && staff.adekPass !== userId) variations.push(staff.adekPass);
+
+            for (const id of variations) {
+                const docSnap = await get(ref(db, `staff_documents/${id}`));
+                if (docSnap.exists()) {
+                    const data = docSnap.val();
+                    if (data.docs && Object.keys(data.docs).length > 0) {
+                        customDocs = {};
+                        Object.keys(data.docs).forEach(key => {
+                            customDocs[key] = {
+                                name: key.replace(/_/g, ' '),
+                                mandatory: true,
+                                icon: window.getDocIcon ? window.getDocIcon(key) : 'fa-file'
+                            };
+                        });
+                        console.log(`✅ [Onboarding] Found document allocation in staff_documents/${id}`);
+                        break;
+                    }
+                }
+            }
+        }
+
+        // 3. Fallback to Role Requirements only if NO individual node is found anywhere
         const finalDocs = customDocs || await window.getRoleRequirements(role);
 
+        console.log(`🎯 [Onboarding] Final requirements count: ${Object.keys(finalDocs || {}).length}`);
+
         return {
-            requirements: finalDocs,
-            bioRequirements: bioRequirements
+            requirements: finalDocs || {},
+            bioRequirements: bioRequirements || []
         };
 
     } catch (e) {
-        console.error("Error getting staff onboarding requirements:", e);
+        console.error("❌ [Onboarding] Critical resolution error:", e);
         return { requirements: {}, bioRequirements: [] };
     }
 };

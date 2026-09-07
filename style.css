@@ -2825,5 +2825,32 @@ h1:hover {
     }
     .doc-cards-grid {
         grid-template-columns: 1fr !important;
+        display: grid !important; /* Force grid display */
     }
+}
+
+/* ✅ BASE DOC GRID STYLES */
+.doc-cards-grid {
+    display: grid !important;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)) !important; /* Mobile Fallback */
+    gap: 16px !important;
+    width: 100% !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+    padding: 5px 0 !important;
+}
+
+@media (min-width: 768px) {
+    .doc-cards-grid {
+        grid-template-columns: repeat(2, 1fr) !important;
+    }
+}
+
+.doc-card {
+    opacity: 1 !important;
+    visibility: visible !important;
+    min-height: 120px !important;
+    z-index: 10;
+    display: flex !important;
+    flex-direction: column !important;
 }
