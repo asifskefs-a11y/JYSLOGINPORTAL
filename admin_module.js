@@ -475,6 +475,14 @@ function renderStaffDirectory(staff) {
                 }
             }
 
+            // ✅ ADDED: Profile Submission Status Badge
+            let statusBadge = `<span class="role-badge role-default">${s.role || s.position || "-"}</span>`;
+            if (s.status === "PENDING_APPROVAL" || s.isProfileSubmitted === true && s.status !== "APPROVED") {
+                statusBadge += `<div class="mt-1 px-2 py-0.5 bg-indigo-100 text-indigo-700 text-[6px] font-black rounded-full uppercase border border-indigo-200">🔍 PENDING REVIEW</div>`;
+            } else if (s.status === "APPROVED") {
+                statusBadge += `<div class="mt-1 px-2 py-0.5 bg-emerald-100 text-emerald-700 text-[6px] font-black rounded-full uppercase border border-emerald-200">✅ VERIFIED</div>`;
+            }
+
             const photoUrl = window.formatDriveImageUrl(s.profilePicUrl || s.photoUrl || s.profilePic || s.avatar, displayName);
 
             return `
@@ -491,7 +499,7 @@ function renderStaffDirectory(staff) {
                 <td class="p-4 font-mono text-slate-400">${s.password || "-"}</td>
                 <td class="p-4 font-mono text-slate-500">${s.adekPass || "-"}</td>
                 <td class="p-4 font-bold text-slate-600">${s.school || s.branch || "-"}</td>
-                <td class="p-4 text-center"><span class="role-badge role-default">${s.role || s.position || "-"}</span></td>
+                <td class="p-4 text-center">${statusBadge}</td>
                 <td class="p-4 font-bold text-slate-700">${s.companyName || "-"}</td>
                 <td class="p-4 font-mono text-indigo-600 font-bold">${s.companyId || "-"}</td>
                 <td class="p-4 font-mono text-slate-500">${s.mobile || "-"}</td>

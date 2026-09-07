@@ -321,8 +321,19 @@ window.executeFinalDocUpload = async function() {
             return;
         }
 
-        // ✅ Compress image
-        const base64 = await window.compressImageFile(file);
+        // ✅ Task: Handle Image Compression vs Raw File (PDF)
+        let base64 = "";
+        if (file.type.startsWith('image/')) {
+            console.log("📸 Compressing image document...");
+            base64 = await window.compressImageFile(file, 1200, 1200, 0.8);
+        } else {
+            console.log("📄 Reading raw document (PDF/Other)...");
+            const reader = new FileReader();
+            base64 = await new Promise((resolve) => {
+                reader.onload = (e) => resolve(e.target.result);
+                reader.readAsDataURL(file);
+            });
+        }
 
         // ✅ Get metadata
         const issueDate = document.getElementById('meta-issue-date')?.value || '';
@@ -364,55 +375,13 @@ window.executeFinalDocUpload = async function() {
 /**
  * ✅ Compress image file
  */
-window.compressImageFile = function(file) {
-    return new Promise((resolve, reject) => {
-        if (!file) {
-            reject(new Error("No file provided"));
-            return;
-        }
-
-        const reader = new FileReader();
-        reader.readAsDataURL(file);
-        reader.onload = function(e) {
-            try {
-                const img = new Image();
-                img.onload = function() {
-                    const canvas = document.createElement('canvas');
-                    const ctx = canvas.getContext('2d');
-
-                    // ✅ Resize to max 800px
-                    let width = img.width;
-                    let height = img.height;
-                    const maxSize = 800;
-
-                    if (width > height && width > maxSize) {
-                        height = Math.round(height * (maxSize / width));
-                        width = maxSize;
-                    } else if (height > maxSize) {
-                        width = Math.round(width * (maxSize / height));
-                        height = maxSize;
-                    }
-
-                    canvas.width = width;
-                    canvas.height = height;
-                    ctx.drawImage(img, 0, 0, width, height);
-
-                    const quality = file.type === 'image/png' ? 0.9 : 0.7;
-                    resolve(canvas.toDataURL('image/jpeg', quality));
-                };
-                img.onerror = function() {
-                    reject(new Error("Failed to load image"));
-                };
-                img.src = e.target.result;
-            } catch (error) {
-                reject(error);
-            }
-        };
-        reader.onerror = function() {
-            reject(new Error("Failed to read file"));
-        };
     });
 };
+
+/**
+ * ✅ [DEPRECATED] Internal compressImageFile removed.
+ * Using window.compressImageFile from ui_module.js for consistency.
+ */
 
 /**
  * ✅ Render staff documents module
@@ -736,19 +705,46 @@ window.showExpiryNotificationBanner = function(warnings) {
 window.renderBioDataForm = function(requirements, existingData) {
     const container = document.getElementById('staff-biodata-container');
     const form = document.getElementById('staff-biodata-form');
+    const submitBtn = document.getElementById('bio-submit-btn');
+    const staffData = window.currentStaff || JSON.parse(sessionStorage.getItem('active_staff_user') || '{}');
+
     if (!container || !form) return;
 
     container.classList.remove('hidden');
 
-    form.innerHTML = requirements.map(req => `
-        <div class="space-y-1">
-            <label class="text-[9px] font-black text-indigo-500 uppercase ml-2 tracking-wider">${req.name} ${req.mandatory ? '<span class="text-red-500">*</span>' : ''}</label>
-            <input type="text" name="${req.id}" value="${existingData[req.id] || ''}"
-                   placeholder="Enter ${req.name.toLowerCase()}"
-                   ${req.mandatory ? 'required' : ''}
-                   class="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-700 outline-none focus:border-indigo-500 transition-all shadow-sm">
-        </div>
-    `).join('');
+    if (staffData.isProfileSubmitted) {
+        // ✅ RENDER VIEW MODE (Convert Form to Static Card)
+        form.classList.remove('grid-cols-1', 'sm:grid-cols-2');
+        form.classList.add('flex', 'flex-col');
+        form.innerHTML = `
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4">
+                ${requirements.map(req => `
+                    <div class="flex flex-col border-b border-indigo-100/50 pb-2">
+                        <span class="text-[8px] font-black text-indigo-400 uppercase tracking-widest">${req.name}</span>
+                        <span class="text-[11px] font-bold text-indigo-950 uppercase">${existingData[req.id] || 'N/A'}</span>
+                    </div>
+                `).join('')}
+            </div>
+        `;
+        if (submitBtn) {
+            submitBtn.innerHTML = '<i class="fa-solid fa-user-check"></i> PROFILE SUBMITTED';
+            submitBtn.classList.remove('bg-indigo-600');
+            submitBtn.classList.add('bg-emerald-500', 'cursor-not-allowed');
+            submitBtn.disabled = true;
+            submitBtn.onclick = null;
+        }
+    } else {
+        // ✅ RENDER EDIT MODE
+        form.innerHTML = requirements.map(req => `
+            <div class="space-y-1">
+                <label class="text-[9px] font-black text-indigo-500 uppercase ml-2 tracking-wider">${req.name} ${req.mandatory ? '<span class="text-red-500">*</span>' : ''}</label>
+                <input type="text" name="${req.id}" value="${existingData[req.id] || ''}"
+                       placeholder="Enter ${req.name.toLowerCase()}"
+                       ${req.mandatory ? 'required' : ''}
+                       class="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-700 outline-none focus:border-indigo-500 transition-all shadow-sm">
+            </div>
+        `).join('');
+    }
 };
 
 /**
@@ -801,6 +797,11 @@ window.submitBioData = async function() {
         // Auto-refresh Dashboard UI to hide modal/banner
         if (window.updateAccountActivationUI) {
             window.updateAccountActivationUI(staffData.isAccountActive);
+        }
+
+        // ✅ REFRESH MODAL TO SHOW VIEW MODE
+        if (window.initStaffDocsModule) {
+            await window.initStaffDocsModule('staff-docs-container');
         }
 
         if (window.showWhatsAppToast) window.showWhatsAppToast("✅ Details Updated", "Your personal information has been saved.", "success");

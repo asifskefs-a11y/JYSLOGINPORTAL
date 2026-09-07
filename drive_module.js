@@ -52,34 +52,49 @@ window.uploadToDrive = async function(payload = {}) {
         }
 
         // --- UPLOAD ATTEMPT: fetch with text/plain header to bypass CORS preflight ---
-        const response = await fetch(targetScriptUrl, {
-            method: 'POST',
-            headers: {
-                "Content-Type": "text/plain;charset=utf-8"
-            },
-            body: JSON.stringify(normalizedPayload)
-        });
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 60000); // 60s timeout for heavy docs
 
-        if (!response.ok) throw new Error(`HTTP Error Status: ${response.status}`);
-
-        const resultText = await response.text();
-        let result;
         try {
-            result = JSON.parse(resultText);
-        } catch (e) {
-            throw new Error("Invalid JSON response from Drive API: " + resultText.substring(0, 50));
-        }
+            const response = await fetch(targetScriptUrl, {
+                method: 'POST',
+                headers: {
+                    "Content-Type": "text/plain;charset=utf-8"
+                },
+                body: JSON.stringify(normalizedPayload),
+                signal: controller.signal
+            });
 
-        if (result.status === 'success' || result.fileUrl) {
-            return {
-                status: 'success',
-                fileUrl: result.fileUrl || "",
-                fileId: result.fileId || "",
-                folderPath: result.folderPath || ""
-            };
-        }
+            clearTimeout(timeoutId);
 
-        throw new Error(result.message || 'No Drive URL returned.');
+            if (!response.ok) throw new Error(`HTTP Error Status: ${response.status}`);
+
+            const resultText = await response.text();
+            let result;
+            try {
+                result = JSON.parse(resultText);
+            } catch (e) {
+                throw new Error("Invalid JSON response from Drive API: " + resultText.substring(0, 50));
+            }
+
+            if (result.status === 'success' || result.fileUrl) {
+                return {
+                    status: 'success',
+                    fileUrl: result.fileUrl || "",
+                    fileId: result.fileId || "",
+                    folderPath: result.folderPath || ""
+                };
+            }
+
+            throw new Error(result.message || 'No Drive URL returned.');
+
+        } catch (fetchErr) {
+            clearTimeout(timeoutId);
+            if (fetchErr.name === 'AbortError') {
+                throw new Error("Upload timed out (60s). The document might be too heavy for the network.");
+            }
+            throw fetchErr;
+        }
     } catch (error) {
         console.error("❌ Google Drive Sync Error:", error);
 
