@@ -187,8 +187,10 @@ window.getStaffOnboardingRequirements = async function(userId, role) {
                 if (!u) continue;
                 const uPass = String(u.adekPass || '').trim().toLowerCase();
                 const uMobile = String(u.mobile || '').trim().toLowerCase();
+                const uName = String(u.fullName || u.name || '').trim().toLowerCase();
 
-                if (uPass === cleanId || uMobile === cleanId) {
+                // Match by ID, Mobile, or even exact Name if IDs are missing (Fallback)
+                if ((uPass && uPass === cleanId) || (uMobile && uMobile === cleanId)) {
                     if (u.onboardingRequirements && Object.keys(u.onboardingRequirements).length > 0) {
                         customDocs = u.onboardingRequirements;
                         console.log("✅ [Onboarding] Found custom document allocation in staff record");
@@ -203,19 +205,28 @@ window.getStaffOnboardingRequirements = async function(userId, role) {
 
         // 2. Check "staff_documents" node for individual overrides if not found in staff node
         if (!customDocs) {
-            const docSnap = await get(ref(db, `staff_documents/${userId}`));
-            if (docSnap.exists()) {
-                const data = docSnap.val();
-                if (data.docs && Object.keys(data.docs).length > 0) {
-                    customDocs = {};
-                    Object.keys(data.docs).forEach(key => {
-                        customDocs[key] = {
-                            name: key.replace(/_/g, ' '),
-                            mandatory: true,
-                            icon: window.getDocIcon ? window.getDocIcon(key) : 'fa-file'
-                        };
-                    });
-                    console.log("✅ [Onboarding] Found document allocation in staff_documents node");
+            // Check both current userId and potential variations
+            const variations = [userId];
+            const staff = window.currentStaff || JSON.parse(sessionStorage.getItem('active_staff_user') || '{}');
+            if (staff.mobile && staff.mobile !== userId) variations.push(staff.mobile);
+            if (staff.adekPass && staff.adekPass !== userId) variations.push(staff.adekPass);
+
+            for (const id of variations) {
+                const docSnap = await get(ref(db, `staff_documents/${id}`));
+                if (docSnap.exists()) {
+                    const data = docSnap.val();
+                    if (data.docs && Object.keys(data.docs).length > 0) {
+                        customDocs = {};
+                        Object.keys(data.docs).forEach(key => {
+                            customDocs[key] = {
+                                name: key.replace(/_/g, ' '),
+                                mandatory: true,
+                                icon: window.getDocIcon ? window.getDocIcon(key) : 'fa-file'
+                            };
+                        });
+                        console.log(`✅ [Onboarding] Found document allocation in staff_documents/${id}`);
+                        break;
+                    }
                 }
             }
         }
