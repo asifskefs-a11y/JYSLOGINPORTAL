@@ -438,20 +438,35 @@ window.processDocUpload = async function(userId, docType, base64, metadata = {})
  * ✅ UPDATE STAFF BIO-DATA (v5.0)
  */
 window.updateStaffBioData = async function(staffKey, bioData) {
+    if (!staffKey) {
+        console.error("❌ Cannot update bio-data: Missing staffKey");
+        return false;
+    }
+
     try {
+        // ✅ Task 1: Use Update to target EXACT node & Preserve existing credentials
         await update(ref(db, `staff/${staffKey}`), {
             bioData: bioData,
             isProfileSubmitted: true,
+            documentStatus: "PENDING_APPROVAL", // Mark for Admin review
             status: "PENDING_APPROVAL",
-            bioDataLastUpdated: Date.now()
+            bioDataLastUpdated: Date.now(),
+            updatedAt: new Date().toISOString()
         });
 
-        // Re-sync session
+        // Re-sync session with latest data
         const activeStaff = JSON.parse(sessionStorage.getItem('active_staff_user') || '{}');
-        const updatedStaff = { ...activeStaff, bioData, isProfileSubmitted: true, status: "PENDING_APPROVAL" };
+        const updatedStaff = {
+            ...activeStaff,
+            ...bioData, // Flatten for quick access if needed
+            bioData,
+            isProfileSubmitted: true,
+            status: "PENDING_APPROVAL"
+        };
         sessionStorage.setItem('active_staff_user', JSON.stringify(updatedStaff));
         window.currentStaff = updatedStaff;
 
+        console.log(`✅ Bio-data updated for node: staff/${staffKey}`);
         return true;
     } catch (e) {
         console.error("Bio-Data Save Error:", e);

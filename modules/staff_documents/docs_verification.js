@@ -109,7 +109,7 @@ window.openStaffDocumentReviewModal = async function(staffMobile) {
             // Task 2: Calculate Expiry & Animated Border
             let expiryClass = "";
             let expiryAlert = "";
-            if (isUploaded && d.expiryDate) {
+            if (isUploaded && d.expiryDate && status === 'APPROVED') {
                 const daysLeft = Math.ceil((new Date(d.expiryDate) - new Date()) / (1000 * 60 * 60 * 24));
                 if (daysLeft <= 30) {
                     expiryClass = "expiring-border-animated";
@@ -255,4 +255,162 @@ window.rejectDoc = function(userId, docKey) {
     }
 };
 
-console.log("✅ docs_verification.js: v2.0 Premium UI Engaged");
+/**
+ * ✅ SMART DOCUMENT SCANNER (Google Lens Style)
+ */
+let scannerStream = null;
+
+window.openDocumentScanner = function(documentType) {
+    // Force close any existing
+    window.closeScannerModal();
+
+    const modalHtml = `
+        <div id="scanner-modal" class="scanner-overlay fade-in">
+            <div class="scanner-container">
+                <div class="scanner-header">
+                    <div class="flex flex-col">
+                        <h3 class="text-white font-black uppercase text-sm tracking-tight">Smart Doc Scanner</h3>
+                        <p class="text-indigo-400 text-[9px] font-bold uppercase tracking-widest">${documentType}</p>
+                    </div>
+                    <button onclick="window.closeScannerModal()" class="w-10 h-10 bg-white/10 rounded-full flex items-center justify-center text-white text-2xl">&times;</button>
+                </div>
+
+                <div class="viewfinder-box">
+                    <video id="scanner-video" autoplay playsinline muted></video>
+                    <canvas id="scanner-canvas-overlay" class="hidden"></canvas>
+                    <div class="scanner-guide-ring" id="scanner-guide"></div>
+
+                    <!-- Real-time Instruction -->
+                    <div class="absolute bottom-10 left-0 w-full text-center z-20">
+                         <span class="px-6 py-2 bg-black/60 backdrop-blur-md rounded-full text-white text-[9px] font-black uppercase tracking-widest border border-white/10">
+                            Align document within the frame
+                         </span>
+                    </div>
+                </div>
+
+                <div class="scanner-actions">
+                    <label class="gallery-upload-btn cursor-pointer active:scale-90 transition-transform">
+                        <div class="w-12 h-12 bg-white/10 rounded-2xl flex items-center justify-center mb-1">
+                            <i class="fas fa-images text-xl"></i>
+                        </div>
+                        <span>Gallery</span>
+                        <input type="file" id="direct-file-input" accept="image/*,application/pdf" class="hidden"
+                               onchange="window.handleDirectFileUpload(event, '${documentType}')">
+                    </label>
+
+                    <button onclick="window.captureAndCropDocument('${documentType}')" class="capture-btn active:scale-90 transition-transform">
+                        <i class="fas fa-camera"></i>
+                    </button>
+
+                    <div class="w-16"></div> <!-- Spacer for symmetry -->
+                </div>
+            </div>
+        </div>
+    `;
+
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+    window.startCameraStream();
+};
+
+window.closeScannerModal = function() {
+    const modal = document.getElementById('scanner-modal');
+    if (modal) modal.remove();
+
+    if (scannerStream) {
+        scannerStream.getTracks().forEach(track => track.stop());
+        scannerStream = null;
+    }
+};
+
+window.startCameraStream = async function() {
+    const video = document.getElementById('scanner-video');
+    if (!video) return;
+
+    try {
+        scannerStream = await navigator.mediaDevices.getUserMedia({
+            video: { facingMode: "environment", width: { ideal: 1920 }, height: { ideal: 1080 } },
+            audio: false
+        });
+        video.srcObject = scannerStream;
+
+        // Simple visual detection simulation
+        setTimeout(() => {
+            const guide = document.getElementById('scanner-guide');
+            if (guide) guide.classList.add('detected');
+        }, 2000);
+
+    } catch (err) {
+        console.error("Camera Error:", err);
+        alert("Failed to access camera: " + err.message);
+        window.closeScannerModal();
+    }
+};
+
+window.captureAndCropDocument = async function(documentType) {
+    const video = document.getElementById('scanner-video');
+    const canvas = document.createElement('canvas');
+    if (!video) return;
+
+    window.showGlobalSpinner("Processing Document...");
+
+    try {
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(video, 0, 0);
+
+        // Convert to Base64
+        const base64 = canvas.toDataURL('image/jpeg', 0.8);
+
+        // Pass to existing upload flow
+        const staff = window.currentStaff || JSON.parse(sessionStorage.getItem('active_staff_user'));
+        const userId = staff.adekPass || staff.mobile;
+
+        const success = await window.processDocUpload(userId, documentType, base64);
+        if (success) {
+            window.closeScannerModal();
+            if (window.initStaffDocsModule) window.initStaffDocsModule();
+        }
+    } catch (e) {
+        alert("Scan Failed: " + e.message);
+    } finally {
+        window.hideGlobalSpinner();
+    }
+};
+
+window.handleDirectFileUpload = async function(event, documentType) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    window.showGlobalSpinner("Reading File...");
+
+    try {
+        const staff = window.currentStaff || JSON.parse(sessionStorage.getItem('active_staff_user'));
+        const userId = staff.adekPass || staff.mobile;
+
+        // Use global compression if it's an image
+        let payload = "";
+        if (file.type.startsWith('image/')) {
+            payload = await window.compressImageFile(file, 1200, 1200, 0.8);
+        } else {
+            // PDF handling (Raw base64)
+            const reader = new FileReader();
+            payload = await new Promise((resolve) => {
+                reader.onload = (e) => resolve(e.target.result);
+                reader.readAsDataURL(file);
+            });
+        }
+
+        const success = await window.processDocUpload(userId, documentType, payload);
+        if (success) {
+            window.closeScannerModal();
+            if (window.initStaffDocsModule) window.initStaffDocsModule();
+        }
+    } catch (e) {
+        alert("Upload Failed: " + e.message);
+    } finally {
+        window.hideGlobalSpinner();
+    }
+};
+
+console.log("✅ docs_verification.js: v2.5 Smart Scanner Active");

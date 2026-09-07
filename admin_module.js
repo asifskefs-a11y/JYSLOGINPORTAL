@@ -440,12 +440,20 @@ function renderStaffDirectory(staff) {
     const body = document.getElementById('admin-staff-list-body');
     if (!body) return;
 
-    window.adminPaginators.directory.init(staff || [], (pageItems) => {
+    // ✅ Task 3: Filter out invalid/ghost records (Missing name or ID)
+    const validStaff = (staff || []).filter(s => {
+        const name = (s.fullName || s.name || "").trim();
+        const id = (s.adekPass || s.mobile || s.id || "").trim();
+        return name !== "" && name !== "-" && id !== "" && id !== "-";
+    });
+
+    window.adminPaginators.directory.init(validStaff, (pageItems) => {
         body.innerHTML = pageItems.length ? pageItems.map(s => {
             // Task 3: Visual Expiry Badge logic
             const userId = s.adekPass || s.mobile;
             const docNode = window.appCache.staffDocs ? window.appCache.staffDocs[userId] : null;
             let expiryBadge = "";
+            const displayName = s.fullName || s.name || "-";
 
             if (docNode && docNode.docs) {
                 let worstDays = 999;
@@ -467,11 +475,17 @@ function renderStaffDirectory(staff) {
                 }
             }
 
+            const photoUrl = window.formatDriveImageUrl(s.profilePicUrl || s.photoUrl || s.profilePic || s.avatar, displayName);
+
             return `
             <tr class="hover:bg-slate-50 border-b text-[10px]">
-                <td class="p-4 text-center"><img src="${s.profilePicUrl || s.photoUrl || ''}" class="w-8 h-8 rounded-full border shadow-sm mx-auto" onerror="this.src=window.generateLocalAvatar('${s.fullName || 'U'}')"></td>
+                <td class="p-4 text-center">
+                    <img src="${photoUrl}"
+                         onerror="this.onerror=null; this.src='https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=4f46e5&color=fff';"
+                         class="w-8 h-8 rounded-full border shadow-sm mx-auto object-cover">
+                </td>
                 <td class="p-4">
-                    <div class="font-black text-indigo-900 uppercase">${s.fullName || s.name || "-"}</div>
+                    <div class="font-black text-indigo-900 uppercase">${displayName}</div>
                     ${expiryBadge}
                 </td>
                 <td class="p-4 font-mono text-slate-400">${s.password || "-"}</td>
@@ -799,18 +813,21 @@ function convertFileToBase64(file) {
 // ================================================================ */
 window.handleStaffSubmit = async function(type) {
     const btn = document.getElementById('staff-save-btn');
-    const mobile = document.getElementById('staff-mobile').value.trim();
+    const name = document.getElementById('staff-name')?.value?.trim();
+    const mobile = document.getElementById('staff-mobile')?.value?.trim();
+    const adekPass = document.getElementById('staff-adek')?.value?.trim();
     const existingKey = document.getElementById('staff-db-key')?.value || "";
 
-    // ✅ Validate required fields
-    if (!mobile) {
-        alert("❌ Mobile number is required.");
+    // ✅ Task 2: Strict Validation (Prevent uninitialized/empty pushes)
+    if (!name || name === "-" || (!mobile && !adekPass)) {
+        console.error("❌ Aborting submission: Missing mandatory Staff Name or ID.");
+        alert("❌ Error: Staff Name and ID (Mobile or ADEK Pass) are mandatory.");
         if (btn) btn.disabled = false;
         return;
     }
 
     // ✅ Validate mobile number format (UAE format)
-    if (!/^[0-9]{9,15}$/.test(mobile)) {
+    if (mobile && !/^[0-9]{9,15}$/.test(mobile)) {
         alert("❌ Please enter a valid mobile number (9-15 digits).");
         if (btn) btn.disabled = false;
         return;

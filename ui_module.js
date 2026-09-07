@@ -757,7 +757,7 @@ window.initSidebarProfileAndRestrictions = function(staffData) {
 
     if (nameEl) {
         nameEl.innerText = displayName;
-        // Task 1: Fix Side Menu Text Overflow
+        // Task 1: Fix Side Menu Text Overflow & Wrapping
         nameEl.style.whiteSpace = 'normal';
         nameEl.style.wordBreak = 'break-word';
         nameEl.style.lineHeight = '1.2';
@@ -767,6 +767,7 @@ window.initSidebarProfileAndRestrictions = function(staffData) {
 
     if (imgEl) {
         const photo = staff.profilePicUrl || staff.photoUrl || staff.profilePic || staff.imageUrl || staff.photo || staff.avatar;
+        const finalUrl = window.formatDriveImageUrl(photo, displayName);
 
         // 1. Check local cache first for instant render
         const cached = localStorage.getItem('jys_cached_user_avatar');
@@ -777,8 +778,6 @@ window.initSidebarProfileAndRestrictions = function(staffData) {
         }
 
         if (photo && photo !== 'N/A' && photo !== '-') {
-            const finalUrl = window.getDirectDriveImageUrl ? window.getDirectDriveImageUrl(photo) : photo;
-
             // Background fetch and cache
             window.getOrCacheImage(finalUrl).then(src => {
                 imgEl.src = src;
@@ -788,8 +787,7 @@ window.initSidebarProfileAndRestrictions = function(staffData) {
                 localStorage.setItem('jys_cached_user_avatar', src);
             });
         } else {
-            const avatarUrl = window.generateLocalAvatar ? window.generateLocalAvatar(displayName) : `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName.charAt(0))}&background=f59e0b&color=fff`;
-            imgEl.src = avatarUrl;
+            imgEl.src = finalUrl;
             imgEl.classList.remove('hidden');
             if (initialsEl) initialsEl.classList.add('hidden');
         }
@@ -850,6 +848,7 @@ window.renderDashboardProfile = function(staffData) {
         if (imgEl) {
             const photo = safeStaff.profilePicUrl || safeStaff.photoUrl || safeStaff.profilePic || safeStaff.imageUrl || safeStaff.photo || safeStaff.avatar;
             const displayName = safeStaff.fullName || safeStaff.name || "U";
+            const finalUrl = window.formatDriveImageUrl(photo, displayName);
 
             const cached = localStorage.getItem('jys_cached_user_avatar');
             if (cached && cached.startsWith('data:image')) {
@@ -860,7 +859,6 @@ window.renderDashboardProfile = function(staffData) {
             }
 
             if (photo && photo !== 'N/A' && photo !== '-') {
-                const finalUrl = window.getDirectDriveImageUrl ? window.getDirectDriveImageUrl(photo) : photo;
                 window.getOrCacheImage(finalUrl).then(src => {
                     imgEl.src = src;
                     imgEl.classList.remove('hidden');
@@ -869,8 +867,7 @@ window.renderDashboardProfile = function(staffData) {
                     localStorage.setItem('jys_cached_user_avatar', src);
                 }).catch(e => console.warn("Image cache failed:", e));
             } else {
-                const fallback = window.generateLocalAvatar ? window.generateLocalAvatar(displayName) : `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=4f46e5&color=fff`;
-                imgEl.src = fallback;
+                imgEl.src = finalUrl;
                 imgEl.classList.remove('hidden');
                 const placeholder = document.getElementById('avatar-placeholder');
                 if (placeholder) placeholder.classList.add('hidden');
@@ -1196,7 +1193,25 @@ window.lazyLoadCachedImages = function() {
     });
 };
 
-window.formatDriveImageUrl = window.getDirectDriveImageUrl;
+/**
+ * Universal URL normalizer for Google Drive and UI Avatars
+ */
+window.formatDriveImageUrl = function(url, staffName = "Staff") {
+    if (!url || url.trim() === "" || url.includes("ui-avatars.com") || url === 'N/A' || url === '-') {
+        return `https://ui-avatars.com/api/?name=${encodeURIComponent(staffName)}&background=4f46e5&color=fff`;
+    }
+
+    // Extract File ID from Google Drive URLs
+    const driveRegex = /\/d\/([a-zA-Z0-9_-]+)|id=([a-zA-Z0-9_-]+)/;
+    const match = url.match(driveRegex);
+
+    if (match) {
+        const fileId = match[1] || match[2];
+        return `https://lh3.googleusercontent.com/d/${fileId}`;
+    }
+
+    return url; // Return original if it's already a valid direct link/DataURL
+};
 
 window.openImageZoom = (url) => {
     if (!url || url.includes('placeholder') || url.includes('No+Photo')) return;

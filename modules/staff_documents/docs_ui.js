@@ -166,14 +166,14 @@ window.showDocUploadModal = function(docType) {
                     </label>
 
                     <!-- Camera Option -->
-                    <label for="doc-camera-input" class="group cursor-pointer">
+                    <div class="group cursor-pointer" onclick="window.openDocumentScanner('${docType}')">
                         <div class="p-5 bg-white border-2 border-slate-100 rounded-3xl flex flex-col items-center gap-2 transition-all hover:border-emerald-500 hover:shadow-xl active:scale-95">
                             <div class="w-12 h-12 bg-emerald-50 rounded-2xl flex items-center justify-center text-emerald-600 group-hover:bg-emerald-600 group-hover:text-white transition-colors">
                                 <i class="fa-solid fa-camera text-xl"></i>
                             </div>
                             <span class="text-[10px] font-black text-slate-900 uppercase">Scanner</span>
                         </div>
-                    </label>
+                    </div>
                 </div>
 
                 <!-- Hidden Inputs -->
