@@ -172,55 +172,66 @@ function getDefaultRequirements(role) {
  */
 window.getStaffOnboardingRequirements = async function(userId, role) {
     try {
-        // 1. Fetch direct document node first (Individual Override)
-        const docRef = ref(db, `staff_documents/${userId}`);
-        const docSnap = await get(docRef);
+        console.log(`🔍 [Onboarding] Resolving requirements for: ${userId} (${role})`);
 
+        const cleanId = String(userId || '').trim().toLowerCase();
         let customDocs = null;
         let bioRequirements = [];
 
-        // 2. Fetch staff profile for bio-data requirements & custom onboarding allocation
+        // 1. Check direct staff node for "onboardingRequirements" (Admin Assigned)
         const staffSnap = await get(ref(db, 'staff'));
         if (staffSnap.exists()) {
             const allStaff = staffSnap.val();
-            const staff = Object.values(allStaff).find(u =>
-                (u.adekPass === userId || u.mobile === userId)
-            );
-            if (staff) {
-                if (staff.onboardingRequirements && Object.keys(staff.onboardingRequirements).length > 0) {
-                    customDocs = staff.onboardingRequirements;
-                }
-                if (staff.bioDataRequirements) {
-                    bioRequirements = staff.bioDataRequirements;
+            // Search robustly for the staff member
+            for (const [key, u] of Object.entries(allStaff)) {
+                if (!u) continue;
+                const uPass = String(u.adekPass || '').trim().toLowerCase();
+                const uMobile = String(u.mobile || '').trim().toLowerCase();
+
+                if (uPass === cleanId || uMobile === cleanId) {
+                    if (u.onboardingRequirements && Object.keys(u.onboardingRequirements).length > 0) {
+                        customDocs = u.onboardingRequirements;
+                        console.log("✅ [Onboarding] Found custom document allocation in staff record");
+                    }
+                    if (u.bioDataRequirements) {
+                        bioRequirements = u.bioDataRequirements;
+                    }
+                    break;
                 }
             }
         }
 
-        // 3. Transform individual allocation if exists in staff_documents node but not in staff node
-        if (!customDocs && docSnap.exists()) {
-            const data = docSnap.val();
-            if (data.docs && Object.keys(data.docs).length > 0) {
-                customDocs = {};
-                Object.keys(data.docs).forEach(key => {
-                    customDocs[key] = {
-                        name: key.replace(/_/g, ' '),
-                        mandatory: true,
-                        icon: window.getDocIcon ? window.getDocIcon(key) : 'fa-file'
-                    };
-                });
+        // 2. Check "staff_documents" node for individual overrides if not found in staff node
+        if (!customDocs) {
+            const docSnap = await get(ref(db, `staff_documents/${userId}`));
+            if (docSnap.exists()) {
+                const data = docSnap.val();
+                if (data.docs && Object.keys(data.docs).length > 0) {
+                    customDocs = {};
+                    Object.keys(data.docs).forEach(key => {
+                        customDocs[key] = {
+                            name: key.replace(/_/g, ' '),
+                            mandatory: true,
+                            icon: window.getDocIcon ? window.getDocIcon(key) : 'fa-file'
+                        };
+                    });
+                    console.log("✅ [Onboarding] Found document allocation in staff_documents node");
+                }
             }
         }
 
-        // 4. Fallback to Role Requirements only if individual node is empty
+        // 3. Fallback to Role Requirements only if NO individual node is found anywhere
         const finalDocs = customDocs || await window.getRoleRequirements(role);
 
+        console.log(`🎯 [Onboarding] Final requirements count: ${Object.keys(finalDocs || {}).length}`);
+
         return {
-            requirements: finalDocs,
-            bioRequirements: bioRequirements
+            requirements: finalDocs || {},
+            bioRequirements: bioRequirements || []
         };
 
     } catch (e) {
-        console.error("Error getting staff onboarding requirements:", e);
+        console.error("❌ [Onboarding] Critical resolution error:", e);
         return { requirements: {}, bioRequirements: [] };
     }
 };

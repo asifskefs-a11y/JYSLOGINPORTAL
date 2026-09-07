@@ -575,11 +575,13 @@ window.initStaffDocsModule = async function(containerId = 'staff-docs-container'
         }
 
         // ✅ STEP 1: Get requirements (Prioritizing Individual Node)
-        console.log(`🔍 Fetching requirements for: ${userId} (${role})`);
-        const { requirements, bioRequirements } = await window.getStaffOnboardingRequirements(userId, role);
+        console.log(`🔍 [InitDocs] Fetching requirements for: ${userId} (${role})`);
+        const result = await window.getStaffOnboardingRequirements(userId, role);
+        const requirements = result.requirements || {};
+        const bioRequirements = result.bioRequirements || [];
 
         // ✅ STEP 2: Get staff uploaded documents & data
-        console.log(`🔍 Fetching staff data for: ${userId}`);
+        console.log(`🔍 [InitDocs] Fetching current uploads for: ${userId}`);
         const docData = await window.getStaffDocuments(userId);
         const staffDocs = docData.docs || {};
         const progress = docData.verificationProgress || "0%";
@@ -589,11 +591,17 @@ window.initStaffDocsModule = async function(containerId = 'staff-docs-container'
         container.dataset.role = role;
 
         // ✅ STEP 3: Render documents
+        console.log(`🏗️ [InitDocs] Rendering ${Object.keys(requirements).length} cards in container...`);
         window.renderStaffDocsModule(container, requirements, staffDocs, progress, isActivated);
 
         // ✅ STEP 4: Render Bio-Data Form (v5.0)
         if (bioRequirements && bioRequirements.length > 0) {
+            console.log(`🏗️ [InitDocs] Rendering Bio-Data form with ${bioRequirements.length} fields`);
             window.renderBioDataForm(bioRequirements, staffData.bioData || {});
+        } else {
+            console.log(`ℹ️ [InitDocs] No bio-data requirements found for this staff member`);
+            const bioContainer = document.getElementById('staff-biodata-container');
+            if (bioContainer) bioContainer.classList.add('hidden');
         }
 
         // ✅ STEP 5: Check for Document Expiries (Task 2)
@@ -617,10 +625,11 @@ window.initStaffDocsModule = async function(containerId = 'staff-docs-container'
                 dashStatus.className = "text-[9px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded uppercase tracking-tighter";
             } else {
                 dashStatus.innerText = "Pending Verification";
+                dashStatus.className = "text-[9px] font-bold text-amber-600 bg-amber-50 px-2 py-0.5 rounded uppercase tracking-tighter";
             }
         }
 
-        console.log(`✅ Documents loaded: ${Object.keys(requirements).length} requirements, ${Object.keys(staffDocs).length} uploaded`);
+        console.log(`✅ [InitDocs] Module fully initialized.`);
 
     } catch (error) {
         console.error("❌ Init error:", error);

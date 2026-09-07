@@ -1564,6 +1564,11 @@ window.showStaffView = function(viewId) {
     try {
         console.log(`📂 Switching to view: ${viewId}`);
 
+        // ✅ MEMORY LEAK PREVENTION: Close camera scanner if open
+        if (typeof window.closeScannerModal === 'function') {
+            window.closeScannerModal();
+        }
+
         // Hide Auth Area
         const authArea = document.getElementById('staff-auth-area');
         if (authArea) {
