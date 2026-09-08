@@ -295,6 +295,11 @@ window.loadAdminDashboard = () => {
     window.initAdminRealTimeListeners();
     window.updateAdminProfileHeader();
 
+    // ✅ SYNC SAVED DRIVE URL FROM FIREBASE
+    if (window.loadSavedDriveUrlOnAdminLaunch) {
+        window.loadSavedDriveUrlOnAdminLaunch();
+    }
+
     // ✅ SYNC MASTER ROLES TO DROPDOWNS
     if (window.syncRoleDropdown) {
         window.syncRoleDropdown('staff-role-filter', 'All Positions', true);

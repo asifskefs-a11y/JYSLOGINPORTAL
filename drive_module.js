@@ -1,4 +1,5 @@
 import { db, UPLOAD_CONFIG } from './firebase_config.js';
+import { ref, get, set, onValue } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
 // ================================================================ */
 // DYNAMIC GOOGLE DRIVE SYNC ENGINE                                 */
@@ -31,21 +32,8 @@ window.uploadToDrive = async function(payload = {}) {
             base64Image = base64Image.split(',')[1];
         }
 
-        const normalizedPayload = {
-            ...payload,
-            adekPassNumber: safeAdekPass,
-            documentType: safeDocType,
-            fileName: safeFileName,
-            category: safeCategory,
-            base64Data: base64Image,
-            action: 'upload',
-            timestamp: Date.now()
-        };
-
-        // Get script URL from cache or storage
-        const savedUrl = localStorage.getItem('jys_drive_script_url');
-        const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyXZpA-mlmctWy4HTdEiu_EsS1gmTuEe5SREu5KQ0_3LliIWzGwDNhXQArqVuz4PM-ygA/exec";
-        const targetScriptUrl = savedUrl || (await window.driveConfigCache?.getConfig())?.url || APPS_SCRIPT_URL;
+        // Get script URL (Prioritize Firebase, then LocalStorage, then Default)
+        const targetScriptUrl = await window.getActiveDriveUrl();
 
         if (!targetScriptUrl) {
             throw new Error("Missing Google Apps Script Web App URL in System Configuration.");
@@ -108,6 +96,68 @@ window.uploadToDrive = async function(payload = {}) {
     }
 };
 
+/**
+ * ✅ Fetch Drive Link directly from Database on every upload request (24/7 Connectivity)
+ */
+window.getActiveDriveUrl = async function() {
+    try {
+        // 1. Try Firebase First
+        const snapshot = await get(ref(db, 'settings/driveUrl'));
+        const dbUrl = snapshot.exists() ? snapshot.val() : null;
+
+        if (dbUrl && dbUrl.trim().startsWith("https://script.google.com")) {
+            localStorage.setItem('jys_drive_script_url', dbUrl);
+            return dbUrl;
+        }
+    } catch (e) {
+        console.warn("⚠️ Firebase fetch for Drive URL failed, using local cache.");
+    }
+
+    // 2. LocalStorage Fallback
+    const localUrl = localStorage.getItem('jys_drive_script_url');
+
+    // 3. System Default Fallback
+    const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyXZpA-mlmctWy4HTdEiu_EsS1gmTuEe5SREu5KQ0_3LliIWzGwDNhXQArqVuz4PM-ygA/exec";
+
+    return localUrl || APPS_SCRIPT_URL;
+};
+
+/**
+ * ✅ Direct Google Drive Upload Pipeline
+ * Bypasses CORS by using text/plain and explicit Base64 content
+ */
+window.uploadDocumentToDrive = async function(docType, base64Content, mimeType) {
+    try {
+        const activeDriveUrl = await window.getActiveDriveUrl();
+        const adekPass = window.currentStaff?.adekPass || window.currentStaff?.mobile || "STAFF";
+
+        const payload = {
+            fileName: `DOC_${docType.toUpperCase()}_${adekPass}_${Date.now()}.jpg`,
+            mimeType: mimeType || "image/jpeg",
+            base64Data: base64Content,
+            adekPassNumber: adekPass,
+            action: 'upload'
+        };
+
+        const response = await fetch(activeDriveUrl, {
+            method: "POST",
+            headers: { "Content-Type": "text/plain;charset=utf-8" },
+            body: JSON.stringify(payload)
+        });
+
+        const result = await response.json();
+        if (result.status === "success" && result.fileUrl) {
+            console.log("✅ Drive Sync Success:", result.fileUrl);
+            return result.fileUrl;
+        } else {
+            throw new Error(result.message || "Drive upload failed on engine side");
+        }
+    } catch (err) {
+        console.error("❌ Direct Upload Error:", err);
+        throw err;
+    }
+};
+
 window.uploadToDriveWithRetry = async (payload, retries = 3) => {
     for (let i = 0; i < retries; i++) {
         const res = await window.uploadToDrive(payload);
@@ -125,12 +175,12 @@ window.saveGoogleDriveConfig = async function() {
     const input = document.getElementById('driveUrlInput');
     const url = input?.value.trim();
 
-    if (!url || !url.startsWith('https://script.google.com')) {
+    if (!url || !url.startsWith('https://script.google.com/macros/s/')) {
         alert("❌ Please enter a valid Google Apps Script Web App URL.");
         return;
     }
 
-    window.showGlobalSpinner("Testing Connection...");
+    window.showGlobalSpinner("Testing & Syncing Connection...");
 
     try {
         const response = await fetch(url, {
@@ -143,16 +193,18 @@ window.saveGoogleDriveConfig = async function() {
 
         const result = await response.json();
 
-        // Even if it returns "No file data provided", it means the connection works!
         if (result.status === 'success' || (result.status === 'error' && result.message.includes('No file data'))) {
+            // ✅ Save to LocalStorage for instant access
             localStorage.setItem('jys_drive_script_url', url);
+
+            // ✅ Save to Firebase Permanent Storage for 24/7 access
+            const database = window.firebase.database();
+            await database.ref('settings/driveUrl').set(url);
+
             window.updateDriveUI(true, result.status === 'success' ? result : null);
             window.hideGlobalSpinner();
 
-            const msg = result.status === 'success'
-                ? "✅ Connected!\nStorage: " + result.storageUsed + " used of " + result.storageTotal
-                : "✅ Connected! (Please update Code.gs to v5.3 for storage info)";
-            alert(msg);
+            alert("✅ Google Drive Web App URL saved permanently to Firebase! Connection Active 24/7.");
         } else {
             throw new Error(result.message || "Failed to verify connection.");
         }
@@ -162,6 +214,31 @@ window.saveGoogleDriveConfig = async function() {
         window.updateDriveUI(false);
         alert("❌ Connection Failed: " + e.message);
     }
+};
+
+/**
+ * Auto-load saved URL when Admin Dashboard opens
+ */
+window.loadSavedDriveUrlOnAdminLaunch = function() {
+    // Check localStorage fallback first for fast UI loading
+    const cachedUrl = localStorage.getItem('jys_drive_script_url');
+    const inputField = document.getElementById('driveUrlInput');
+
+    if (inputField && cachedUrl) {
+        inputField.value = cachedUrl;
+        window.updateDriveUI(true);
+    }
+
+    const database = window.firebase.database();
+    database.ref('settings/driveUrl').on('value', (snapshot) => {
+        const url = snapshot.val();
+        if (url) {
+            if (inputField) inputField.value = url;
+            localStorage.setItem('jys_drive_script_url', url);
+            window.updateDriveUI(true);
+            console.log("📡 Drive URL synced from Firebase.");
+        }
+    });
 };
 
 window.updateDriveUI = function(isConnected, data = null) {
@@ -187,28 +264,18 @@ window.updateDriveUI = function(isConnected, data = null) {
 };
 
 window.loadGoogleDriveConfig = async function() {
+    // Priority: LocalStorage (Fast) -> Firebase (Permanent)
     const savedUrl = localStorage.getItem('jys_drive_script_url');
     const input = document.getElementById('driveUrlInput');
 
     if (savedUrl && input) {
         input.value = savedUrl;
-        try {
-            const response = await fetch(savedUrl, {
-                method: 'POST',
-                headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-                body: JSON.stringify({ action: 'checkConnection' })
-            });
-            if (response.ok) {
-                const result = await response.json();
-                window.updateDriveUI(result.status === 'success' || (result.status === 'error' && result.message.includes('No file data')), result.status === 'success' ? result : null);
-            } else {
-                window.updateDriveUI(false);
-            }
-        } catch (e) {
-            window.updateDriveUI(false);
-        }
-    } else {
-        window.updateDriveUI(false);
+        window.updateDriveUI(true);
+    }
+
+    // Always trigger Firebase sync in background
+    if (window.loadSavedDriveUrlOnAdminLaunch) {
+        window.loadSavedDriveUrlOnAdminLaunch();
     }
 };
 

@@ -1,5 +1,30 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-import { getDatabase, ref, get, connectDatabaseEmulator } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+import { getDatabase, ref, get, set, update, push, remove, onValue, query, orderByChild, equalTo, child, off, connectDatabaseEmulator } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+
+// ✅ Task 1: Expose Modular functions to window for global/legacy compatibility
+window.ref = ref;
+window.get = get;
+window.set = set;
+window.update = update;
+window.push = push;
+window.remove = remove;
+window.onValue = onValue;
+window.child = child;
+window.query = query;
+window.off = off;
+
+// ✅ Task 2: Provide a namespaced shim for legacy code
+window.firebase = {
+    database: () => ({
+        ref: (path) => ({
+            set: (data) => window.set(window.ref(db, path), data),
+            update: (data) => window.update(window.ref(db, path), data),
+            push: (data) => window.push(window.ref(db, path), data),
+            once: (evt) => window.get(window.ref(db, path)),
+            on: (evt, cb) => window.onValue(window.ref(db, path), cb)
+        })
+    })
+};
 
 const firebaseConfig = {
     apiKey: "AIzaSyBQJbAcwEZLQYLooRydSSgNRvzrXG5Vl24",

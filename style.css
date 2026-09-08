@@ -2854,3 +2854,29 @@ h1:hover {
     display: flex !important;
     flex-direction: column !important;
 }
+
+/* ================================================================ */
+/* ✅ Task 1: Fix Mobile Launch Screen Logo Sizing                  */
+/* ================================================================ */
+.splash-container, .launch-screen-container {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: 100vw !important;
+    height: 100vh !important;
+    padding: 20px !important;
+    box-sizing: border-box !important;
+    overflow: hidden !important;
+    background: #0f172a !important;
+    position: fixed !important;
+    top: 0; left: 0; z-index: 9999999;
+}
+
+.splash-logo, .launch-logo-img {
+    max-width: 180px !important; /* Proper fitted size on mobile */
+    width: 45% !important;
+    height: auto !important;
+    object-fit: contain !important;
+    margin: 0 auto 20px auto !important;
+}

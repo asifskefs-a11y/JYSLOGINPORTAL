@@ -289,7 +289,7 @@ window.openDocumentScanner = function(documentType) {
                 </div>
 
                 <div class="scanner-actions">
-                    <label class="gallery-upload-btn cursor-pointer active:scale-90 transition-transform">
+                    <label class="gallery-upload-btn cursor-pointer active:scale-90 transition-transform" onclick="/* gallery click */" ontouchstart="/* gallery touch */">
                         <div class="w-12 h-12 bg-white/10 rounded-2xl flex items-center justify-center mb-1">
                             <i class="fas fa-images text-xl"></i>
                         </div>
@@ -298,7 +298,7 @@ window.openDocumentScanner = function(documentType) {
                                onchange="window.handleDirectFileUpload(event, '${documentType}')">
                     </label>
 
-                    <button onclick="window.captureAndCropDocument('${documentType}')" class="capture-btn active:scale-90 transition-transform">
+                    <button onclick="window.captureAndCropDocument('${documentType}')" ontouchstart="window.captureAndCropDocument('${documentType}')" class="capture-btn active:scale-90 transition-transform">
                         <i class="fas fa-camera"></i>
                     </button>
 
@@ -346,32 +346,62 @@ window.startCameraStream = async function() {
     }
 };
 
-window.captureAndCropDocument = async function(documentType) {
+window.captureAndCropDocument = async function(docType) {
     const video = document.getElementById('scanner-video');
-    const canvas = document.createElement('canvas');
-    if (!video) return;
+    if (!video || video.readyState !== 4) {
+        alert("Camera feed not ready yet. Please wait.");
+        return;
+    }
 
-    window.showGlobalSpinner("Processing Document...");
+    window.showGlobalSpinner("Capturing & Syncing...");
 
     try {
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
+        // Create temporary canvas to grab video snapshot
+        const canvas = document.createElement('canvas');
+        canvas.width = video.videoWidth || 1280;
+        canvas.height = video.videoHeight || 720;
         const ctx = canvas.getContext('2d');
-        ctx.drawImage(video, 0, 0);
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-        // Convert to Base64
-        const base64 = canvas.toDataURL('image/jpeg', 0.8);
+        // Convert to Base64 image (Pure content)
+        const base64Data = canvas.toDataURL('image/jpeg', 0.85).split(',')[1];
 
-        // Pass to existing upload flow
-        const staff = window.currentStaff || JSON.parse(sessionStorage.getItem('active_staff_user'));
-        const userId = staff.adekPass || staff.mobile;
+        // Stop camera tracks
+        if (scannerStream) {
+            scannerStream.getTracks().forEach(track => track.stop());
+            scannerStream = null;
+        }
 
-        const success = await window.processDocUpload(userId, documentType, base64);
-        if (success) {
-            window.closeScannerModal();
-            if (window.initStaffDocsModule) window.initStaffDocsModule();
+        // Dismiss scanner modal
+        window.closeScannerModal();
+
+        // Trigger Google Drive upload
+        const driveUrl = await window.uploadDocumentToDrive(docType, base64Data, "image/jpeg");
+
+        if (driveUrl) {
+            // Save metadata to Firebase
+            const staff = window.currentStaff || JSON.parse(sessionStorage.getItem('active_staff_user'));
+            const userId = staff.adekPass || staff.mobile;
+
+            const docData = {
+                driveFileUrl: driveUrl,
+                status: 'PENDING REVIEW',
+                uploadedAt: Date.now(),
+                documentType: docType
+            };
+
+            if (window.saveDocMetadata) {
+                await window.saveDocMetadata(userId, docType, docData);
+            }
+
+            if (window.initStaffDocsModule) {
+                await window.initStaffDocsModule();
+            }
+
+            alert("✅ Document captured and synced successfully!");
         }
     } catch (e) {
+        console.error("📸 Capture Error:", e);
         alert("Scan Failed: " + e.message);
     } finally {
         window.hideGlobalSpinner();
@@ -401,10 +431,26 @@ window.handleDirectFileUpload = async function(event, documentType) {
             });
         }
 
-        const success = await window.processDocUpload(userId, documentType, payload);
-        if (success) {
+        // Handle both DataURL and pure Base64
+        const base64Content = payload.includes(',') ? payload.split(',')[1] : payload;
+
+        const driveUrl = await window.uploadDocumentToDrive(documentType, base64Content, file.type);
+
+        if (driveUrl) {
+            const docData = {
+                driveFileUrl: driveUrl,
+                status: 'PENDING REVIEW',
+                uploadedAt: Date.now(),
+                documentType: documentType
+            };
+
+            if (window.saveDocMetadata) {
+                await window.saveDocMetadata(userId, documentType, docData);
+            }
+
             window.closeScannerModal();
             if (window.initStaffDocsModule) window.initStaffDocsModule();
+            alert("✅ Document uploaded successfully!");
         }
     } catch (e) {
         alert("Upload Failed: " + e.message);
