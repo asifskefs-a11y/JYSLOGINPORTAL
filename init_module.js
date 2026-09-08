@@ -188,19 +188,18 @@ window.handleStaffLogin = async (e) => {
 
                 // SHOW DASHBOARD VIEW (With small delay to ensure DOM is ready)
                 setTimeout(() => {
-                    const dashArea = document.getElementById('staff-dash-area');
-                    console.log("🛡️ Dashboard Area State (Pre-Switch):", dashArea ? dashArea.className : "NOT FOUND");
-
-                    if (window.showStaffView) {
+                    if (window.switchPortalView) {
+                        window.switchPortalView('DASHBOARD');
+                    } else if (window.showStaffView) {
                         window.showStaffView('staff-dash-area');
                     } else {
                         // Fallback unhide if showStaffView is missing
+                        const dashArea = document.getElementById('staff-dash-area');
                         if (dashArea) {
                             dashArea.classList.remove('hidden');
                             dashArea.style.display = 'block';
                         }
                     }
-                    console.log("🛡️ Dashboard Area State (Post-Switch):", dashArea ? dashArea.className : "NOT FOUND");
 
                     // Force refresh layout
                     window.dispatchEvent(new Event('resize'));

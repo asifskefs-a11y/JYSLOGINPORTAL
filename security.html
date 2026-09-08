@@ -52,21 +52,20 @@
 
 <!-- SIDE MENU OVERLAY -->
 <div id="side-menu" class="fixed inset-0 bg-black/60 z-[200000] hidden backdrop-blur-sm transition-opacity duration-300" onclick="if(event.target === this) window.toggleSideMenu()">
-    <div id="side-menu-content" class="absolute left-0 top-0 h-full w-[85%] max-w-[340px] shadow-2xl p-6 transform -translate-x-full transition-transform duration-300 ease-in-out flex flex-col bg-indigo-950">
-        <button class="absolute top-6 right-6 w-10 h-10 bg-white/10 rounded-full flex items-center justify-center text-white/80" onclick="window.toggleSideMenu()">
-            <i class="fa-solid fa-xmark"></i>
-        </button>
-        <div class="menu-header-profile mt-8">
-            <div class="flex items-center gap-4">
-                <div class="avatar h-16 w-16 overflow-hidden bg-amber-500 rounded-full flex items-center justify-center shadow-lg" id="menuAvatar">
-                    <img id="sidebar-profile-img" src="" class="w-full h-full object-cover hidden" alt="Profile">
-                    <span id="sidebar-initials" class="text-white font-black text-xl">S</span>
-                </div>
-                <div class="flex flex-col">
-                    <h2 class="text-xl font-black leading-none text-white" id="menuUserName">Security Guard</h2>
-                    <p class="text-[10px] font-bold text-amber-400 uppercase tracking-widest mt-1">Authorized Personnel</p>
-                </div>
+    <div id="side-menu-content" class="absolute left-0 top-0 h-full w-[85%] max-w-[340px] shadow-2xl -translate-x-full transition-transform duration-300 ease-in-out flex flex-col bg-indigo-950 border-r border-white/10">
+
+        <div class="sidebar-user-profile">
+            <div class="sidebar-avatar-container" id="side-menu-avatar">
+                <img id="sidebar-profile-img" src="" class="sidebar-avatar-img hidden" alt="Profile" onerror="this.classList.add('hidden');">
+                <span id="sidebar-initials" class="text-white font-black text-xl">S</span>
             </div>
+            <div class="sidebar-user-info">
+                <h2 class="sidebar-user-name" id="sidebar-user-name">Security Guard</h2>
+                <p class="sidebar-user-role" id="sidebar-user-role">Authorized Personnel</p>
+            </div>
+            <button type="button" class="sidebar-close-btn" onclick="window.toggleSideMenu()" aria-label="Close menu">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
         </div>
         <div class="flex-1 overflow-y-auto no-scrollbar space-y-8 mt-8">
             <div id="menu-asset-section">

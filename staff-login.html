@@ -35,23 +35,20 @@
 
 <!-- SIDE MENU OVERLAY (v3.5.0 PREMIUM) -->
 <div id="side-menu" class="fixed inset-0 bg-black/60 z-[200000] hidden backdrop-blur-sm transition-opacity duration-300" onclick="if(event.target === this) window.toggleSideMenu()">
-    <div id="side-menu-content" class="absolute left-0 top-0 h-full w-[85%] max-w-[340px] shadow-2xl p-6 -translate-x-full transition-transform duration-300 ease-in-out flex flex-col bg-slate-900 border-r border-white/10">
+    <div id="side-menu-content" class="absolute left-0 top-0 h-full w-[85%] max-w-[340px] shadow-2xl -translate-x-full transition-transform duration-300 ease-in-out flex flex-col bg-slate-900 border-r border-white/10">
 
-        <button type="button" class="absolute top-6 right-6 w-10 h-10 bg-white/10 hover:bg-white/20 active:scale-95 transition-all rounded-full flex items-center justify-center text-white/80 hover:text-white" onclick="window.toggleSideMenu()" aria-label="Close menu">
-            <i class="fa-solid fa-xmark text-lg"></i>
-        </button>
-
-        <div class="menu-header-profile pt-2 pb-6 border-b border-white/10">
-            <div class="flex items-center gap-4">
-                <div class="avatar h-16 w-16 overflow-hidden bg-indigo-600 rounded-full flex items-center justify-center shadow-lg ring-2 ring-indigo-400/30 shrink-0" id="menuAvatar">
-                    <img id="sidebar-profile-img" src="" class="w-full h-full object-cover hidden" alt="Staff Profile" onerror="this.classList.add('hidden'); document.getElementById('sidebar-initials').classList.remove('hidden');">
-                    <span id="sidebar-initials" class="text-white font-black text-xl select-none">?</span>
-                </div>
-                <div class="flex flex-col min-w-0">
-                    <h2 class="text-xl font-black leading-tight text-white truncate" id="menuUserName">Staff User</h2>
-                    <p class="text-[10px] font-bold text-amber-400 uppercase tracking-widest mt-1 truncate" id="menuUserRole">STAFF</p>
-                </div>
+        <div class="sidebar-user-profile">
+            <div class="sidebar-avatar-container" id="side-menu-avatar">
+                <img id="sidebar-profile-img" src="" class="sidebar-avatar-img hidden" alt="Staff Profile" onerror="this.classList.add('hidden');">
+                <span id="sidebar-initials" class="text-white font-black text-xl">?</span>
             </div>
+            <div class="sidebar-user-info">
+                <h2 class="sidebar-user-name" id="sidebar-user-name">Staff User</h2>
+                <p class="sidebar-user-role" id="sidebar-user-role">STAFF</p>
+            </div>
+            <button type="button" class="sidebar-close-btn" onclick="window.toggleSideMenu()" aria-label="Close menu">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
         </div>
 
         <div class="flex-1 overflow-y-auto no-scrollbar space-y-8 mt-6 text-white">
@@ -139,7 +136,7 @@
     <section id="view-staff" class="view-section active p-0 flex flex-col min-h-screen">
 
         <!-- STAFF LOGIN AREA (UPGRADED v3.6.0 DESKTOP PREMIUM) -->
-        <div id="staff-auth-area" class="w-full max-w-md md:max-w-lg mx-auto bg-white text-gray-800 rounded-[2.5rem] shadow-2xl shadow-indigo-500/10 overflow-hidden transition-all duration-300 border border-white/50">
+        <div id="staff-auth-area" class="login-view w-full max-w-md md:max-w-lg mx-auto bg-white text-gray-800 rounded-[2.5rem] shadow-2xl shadow-indigo-500/10 overflow-hidden transition-all duration-300 border border-white/50">
             <div class="flex items-center justify-between p-4 bg-slate-50 border-b border-slate-100">
                 <button type="button" onclick="window.location.href='index.html'" class="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 text-white px-4 py-2 rounded-xl text-xs font-semibold transition-all shadow-md active:scale-95">
                     <i class="fa-solid fa-arrow-left"></i>
@@ -203,7 +200,7 @@
         </div>
 
         <!-- DASHBOARD AREA -->
-        <div id="staff-dash-area" class="hidden w-full lg:max-w-[95%] mx-auto space-y-6 px-0 relative z-[100]">
+        <div id="staff-dash-area" class="staff-dashboard-view hidden w-full lg:max-w-[95%] mx-auto space-y-6 px-0 relative z-[100]">
             <!-- TOP NAV -->
             <nav class="top-nav fade-in flex items-center justify-between p-2">
                 <button type="button" onclick="window.toggleSideMenu()" class="nav-pill-purple no-underline border-none !justify-start flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold transition-all active:scale-95">

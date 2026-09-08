@@ -725,8 +725,12 @@ window.executeSecureLogout = function() {
     sessionStorage.clear();
     localStorage.clear();
 
-    // Direct redirect to Login Page
-    window.location.href = 'staff-login.html';
+    if (window.switchPortalView) {
+        window.switchPortalView('LOGIN');
+    } else {
+        // Direct redirect to Login Page as fallback
+        window.location.href = 'staff-login.html';
+    }
 };
 
 window.logoutStaff = window.executeSecureLogout;
@@ -752,45 +756,15 @@ window.initSidebarProfileAndRestrictions = function(staffData) {
 
     const nameEl = document.getElementById('sidebar-user-name') || document.getElementById('menuUserName') || document.querySelector('.sidebar-user-name');
     const roleEl = document.getElementById('sidebar-user-role') || document.getElementById('menuUserRole') || document.querySelector('.sidebar-user-role');
-    const imgEl = document.getElementById('sidebar-user-avatar') || document.getElementById('sidebar-profile-img') || document.querySelector('.sidebar-user-avatar');
-    const initialsEl = document.getElementById('sidebar-initials');
 
     if (nameEl) {
         nameEl.innerText = displayName;
-        // Task 1: Fix Side Menu Text Overflow & Wrapping
-        nameEl.style.whiteSpace = 'normal';
-        nameEl.style.wordBreak = 'break-word';
-        nameEl.style.lineHeight = '1.2';
-        nameEl.classList.remove('truncate', 'whitespace-nowrap');
     }
     if (roleEl) roleEl.innerText = displayRole;
 
-    if (imgEl) {
-        const photo = staff.profilePicUrl || staff.photoUrl || staff.profilePic || staff.imageUrl || staff.photo || staff.avatar;
-        const finalUrl = window.formatDriveImageUrl(photo, displayName);
-
-        // 1. Check local cache first for instant render
-        const cached = localStorage.getItem('jys_cached_user_avatar');
-        if (cached && cached.startsWith('data:image')) {
-            imgEl.src = cached;
-            imgEl.classList.remove('hidden');
-            if (initialsEl) initialsEl.classList.add('hidden');
-        }
-
-        if (photo && photo !== 'N/A' && photo !== '-') {
-            // Background fetch and cache
-            window.getOrCacheImage(finalUrl).then(src => {
-                imgEl.src = src;
-                imgEl.classList.remove('hidden');
-                if (initialsEl) initialsEl.classList.add('hidden');
-                // Store as main profile avatar
-                localStorage.setItem('jys_cached_user_avatar', src);
-            });
-        } else {
-            imgEl.src = finalUrl;
-            imgEl.classList.remove('hidden');
-            if (initialsEl) initialsEl.classList.add('hidden');
-        }
+    // ✅ Task 2: Unified Profile Image Rendering
+    if (typeof window.renderUserProfileImages === 'function') {
+        window.renderUserProfileImages(staff);
     }
 
     // ✅ MANDATE: Strict Visibility Control for Side Menu Items
@@ -841,37 +815,13 @@ window.renderDashboardProfile = function(staffData) {
         const displayRole = safeStaff.designation || safeStaff.position || safeStaff.role || "Employee";
         if (roleEl) roleEl.innerText = displayRole;
 
-            if (branchEl) {
-            branchEl.innerHTML = `<i class="fa-solid fa-location-dot text-indigo-400"></i> ${safeStaff.school || safeStaff.branch || 'Jern Yafoor School'}`;
+        // ✅ Task 2: Fix Profile Picture Rendering (Unified)
+        if (typeof window.renderUserProfileImages === 'function') {
+            window.renderUserProfileImages(safeStaff);
         }
 
-        if (imgEl) {
-            const photo = safeStaff.profilePicUrl || safeStaff.photoUrl || safeStaff.profilePic || safeStaff.imageUrl || safeStaff.photo || safeStaff.avatar;
-            const displayName = safeStaff.fullName || safeStaff.name || "U";
-            const finalUrl = window.formatDriveImageUrl(photo, displayName);
-
-            const cached = localStorage.getItem('jys_cached_user_avatar');
-            if (cached && cached.startsWith('data:image')) {
-                imgEl.src = cached;
-                imgEl.classList.remove('hidden');
-                const placeholder = document.getElementById('avatar-placeholder');
-                if (placeholder) placeholder.classList.add('hidden');
-            }
-
-            if (photo && photo !== 'N/A' && photo !== '-') {
-                window.getOrCacheImage(finalUrl).then(src => {
-                    imgEl.src = src;
-                    imgEl.classList.remove('hidden');
-                    const placeholder = document.getElementById('avatar-placeholder');
-                    if (placeholder) placeholder.classList.add('hidden');
-                    localStorage.setItem('jys_cached_user_avatar', src);
-                }).catch(e => console.warn("Image cache failed:", e));
-            } else {
-                imgEl.src = finalUrl;
-                imgEl.classList.remove('hidden');
-                const placeholder = document.getElementById('avatar-placeholder');
-                if (placeholder) placeholder.classList.add('hidden');
-            }
+        if (branchEl) {
+            branchEl.innerHTML = `<i class="fa-solid fa-location-dot text-indigo-400"></i> ${safeStaff.school || safeStaff.branch || 'Jern Yafoor School'}`;
         }
 
         if (typeof window.initSidebarProfileAndRestrictions === 'function') {
@@ -1729,4 +1679,83 @@ document.addEventListener('DOMContentLoaded', () => {
     observer.observe(document.body, { childList: true, subtree: true });
 });
 
-console.log("✅ ui_module.js (v5.0 Stable) Loaded");
+// ================================================================ */
+// ✅ Task 2: Fix Profile Picture Rendering (Dashboard & Sidebar)    */
+// ================================================================ */
+window.renderUserProfileImages = function(user) {
+    if (!user) return;
+
+    const photoUrl = user.profilePicUrl || user.photoUrl || user.profilePicture || user.photo || user.imageUrl || "";
+    const name = user.fullName || user.name || "User";
+    const initials = name.split(" ").map(n => n[0]).join("").substring(0, 2).toUpperCase();
+
+    // Side Menu Avatar
+    const sideAvatarContainer = document.getElementById('side-menu-avatar') || document.querySelector('.sidebar-avatar-container');
+    if (sideAvatarContainer) {
+        if (photoUrl && photoUrl.trim() !== "" && photoUrl !== 'N/A' && photoUrl !== '-') {
+            const finalUrl = window.getDirectDriveImageUrl ? window.getDirectDriveImageUrl(photoUrl) : photoUrl;
+            sideAvatarContainer.innerHTML = `<img src="${finalUrl}" class="sidebar-avatar-img" alt="Profile" onerror="this.classList.add('hidden'); this.parentNode.innerText='${initials}';"/>`;
+        } else {
+            sideAvatarContainer.innerHTML = `<span id="sidebar-initials" class="text-white font-black text-xl">${initials}</span>`;
+        }
+    }
+
+    // Main Dashboard Avatar
+    const mainAvatarContainer = document.getElementById('user-avatar-container') || document.querySelector('.dashboard-avatar-box');
+    if (mainAvatarContainer) {
+        const imgEl = document.getElementById('user-avatar');
+        const placeholder = document.getElementById('avatar-placeholder');
+
+        if (photoUrl && photoUrl.trim() !== "" && photoUrl !== 'N/A' && photoUrl !== '-') {
+            const finalUrl = window.getDirectDriveImageUrl ? window.getDirectDriveImageUrl(photoUrl) : photoUrl;
+            if (imgEl) {
+                imgEl.src = finalUrl;
+                imgEl.classList.remove('hidden');
+                imgEl.style.display = 'block';
+            }
+            if (placeholder) placeholder.classList.add('hidden');
+        } else {
+            if (imgEl) imgEl.classList.add('hidden');
+            if (placeholder) {
+                placeholder.innerText = initials;
+                placeholder.classList.remove('hidden');
+                placeholder.style.display = 'block';
+            }
+        }
+    }
+
+    // Update Name Displays safely
+    const nameDisplays = document.querySelectorAll('#user-name, #sidebar-user-name, .user-display-name, .sidebar-user-name');
+    nameDisplays.forEach(el => el.innerText = name);
+};
+
+// ================================================================ */
+// ✅ Task 3: Separate Login Screen & Staff Dashboard Views        */
+// ================================================================ */
+window.switchPortalView = function(viewName) {
+    const loginView = document.getElementById('staff-auth-area') || document.querySelector('.login-view');
+    const dashboardView = document.getElementById('staff-dash-area') || document.querySelector('.staff-dashboard-view');
+
+    if (viewName === 'DASHBOARD') {
+        if (loginView) {
+            loginView.style.display = 'none';
+            loginView.classList.add('hidden');
+        }
+        if (dashboardView) {
+            dashboardView.style.display = 'block';
+            dashboardView.classList.remove('hidden');
+        }
+        window.scrollTo(0, 0); // Reset scroll position
+    } else if (viewName === 'LOGIN') {
+        if (dashboardView) {
+            dashboardView.style.display = 'none';
+            dashboardView.classList.add('hidden');
+        }
+        if (loginView) {
+            loginView.style.display = 'block';
+            loginView.classList.remove('hidden');
+        }
+    }
+};
+
+console.log("✅ ui_module.js (v5.1 Stable) Loaded");
