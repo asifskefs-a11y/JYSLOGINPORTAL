@@ -256,60 +256,57 @@ window.rejectDoc = function(userId, docKey) {
 };
 
 /**
- * ✅ SMART DOCUMENT SCANNER (Google Lens Style)
+ * ✅ PREMIUM SMART SCANNER (v6.0)
  */
 let scannerStream = null;
 
-window.openDocumentScanner = function(documentType) {
+window.openDocumentScanner = function(docType) {
     // Force close any existing
     window.closeScannerModal();
 
-    const modalHtml = `
+    const scannerModalHtml = `
         <div id="scanner-modal" class="scanner-overlay fade-in">
-            <div class="scanner-container">
-                <div class="scanner-header">
-                    <div class="flex flex-col">
-                        <h3 class="text-white font-black uppercase text-sm tracking-tight">Smart Doc Scanner</h3>
-                        <p class="text-indigo-400 text-[9px] font-bold uppercase tracking-widest">${documentType}</p>
-                    </div>
-                    <button onclick="window.closeScannerModal()" class="w-10 h-10 bg-white/10 rounded-full flex items-center justify-center text-white text-2xl">&times;</button>
+            <div class="scanner-header">
+                <span class="scanner-title-prefix">SMART DOC SCANNER</span>
+                <div class="scanner-doc-type">${docType.toUpperCase()}</div>
+                <button onclick="window.closeScannerModal()" class="close-scanner-btn">&times;</button>
+            </div>
+
+            <div class="viewfinder-container">
+                <video id="scanner-video" autoplay playsinline muted></video>
+                <div class="doc-detection-frame" id="scanner-guide"></div>
+                <canvas id="scanner-detection-canvas" class="hidden"></canvas>
+            </div>
+
+            <div class="scanner-controls">
+                <!-- Gallery Option -->
+                <button onclick="document.getElementById('direct-file-input').click()" class="gallery-btn">
+                    <i class="fas fa-file-image"></i>
+                    <span class="gallery-label">GALLERY</span>
+                </button>
+
+                <!-- File Picker (Hidden) -->
+                <div id="choose-file-container" class="hidden">
+                    <input type="file" id="direct-file-input" accept="image/*,application/pdf"
+                           onchange="window.handleDirectFileUpload(event, '${docType}')">
                 </div>
 
-                <div class="viewfinder-box">
-                    <video id="scanner-video" autoplay playsinline muted></video>
-                    <canvas id="scanner-canvas-overlay" class="hidden"></canvas>
-                    <div class="scanner-guide-ring" id="scanner-guide"></div>
+                <!-- Shutter Button -->
+                <button id="scanner-shutter-btn"
+                        onclick="window.captureAndCropDocument('${docType}')"
+                        ontouchstart="window.captureAndCropDocument('${docType}')"
+                        class="shutter-btn">
+                    <div class="shutter-btn-inner"></div>
+                </button>
 
-                    <!-- Real-time Instruction -->
-                    <div class="absolute bottom-10 left-0 w-full text-center z-20">
-                         <span class="px-6 py-2 bg-black/60 backdrop-blur-md rounded-full text-white text-[9px] font-black uppercase tracking-widest border border-white/10">
-                            Align document within the frame
-                         </span>
-                    </div>
-                </div>
-
-                <div class="scanner-actions">
-                    <label class="gallery-upload-btn cursor-pointer active:scale-90 transition-transform" onclick="/* gallery click */" ontouchstart="/* gallery touch */">
-                        <div class="w-12 h-12 bg-white/10 rounded-2xl flex items-center justify-center mb-1">
-                            <i class="fas fa-images text-xl"></i>
-                        </div>
-                        <span>Gallery</span>
-                        <input type="file" id="direct-file-input" accept="image/*,application/pdf" class="hidden"
-                               onchange="window.handleDirectFileUpload(event, '${documentType}')">
-                    </label>
-
-                    <button onclick="window.captureAndCropDocument('${documentType}')" ontouchstart="window.captureAndCropDocument('${documentType}')" class="capture-btn active:scale-90 transition-transform">
-                        <i class="fas fa-camera"></i>
-                    </button>
-
-                    <div class="w-16"></div> <!-- Spacer for symmetry -->
-                </div>
+                <!-- Spacer to match layout -->
+                <div style="width: 54px;"></div>
             </div>
         </div>
     `;
 
-    document.body.insertAdjacentHTML('beforeend', modalHtml);
-    window.startCameraStream();
+    document.body.insertAdjacentHTML('beforeend', scannerModalHtml);
+    window.startSmartCameraStream();
 };
 
 window.closeScannerModal = function() {
@@ -322,7 +319,7 @@ window.closeScannerModal = function() {
     }
 };
 
-window.startCameraStream = async function() {
+window.startSmartCameraStream = async function() {
     const video = document.getElementById('scanner-video');
     if (!video) return;
 
@@ -333,11 +330,13 @@ window.startCameraStream = async function() {
         });
         video.srcObject = scannerStream;
 
-        // Simple visual detection simulation
-        setTimeout(() => {
-            const guide = document.getElementById('scanner-guide');
-            if (guide) guide.classList.add('detected');
-        }, 2000);
+        // Detection Logic Simulation
+        video.onloadedmetadata = () => {
+            setTimeout(() => {
+                const guide = document.getElementById('scanner-guide');
+                if (guide) guide.classList.add('detected');
+            }, 1500);
+        };
 
     } catch (err) {
         console.error("Camera Error:", err);
@@ -349,56 +348,47 @@ window.startCameraStream = async function() {
 window.captureAndCropDocument = async function(docType) {
     const video = document.getElementById('scanner-video');
     if (!video || video.readyState !== 4) {
-        alert("Camera feed not ready yet. Please wait.");
+        console.warn("Camera feed not ready.");
         return;
     }
 
-    window.showGlobalSpinner("Capturing & Syncing...");
+    window.showGlobalSpinner("Capturing Document...");
 
     try {
-        // Create temporary canvas to grab video snapshot
         const canvas = document.createElement('canvas');
         canvas.width = video.videoWidth || 1280;
         canvas.height = video.videoHeight || 720;
         const ctx = canvas.getContext('2d');
         ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-        // Convert to Base64 image (Pure content)
-        const base64Data = canvas.toDataURL('image/jpeg', 0.85).split(',')[1];
+        // Convert to Pure Base64
+        const base64Full = canvas.toDataURL('image/jpeg', 0.85);
+        const base64Data = base64Full.includes(',') ? base64Full.split(',')[1] : base64Full;
 
-        // Stop camera tracks
-        if (scannerStream) {
-            scannerStream.getTracks().forEach(track => track.stop());
-            scannerStream = null;
-        }
-
-        // Dismiss scanner modal
+        // Release Camera
         window.closeScannerModal();
 
-        // Trigger Google Drive upload
-        const driveUrl = await window.uploadDocumentToDrive(docType, base64Data, "image/jpeg");
+        // Trigger Google Drive upload pipeline
+        if (window.uploadDocumentToDrive) {
+            const driveUrl = await window.uploadDocumentToDrive(docType, base64Data, "image/jpeg");
 
-        if (driveUrl) {
-            // Save metadata to Firebase
-            const staff = window.currentStaff || JSON.parse(sessionStorage.getItem('active_staff_user'));
-            const userId = staff.adekPass || staff.mobile;
+            if (driveUrl) {
+                const staff = window.currentStaff || JSON.parse(sessionStorage.getItem('active_staff_user'));
+                const userId = staff.adekPass || staff.mobile;
 
-            const docData = {
-                driveFileUrl: driveUrl,
-                status: 'PENDING REVIEW',
-                uploadedAt: Date.now(),
-                documentType: docType
-            };
+                const docData = {
+                    driveFileUrl: driveUrl,
+                    status: 'PENDING REVIEW',
+                    uploadedAt: Date.now(),
+                    documentType: docType
+                };
 
-            if (window.saveDocMetadata) {
-                await window.saveDocMetadata(userId, docType, docData);
+                if (window.saveDocMetadata) {
+                    await window.saveDocMetadata(userId, docType, docData);
+                }
+
+                if (window.initStaffDocsModule) await window.initStaffDocsModule();
             }
-
-            if (window.initStaffDocsModule) {
-                await window.initStaffDocsModule();
-            }
-
-            alert("✅ Document captured and synced successfully!");
         }
     } catch (e) {
         console.error("📸 Capture Error:", e);
@@ -412,18 +402,16 @@ window.handleDirectFileUpload = async function(event, documentType) {
     const file = event.target.files[0];
     if (!file) return;
 
-    window.showGlobalSpinner("Reading File...");
+    window.showGlobalSpinner("Processing File...");
 
     try {
         const staff = window.currentStaff || JSON.parse(sessionStorage.getItem('active_staff_user'));
         const userId = staff.adekPass || staff.mobile;
 
-        // Use global compression if it's an image
         let payload = "";
         if (file.type.startsWith('image/')) {
             payload = await window.compressImageFile(file, 1200, 1200, 0.8);
         } else {
-            // PDF handling (Raw base64)
             const reader = new FileReader();
             payload = await new Promise((resolve) => {
                 reader.onload = (e) => resolve(e.target.result);
@@ -431,26 +419,26 @@ window.handleDirectFileUpload = async function(event, documentType) {
             });
         }
 
-        // Handle both DataURL and pure Base64
         const base64Content = payload.includes(',') ? payload.split(',')[1] : payload;
 
-        const driveUrl = await window.uploadDocumentToDrive(documentType, base64Content, file.type);
+        if (window.uploadDocumentToDrive) {
+            const driveUrl = await window.uploadDocumentToDrive(documentType, base64Content, file.type);
 
-        if (driveUrl) {
-            const docData = {
-                driveFileUrl: driveUrl,
-                status: 'PENDING REVIEW',
-                uploadedAt: Date.now(),
-                documentType: documentType
-            };
+            if (driveUrl) {
+                const docData = {
+                    driveFileUrl: driveUrl,
+                    status: 'PENDING REVIEW',
+                    uploadedAt: Date.now(),
+                    documentType: documentType
+                };
 
-            if (window.saveDocMetadata) {
-                await window.saveDocMetadata(userId, documentType, docData);
+                if (window.saveDocMetadata) {
+                    await window.saveDocMetadata(userId, documentType, docData);
+                }
+
+                if (window.initStaffDocsModule) await window.initStaffDocsModule();
+                alert("✅ Upload success!");
             }
-
-            window.closeScannerModal();
-            if (window.initStaffDocsModule) window.initStaffDocsModule();
-            alert("✅ Document uploaded successfully!");
         }
     } catch (e) {
         alert("Upload Failed: " + e.message);
@@ -458,5 +446,7 @@ window.handleDirectFileUpload = async function(event, documentType) {
         window.hideGlobalSpinner();
     }
 };
+
+console.log("✅ docs_verification.js: v6.0 Smart Scanner Deployed");
 
 console.log("✅ docs_verification.js: v2.5 Smart Scanner Active");

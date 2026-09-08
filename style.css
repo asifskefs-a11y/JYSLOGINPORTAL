@@ -2599,6 +2599,113 @@ h1:hover {
 
 /* GLOBAL CENTERED MODAL STYLING (Onboarding) */
 /* GLOBAL CENTERED MODAL STYLING (Onboarding) */
+/* ================================================================ */
+/* ✅ PREMIUM SMART SCANNER UI (OVERHAUL v6.0)                      */
+/* ================================================================ */
+
+.scanner-overlay {
+    position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+    background: rgba(0, 0, 0, 0.95); z-index: 9999999;
+    display: flex; flex-direction: column;
+}
+
+.scanner-header {
+    padding: 20px;
+    color: #fff;
+    position: relative;
+    z-index: 10;
+    background: linear-gradient(to bottom, rgba(0,0,0,0.8), transparent);
+}
+
+.scanner-title-prefix { font-size: 11px; opacity: 0.6; font-weight: 800; text-transform: uppercase; letter-spacing: 2px; display: block; }
+.scanner-doc-type { font-weight: 900; font-size: 22px; margin-top: 4px; text-transform: uppercase; color: #818cf8; }
+.close-scanner-btn { position: absolute; top: 25px; right: 20px; color: #fff; background: rgba(255,255,255,0.1); border: none; font-size: 20px; width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; }
+
+.viewfinder-container {
+    flex: 1;
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #000;
+}
+
+#scanner-video { width: 100%; height: 100%; object-fit: cover; }
+#scanner-detection-canvas { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 6; pointer-events: none; }
+
+.doc-detection-frame {
+    position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+    width: 85%; height: 70%;
+    border: 2px dashed rgba(255, 255, 255, 0.3);
+    border-radius: 20px;
+    box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.5);
+    pointer-events: none;
+    z-index: 5;
+    transition: all 0.3s ease;
+}
+
+.doc-detection-frame.detected {
+    border: 4px solid #22c55e;
+    box-shadow: 0 0 20px rgba(34, 197, 94, 0.4), 0 0 0 9999px rgba(0, 0, 0, 0.5);
+}
+
+.scanner-controls {
+    padding: 30px 20px 50px 20px;
+    background: #000;
+    display: flex; justify-content: space-between; align-items: center; gap: 20px;
+}
+
+#choose-file-container { display: flex; align-items: center; gap: 8px; flex: 1; }
+#native-file-input { display: none; }
+.custom-file-label {
+    background: rgba(255, 255, 255, 0.08); color: #fff;
+    padding: 12px 20px; border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.15); font-size: 11px; cursor: pointer;
+    flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    font-weight: 800; text-transform: uppercase; letter-spacing: 1px;
+    text-align: center;
+}
+
+.gallery-btn {
+    color: #fff; background: rgba(255,255,255,0.08); border: none;
+    width: 54px; height: 54px; border-radius: 16px;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
+}
+.gallery-label { font-size: 8px; text-transform: uppercase; font-weight: 900; opacity: 0.6; }
+
+.shutter-btn {
+    width: 72px; height: 72px; border-radius: 50%;
+    background: none; border: 4px solid #fff;
+    display: flex; align-items: center; justify-content: center; padding: 0;
+    transition: transform 0.2s active:scale-90;
+}
+.shutter-btn-inner { width: 56px; height: 56px; border-radius: 50%; background: #fff; }
+
+@keyframes runningRedBorder {
+    0% { background-position: 0% 0%; }
+    100% { background-position: 100% 100%; }
+}
+.expiring-border-animated {
+    border: 2px dashed #ff2d55 !important;
+    background-image: linear-gradient(90deg, #ff2d55 50%, transparent 50%), linear-gradient(90deg, #ff2d55 50%, transparent 50%), linear-gradient(0deg, #ff2d55 50%, transparent 50%), linear-gradient(0deg, #ff2d55 50%, transparent 50%);
+    background-repeat: repeat-x, repeat-x, repeat-y, repeat-y;
+    background-size: 15px 2px, 15px 2px, 2px 15px, 2px 15px;
+    background-position: 0 0, 0 100%, 0 0, 100% 0;
+    animation: runningRedBorder 2s linear infinite;
+    box-shadow: 0 0 15px rgba(255, 45, 85, 0.3);
+}
+
+.pulse-badge {
+    animation: pulseRed 1.5s infinite;
+}
+@keyframes pulseRed {
+    0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(225, 29, 72, 0.7); }
+    70% { transform: scale(1); box-shadow: 0 0 0 6px rgba(225, 29, 72, 0); }
+    100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(225, 29, 72, 0); }
+}
+
+/* GLOBAL CENTERED MODAL STYLING (Onboarding) */
 .onboarding-modal-overlay {
     position: fixed;
     top: 0;
@@ -2625,85 +2732,6 @@ h1:hover {
     border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
-/* ✅ SMART DOCUMENT SCANNER STYLES */
-.scanner-overlay {
-    position: fixed;
-    inset: 0;
-    background: #000;
-    z-index: 9999999;
-    display: flex;
-    flex-direction: column;
-}
-.scanner-container {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    position: relative;
-}
-.scanner-header {
-    padding: 20px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    background: rgba(0,0,0,0.5);
-    position: absolute;
-    top: 0; width: 100%; z-index: 10;
-}
-.viewfinder-box {
-    flex: 1;
-    position: relative;
-    overflow: hidden;
-    background: #000;
-}
-#scanner-video { width: 100%; height: 100%; object-fit: cover; }
-#scanner-canvas-overlay { position: absolute; inset: 0; width: 100%; height: 100%; }
-
-.scanner-guide-ring {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    width: 85%;
-    height: 70%;
-    border: 2px dashed #38bdf8;
-    border-radius: 12px;
-    box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.5);
-    pointer-events: none;
-    transition: border-color 0.3s ease;
-}
-.scanner-guide-ring.detected {
-    border: 3px solid #22c55e;
-    box-shadow: 0 0 15px rgba(34, 197, 94, 0.6), 0 0 0 9999px rgba(0, 0, 0, 0.5);
-}
-.scanner-actions {
-    padding: 30px;
-    display: flex;
-    justify-content: space-around;
-    align-items: center;
-    background: #000;
-}
-.capture-btn {
-    width: 70px; height: 70px;
-    border-radius: 50%;
-    background: #fff;
-    border: 5px solid #333;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 24px;
-    color: #333;
-}
-.gallery-upload-btn {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 5px;
-    color: #fff;
-    font-size: 10px;
-    text-transform: uppercase;
-    font-weight: bold;
-}
-
 @keyframes modalUp {
     from { opacity: 0; transform: translateY(20px); }
     to { opacity: 1; transform: translateY(0); }
@@ -2712,10 +2740,7 @@ h1:hover {
     animation: modalUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
-/* ================================================================ */
 /* ✅ STAFF CENSUS GRID STYLES (v5.7 - OVERLAP & SPACING FIX)       */
-/* ================================================================ */
-
 .census-breakdown-card-wrapper {
     display: flex !important;
     flex-direction: column !important;
@@ -2853,6 +2878,32 @@ h1:hover {
     z-index: 10;
     display: flex !important;
     flex-direction: column !important;
+}
+
+/* ================================================================ */
+/* ✅ Task 1: Fix Mobile Launch Screen Logo Sizing                  */
+/* ================================================================ */
+.splash-container, .launch-screen-container {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: 100vw !important;
+    height: 100vh !important;
+    padding: 20px !important;
+    box-sizing: border-box !important;
+    overflow: hidden !important;
+    background: #0f172a !important;
+    position: fixed !important;
+    top: 0; left: 0; z-index: 9999999;
+}
+
+.splash-logo, .launch-logo-img {
+    max-width: 180px !important; /* Proper fitted size on mobile */
+    width: 45% !important;
+    height: auto !important;
+    object-fit: contain !important;
+    margin: 0 auto 20px auto !important;
 }
 
 /* ================================================================ */
