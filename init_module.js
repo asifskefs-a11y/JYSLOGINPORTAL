@@ -196,12 +196,13 @@ window.handleStaffLogin = async (e) => {
                         // Fallback unhide if showStaffView is missing
                         const dashArea = document.getElementById('staff-dash-area');
                         if (dashArea) {
-                            dashArea.classList.remove('hidden');
+                            dashArea.classList.remove('hidden', 'hidden-view');
+                            dashArea.classList.add('active-view');
                             dashArea.style.display = 'block';
                         }
                     }
 
-                    // Force refresh layout
+                    // Force refresh layout and images
                     window.dispatchEvent(new Event('resize'));
                 }, 300);
             } else {
@@ -418,12 +419,10 @@ document.addEventListener('DOMContentLoaded', () => {
                         window.initUserDashboard(effectiveStaff);
                     } else if (window.renderDashboard) {
                         window.renderDashboard(effectiveStaff);
-                    } else {
-                        console.log("⏳ Waiting for attendance_module.js...");
-                        setTimeout(() => {
-                            if (window.initUserDashboard) window.initUserDashboard(effectiveStaff);
-                            else if (window.renderDashboard) window.renderDashboard(effectiveStaff);
-                        }, 1000);
+                    }
+
+                    if (window.switchPortalView) {
+                        window.switchPortalView('DASHBOARD');
                     }
                 } catch (e) {
                     console.error("❌ Session parse error, clearing...", e);
@@ -432,10 +431,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             } else if (path.includes('staff-login.html')) {
                 console.log("🛡️ Staff: No active session, showing login area...");
-                const authArea = document.getElementById('staff-auth-area');
-                const dashArea = document.getElementById('staff-dash-area');
-                if (authArea) authArea.classList.remove('hidden');
-                if (dashArea) dashArea.classList.add('hidden');
+                if (window.switchPortalView) {
+                    window.switchPortalView('LOGIN');
+                }
             }
         }
 
@@ -464,18 +462,17 @@ document.addEventListener('DOMContentLoaded', () => {
         window.checkStaffAuth = () => {
             try {
                 const activeStaff = JSON.parse(sessionStorage.getItem('active_staff_user') || 'null');
-                const authArea = document.getElementById('staff-auth-area');
-                const dashArea = document.getElementById('staff-dash-area');
-
-                if (activeStaff && activeStaff.mobile && dashArea) {
+                if (activeStaff && activeStaff.mobile) {
                     console.log("🛡️ checkStaffAuth: Active session found, loading dashboard");
                     if (window.renderDashboard) window.renderDashboard(activeStaff);
-                    if (authArea) authArea.classList.add('hidden');
-                    dashArea.classList.remove('hidden');
+                    if (window.switchPortalView) {
+                        window.switchPortalView('DASHBOARD');
+                    }
                 } else {
                     console.log("🛡️ checkStaffAuth: No active session, ensuring login visible");
-                    if (authArea) authArea.classList.remove('hidden');
-                    if (dashArea) dashArea.classList.add('hidden');
+                    if (window.switchPortalView) {
+                        window.switchPortalView('LOGIN');
+                    }
                 }
             } catch (e) { console.error("Auth Check Error:", e); }
         };

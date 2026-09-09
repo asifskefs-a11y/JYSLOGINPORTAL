@@ -1,4 +1,4 @@
-const CACHE_NAME = 'jys-portal-v5.8';
+const CACHE_NAME = 'jys-portal-v6.2';
 const ASSETS_TO_CACHE = [
     './',
     './index.html',
@@ -7,6 +7,7 @@ const ASSETS_TO_CACHE = [
     './visitor.html',
     './style.css',
     './staff-ui.css',
+    './image_processor.js',
     './schoollogo.png',
     './jys_Icon.png',
     './manifest.json',

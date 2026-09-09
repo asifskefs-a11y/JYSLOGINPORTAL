@@ -1146,26 +1146,40 @@ window.lazyLoadCachedImages = function() {
 /**
  * Universal URL normalizer for Google Drive and UI Avatars
  */
+/**
+ * Universal URL normalizer for Google Drive and UI Avatars
+ */
 window.formatDriveImageUrl = function(url, staffName = "Staff") {
     if (!url || url.trim() === "" || url.includes("ui-avatars.com") || url === 'N/A' || url === '-') {
         return `https://ui-avatars.com/api/?name=${encodeURIComponent(staffName)}&background=4f46e5&color=fff`;
     }
 
     // Extract File ID from Google Drive URLs
-    const driveRegex = /\/d\/([a-zA-Z0-9_-]+)|id=([a-zA-Z0-9_-]+)/;
+    // Handles: /file/d/[ID], /d/[ID], ?id=[ID], and raw IDs
+    const driveRegex = /\/file\/d\/([a-zA-Z0-9_-]+)|\/d\/([a-zA-Z0-9_-]+)|[?&]id=([a-zA-Z0-9_-]+)|([a-zA-Z0-9_-]{25,})/;
     const match = url.match(driveRegex);
 
     if (match) {
-        const fileId = match[1] || match[2];
-        return `https://lh3.googleusercontent.com/d/${fileId}`;
+        // Find the captured group that isn't null/undefined
+        const fileId = match[1] || match[2] || match[3] || match[4];
+        if (fileId && fileId.length > 20) {
+            // Priority 1: Google Content Link (Fastest for public files)
+            return `https://lh3.googleusercontent.com/d/${fileId}`;
+        }
     }
 
-    return url; // Return original if it's already a valid direct link/DataURL
+    // Standard HTTP/HTTPS Non-Drive URLs
+    if (url.startsWith('http')) return url;
+
+    // Base64 Data URLs
+    if (url.startsWith('data:image')) return url;
+
+    return `https://ui-avatars.com/api/?name=${encodeURIComponent(staffName)}&background=4f46e5&color=fff`;
 };
 
 window.openImageZoom = (url) => {
     if (!url || url.includes('placeholder') || url.includes('No+Photo')) return;
-    const directUrl = window.getDirectDriveImageUrl(url);
+    const directUrl = window.formatDriveImageUrl(url);
     window.open(directUrl, '_blank');
 };
 
@@ -1173,65 +1187,10 @@ window.openImageZoom = (url) => {
 // COMPRESSION & IMAGE HELPERS (FIXED v4.3 - WITH RETRY & SAFARI BUGFIX) */
 // ================================================================ */
 
-window.compressImageFile = async (file, maxWidth = 1000, maxHeight = 1000, quality = 0.7) => {
-    return new Promise((resolve, reject) => {
-        try {
-            if (!file) {
-                return reject(new Error("No file provided for compression"));
-            }
-
-            const reader = new FileReader();
-            reader.onload = (e) => {
-                const img = new Image();
-                img.onload = () => {
-                    try {
-                        const canvas = document.createElement('canvas');
-                        let w = img.width;
-                        let h = img.height;
-
-                        // Calculate aspect ratio with Math.floor to avoid fractional canvas bounds
-                        if (w > h) {
-                            if (w > maxWidth) {
-                                h = Math.round(h * (maxWidth / w));
-                                w = maxWidth;
-                            }
-                        } else {
-                            if (h > maxHeight) {
-                                w = Math.round(w * (maxHeight / h));
-                                h = maxHeight;
-                            }
-                        }
-
-                        canvas.width = Math.max(1, w);
-                        canvas.height = Math.max(1, h);
-
-                        const ctx = canvas.getContext('2d');
-                        if (!ctx) {
-                            return reject(new Error("Failed to get 2D context"));
-                        }
-
-                        ctx.imageSmoothingEnabled = true;
-                        ctx.imageSmoothingQuality = 'high';
-                        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-
-                        const compressedDataUrl = canvas.toDataURL("image/jpeg", quality);
-
-                        // Cleanup Canvas memory context
-                        canvas.width = 0;
-                        canvas.height = 0;
-
-                        resolve(compressedDataUrl);
-                    } catch (err) {
-                        reject(err);
-                    }
-                };
-
-                img.onerror = () => reject(new Error("Failed to decode image data"));
-                img.src = e.target.result;
-            };
-
-            reader.onerror = () => reject(new Error("Failed to read image file"));
-            reader.readAsDataURL(file);
+/**
+ * ✅ [DEPRECATED] Internal compressImageFile removed.
+ * Using window.compressImageFile from image_processor.js for early loading.
+ */
         } catch (err) {
             reject(err);
         }
@@ -1689,14 +1648,20 @@ window.renderUserProfileImages = function(user) {
     const name = user.fullName || user.name || "User";
     const initials = name.split(" ").map(n => n[0]).join("").substring(0, 2).toUpperCase();
 
+    console.log(`🖼️ Rendering user profile images for: ${name}`);
+
     // Side Menu Avatar
-    const sideAvatarContainer = document.getElementById('side-menu-avatar') || document.querySelector('.sidebar-avatar-container');
+    const sideAvatarContainer = document.getElementById('side-menu-avatar') || document.querySelector('.sidebar-avatar-container') || document.getElementById('menuAvatar');
     if (sideAvatarContainer) {
         if (photoUrl && photoUrl.trim() !== "" && photoUrl !== 'N/A' && photoUrl !== '-') {
-            const finalUrl = window.getDirectDriveImageUrl ? window.getDirectDriveImageUrl(photoUrl) : photoUrl;
-            sideAvatarContainer.innerHTML = `<img src="${finalUrl}" class="sidebar-avatar-img" alt="Profile" onerror="this.classList.add('hidden'); this.parentNode.innerText='${initials}';"/>`;
+            const finalUrl = window.formatDriveImageUrl(photoUrl, name);
+            sideAvatarContainer.innerHTML = `<img src="${finalUrl}" class="sidebar-avatar-img" alt="Profile" style="width:100%; height:100%; object-fit:cover; border-radius:50%;" onerror="this.onerror=null; this.parentElement.innerHTML='<span class=\"text-white font-black text-xl\">${initials}</span>'; this.parentElement.style.display='flex'; this.parentElement.style.alignItems='center'; this.parentElement.style.justifyContent='center';"/>`;
+            sideAvatarContainer.classList.remove('hidden');
         } else {
             sideAvatarContainer.innerHTML = `<span id="sidebar-initials" class="text-white font-black text-xl">${initials}</span>`;
+            sideAvatarContainer.style.display = 'flex';
+            sideAvatarContainer.style.alignItems = 'center';
+            sideAvatarContainer.style.justifyContent = 'center';
         }
     }
 
@@ -1707,55 +1672,114 @@ window.renderUserProfileImages = function(user) {
         const placeholder = document.getElementById('avatar-placeholder');
 
         if (photoUrl && photoUrl.trim() !== "" && photoUrl !== 'N/A' && photoUrl !== '-') {
-            const finalUrl = window.getDirectDriveImageUrl ? window.getDirectDriveImageUrl(photoUrl) : photoUrl;
+            const finalUrl = window.formatDriveImageUrl(photoUrl, name);
             if (imgEl) {
                 imgEl.src = finalUrl;
-                imgEl.classList.remove('hidden');
+                imgEl.classList.remove('hidden', 'hidden-view');
                 imgEl.style.display = 'block';
+                imgEl.onerror = function() {
+                    console.warn("⚠️ Dashboard avatar failed to load, showing placeholder.");
+                    this.style.display = 'none';
+                    if (placeholder) {
+                        placeholder.innerText = initials;
+                        placeholder.classList.remove('hidden', 'hidden-view');
+                        placeholder.style.display = 'flex';
+                    }
+                };
             }
-            if (placeholder) placeholder.classList.add('hidden');
+            if (placeholder) {
+                placeholder.classList.add('hidden', 'hidden-view');
+                placeholder.style.display = 'none';
+            }
         } else {
-            if (imgEl) imgEl.classList.add('hidden');
+            if (imgEl) {
+                imgEl.style.display = 'none';
+                imgEl.classList.add('hidden', 'hidden-view');
+            }
             if (placeholder) {
                 placeholder.innerText = initials;
-                placeholder.classList.remove('hidden');
-                placeholder.style.display = 'block';
+                placeholder.classList.remove('hidden', 'hidden-view');
+                placeholder.style.display = 'flex';
             }
         }
     }
 
     // Update Name Displays safely
-    const nameDisplays = document.querySelectorAll('#user-name, #sidebar-user-name, .user-display-name, .sidebar-user-name');
+    const nameDisplays = document.querySelectorAll('#user-name, #sidebar-user-name, .user-display-name, .sidebar-user-name, #menuUserName');
     nameDisplays.forEach(el => el.innerText = name);
 };
 
 // ================================================================ */
 // ✅ Task 3: Separate Login Screen & Staff Dashboard Views        */
 // ================================================================ */
-window.switchPortalView = function(viewName) {
-    const loginView = document.getElementById('staff-auth-area') || document.querySelector('.login-view');
-    const dashboardView = document.getElementById('staff-dash-area') || document.querySelector('.staff-dashboard-view');
+window.switchPortalView = function(activeViewName) {
+    console.log(`🔄 Switching portal view to: ${activeViewName}`);
 
-    if (viewName === 'DASHBOARD') {
-        if (loginView) {
-            loginView.style.display = 'none';
-            loginView.classList.add('hidden');
-        }
-        if (dashboardView) {
-            dashboardView.style.display = 'block';
-            dashboardView.classList.remove('hidden');
-        }
-        window.scrollTo(0, 0); // Reset scroll position
-    } else if (viewName === 'LOGIN') {
-        if (dashboardView) {
-            dashboardView.style.display = 'none';
-            dashboardView.classList.add('hidden');
-        }
-        if (loginView) {
-            loginView.style.display = 'block';
-            loginView.classList.remove('hidden');
-        }
+    // Select all potential wrapper selectors for Login and Dashboard
+    const loginContainers = document.querySelectorAll('#login-screen-container, #staff-auth-area, .login-card, .login-view, #login-wrapper');
+    const dashboardContainers = document.querySelectorAll('#staff-dashboard-container, #staff-dash-area, .dashboard-wrapper, .staff-dashboard-view, #dashboard-main');
+
+    if (activeViewName === 'DASHBOARD') {
+        // 1. Completely remove and hide Login elements
+        loginContainers.forEach(el => {
+            el.style.setProperty('display', 'none', 'important');
+            el.classList.add('hidden-view', 'hidden');
+            el.classList.remove('active-view', 'active-view-flex', 'active');
+        });
+
+        // 2. Show Dashboard elements
+        dashboardContainers.forEach(el => {
+            el.style.setProperty('display', 'block', 'important');
+            el.classList.remove('hidden-view', 'hidden');
+            el.classList.add('active-view');
+        });
+
+        // Reset page scroll position to top
+        window.scrollTo({ top: 0, behavior: 'instant' });
+        document.body.scrollTop = 0;
+        document.documentElement.scrollTop = 0;
+
+        // ✅ ISSUE 2 FIX: Trigger image re-render after view is shown
+        setTimeout(() => {
+            const user = window.currentStaff || JSON.parse(sessionStorage.getItem('active_staff_user') || 'null');
+            if (user && typeof window.renderUserProfileImages === 'function') {
+                window.renderUserProfileImages(user);
+            }
+        }, 100);
+
+    } else if (activeViewName === 'LOGIN') {
+        // 1. Completely hide Dashboard elements
+        dashboardContainers.forEach(el => {
+            el.style.setProperty('display', 'none', 'important');
+            el.classList.add('hidden-view', 'hidden');
+            el.classList.remove('active-view', 'active-view-flex');
+        });
+
+        // 2. Show Login elements
+        loginContainers.forEach(el => {
+            if (el.id === 'login-screen-container') {
+                el.style.setProperty('display', 'flex', 'important');
+                el.classList.add('active-view-flex', 'active');
+            } else {
+                el.style.setProperty('display', 'block', 'important');
+                el.classList.add('active-view');
+            }
+            el.classList.remove('hidden-view', 'hidden');
+        });
     }
 };
 
-console.log("✅ ui_module.js (v5.1 Stable) Loaded");
+// Auto-trigger on successful authentication
+window.onAuthenticationSuccess = function(userData) {
+    console.log("✅ Authentication Success Event Triggered");
+
+    // Hide login screen and display dashboard strictly
+    window.switchPortalView('DASHBOARD');
+
+    // Render profile details
+    if (typeof window.renderUserProfileImages === 'function') {
+        window.renderUserProfileImages(userData);
+    }
+};
+
+console.log("✅ ui_module.js (v5.2 Stable) Loaded");

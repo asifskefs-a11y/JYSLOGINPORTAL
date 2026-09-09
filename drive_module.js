@@ -101,7 +101,7 @@ window.uploadToDrive = async function(payload = {}) {
  */
 window.getActiveDriveUrl = async function() {
     try {
-        // 1. Try Firebase First
+        // 1. Try Firebase First (settings/driveUrl is the master path)
         const snapshot = await get(ref(db, 'settings/driveUrl'));
         const dbUrl = snapshot.exists() ? snapshot.val() : null;
 
@@ -110,16 +110,21 @@ window.getActiveDriveUrl = async function() {
             return dbUrl;
         }
     } catch (e) {
-        console.warn("⚠️ Firebase fetch for Drive URL failed, using local cache.");
+        console.warn("⚠️ Firebase fetch for Drive URL failed, checking local cache.");
     }
 
-    // 2. LocalStorage Fallback
+    // 2. LocalStorage Fallback (cached from previous successful syncs)
     const localUrl = localStorage.getItem('jys_drive_script_url');
+    if (localUrl) return localUrl;
 
-    // 3. System Default Fallback
-    const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyXZpA-mlmctWy4HTdEiu_EsS1gmTuEe5SREu5KQ0_3LliIWzGwDNhXQArqVuz4PM-ygA/exec";
+    // 3. Drive Config Cache Fallback (from firebase_config.js)
+    if (window.driveConfigCache) {
+        const cachedObj = await window.driveConfigCache.getConfig();
+        if (cachedObj && cachedObj.url) return cachedObj.url;
+    }
 
-    return localUrl || APPS_SCRIPT_URL;
+    // 4. Final System Default Fallback
+    return "https://script.google.com/macros/s/AKfycbyXZpA-mlmctWy4HTdEiu_EsS1gmTuEe5SREu5KQ0_3LliIWzGwDNhXQArqVuz4PM-ygA/exec";
 };
 
 /**
@@ -129,31 +134,54 @@ window.getActiveDriveUrl = async function() {
 window.uploadDocumentToDrive = async function(docType, base64Content, mimeType) {
     try {
         const activeDriveUrl = await window.getActiveDriveUrl();
+        if (!activeDriveUrl) throw new Error("No active Google Drive connection found.");
+
         const adekPass = window.currentStaff?.adekPass || window.currentStaff?.mobile || "STAFF";
+
+        // Clean Base64: Ensure no DataURL header is sent
+        const pureBase64 = base64Content.includes(',') ? base64Content.split(',')[1] : base64Content;
 
         const payload = {
             fileName: `DOC_${docType.toUpperCase()}_${adekPass}_${Date.now()}.jpg`,
             mimeType: mimeType || "image/jpeg",
-            base64Data: base64Content,
+            base64Data: pureBase64,
             adekPassNumber: adekPass,
             action: 'upload'
         };
 
+        // Bypassing CORS with text/plain + AbortController for timeout
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 60000); // 60s for heavy files
+
         const response = await fetch(activeDriveUrl, {
             method: "POST",
             headers: { "Content-Type": "text/plain;charset=utf-8" },
-            body: JSON.stringify(payload)
+            body: JSON.stringify(payload),
+            signal: controller.signal
         });
 
-        const result = await response.json();
+        clearTimeout(timeoutId);
+
+        const resultText = await response.text();
+        let result;
+        try {
+            result = JSON.parse(resultText);
+        } catch (e) {
+            throw new Error("Invalid response from Drive API: " + resultText.substring(0, 50));
+        }
+
         if (result.status === "success" && result.fileUrl) {
-            console.log("✅ Drive Sync Success:", result.fileUrl);
+            console.log("✅ Direct Drive Sync Success:", result.fileUrl);
             return result.fileUrl;
         } else {
-            throw new Error(result.message || "Drive upload failed on engine side");
+            throw new Error(result.message || "Drive engine upload failed.");
         }
     } catch (err) {
-        console.error("❌ Direct Upload Error:", err);
+        if (err.name === 'AbortError') {
+            console.error("❌ Upload Timed Out (60s)");
+            throw new Error("Upload timed out. File might be too large or network slow.");
+        }
+        console.error("❌ Direct Upload Exception:", err);
         throw err;
     }
 };
@@ -197,10 +225,16 @@ window.saveGoogleDriveConfig = async function() {
             // ✅ Save to LocalStorage for instant access
             localStorage.setItem('jys_drive_script_url', url);
 
-            // ✅ Save to Firebase Permanent Storage for 24/7 access
-            const database = window.firebase.database();
-            await database.ref('settings/driveUrl').set(url);
+            // ✅ Save to Firebase Permanent Storage for 24/7 access (Unifying Paths)
+            try {
+                await set(ref(db, 'settings/driveUrl'), url);
+            } catch (fbErr) {
+                console.warn("Firebase set failed, using legacy shim:", fbErr);
+                const database = window.firebase.database();
+                await database.ref('settings/driveUrl').set(url);
+            }
 
+            // Real-time UI Update with verified data
             window.updateDriveUI(true, result.status === 'success' ? result : null);
             window.hideGlobalSpinner();
 
@@ -217,26 +251,46 @@ window.saveGoogleDriveConfig = async function() {
 };
 
 /**
+ * ✅ Ping Verification: Verifies live connectivity and fetches storage stats
+ */
+window.verifyDriveConnectivity = async function(url) {
+    if (!url || !url.startsWith('https://script.google.com')) return null;
+
+    try {
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+            body: JSON.stringify({ action: 'checkConnection' })
+        });
+
+        if (!response.ok) return null;
+
+        const result = await response.json();
+        return (result.status === 'success') ? result : null;
+    } catch (e) {
+        console.warn("🌐 Drive Ping Failed:", e.message);
+        return null;
+    }
+};
+
+/**
  * Auto-load saved URL when Admin Dashboard opens
  */
 window.loadSavedDriveUrlOnAdminLaunch = function() {
-    // Check localStorage fallback first for fast UI loading
-    const cachedUrl = localStorage.getItem('jys_drive_script_url');
-    const inputField = document.getElementById('driveUrlInput');
-
-    if (inputField && cachedUrl) {
-        inputField.value = cachedUrl;
-        window.updateDriveUI(true);
-    }
-
-    const database = window.firebase.database();
-    database.ref('settings/driveUrl').on('value', (snapshot) => {
+    const urlRef = ref(db, 'settings/driveUrl');
+    onValue(urlRef, async (snapshot) => {
         const url = snapshot.val();
+        const inputField = document.getElementById('driveUrlInput');
         if (url) {
             if (inputField) inputField.value = url;
             localStorage.setItem('jys_drive_script_url', url);
-            window.updateDriveUI(true);
-            console.log("📡 Drive URL synced from Firebase.");
+
+            // ✅ LIVE PING VERIFICATION
+            const stats = await window.verifyDriveConnectivity(url);
+            window.updateDriveUI(!!stats, stats);
+
+            if (stats) console.log("📡 Drive URL verified & synced from Firebase.");
+            else console.warn("📡 Drive URL found in Firebase but Ping failed.");
         }
     });
 };
@@ -270,7 +324,9 @@ window.loadGoogleDriveConfig = async function() {
 
     if (savedUrl && input) {
         input.value = savedUrl;
-        window.updateDriveUI(true);
+        // ✅ Initial verification for cached URL
+        const stats = await window.verifyDriveConnectivity(savedUrl);
+        window.updateDriveUI(!!stats, stats);
     }
 
     // Always trigger Firebase sync in background

@@ -781,6 +781,18 @@ window.previewStaffPhoto = async function(input) {
         }
 
         try {
+            // ✅ IMPROVED: Wait for Image Processor with clean loop
+            let attempts = 0;
+            while (typeof window.compressImageFile !== 'function' && attempts < 10) {
+                console.warn(`⏳ Image processor not ready (Attempt ${attempts + 1}/10)...`);
+                await new Promise(r => setTimeout(r, 500));
+                attempts++;
+            }
+
+            if (typeof window.compressImageFile !== 'function') {
+                throw new Error("Critical: Image Processor (image_processor.js) failed to load. Please check your network and refresh.");
+            }
+
             // ✅ AUTO-COMPRESS before preview/store (Ensures small payload for Drive)
             if (window.showGlobalSpinner) window.showGlobalSpinner("Optimizing Photo...");
 
@@ -803,9 +815,9 @@ window.previewStaffPhoto = async function(input) {
             if (window.hideGlobalSpinner) window.hideGlobalSpinner();
 
         } catch (err) {
-            console.error("Compression Error:", err);
+            console.error("📸 Image Process Error:", err);
             if (window.hideGlobalSpinner) window.hideGlobalSpinner();
-            alert("❌ Failed to process image. Please try another one.");
+            alert(`❌ Image Error: ${err.message || "Failed to process photo."}\nPlease try a different image or format (JPG/PNG).`);
         }
     }
 };
@@ -857,66 +869,59 @@ window.handleStaffSubmit = async function(type) {
     try {
         let finalPhotoUrl = "";
 
-        // STEP A: Upload to Google Drive if new image is selected
+        // STEP A: Upload to Google Drive
         const photoInput = document.getElementById('staff-photo-input');
+        const adekPass = document.getElementById('staff-adek')?.value?.trim() || mobile || "TEMP_PASS";
+        const staffName = document.getElementById('staff-name')?.value?.trim() || "Staff";
 
-        if (photoInput && photoInput.files && photoInput.files[0] && window.uploadToDrive) {
-            const file = photoInput.files[0];
-            const adekPass = document.getElementById('staff-adek')?.value?.trim() || mobile || "TEMP_PASS";
-            const staffName = document.getElementById('staff-name')?.value?.trim() || "Staff";
+        if (staffPhotoBase64 && window.uploadToDrive) {
+            // ✅ IMPROVEMENT: Use the Optimized/Compressed image from previewStaffPhoto
+            console.log("📤 Uploading optimized staff photo to Google Drive...");
 
-            try {
-                // Read fresh Base64 from input and split to get raw content
-                const reader = new FileReader();
-                const base64String = await new Promise((resolve, reject) => {
-                    reader.onload = () => {
-                        const result = reader.result;
-                        resolve(result.includes(',') ? result.split(',')[1] : result);
-                    };
-                    reader.onerror = error => reject(error);
-                    reader.readAsDataURL(file);
-                });
-
-                // Invoke Google Drive Upload Engine
-                const uploadRes = await window.uploadToDriveWithRetry({
+            const uploadRes = window.uploadToDriveWithRetry ?
+                await window.uploadToDriveWithRetry({
                     category: 'PROFILES_AND_SIGS',
                     documentType: 'ProfilePhoto',
                     adekPassNumber: adekPass,
-                    fileName: `STAFF_${Date.now()}_${file.name}`,
-                    mimeType: file.type,
-                    base64Data: base64String
+                    fileName: `PROFILE_${adekPass}_${Date.now()}.jpg`,
+                    image: staffPhotoBase64
+                }) :
+                await window.uploadToDrive({
+                    category: 'PROFILES_AND_SIGS',
+                    documentType: 'ProfilePhoto',
+                    adekPassNumber: adekPass,
+                    fileName: `PROFILE_${adekPass}_${Date.now()}.jpg`,
+                    image: staffPhotoBase64
                 });
-
-                if (uploadRes && (uploadRes.status === 'success' || uploadRes.status === 'fallback')) {
-                    finalPhotoUrl = uploadRes.fileUrl;
-                    console.log("📸 Staff photo linked:", finalPhotoUrl);
-                } else {
-                    throw new Error(uploadRes?.message || "Upload failed");
-                }
-            } catch (driveErr) {
-                console.error("Drive upload failed, using fallback Avatar", driveErr);
-                finalPhotoUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(staffName)}&background=4f46e5&color=fff`;
-            }
-        } else if (staffPhotoBase64 && window.uploadToDrive) {
-            // Fallback to pre-compressed global if file input is empty (e.g. during Edit)
-            const adekPass = document.getElementById('staff-adek')?.value?.trim() || mobile || "TEMP_PASS";
-            const staffName = document.getElementById('staff-name')?.value?.trim() || "Staff";
-
-            const uploadParams = {
-                category: 'PROFILES_AND_SIGS',
-                documentType: 'ProfilePhoto',
-                adekPassNumber: adekPass,
-                fileName: `PROFILE_${adekPass}_${Date.now()}.jpg`,
-                image: staffPhotoBase64
-            };
-
-            const uploadRes = window.uploadToDriveWithRetry ?
-                await window.uploadToDriveWithRetry(uploadParams) :
-                await window.uploadToDrive(uploadParams);
 
             if (uploadRes && (uploadRes.status === 'success' || uploadRes.status === 'fallback')) {
                 finalPhotoUrl = uploadRes.fileUrl;
-                console.log("📸 Staff photo linked (compressed):", finalPhotoUrl);
+                console.log("📸 Staff photo synced successfully:", finalPhotoUrl);
+            } else {
+                console.warn("⚠️ Drive upload failed, using fallback UI avatar.");
+                finalPhotoUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(staffName)}&background=4f46e5&color=fff`;
+            }
+        } else if (photoInput && photoInput.files && photoInput.files[0] && window.uploadToDrive) {
+            // Fallback for raw files if compression wasn't triggered
+            const file = photoInput.files[0];
+            try {
+                const reader = new FileReader();
+                const base64String = await new Promise((resolve, reject) => {
+                    reader.onload = () => resolve(reader.result.split(',')[1]);
+                    reader.onerror = e => reject(e);
+                    reader.readAsDataURL(file);
+                });
+
+                const uploadRes = await window.uploadToDrive({
+                    category: 'PROFILES_AND_SIGS',
+                    documentType: 'ProfilePhoto',
+                    adekPassNumber: adekPass,
+                    fileName: `STAFF_RAW_${Date.now()}.jpg`,
+                    base64Data: base64String
+                });
+                finalPhotoUrl = uploadRes.fileUrl || "";
+            } catch (e) {
+                finalPhotoUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(staffName)}&background=4f46e5&color=fff`;
             }
         }
 

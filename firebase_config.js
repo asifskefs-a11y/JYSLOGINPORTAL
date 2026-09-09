@@ -63,7 +63,7 @@ console.log("🔥 Firebase: Database Connection Established");
 // ================================================================ */
 
 export const UPLOAD_CONFIG = {
-    DRIVE_CONFIG_PATH: 'system_config/drive_url',
+    DRIVE_CONFIG_PATH: 'settings/driveUrl',
 
     // MANDATORY ROUTING MAP
     CATEGORIES: {

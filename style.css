@@ -2980,3 +2980,60 @@ h1:hover {
     justify-content: center !important;
     z-index: 100;
 }
+
+/* ================================================================ */
+/* ✅ STRICT VIEW ISOLATION UTILITIES (Task 1)                      */
+/* ================================================================ */
+/* ================================================================ */
+/* ✅ STRICT VIEW ISOLATION UTILITIES (FIXED v6.0.1)                */
+/* ================================================================ */
+
+/* Base main container isolation */
+#portal-root {
+    position: relative !important;
+    overflow-x: hidden !important;
+    width: 100% !important;
+    min-height: 100vh !important;
+}
+
+.hidden-view,
+.view-section.hidden,
+#login-screen-container.hidden,
+#staff-dashboard-container.hidden,
+#staff-auth-area.hidden,
+#staff-dash-area.hidden {
+    display: none !important;
+    visibility: hidden !important;
+    opacity: 0 !important;
+    height: 0 !important;
+    max-height: 0 !important;
+    overflow: hidden !important;
+    pointer-events: none !important;
+    position: absolute !important;
+    top: -9999px !important;
+}
+
+/* Active View Containers */
+.active-view,
+.active-view-flex {
+    display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+    pointer-events: auto !important;
+    position: relative !important;
+    top: 0 !important;
+}
+
+.active-view-flex {
+    display: flex !important;
+}
+
+/* Image Rendering Fix: Force specific size to prevent layout shift */
+.profile-avatar-img, .staff-avatar-img, #user-avatar, #sidebar-profile-img, .dashboard-avatar-box img {
+    aspect-ratio: 1 / 1;
+    object-fit: cover;
+    background-color: rgba(255,255,255,0.05);
+}
