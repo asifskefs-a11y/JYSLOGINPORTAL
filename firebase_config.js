@@ -95,7 +95,7 @@ class DriveConfigCache {
         if (!forceRefresh && this.cache && (now - this.lastFetch) < this.cacheDuration) return this.cache;
         try {
             const snap = await get(ref(db, UPLOAD_CONFIG.DRIVE_CONFIG_PATH));
-            const url = snap.exists() ? snap.val() : localStorage.getItem('jys_active_drive_script_url');
+            const url = snap.exists() ? snap.val() : localStorage.getItem('app_drive_script_url');
             this.cache = {
                 url: url || null,
                 enabled: !!url,
@@ -104,7 +104,7 @@ class DriveConfigCache {
             this.lastFetch = now;
             return this.cache;
         } catch (e) {
-            return { url: localStorage.getItem('jys_active_drive_script_url'), enabled: true };
+            return { url: localStorage.getItem('app_drive_script_url'), enabled: true };
         }
     }
     invalidate() { this.cache = null; this.lastFetch = 0; }

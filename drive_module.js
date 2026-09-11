@@ -6,33 +6,36 @@ import { ref, get, set, onValue } from "https://www.gstatic.com/firebasejs/10.7.
 // ================================================================ */
 
 /**
- * ✅ Fetch Active Apps Script URL with Smart Caching
- * Ensures 24/7 connectivity without hardcoded links
+ * ✅ Multi-Tiered Persistent URL Caching Engine (v7.0)
+ * Ensures 24/7 connectivity with robust fallbacks
  */
 window.getActiveDriveUrl = async function() {
-    const CACHE_KEY = 'jys_active_drive_script_url';
+    const LOCAL_KEY = 'app_drive_script_url';
+    const FIREBASE_PATH = 'settings/driveUrl';
+    const DEFAULT_SYSTEM_URL = "https://script.google.com/macros/s/AKfycbyXZpA-mlmctWy4HTdEiu_EsS1gmTuEe5SREu5KQ0_3LliIWzGwDNhXQArqVuz4PM-ygA/exec";
 
+    // 🛡️ TIER 1: Permanent Local Storage (Fast & Persistent)
+    let savedUrl = localStorage.getItem(LOCAL_KEY);
+    if (savedUrl && savedUrl.startsWith('https://script.google.com')) {
+        return savedUrl;
+    }
+
+    // 📡 TIER 2: Firebase Dynamic Remote (Source of Truth)
     try {
-        // 1. Check Firebase Master Config (Primary Source)
-        const snapshot = await get(ref(db, 'settings/driveUrl'));
+        const snapshot = await get(ref(db, FIREBASE_PATH));
         if (snapshot.exists()) {
-            const url = snapshot.val();
-            if (url && url.startsWith('https://script.google.com/macros/s/')) {
-                localStorage.setItem(CACHE_KEY, url);
-                return url;
+            const firebaseUrl = snapshot.val();
+            if (firebaseUrl && firebaseUrl.startsWith('https://script.google.com')) {
+                localStorage.setItem(LOCAL_KEY, firebaseUrl); // Persist for offline/restart
+                return firebaseUrl;
             }
         }
     } catch (e) {
-        console.warn("📡 Firebase Drive URL unreachable, checking local cache.");
+        console.warn("⚠️ Cloud config fetch bypassed:", e.message);
     }
 
-    // 2. Check LocalStorage (Resilience for staff devices with restricted auth)
-    const cachedUrl = localStorage.getItem(CACHE_KEY);
-    if (cachedUrl) return cachedUrl;
-
-    // 3. Last Resort Fallback (If Config is completely missing from DB)
-    console.error("❌ Critical: No Google Drive script URL configured in System Settings.");
-    return null;
+    // 🆘 TIER 3: Emergency System Fallback (Built-in Resilience)
+    return savedUrl || DEFAULT_SYSTEM_URL;
 };
 
 /**
@@ -134,9 +137,9 @@ window.saveGoogleDriveConfig = async function() {
 
         const testResult = await response.json();
 
-        // Save to Firebase Permanent Storage
+        // ✅ MANDATED FIX: Dual-Layer Persistence (Firebase + Local)
         await set(ref(db, 'settings/driveUrl'), url);
-        localStorage.setItem('jys_active_drive_script_url', url);
+        localStorage.setItem('app_drive_script_url', url);
 
         // Update UI
         window.updateDriveUI(true, testResult);
