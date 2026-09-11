@@ -290,7 +290,11 @@ window.executeFinalClosure = async () => {
 
         await update(ref(db, 'tasks/' + taskId), updateData);
 
-        window.triggerSuccessPopup("Task Completed & Closed! ✅");
+                if (window.triggerSuccessPopup) {
+            window.triggerSuccessPopup("Task Completed & Closed! ✅");
+        } else {
+            alert("Task Completed & Closed! ✅");
+        }
         window.closeClosureModal();
 
         // ✅ FIXED: Refresh task views
@@ -337,7 +341,11 @@ window.rejectTaskAction = async (taskId) => {
             solvedTimestamp: Date.now(),
             rejectedAt: new Date().toISOString()
         });
-        window.triggerSuccessPopup("Task Rejected.");
+                if (window.triggerSuccessPopup) {
+            window.triggerSuccessPopup("Task Rejected.");
+        } else {
+            alert("Task Rejected.");
+        }
         if (window.loadRoleView) {
             window.loadRoleView(window.currentStaff);
         }
@@ -443,7 +451,11 @@ window.handleCreateTaskSubmit = async function(event) {
 
         await set(ref(db, 'tasks/' + taskId), data);
 
-        window.triggerSuccessPopup("✅ Task Created Successfully!");
+                if (window.triggerSuccessPopup) {
+            window.triggerSuccessPopup("✅ Task Created Successfully!");
+        } else {
+            alert("✅ Task Created Successfully!");
+        }
         const form = document.getElementById('raise-task-form');
         if (form) form.reset();
         window.removeTaskPhoto();

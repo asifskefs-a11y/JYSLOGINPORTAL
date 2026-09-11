@@ -254,11 +254,19 @@ window.checkVisitorSession = () => {
                         window.showPortalAnimation('exit');
                         setTimeout(() => {
                             window.hidePortalAnimation();
-                            window.triggerSuccessPopup("Signed Out Successfully! 👋");
+                            if (window.triggerSuccessPopup) {
+                                window.triggerSuccessPopup("Signed Out Successfully! 👋");
+                            } else {
+                                alert("Signed Out Successfully! 👋");
+                            }
                             window.checkVisitorSession();
                         }, 2000);
                     } else {
-                        window.triggerSuccessPopup("Signed Out Successfully! 👋");
+                        if (window.triggerSuccessPopup) {
+                            window.triggerSuccessPopup("Signed Out Successfully! 👋");
+                        } else {
+                            alert("Signed Out Successfully! 👋");
+                        }
                         window.checkVisitorSession();
                     }
                 } catch (e) {

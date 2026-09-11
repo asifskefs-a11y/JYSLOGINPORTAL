@@ -191,10 +191,10 @@ window.handleStaffLogin = async (e) => {
                     if (window.switchPortalView) {
                         window.switchPortalView('DASHBOARD');
                     } else if (window.showStaffView) {
-                        window.showStaffView('staff-dash-area');
+                        window.showStaffView('staff-dashboard-container');
                     } else {
                         // Fallback unhide if showStaffView is missing
-                        const dashArea = document.getElementById('staff-dash-area');
+                        const dashArea = document.getElementById('staff-dashboard-container');
                         if (dashArea) {
                             dashArea.classList.remove('hidden', 'hidden-view');
                             dashArea.classList.add('active-view');

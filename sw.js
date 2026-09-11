@@ -1,4 +1,4 @@
-const CACHE_NAME = 'jys-portal-v6.2';
+const CACHE_NAME = 'jys-portal-v6.6';
 const ASSETS_TO_CACHE = [
     './',
     './index.html',
@@ -26,17 +26,30 @@ const ASSETS_TO_CACHE = [
     './contractor_module.js',
     './staff_asset_module.js',
     './asset_management.js',
-    'https://cdn.tailwindcss.com',
     'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css',
     'https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800;900&display=swap'
 ];
 
-// Install Event - Caching static assets
+// Install Event - Caching static assets with robust error handling
 self.addEventListener('install', (event) => {
     event.waitUntil(
-        caches.open(CACHE_NAME).then((cache) => {
+        caches.open(CACHE_NAME).then(async (cache) => {
             console.log('📦 PWA: Pre-caching static assets');
-            return cache.addAll(ASSETS_TO_CACHE);
+
+            // ✅ Fix: Cache assets individually to prevent one failure from blocking the whole app
+            const cachePromises = ASSETS_TO_CACHE.map(async (url) => {
+                try {
+                    const requestOptions = url.startsWith('http') ? { mode: 'no-cors' } : {};
+                    const response = await fetch(url, requestOptions);
+                    if (response.ok || response.type === 'opaque') {
+                        return cache.put(url, response);
+                    }
+                } catch (err) {
+                    console.warn(`⚠️ PWA: Failed to pre-cache ${url}:`, err.message);
+                }
+            });
+
+            return Promise.all(cachePromises);
         })
     );
     self.skipWaiting();

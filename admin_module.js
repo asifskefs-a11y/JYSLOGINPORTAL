@@ -304,6 +304,7 @@ window.loadAdminDashboard = () => {
     if (window.syncRoleDropdown) {
         window.syncRoleDropdown('staff-role-filter', 'All Positions', true);
         window.syncRoleDropdown('directory-role-filter', 'All Positions', true);
+        window.syncRoleDropdown('taskRoleSelect', 'Choose Dept');
     }
 
     setTimeout(() => {
@@ -342,7 +343,16 @@ window.renderTabFromAppCache = (tabId) => {
 function renderVisitorLogs(visitors) {
     const body = document.getElementById('visitor-logs-body');
     if (!body) return;
+
     const data = (visitors || []).sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+
+    // ✅ Task 3: Safety fix for Paginator (Fix for undefined visitors)
+    if (!window.adminPaginators?.visitors) {
+        console.warn("⚠️ adminPaginators.visitors not found.");
+        body.innerHTML = data.map(v => `<tr><td colspan="10">${v.name || v.id}</td></tr>`).join('');
+        return;
+    }
+
     window.adminPaginators.visitors.init(data, (pageItems, startIndex) => {
         body.innerHTML = pageItems.length ? pageItems.map((v, i) => `
             <tr class="hover:bg-slate-50 transition-colors border-b text-[10px]">
@@ -453,6 +463,20 @@ function renderStaffDirectory(staff) {
         return name !== "" && name !== "-" && id !== "" && id !== "-";
     });
 
+    // ✅ Task 2: Safety check for Paginator (Fix for undefined directory)
+    if (!window.adminPaginators || !window.adminPaginators.directory) {
+        console.warn("⚠️ adminPaginators.directory not found. Rendering simple list.");
+        body.innerHTML = validStaff.map(s => `<tr><td colspan="10">${s.fullName || s.name}</td></tr>`).join('');
+        return;
+    }
+
+    // ✅ Task 3: Safety fix for Paginator (Fix for undefined directory)
+    if (!window.adminPaginators?.directory) {
+        console.warn("⚠️ adminPaginators.directory not found.");
+        body.innerHTML = validStaff.map(s => `<tr><td colspan="10">${s.fullName || s.name}</td></tr>`).join('');
+        return;
+    }
+
     window.adminPaginators.directory.init(validStaff, (pageItems) => {
         body.innerHTML = pageItems.length ? pageItems.map(s => {
             // Task 3: Visual Expiry Badge logic
@@ -495,8 +519,9 @@ function renderStaffDirectory(staff) {
             <tr class="hover:bg-slate-50 border-b text-[10px]">
                 <td class="p-4 text-center">
                     <img src="${photoUrl}"
+                         loading="lazy"
                          onerror="this.onerror=null; this.src='https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=4f46e5&color=fff';"
-                         class="w-8 h-8 rounded-full border shadow-sm mx-auto object-cover">
+                         class="w-8 h-8 rounded-full border shadow-sm mx-auto object-cover profile-avatar-img">
                 </td>
                 <td class="p-4">
                     <div class="font-black text-indigo-900 uppercase">${displayName}</div>
@@ -700,7 +725,6 @@ window.openAddStaffModal = function() {
                     <div class="input-field-group">
                         <select id="staff-role" required class="pro-select">
                             <option value="">Select Role</option>
-                            ${(window.MASTER_STAFF_ROLES || []).map(r => `<option value="${r}">${r}</option>`).join('')}
                         </select>
                     </div>
 
@@ -731,6 +755,17 @@ window.openAddStaffModal = function() {
             </form>
         </div>
     `;
+
+    // ✅ FORCE SYNC ROLE DROPDOWN (v6.2 Fix)
+    if (window.syncRoleDropdown) {
+        window.syncRoleDropdown('staff-role', 'Select Role');
+    } else if (window.MASTER_STAFF_ROLES) {
+        const select = document.getElementById('staff-role');
+        if (select) {
+            select.innerHTML = `<option value="">Select Role</option>` +
+                window.MASTER_STAFF_ROLES.map(r => `<option value="${r}">${r}</option>`).join('');
+        }
+    }
 
     // Show modal with proper styling
     modal.className = "modal-backdrop";
@@ -965,8 +1000,12 @@ window.handleStaffSubmit = async function(type) {
         // Initialize verification node for NEW staff
         if (!existingKey && docsToInitialize && Object.keys(docsToInitialize).length > 0) {
             const docStatusNode = {};
-            Object.keys(docsToInitialize).forEach(id => {
-                docStatusNode[id] = { status: "NOT UPLOADED", documentType: id };
+            Object.entries(docsToInitialize).forEach(([id, data]) => {
+                docStatusNode[id] = {
+                    status: "NOT UPLOADED",
+                    documentType: id,
+                    name: data.name || id.replace(/_/g, ' ') // ✅ Fix: Preserve friendly name for dynamic fields
+                };
             });
             await set(ref(db, `staff_documents/${staffData.adekPass || mobile}`), {
                 docs: docStatusNode,
@@ -985,9 +1024,17 @@ window.handleStaffSubmit = async function(type) {
         }
 
         if (finalPhotoUrl) {
-            window.triggerSuccessPopup("✅ Staff Member Saved & Photo Synced to Drive!");
+            if (typeof window.triggerSuccessPopup === 'function') {
+                window.triggerSuccessPopup("✅ Staff Member Saved & Photo Synced to Drive!");
+            } else {
+                alert("✅ Staff Member Saved & Photo Synced to Drive!");
+            }
         } else {
-            window.triggerSuccessPopup("✅ Staff Member Saved Successfully!");
+            if (typeof window.triggerSuccessPopup === 'function') {
+                window.triggerSuccessPopup("✅ Staff Member Saved Successfully!");
+            } else {
+                alert("✅ Staff Member Saved Successfully!");
+            }
         }
 
         window._pendingOnboardingConfig = null;

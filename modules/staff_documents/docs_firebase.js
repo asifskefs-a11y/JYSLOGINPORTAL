@@ -191,12 +191,16 @@ window.getStaffOnboardingRequirements = async function(userId, role) {
 
                 // Match by ID, Mobile, or even exact Name if IDs are missing (Fallback)
                 if ((uPass && uPass === cleanId) || (uMobile && uMobile === cleanId)) {
-                    if (u.onboardingRequirements && Object.keys(u.onboardingRequirements).length > 0) {
-                        customDocs = u.onboardingRequirements;
+                    // ✅ Fix: Check BOTH onboardingRequirements (New Modal) and requiredVerificationDocs (Legacy/Direct)
+                    const assignedDocs = u.onboardingRequirements || u.requiredVerificationDocs;
+
+                    if (assignedDocs && Object.keys(assignedDocs).length > 0) {
+                        customDocs = assignedDocs;
                         console.log("✅ [Onboarding] Found custom document allocation in staff record");
                     }
                     if (u.bioDataRequirements) {
                         bioRequirements = u.bioDataRequirements;
+                        console.log("✅ [Onboarding] Found custom bio-data requirements");
                     }
                     break;
                 }
@@ -218,8 +222,9 @@ window.getStaffOnboardingRequirements = async function(userId, role) {
                     if (data.docs && Object.keys(data.docs).length > 0) {
                         customDocs = {};
                         Object.keys(data.docs).forEach(key => {
+                            const d = data.docs[key];
                             customDocs[key] = {
-                                name: key.replace(/_/g, ' '),
+                                name: d.name || key.replace(/_/g, ' '), // ✅ Fix: Use preserved name if available
                                 mandatory: true,
                                 icon: window.getDocIcon ? window.getDocIcon(key) : 'fa-file'
                             };
@@ -231,13 +236,14 @@ window.getStaffOnboardingRequirements = async function(userId, role) {
             }
         }
 
-        // 3. Fallback to Role Requirements only if NO individual node is found anywhere
-        const finalDocs = customDocs || await window.getRoleRequirements(role);
+        // 3. Merge Individual Logic: Custom Overrides + Role Defaults (v6.0 Fix)
+        const roleDocs = await window.getRoleRequirements(role);
+        const finalDocs = { ...roleDocs, ...(customDocs || {}) };
 
-        console.log(`🎯 [Onboarding] Final requirements count: ${Object.keys(finalDocs || {}).length}`);
+        console.log(`🎯 [Onboarding] Final requirements count: ${Object.keys(finalDocs).length} (Merged: ${!!customDocs})`);
 
         return {
-            requirements: finalDocs || {},
+            requirements: finalDocs,
             bioRequirements: bioRequirements || []
         };
 

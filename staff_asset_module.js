@@ -325,7 +325,11 @@ window.saveAssetLocationUpdate = async function(e) {
             // Continue - don't fail the main update
         }
 
-        window.triggerSuccessPopup("✅ Asset Master Updated! Live Sync Successful.");
+                if (window.triggerSuccessPopup) {
+            window.triggerSuccessPopup("✅ Asset Master Updated! Live Sync Successful.");
+        } else {
+            alert("✅ Asset Master Updated! Live Sync Successful.");
+        }
 
         // ✅ FIXED: Update the display with new data
         setTimeout(() => {

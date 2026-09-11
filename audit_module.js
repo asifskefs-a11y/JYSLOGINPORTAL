@@ -407,12 +407,16 @@ window.submitAssetDisposal = async () => {
         // Re-trigger Master Table Filter & Render
         if (typeof window.filterAssetTable === 'function') window.filterAssetTable();
 
-        window.triggerSuccessPopup("Asset Disposed Successfully! ✅");
+                if (window.triggerSuccessPopup) {
+            window.triggerSuccessPopup("Asset Disposed Successfully! ✅");
+        } else {
+            alert("Asset Disposed Successfully! ✅");
+        }
         window.hideGlobalSpinner();
 
         // Reset and Refresh
         if (window.resetAssetDisposalForm) window.resetAssetDisposalForm();
-        window.showStaffView('staff-dash-area');
+        window.showStaffView('staff-dashboard-container');
 
     } catch (e) {
         console.error("Disposal Submission Failed:", e);
@@ -534,8 +538,12 @@ window.submitAssetAudit = async (event) => {
 
         const mergedData = { ...existingData, ...data };
         await set(ref(db, 'assets/' + barcode.replace(/[.#$\[\]/]/g, '_')), mergedData);
-        window.triggerSuccessPopup("Asset Registered Successfully! ✅");
-        window.showStaffView('staff-dash-area');
+                if (window.triggerSuccessPopup) {
+            window.triggerSuccessPopup("Asset Registered Successfully! ✅");
+        } else {
+            alert("Asset Registered Successfully! ✅");
+        }
+        window.showStaffView('staff-dashboard-container');
     } catch (e) {
         console.error("❌ Submission Failed:", e);
         alert("❌ Failed to register asset. Error: " + e.message);
@@ -587,7 +595,11 @@ window.addAssetToBatch = async () => {
 
             window.renderBatchUI();
             input.value = "";
+                    if (window.triggerSuccessPopup) {
             window.triggerSuccessPopup("Asset Added! 📦");
+        } else {
+            console.log("Asset Added! 📦");
+        }
 
             // Force focus reflow for mobile screen stability
             const batchContainer = document.getElementById('asset-batch-container');
@@ -897,7 +909,11 @@ window.submitAssetTransfer = async function(event) {
             window.renderStandardizedAssetTable(window.appCache.transfers, 'transfers');
         }
 
-        window.triggerSuccessPopup("Batch Transfer Successful! ✅");
+                if (window.triggerSuccessPopup) {
+            window.triggerSuccessPopup("Batch Transfer Successful! ✅");
+        } else {
+            alert("Batch Transfer Successful! ✅");
+        }
 
         // Reset
         window.transferBatch = [];
@@ -907,7 +923,7 @@ window.submitAssetTransfer = async function(event) {
         window.clearSignaturePad('t_security_sig');
         window.clearSignaturePad('t_received_sig');
 
-        window.showStaffView('staff-dash-area');
+        window.showStaffView('staff-dashboard-container');
 
     } catch (e) {
         console.error("Transfer error:", e);

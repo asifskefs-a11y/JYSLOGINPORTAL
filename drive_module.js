@@ -20,6 +20,10 @@ window.uploadToDrive = async function(payload = {}) {
         const safeFileName = String(rawFileName).replace(/[.#$\[\]/]/g, '_');
 
         const safeCategory = String(payload.category || 'DOCUMENTS').replace(/[.#$\[\]/]/g, '_');
+
+        // ✅ Task 2: Safety check for 'directory' property (Fix for undefined config)
+        const safeDirectory = (payload && payload.directory) ? payload.directory : (UPLOAD_CONFIG.CATEGORIES.PROFILE_PHOTOS || 'STAFF_MEDIA');
+
         let base64Image = payload.image || payload.base64Data || payload.fileData || "";
 
         if (!base64Image || base64Image.length < 50) {
@@ -38,6 +42,18 @@ window.uploadToDrive = async function(payload = {}) {
         if (!targetScriptUrl) {
             throw new Error("Missing Google Apps Script Web App URL in System Configuration.");
         }
+
+        const normalizedPayload = {
+            ...payload,
+            adekPassNumber: safeAdekPass,
+            documentType: safeDocType,
+            fileName: safeFileName,
+            category: safeCategory,
+            directory: safeDirectory, // ✅ Task 2: Pass validated directory
+            base64Data: base64Image,
+            action: 'upload',
+            timestamp: Date.now()
+        };
 
         // --- UPLOAD ATTEMPT: fetch with text/plain header to bypass CORS preflight ---
         const controller = new AbortController();
@@ -146,6 +162,7 @@ window.uploadDocumentToDrive = async function(docType, base64Content, mimeType) 
             mimeType: mimeType || "image/jpeg",
             base64Data: pureBase64,
             adekPassNumber: adekPass,
+            directory: (window.UPLOAD_CONFIG?.CATEGORIES?.PROFILE_PHOTOS || 'STAFF_MEDIA'), // ✅ Fallback
             action: 'upload'
         };
 

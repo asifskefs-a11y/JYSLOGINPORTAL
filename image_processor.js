@@ -1,7 +1,52 @@
 /**
- * ✅ UNIVERSAL IMAGE PROCESSOR (v1.0)
+ * ✅ UNIVERSAL IMAGE PROCESSOR & SHARED HELPERS (v1.1)
  * Synchronous global exposure for low-end device reliability.
  */
+
+// ✅ MASTER STAFF POSITIONS & ROLES
+window.MASTER_STAFF_ROLES = [
+    "Cleaner",
+    "Cleaner Leader",
+    "Technician",
+    "Office Boy",
+    "Bus Monitor",
+    "Bus Driver",
+    "Bus Supervisor",
+    "Supervisor",
+    "Gardener",
+    "Security",
+    "Admin"
+];
+
+/**
+ * ✅ GLOBAL SUCCESS POPUP (Synchronous Early Load)
+ * Defined early to prevent "not a function" errors during fast interactions.
+ */
+window.triggerSuccessPopup = function(msg) {
+    if (window.showWhatsAppToast) {
+        window.showWhatsAppToast("✅ Success", msg || "Action completed successfully!", "success");
+    } else {
+        console.warn("Toast engine not loaded yet, using alert fallback.");
+        alert("✅ Success: " + (msg || "Action completed successfully!"));
+    }
+};
+
+/**
+ * Universal helper to populate any role dropdown from master list
+ */
+window.syncRoleDropdown = function(selectId, defaultOptionText = "Select Role", includeAll = false) {
+    const select = document.getElementById(selectId);
+    if (!select) return;
+
+    let html = `<option value="${includeAll ? 'all' : ''}">${defaultOptionText}</option>`;
+    if (Array.isArray(window.MASTER_STAFF_ROLES)) {
+        window.MASTER_STAFF_ROLES.forEach(role => {
+            html += `<option value="${role}">${role}</option>`;
+        });
+    }
+    select.innerHTML = html;
+};
+
 window.compressImageFile = async (file, maxWidth = 1000, maxHeight = 1000, quality = 0.7) => {
     return new Promise((resolve, reject) => {
         try {

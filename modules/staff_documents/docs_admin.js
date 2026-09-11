@@ -205,6 +205,37 @@ window.openOnboardingConfigModal = async function(roleId) {
     } catch (e) {
         content.innerHTML = `<div class="p-8 text-center text-red-500 font-bold uppercase text-xs">Error: ${e.message}</div>`;
     }
+
+    // ✅ Initialize Live Counter & Listeners (v5.1 Fix)
+    setTimeout(() => {
+        if (window.updateOnboardingCounterUI) window.updateOnboardingCounterUI();
+        document.querySelectorAll('.doc-req-checkbox, .bio-req-checkbox').forEach(cb => {
+            cb.addEventListener('change', () => window.updateOnboardingCounterUI());
+        });
+    }, 100);
+};
+
+/**
+ * ✅ Live Onboarding Counter (v5.1)
+ * Calculates total requirements including custom typed fields
+ */
+window.updateOnboardingCounterUI = function() {
+    const predefinedDocs = document.querySelectorAll('#onboarding-docs-grid .doc-req-checkbox:checked').length;
+    const customDocs = document.querySelectorAll('#custom-docs-list .doc-req-checkbox').length;
+    const predefinedBio = document.querySelectorAll('#onboarding-biodata-grid .bio-req-checkbox:checked').length;
+    const customBio = document.querySelectorAll('#custom-bio-list .bio-req-checkbox').length;
+
+    const totalDocs = predefinedDocs + customDocs;
+    const totalBio = predefinedBio + customBio;
+    const summaryText = `${totalDocs} Documents • ${totalBio} Bio-Data Fields`;
+
+    // 1. Update main form badge if it exists
+    const mainSummary = document.getElementById('onboarding-summary-text');
+    if (mainSummary) mainSummary.innerText = summaryText;
+
+    // 2. Update modal subtitle for live feedback
+    const modalSubtitle = document.querySelector('#onboarding-config-modal p.text-indigo-200');
+    if (modalSubtitle) modalSubtitle.innerText = summaryText;
 };
 
 /**
@@ -222,10 +253,11 @@ window.addCustomBioField = function() {
     tag.innerHTML = `
         <input type="hidden" class="bio-req-checkbox" value="${id}" data-name="${name}" checked>
         <span>${name}</span>
-        <button type="button" onclick="this.parentElement.remove()" class="text-indigo-400 hover:text-indigo-900">&times;</button>
+        <button type="button" onclick="this.parentElement.remove(); window.updateOnboardingCounterUI();" class="text-indigo-400 hover:text-indigo-900">&times;</button>
     `;
     list.appendChild(tag);
     input.value = "";
+    window.updateOnboardingCounterUI();
 };
 
 /**
@@ -243,19 +275,23 @@ window.addCustomOnboardingDoc = function() {
     tag.innerHTML = `
         <input type="hidden" class="doc-req-checkbox" value="${id}" data-name="${name}" checked>
         <span>${name}</span>
-        <button type="button" onclick="this.parentElement.remove()" class="text-indigo-400 hover:text-indigo-900">&times;</button>
+        <button type="button" onclick="this.parentElement.remove(); window.updateOnboardingCounterUI();" class="text-indigo-400 hover:text-indigo-900">&times;</button>
     `;
     list.appendChild(tag);
     input.value = "";
+    window.updateOnboardingCounterUI();
 };
 
 /**
  * ✅ Save the configuration back to the main registration form
  */
 window.saveOnboardingConfig = function() {
-    // Collect selected documents
+    // 1. Collect selected documents (Predefined + Custom)
+    const predefinedDocs = document.querySelectorAll('#onboarding-docs-grid .doc-req-checkbox:checked');
+    const customDocs = document.querySelectorAll('#custom-docs-list .doc-req-checkbox');
     const requiredDocs = {};
-    document.querySelectorAll('.doc-req-checkbox:checked').forEach(cb => {
+
+    [...predefinedDocs, ...customDocs].forEach(cb => {
         requiredDocs[cb.value] = {
             name: cb.dataset.name,
             mandatory: true,
@@ -263,15 +299,21 @@ window.saveOnboardingConfig = function() {
         };
     });
 
-    // Collect selected bio-data fields
+    // 2. Collect selected bio-data fields (Predefined + Custom)
+    const predefinedBio = document.querySelectorAll('#onboarding-biodata-grid .bio-req-checkbox:checked');
+    const customBio = document.querySelectorAll('#custom-bio-list .bio-req-checkbox');
     const requiredBio = [];
-    document.querySelectorAll('.bio-req-checkbox:checked').forEach(cb => {
+
+    [...predefinedBio, ...customBio].forEach(cb => {
         requiredBio.push({
             id: cb.value,
             name: cb.dataset.name,
             mandatory: true
         });
     });
+
+    const totalDocs = Object.keys(requiredDocs).length;
+    const totalBio = requiredBio.length;
 
     // Store in global window variable to be picked up by handleStaffSubmit
     window._pendingOnboardingConfig = {
@@ -290,7 +332,7 @@ window.saveOnboardingConfig = function() {
                     </div>
                     <div>
                         <h4 class="text-[10px] font-black text-emerald-900 uppercase">Onboarding Requirements Configured</h4>
-                        <p class="text-[8px] font-bold text-emerald-600 uppercase tracking-widest">${Object.keys(requiredDocs).length} Documents • ${requiredBio.length} Bio-Data Fields</p>
+                        <p id="onboarding-summary-text" class="text-[8px] font-bold text-emerald-600 uppercase tracking-widest">${totalDocs} Documents • ${totalBio} Bio-Data Fields</p>
                     </div>
                 </div>
                 <button type="button" onclick="window.openOnboardingConfigModal(document.getElementById('staff-role').value)" class="px-4 py-2 bg-white text-emerald-600 border border-emerald-200 rounded-lg text-[8px] font-black uppercase hover:bg-emerald-600 hover:text-white transition-all">Edit</button>

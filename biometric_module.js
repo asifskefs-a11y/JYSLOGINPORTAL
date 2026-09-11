@@ -226,7 +226,7 @@ window.biometricManager = {
 
         // Show Dashboard View
         if (window.showStaffView) {
-            window.showStaffView('staff-dash-area');
+            window.showStaffView('staff-dashboard-container');
         }
 
         // Hide auth area

@@ -36,7 +36,11 @@ window.processDocUpload = async function(userId, docKey, base64Data, metadata) {
         // 3. Sync to Firebase
         await window.saveDocMetadata(userId, docKey, docMetadata);
 
-        window.triggerSuccessPopup("✅ Document uploaded successfully!");
+                if (window.triggerSuccessPopup) {
+            window.triggerSuccessPopup("✅ Document uploaded successfully!");
+        } else {
+            alert("✅ Document uploaded successfully!");
+        }
         return true;
 
     } catch (error) {

@@ -2,35 +2,9 @@ import { db } from './firebase_config.js';
 import { ref, get, child } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
 // ================================================================ */
-// ✅ MASTER STAFF POSITIONS & ROLES (v5.5)                          */
+// ✅ MASTER STAFF POSITIONS & ROLES - Moved to image_processor.js (Synchronous)
 // ================================================================ */
-window.MASTER_STAFF_ROLES = [
-    "Cleaner",
-    "Cleaner Leader",
-    "Technician",
-    "Office Boy",
-    "Bus Monitor",
-    "Bus Driver",
-    "Bus Supervisor",
-    "Supervisor",
-    "Gardener",
-    "Security",
-    "Admin"
-];
 
-/**
- * Universal helper to populate any role dropdown from master list
- */
-window.syncRoleDropdown = function(selectId, defaultOptionText = "Select Role", includeAll = false) {
-    const select = document.getElementById(selectId);
-    if (!select) return;
-
-    let html = `<option value="${includeAll ? 'all' : ''}">${defaultOptionText}</option>`;
-    window.MASTER_STAFF_ROLES.forEach(role => {
-        html += `<option value="${role}">${role}</option>`;
-    });
-    select.innerHTML = html;
-};
 
 // ================================================================ */
 // WHATSAPP-STYLE TOAST ENGINE (FIXED v4.2)                        */
@@ -468,9 +442,8 @@ window.closeAssetPreviewModal = function() {
 };
 
 // --- GLOBAL SUCCESS POPUP ---
-window.triggerSuccessPopup = (msg) => {
-    window.showWhatsAppToast("✅ Success", msg || "Action completed successfully!", "success");
-};
+// --- [DEPRECATED] Moved to image_processor.js for early load availability ---
+// window.triggerSuccessPopup = (msg) => { ... }
 
 // ================================================================ */
 // GLOBAL LOADING SPINNER (FIXED v4.3)                             */
@@ -833,7 +806,7 @@ window.renderDashboardProfile = function(staffData) {
         }
 
         // Final safeguard: Ensure the dashboard section is actually VISIBLE
-        const dashArea = document.getElementById('staff-dash-area');
+        const dashArea = document.getElementById('staff-dashboard-container');
         if (dashArea) {
             dashArea.classList.remove('hidden');
             dashArea.style.display = 'block';
@@ -843,7 +816,7 @@ window.renderDashboardProfile = function(staffData) {
 
     } catch (renderErr) {
         console.error("❌ Dashboard Render Crash:", renderErr);
-        const dashAreaFallback = document.getElementById('staff-dash-area');
+        const dashAreaFallback = document.getElementById('staff-dashboard-container');
         if (dashAreaFallback) {
             dashAreaFallback.classList.remove('hidden');
             dashAreaFallback.style.display = 'block';
@@ -1160,11 +1133,10 @@ window.formatDriveImageUrl = function(url, staffName = "Staff") {
     const match = url.match(driveRegex);
 
     if (match) {
-        // Find the captured group that isn't null/undefined
         const fileId = match[1] || match[2] || match[3] || match[4];
         if (fileId && fileId.length > 20) {
-            // Priority 1: Google Content Link (Fastest for public files)
-            return `https://lh3.googleusercontent.com/d/${fileId}`;
+            // ✅ Task 2: Use Optimized Thumbnail path for lists (Prevents 429 quota issues)
+            return `https://drive.google.com/thumbnail?id=${fileId}&sz=w200`;
         }
     }
 
@@ -1191,11 +1163,6 @@ window.openImageZoom = (url) => {
  * ✅ [DEPRECATED] Internal compressImageFile removed.
  * Using window.compressImageFile from image_processor.js for early loading.
  */
-        } catch (err) {
-            reject(err);
-        }
-    });
-};
 
 // ✅ FIXED: Compress with retry and exponential fallback
 window.compressImageWithRetry = async (file, maxWidth = 800, maxHeight = 800, quality = 0.7, retries = 3) => {
@@ -1494,7 +1461,7 @@ window.showStaffView = function(viewId) {
 
         // 2. Define legacy view IDs for deep-cleanup
         const views = [
-            'staff-dash-area',
+            'staff-dashboard-container',
             'security-main-container',
             'tasks-management-section',
             'asset-audit-section',
@@ -1530,12 +1497,19 @@ window.showStaffView = function(viewId) {
                 parentSection.style.display = '';
             }
         } else {
-            console.error(`❌ View Switcher Error: Element with ID "${viewId}" not found in DOM`);
-            // Fallback: If dash area exists, show it at least
-            const dashFallback = document.getElementById('staff-dash-area');
-            if (dashFallback && viewId !== 'staff-dash-area') {
-                dashFallback.classList.remove('hidden');
-                dashFallback.style.display = '';
+            console.warn(`⚠️ View Switcher Warning: Element with ID "${viewId}" not found in DOM. Attempting fallback.`);
+
+            // ✅ Task 3: Safety Guard Fallback
+            const dashFallback = document.getElementById('staff-dashboard-container') ||
+                                 document.querySelector('.staff-dashboard-view');
+
+            if (dashFallback) {
+                dashFallback.classList.remove('hidden', 'hidden-view');
+                dashFallback.classList.add('active-view');
+                dashFallback.style.display = 'block';
+                console.log("✅ View Switcher: Fallback to main dashboard executed.");
+            } else {
+                console.error(`❌ View Switcher Fatal: No valid dashboard fallback found for "${viewId}"`);
             }
         }
 
