@@ -189,28 +189,41 @@ class SignaturePadEngine {
         const dataUrl = this.canvas.toDataURL();
         const wasEmpty = this.isEmpty();
 
-        // ✅ 1. Toggle Layout
         if (isEntering) {
+            // ✅ Task 1: Escape Parent Modal Stacking Context (Portal Concept)
+            // Store original position to restore later
+            this._originalParent = wrapper.parentElement;
+            this._originalNextSibling = wrapper.nextSibling;
+
+            document.body.appendChild(wrapper);
             wrapper.classList.add('sig-full-screen');
             document.body.style.overflow = 'hidden';
             if (this.isLocked) this.unlock();
         } else {
+            // Restore to original position
             wrapper.classList.remove('sig-full-screen');
+            if (this._originalParent) {
+                this._originalParent.insertBefore(wrapper, this._originalNextSibling);
+            }
             document.body.style.overflow = '';
         }
 
-        // ✅ 2. Preserve & Force Exact Viewport Resize (v7.6 Fix)
+        // ✅ Task 2: Responsive Screen Size Auto-Fitting (v7.7 Fix)
         setTimeout(() => {
             const ratio = Math.max(window.devicePixelRatio || 1, 1);
-            const parent = this.canvas.parentElement;
 
-            // Force strict dimensions based on full-screen vs standard
-            const width = isEntering ? window.innerWidth - 40 : parent.clientWidth;
-            const height = isEntering ? window.innerHeight - 120 : parent.clientHeight;
+            // If in full screen, use window dimensions; otherwise use parent container
+            const width = isEntering ? window.innerWidth : wrapper.clientWidth;
+            const height = isEntering ? window.innerHeight : wrapper.clientHeight;
 
             if (width > 0 && height > 0) {
-                this.canvas.width = width * ratio;
-                this.canvas.height = height * ratio;
+                // Adjust for control buttons in full screen
+                const targetWidth = isEntering ? width - 40 : width;
+                const targetHeight = isEntering ? height - 120 : height;
+
+                this.canvas.width = targetWidth * ratio;
+                this.canvas.height = targetHeight * ratio;
+
                 this.ctx.resetTransform();
                 this.ctx.scale(ratio, ratio);
 
@@ -219,13 +232,12 @@ class SignaturePadEngine {
                 this.ctx.lineWidth = 3;
                 this.ctx.strokeStyle = '#1E1B4B';
                 this.ctx.fillStyle = '#FFFFFF';
-                this.ctx.fillRect(0, 0, width, height);
+                this.ctx.fillRect(0, 0, targetWidth, targetHeight);
 
                 if (!wasEmpty) {
                     const img = new Image();
                     img.onload = () => {
-                        // Maintain stroke fidelity while scaling to new canvas size
-                        this.ctx.drawImage(img, 0, 0, width, height);
+                        this.ctx.drawImage(img, 0, 0, targetWidth, targetHeight);
                         this.hasDrawn = true;
                     };
                     img.src = dataUrl;
@@ -1693,7 +1705,7 @@ document.addEventListener('DOMContentLoaded', () => {
             left: 0 !important;
             width: 100vw !important;
             height: 100vh !important;
-            z-index: 9999999 !important;
+            z-index: 99999999 !important;
             background: #ffffff !important;
             display: flex !important;
             flex-direction: column !important;
@@ -1702,19 +1714,55 @@ document.addEventListener('DOMContentLoaded', () => {
             padding: 20px !important;
             margin: 0 !important;
             box-sizing: border-box !important;
+            touch-action: none !important;
+            overscroll-behavior: contain !important;
         }
 
         .canvas-wrapper.sig-full-screen canvas {
             width: 100% !important;
-            height: calc(100% - 80px) !important;
+            height: calc(100% - 100px) !important;
             background: #fff !important;
             touch-action: none !important;
             border: 2px solid #e2e8f0 !important;
-            border-radius: 20px !important;
-            box-shadow: inset 0 2px 4px rgba(0,0,0,0.05) !important;
+            border-radius: 24px !important;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1) !important;
         }
 
-        /* Full Screen Toggle Button */
+        /* Controls Toolbar for Full Screen */
+        .sig-fs-controls {
+            display: none;
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 100000000;
+            gap: 12px;
+        }
+
+        .sig-full-screen .sig-fs-controls {
+            display: flex !important;
+        }
+
+        .sig-fs-btn {
+            padding: 14px 24px;
+            border-radius: 16px;
+            font-weight: 900;
+            text-transform: uppercase;
+            font-size: 11px;
+            letter-spacing: 1.5px;
+            border: none;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            box-shadow: 0 15px 30px -5px rgba(0,0,0,0.2);
+        }
+
+        .sig-fs-btn.done { background: #4f46e5; color: #fff; }
+        .sig-fs-btn.clear { background: #f8fafc; color: #ef4444; border: 1px solid #fee2e2; }
+        .sig-fs-btn:active { transform: scale(0.95); }
+
+        /* standard small toggle */
         .sig-fs-toggle {
             position: absolute;
             top: 12px;
@@ -1730,36 +1778,11 @@ document.addEventListener('DOMContentLoaded', () => {
             align-items: center;
             justify-content: center;
             cursor: pointer;
-            transition: all 0.2s;
             box-shadow: 0 2px 4px rgba(0,0,0,0.05);
         }
 
-        .sig-fs-toggle:hover { background: #4f46e5; color: #fff; transform: scale(1.1); }
-        .sig-fs-toggle:active { transform: scale(0.9); }
+        .sig-full-screen .sig-fs-toggle { display: none !important; }
 
-        /* Full Screen Active State Button */
-        .sig-full-screen .sig-fs-toggle {
-            position: fixed !important;
-            top: 20px !important;
-            right: 20px !important;
-            width: auto !important;
-            height: auto !important;
-            padding: 14px 28px !important;
-            background: #4f46e5 !important;
-            color: #fff !important;
-            border: none !important;
-            border-radius: 18px !important;
-            font-weight: 900 !important;
-            text-transform: uppercase !important;
-            font-size: 13px !important;
-            letter-spacing: 2px !important;
-            box-shadow: 0 20px 25px -5px rgba(79, 70, 229, 0.4) !important;
-            display: flex !important;
-            align-items: center !important;
-            gap: 10px !important;
-        }
-
-        .sig-full-screen .sig-fs-toggle::after { content: " DONE / EXIT"; }
         .sig-full-screen .sig-fs-toggle i { font-size: 14px; }
 
         @keyframes fs-pop {
@@ -1779,22 +1802,46 @@ window.injectSignatureFSButtons = () => {
             const canvas = wrapper.querySelector('canvas');
             if (!canvas || !canvas.id) return;
 
-            const btn = document.createElement('button');
-            btn.type = "button";
-            btn.className = "sig-fs-toggle";
-            btn.title = "Toggle Full Screen Signature";
-            btn.innerHTML = '<i class="fa-solid fa-expand"></i>';
-
-            btn.onclick = (e) => {
+            // 1. Standard Toggle Button
+            const toggleBtn = document.createElement('button');
+            toggleBtn.type = "button";
+            toggleBtn.className = "sig-fs-toggle";
+            toggleBtn.innerHTML = '<i class="fa-solid fa-expand"></i>';
+            toggleBtn.onclick = (e) => {
                 e.preventDefault();
-                e.stopPropagation();
                 const pad = window.sigPadManager.getPad(canvas.id);
-                if (pad && typeof pad.toggleFullScreen === 'function') {
-                    pad.toggleFullScreen();
-                }
+                if (pad) pad.toggleFullScreen();
+            };
+            wrapper.appendChild(toggleBtn);
+
+            // 2. Full Screen Controls Toolbar
+            const controls = document.createElement('div');
+            controls.className = "sig-fs-controls";
+
+            // Clear Button
+            const clearBtn = document.createElement('button');
+            clearBtn.type = "button";
+            clearBtn.className = "sig-fs-btn clear";
+            clearBtn.innerHTML = '<i class="fa-solid fa-trash"></i> CLEAR';
+            clearBtn.onclick = (e) => {
+                e.preventDefault();
+                if (window.clearSignaturePad) window.clearSignaturePad(canvas.id);
             };
 
-            wrapper.appendChild(btn);
+            // Done Button
+            const doneBtn = document.createElement('button');
+            doneBtn.type = "button";
+            doneBtn.className = "sig-fs-btn done";
+            doneBtn.innerHTML = '<i class="fa-solid fa-check"></i> DONE / EXIT';
+            doneBtn.onclick = (e) => {
+                e.preventDefault();
+                const pad = window.sigPadManager.getPad(canvas.id);
+                if (pad) pad.toggleFullScreen();
+            };
+
+            controls.appendChild(clearBtn);
+            controls.appendChild(doneBtn);
+            wrapper.appendChild(controls);
         }
     });
 };

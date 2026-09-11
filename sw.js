@@ -1,4 +1,4 @@
-const CACHE_NAME = 'jys-portal-v7.6';
+const CACHE_NAME = 'jys-portal-v7.7';
 const ASSETS_TO_CACHE = [
     './',
     './index.html',
