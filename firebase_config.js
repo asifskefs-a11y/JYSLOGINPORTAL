@@ -79,7 +79,6 @@ export const UPLOAD_CONFIG = {
     },
 
     DEFAULTS: {
-        DRIVE_URL: "https://script.google.com/macros/s/AKfycbyXZpA-mlmctWy4HTdEiu_EsS1gmTuEe5SREu5KQ0_3LliIWzGwDNhXQArqVuz4PM-ygA/exec",
         TIMEOUT: 30000,
         MAX_RETRIES: 3
     }
@@ -96,16 +95,16 @@ class DriveConfigCache {
         if (!forceRefresh && this.cache && (now - this.lastFetch) < this.cacheDuration) return this.cache;
         try {
             const snap = await get(ref(db, UPLOAD_CONFIG.DRIVE_CONFIG_PATH));
-            const data = snap.exists() ? snap.val() : null;
+            const url = snap.exists() ? snap.val() : localStorage.getItem('jys_active_drive_script_url');
             this.cache = {
-                url: typeof data === 'string' ? data : (data?.url || UPLOAD_CONFIG.DEFAULTS.DRIVE_URL),
-                enabled: data?.enabled !== false,
+                url: url || null,
+                enabled: !!url,
                 timestamp: Date.now()
             };
             this.lastFetch = now;
             return this.cache;
         } catch (e) {
-            return { url: UPLOAD_CONFIG.DEFAULTS.DRIVE_URL, enabled: true };
+            return { url: localStorage.getItem('jys_active_drive_script_url'), enabled: true };
         }
     }
     invalidate() { this.cache = null; this.lastFetch = 0; }
