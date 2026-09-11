@@ -206,7 +206,12 @@
 
         .table-wrapper table tbody tr {
             transition: all 0.2s ease;
+            background-color: white !important;
             color: #1e293b !important;
+        }
+
+        .table-wrapper table tbody td {
+            color: inherit !important;
         }
 
         .table-wrapper table tbody tr:hover {
@@ -962,7 +967,7 @@
                             </select>
                         </div>
 
-                        <div class="table-wrapper rounded-2xl border border-slate-100 overflow-x-auto custom-scrollbar" id="directory-table-wrapper">
+                        <div class="w-full overflow-x-auto rounded-xl bg-white border border-slate-200 shadow-lg custom-scrollbar" id="directory-table-wrapper">
                             <table class="w-full text-left text-[10px]">
                                 <thead class="bg-slate-50 uppercase text-slate-600 font-black">
                                     <tr>
@@ -1227,7 +1232,7 @@
 
     <!-- ✅ ONBOARDING CONFIGURATION MODAL (v5.0) -->
     <div id="onboarding-config-modal" class="fixed inset-0 bg-black/90 backdrop-blur-md z-[100005] hidden flex items-center justify-center p-4">
-        <div class="bg-white w-full max-w-2xl rounded-[2.5rem] overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
+        <div class="bg-white w-full max-w-11/12 md:max-w-4xl lg:max-w-6xl mx-auto rounded-[2.5rem] overflow-hidden shadow-2xl flex flex-col max-h-[90vh] my-auto transition-all duration-300">
             <div class="bg-indigo-600 text-white p-6 flex justify-between items-center flex-shrink-0">
                 <div class="flex flex-col">
                     <h3 class="font-black uppercase tracking-tight text-xl">Onboarding Requirements</h3>
@@ -1235,7 +1240,7 @@
                 </div>
                 <button type="button" onclick="document.getElementById('onboarding-config-modal').classList.add('hidden')" class="text-white hover:text-indigo-200 transition-colors"><i class="fa-solid fa-xmark text-2xl"></i></button>
             </div>
-            <div id="onboarding-config-content" class="overflow-y-auto flex-1 p-8">
+            <div id="onboarding-config-content" class="max-h-[80vh] overflow-y-auto flex-1 p-4 md:p-8 custom-scrollbar">
                 <!-- Content injected via window.openOnboardingConfigModal -->
             </div>
             <div class="p-6 bg-slate-50 border-t border-slate-100 flex justify-end gap-3 flex-shrink-0">
@@ -1530,23 +1535,23 @@
         </div>
     </div>
 
-    <script src="image_processor.js?v=6.6"></script>
-    <script type="module" src="firebase_config.js?v=6.6"></script>
-    <script type="module" src="field_normalizer.js?v=6.6"></script>
-    <script type="module" src="drive_module.js?v=6.6"></script>
-    <script src="asset_management.js?v=6.6"></script>
-    <script type="module" src="ui_module.js?v=6.6"></script>
-    <script type="module" src="import_module.js?v=6.6"></script>
-    <script type="module" src="export_module.js?v=6.6"></script>
-    <script type="module" src="audit_module.js?v=6.6"></script>
-    <script type="module" src="attendance_module.js?v=6.6"></script>
-    <script type="module" src="tasks_module.js?v=6.6"></script>
-    <script type="module" src="admin_module.js?v=6.6"></script>
-    <script type="module" src="modules/staff_documents/docs_firebase.js?v=6.6"></script>
-    <script type="module" src="modules/staff_documents/docs_admin.js?v=6.6"></script>
-    <script type="module" src="modules/staff_documents/docs_verification.js?v=6.6"></script>
-    <script type="module" src="contractor_module.js?v=6.6"></script>
-    <script type="module" src="init_module.js?v=6.6"></script>
+    <script src="image_processor.js?v=7.5"></script>
+    <script type="module" src="firebase_config.js?v=7.5"></script>
+    <script type="module" src="field_normalizer.js?v=7.5"></script>
+    <script type="module" src="drive_module.js?v=7.5"></script>
+    <script src="asset_management.js?v=7.5"></script>
+    <script type="module" src="ui_module.js?v=7.5"></script>
+    <script type="module" src="import_module.js?v=7.5"></script>
+    <script type="module" src="export_module.js?v=7.5"></script>
+    <script type="module" src="audit_module.js?v=7.5"></script>
+    <script type="module" src="attendance_module.js?v=7.5"></script>
+    <script type="module" src="tasks_module.js?v=7.5"></script>
+    <script type="module" src="admin_module.js?v=7.5"></script>
+    <script type="module" src="modules/staff_documents/docs_firebase.js?v=7.5"></script>
+    <script type="module" src="modules/staff_documents/docs_admin.js?v=7.5"></script>
+    <script type="module" src="modules/staff_documents/docs_verification.js?v=7.5"></script>
+    <script type="module" src="contractor_module.js?v=7.5"></script>
+    <script type="module" src="init_module.js?v=7.5"></script>
 
     <script>
         // ================================================

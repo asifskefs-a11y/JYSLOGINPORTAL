@@ -137,7 +137,7 @@ window.openOnboardingConfigModal = async function(roleId) {
                         <i class="fa-solid fa-file-shield text-indigo-600"></i>
                         <h4 class="text-xs font-black text-indigo-900 uppercase tracking-wider">Mandatory Upload Requirements</h4>
                     </div>
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2" id="onboarding-docs-grid">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4" id="onboarding-docs-grid">
         `;
 
         Object.entries(window.ALL_DOCUMENTS_MASTER).forEach(([id, doc]) => {
@@ -154,12 +154,12 @@ window.openOnboardingConfigModal = async function(roleId) {
 
         html += `
                         <!-- Custom Document Entry -->
-                        <div class="col-span-full pt-2">
-                            <div class="flex gap-2">
-                                <input type="text" id="custom-doc-input" placeholder="Custom Document Name (e.g. Health Card)" class="flex-1 px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-[10px] outline-none focus:border-indigo-500">
-                                <button type="button" onclick="window.addCustomOnboardingDoc()" class="px-4 bg-slate-800 text-white rounded-lg text-[8px] font-black uppercase">Add</button>
+                        <div class="col-span-full pt-4">
+                            <div class="flex flex-col sm:flex-row gap-3 w-full">
+                                <input type="text" id="custom-doc-input" placeholder="Custom Document Name (e.g. Health Card)" class="flex-1 px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold outline-none focus:border-indigo-500 shadow-sm">
+                                <button type="button" onclick="window.addCustomOnboardingDoc()" class="px-6 py-3 bg-slate-800 text-white rounded-xl text-[10px] font-black uppercase shadow-lg active:scale-95 transition-all">Add Document</button>
                             </div>
-                            <div id="custom-docs-list" class="flex flex-wrap gap-2 mt-2"></div>
+                            <div id="custom-docs-list" class="flex flex-wrap gap-2 mt-3"></div>
                         </div>
                     </div>
                 </div>
@@ -170,7 +170,7 @@ window.openOnboardingConfigModal = async function(roleId) {
                         <i class="fa-solid fa-address-card text-indigo-600"></i>
                         <h4 class="text-xs font-black text-indigo-900 uppercase tracking-wider">Required Bio-Data Information</h4>
                     </div>
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2" id="onboarding-biodata-grid">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4" id="onboarding-biodata-grid">
         `;
 
         Object.entries(window.BIO_DATA_FIELDS_MASTER).forEach(([id, field]) => {
@@ -189,12 +189,12 @@ window.openOnboardingConfigModal = async function(roleId) {
         html += `
                     </div>
                     <!-- Custom Bio-Data Entry -->
-                    <div class="col-span-full pt-2">
-                        <div class="flex gap-2">
-                            <input type="text" id="custom-bio-input" placeholder="Custom Information Label (e.g. Blood Group)" class="flex-1 px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-[10px] outline-none focus:border-indigo-500">
-                            <button type="button" onclick="window.addCustomBioField()" class="px-4 bg-indigo-900 text-white rounded-lg text-[8px] font-black uppercase">+ Add Custom Field</button>
+                    <div class="col-span-full pt-4">
+                        <div class="flex flex-col sm:flex-row gap-3 w-full">
+                            <input type="text" id="custom-bio-input" placeholder="Custom Information Label (e.g. Blood Group)" class="flex-1 px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold outline-none focus:border-indigo-500 shadow-sm">
+                            <button type="button" onclick="window.addCustomBioField()" class="px-6 py-3 bg-indigo-900 text-white rounded-xl text-[10px] font-black uppercase shadow-lg active:scale-95 transition-all">+ Add Custom Field</button>
                         </div>
-                        <div id="custom-bio-list" class="flex flex-wrap gap-2 mt-2"></div>
+                        <div id="custom-bio-list" class="flex flex-wrap gap-2 mt-3"></div>
                     </div>
                 </div>
             </div>

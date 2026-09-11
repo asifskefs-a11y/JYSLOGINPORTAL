@@ -180,6 +180,58 @@ class SignaturePadEngine {
         this.isDrawing = false;
     }
 
+    toggleFullScreen() {
+        if (!this.canvas) return;
+        const wrapper = this.canvas.closest('.canvas-wrapper');
+        if (!wrapper) return;
+
+        const isEntering = !wrapper.classList.contains('sig-full-screen');
+        const dataUrl = this.canvas.toDataURL();
+        const wasEmpty = this.isEmpty();
+
+        // ✅ 1. Toggle Layout
+        if (isEntering) {
+            wrapper.classList.add('sig-full-screen');
+            document.body.style.overflow = 'hidden';
+            if (this.isLocked) this.unlock(); // Auto-unlock on full screen for UX
+        } else {
+            wrapper.classList.remove('sig-full-screen');
+            document.body.style.overflow = '';
+        }
+
+        // ✅ 2. Preserve & Recalculate Resolution
+        setTimeout(() => {
+            const ratio = Math.max(window.devicePixelRatio || 1, 1);
+            const parent = this.canvas.parentElement;
+            const width = parent.clientWidth;
+            const height = parent.clientHeight;
+
+            if (width > 0 && height > 0) {
+                this.canvas.width = width * ratio;
+                this.canvas.height = height * ratio;
+                this.ctx.resetTransform();
+                this.ctx.scale(ratio, ratio);
+
+                this.ctx.lineCap = 'round';
+                this.ctx.lineJoin = 'round';
+                this.ctx.lineWidth = 3;
+                this.ctx.strokeStyle = '#1E1B4B';
+                this.ctx.fillStyle = '#FFFFFF';
+                this.ctx.fillRect(0, 0, width, height);
+
+                if (!wasEmpty) {
+                    const img = new Image();
+                    img.onload = () => {
+                        // Draw with scaling to fit new aspect ratio
+                        this.ctx.drawImage(img, 0, 0, width, height);
+                        this.hasDrawn = true;
+                    };
+                    img.src = dataUrl;
+                }
+            }
+        }, 100);
+    }
+
     clear() {
         this._setupCanvas();
     }
@@ -1500,6 +1552,14 @@ window.showStaffView = function(viewId) {
             console.warn(`⚠️ View Switcher Warning: Element with ID "${viewId}" not found in DOM. Attempting fallback.`);
 
             // ✅ Task 3: Safety Guard Fallback
+            // Ensure we are logged in before showing any dashboard/docs
+            const staff = window.currentStaff || JSON.parse(sessionStorage.getItem('active_staff_user') || 'null');
+            if (!staff || !staff.mobile) {
+                console.error("❌ View Switcher: User not authenticated. Forcing Login.");
+                if (window.switchPortalView) window.switchPortalView('LOGIN');
+                return;
+            }
+
             const dashFallback = document.getElementById('staff-dashboard-container') ||
                                  document.querySelector('.staff-dashboard-view');
 
@@ -1607,10 +1667,130 @@ document.addEventListener('DOMContentLoaded', () => {
     const observer = new MutationObserver(() => {
         attachLogoutListeners();
         attachButtonListeners();
+        if (window.injectSignatureFSButtons) window.injectSignatureFSButtons();
     });
 
     observer.observe(document.body, { childList: true, subtree: true });
+
+    // 4. Initial Injection
+    if (window.injectSignatureFSButtons) window.injectSignatureFSButtons();
 });
+
+/**
+ * ✅ Task 3: Global Style Injection for Full-Screen Signatures
+ */
+(function injectSignatureStyles() {
+    if (document.getElementById('sig-fs-styles')) return;
+    const style = document.createElement('style');
+    style.id = 'sig-fs-styles';
+    style.textContent = `
+        /* Canvas Wrapper Full Screen Mode */
+        .canvas-wrapper.sig-full-screen {
+            position: fixed !important;
+            inset: 0 !important;
+            z-index: 9999999 !important;
+            width: 100vw !important;
+            height: 100vh !important;
+            background: #000 !important;
+            padding: 20px !important;
+            display: flex !important;
+            flex-direction: column !important;
+            margin: 0 !important;
+            border-radius: 0 !important;
+            animation: fs-pop 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .canvas-wrapper.sig-full-screen canvas {
+            flex: 1 !important;
+            width: 100% !important;
+            height: 100% !important;
+            background: #fff !important;
+            touch-action: none !important;
+            border-radius: 20px !important;
+        }
+
+        /* Full Screen Toggle Button */
+        .sig-fs-toggle {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            z-index: 100;
+            background: rgba(79, 70, 229, 0.1);
+            color: #4f46e5;
+            border: none;
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .sig-fs-toggle:hover { background: #4f46e5; color: #fff; transform: scale(1.1); }
+        .sig-fs-toggle:active { transform: scale(0.9); }
+
+        /* Full Screen Active State Button */
+        .sig-full-screen .sig-fs-toggle {
+            position: fixed;
+            top: 40px;
+            right: 40px;
+            width: auto;
+            height: auto;
+            padding: 12px 24px;
+            background: #4f46e5;
+            color: #fff;
+            border-radius: 16px;
+            font-weight: 900;
+            text-transform: uppercase;
+            font-size: 12px;
+            letter-spacing: 2px;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .sig-full-screen .sig-fs-toggle::after { content: " DONE / EXIT"; }
+        .sig-full-screen .sig-fs-toggle i { font-size: 14px; }
+
+        @keyframes fs-pop {
+            from { opacity: 0; transform: scale(0.95); }
+            to { opacity: 1; transform: scale(1); }
+        }
+    `;
+    document.head.appendChild(style);
+})();
+
+/**
+ * ✅ Auto-Inject Full-Screen Button into all canvas-wrappers
+ */
+window.injectSignatureFSButtons = () => {
+    document.querySelectorAll('.canvas-wrapper').forEach(wrapper => {
+        if (!wrapper.querySelector('.sig-fs-toggle')) {
+            const canvas = wrapper.querySelector('canvas');
+            if (!canvas || !canvas.id) return;
+
+            const btn = document.createElement('button');
+            btn.type = "button";
+            btn.className = "sig-fs-toggle";
+            btn.title = "Toggle Full Screen Signature";
+            btn.innerHTML = '<i class="fa-solid fa-expand"></i>';
+
+            btn.onclick = (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                const pad = window.sigPadManager.getPad(canvas.id);
+                if (pad && typeof pad.toggleFullScreen === 'function') {
+                    pad.toggleFullScreen();
+                }
+            };
+
+            wrapper.appendChild(btn);
+        }
+    });
+};
 
 // ================================================================ */
 // ✅ Task 2: Fix Profile Picture Rendering (Dashboard & Sidebar)    */

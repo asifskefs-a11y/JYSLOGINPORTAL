@@ -160,7 +160,8 @@ window.handleStaffLogin = async (e) => {
 
                 localStorage.setItem('loggedStaff', JSON.stringify(foundUser));
                 sessionStorage.setItem('active_staff_user', JSON.stringify(foundUser));
-                console.log("💾 Staff Login: Session stored in localStorage and sessionStorage");
+                localStorage.setItem('app_version', APP_VERSION); // ✅ Dynamic Versioning Update
+                console.log("💾 Staff Login: Session stored and version updated");
 
                 if (window.triggerSuccessPopup) {
                     window.triggerSuccessPopup(`Welcome, ${foundUser.name}! 👋`);
@@ -353,8 +354,19 @@ window.handleVisitorSignIn = async (e) => {
 // INITIALIZATION & AUTO-ROUTING                                    */
 // ================================================================ */
 
-document.addEventListener('DOMContentLoaded', () => {
+// ✅ VERSION CONTROL (v6.8)
+const APP_VERSION = 'v7.4';
+
+document.addEventListener('DOMContentLoaded', async () => {
     console.log("🚀 SchoolLog Init: DOMContentLoaded triggered");
+
+    // --- 0. DYNAMIC VERSION CHECK & CACHE INVALIDATION ---
+    const savedVersion = localStorage.getItem('app_version');
+    if (savedVersion !== APP_VERSION) {
+        console.warn(`🔄 Version Mismatch: ${savedVersion} -> ${APP_VERSION}. Purging Cache...`);
+        localStorage.clear();
+        sessionStorage.clear();
+    }
 
     // --- 0. REGISTER SERVICE WORKER (OFFLINE PWA MODE) ---
     if ('serviceWorker' in navigator) {
@@ -410,30 +422,63 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
 
-        // --- 2. STAFF PAGE ROUTING ---
+        // --- 2. STAFF PAGE ROUTING & REAL-TIME VALIDATION ---
         if (path.includes('staff-login.html') || path.includes('security.html')) {
             if (effectiveStaff) {
-                console.log(`🛡️ ${path.includes('security.html') ? 'Security' : 'Staff'}: Verified active session found, rendering dashboard...`);
+                console.log(`🛡️ ${path.includes('security.html') ? 'Security' : 'Staff'}: Validating user existence in Firebase...`);
+
                 try {
-                    if (window.initUserDashboard) {
-                        window.initUserDashboard(effectiveStaff);
-                    } else if (window.renderDashboard) {
-                        window.renderDashboard(effectiveStaff);
+                    const userId = effectiveStaff.adekPass || effectiveStaff.mobile;
+                    // Find the user by ID/Mobile in the staff collection
+                    const staffSnap = await get(ref(db, 'staff'));
+                    let userStillExists = false;
+
+                    if (staffSnap.exists()) {
+                        const allStaff = staffSnap.val();
+                        for (const key in allStaff) {
+                            const u = allStaff[key];
+                            if (u.adekPass === userId || u.mobile === userId) {
+                                userStillExists = true;
+                                break;
+                            }
+                        }
                     }
 
-                    if (window.switchPortalView) {
-                        window.switchPortalView('DASHBOARD');
+                    if (userStillExists) {
+                        console.log("✅ User verified, rendering dashboard.");
+                        if (window.initUserDashboard) {
+                            window.initUserDashboard(effectiveStaff);
+                        } else if (window.renderDashboard) {
+                            window.renderDashboard(effectiveStaff);
+                        }
+
+                        if (window.switchPortalView) {
+                            window.switchPortalView('DASHBOARD');
+                        }
+                    } else {
+                        console.warn("❌ User record deleted from Firebase. Force Logout.");
+                        window.logoutStaff();
                     }
                 } catch (e) {
-                    console.error("❌ Session parse error, clearing...", e);
-                    sessionStorage.removeItem('active_staff_user');
-                    localStorage.removeItem('loggedStaff');
+                    console.error("❌ Session validation error, clearing...", e);
+                    window.logoutStaff();
                 }
             } else if (path.includes('staff-login.html')) {
                 console.log("🛡️ Staff: No active session, showing login area...");
                 if (window.switchPortalView) {
                     window.switchPortalView('LOGIN');
                 }
+
+                // ✅ Task 4: Auto Biometric Prompt (v6.8)
+                setTimeout(() => {
+                    const isBiometricReady = localStorage.getItem('jys_biometric_enrolled') === 'true' ||
+                                           localStorage.getItem('biometric_enabled') === 'true';
+
+                    if (isBiometricReady && window.quickBiometricLogin) {
+                        console.log("🧬 Biometric Enrollment Detected. Auto-prompting...");
+                        window.quickBiometricLogin();
+                    }
+                }, 1000);
             }
         }
 

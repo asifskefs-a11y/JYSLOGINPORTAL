@@ -236,14 +236,19 @@ window.getStaffOnboardingRequirements = async function(userId, role) {
             }
         }
 
-        // 3. Merge Individual Logic: Custom Overrides + Role Defaults (v6.0 Fix)
-        const roleDocs = await window.getRoleRequirements(role);
-        const finalDocs = { ...roleDocs, ...(customDocs || {}) };
-
-        console.log(`🎯 [Onboarding] Final requirements count: ${Object.keys(finalDocs).length} (Merged: ${!!customDocs})`);
+        // 3. STRICT ALLOCATION: If individual custom docs are found, ignore role defaults
+        let finalDocs = {};
+        if (customDocs && Object.keys(customDocs).length > 0) {
+            finalDocs = customDocs;
+            console.log(`🎯 [Onboarding] Using Strict Individual Allocation: ${Object.keys(finalDocs).length} items`);
+        } else {
+            // Fallback to role defaults only if no individual config exists
+            finalDocs = await window.getRoleRequirements(role);
+            console.log(`🎯 [Onboarding] Using Role Defaults: ${Object.keys(finalDocs || {}).length} items`);
+        }
 
         return {
-            requirements: finalDocs,
+            requirements: finalDocs || {},
             bioRequirements: bioRequirements || []
         };
 

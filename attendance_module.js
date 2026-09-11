@@ -858,29 +858,55 @@ window.initSecurityCheckInButton = function() {
     const newBtn = cinBtn.cloneNode(true);
     cinBtn.parentNode.replaceChild(newBtn, cinBtn);
 
-    newBtn.addEventListener('click', (e) => {
+    newBtn.addEventListener('click', async (e) => {
         e.preventDefault();
         e.stopPropagation();
-        const staff = window.currentStaff || JSON.parse(sessionStorage.getItem('active_staff_user'));
 
-        if (!staff || !staff.mobile) {
-            alert("Session expired. Please login again.");
-            window.location.href = 'staff-login.html';
-            return;
-        }
+        if (window.showGlobalSpinner) window.showGlobalSpinner("Verifying Authorization...");
 
-        // ✅ MANDATED FIX: Soft Lock for Inactive Accounts
-        if (staff.isAccountActive === false) {
-            if (window.showWhatsAppToast) {
-                window.showWhatsAppToast("🔒 Access Restricted", "You need to upload your required documents before you can Check-In.", "error");
-            } else {
-                alert("🔒 Access Restricted! You need to upload your required documents before you can Check-In.");
+        try {
+            const staff = window.currentStaff || JSON.parse(sessionStorage.getItem('active_staff_user'));
+            if (!staff || !staff.mobile) {
+                alert("Session expired. Please login again.");
+                window.location.href = 'staff-login.html';
+                return;
             }
-            return;
-        }
 
-        console.log("👆 Check-In Button Pressed for:", staff.fullName || staff.name);
-        window.handleStaffCheckIn(staff, newBtn);
+            // ✅ Task 1: Fetch Live Authorization Status from Firebase
+            const staffKey = staff.firebaseKey || staff.id || staff.mobile;
+            const staffSnap = await get(ref(db, `staff/${staffKey}`));
+
+            if (staffSnap.exists()) {
+                const freshData = staffSnap.val();
+                // Update local session state
+                const updatedStaff = { ...staff, ...freshData };
+                window.currentStaff = updatedStaff;
+                sessionStorage.setItem('active_staff_user', JSON.stringify(updatedStaff));
+
+                const isApproved = freshData.isAccountActive === true ||
+                                  freshData.isApproved === true ||
+                                  freshData.status === "APPROVED" ||
+                                  freshData.approvalStatus === "approved";
+
+                if (!isApproved) {
+                    if (window.showWhatsAppToast) {
+                        window.showWhatsAppToast("🔒 Access Restricted", "Your account is pending document approval. Please contact Admin.", "error");
+                    } else {
+                        alert("🔒 Access Restricted! Your account is pending document approval.");
+                    }
+                    return;
+                }
+            }
+
+            console.log("👆 Check-In Button Pressed for:", staff.fullName || staff.name);
+            window.handleStaffCheckIn(staff, newBtn);
+
+        } catch (err) {
+            console.error("Auth check failed:", err);
+            alert("Connection error. Please try again.");
+        } finally {
+            if (window.hideGlobalSpinner) window.hideGlobalSpinner();
+        }
     });
 };
 
@@ -907,38 +933,57 @@ window.initSecurityCheckOutButton = function(staff, session) {
     const newBtn = coutBtn.cloneNode(true);
     coutBtn.parentNode.replaceChild(newBtn, coutBtn);
 
-    newBtn.addEventListener('click', (e) => {
+    newBtn.addEventListener('click', async (e) => {
         e.preventDefault();
         e.stopPropagation();
-        console.log("🔐 Check-Out Button Clicked");
 
-        const activeStaff = window.currentStaff || staff || JSON.parse(sessionStorage.getItem('active_staff_user') || '{}');
+        if (window.showGlobalSpinner) window.showGlobalSpinner("Verifying Authorization...");
 
-        if (!activeStaff || !activeStaff.mobile) {
-            alert("Session expired. Please login again.");
-            window.location.href = 'staff-login.html';
-            return;
-        }
+        try {
+            const activeStaff = window.currentStaff || staff || JSON.parse(sessionStorage.getItem('active_staff_user') || '{}');
 
-        // ✅ MANDATED FIX: Soft Lock for Inactive Accounts
-        if (activeStaff.isAccountActive === false) {
-            if (window.showWhatsAppToast) {
-                window.showWhatsAppToast("🔒 Access Restricted", "You need to upload your required documents before you can Check-Out.", "error");
-            } else {
-                alert("🔒 Access Restricted! You need to upload your required documents before you can Check-Out.");
+            if (!activeStaff || !activeStaff.mobile) {
+                alert("Session expired. Please login again.");
+                window.location.href = 'staff-login.html';
+                return;
             }
-            return;
-        }
 
-        const isSecurity = (activeStaff.role || '').toLowerCase().includes('security');
+            // ✅ Task 1: Fetch Live Authorization Status from Firebase
+            const staffKey = activeStaff.firebaseKey || activeStaff.id || activeStaff.mobile;
+            const staffSnap = await get(ref(db, `staff/${staffKey}`));
 
-        if (isSecurity) {
-            console.log('🔐 Security Check-Out initiated');
-            // Directly call handleStaffCheckOut to avoid redundant Firebase fetch
-            window.handleStaffCheckOut(activeStaff, session, newBtn);
-        } else {
-            console.log('👤 Staff Check-Out initiated');
-            window.handleStaffCheckOut(activeStaff, session, newBtn);
+            if (staffSnap.exists()) {
+                const freshData = staffSnap.val();
+                const isApproved = freshData.isAccountActive === true ||
+                                  freshData.isApproved === true ||
+                                  freshData.status === "APPROVED" ||
+                                  freshData.approvalStatus === "approved";
+
+                if (!isApproved) {
+                    if (window.showWhatsAppToast) {
+                        window.showWhatsAppToast("🔒 Access Restricted", "Account restricted due to pending approval.", "error");
+                    } else {
+                        alert("🔒 Access Restricted! Account restricted due to pending approval.");
+                    }
+                    return;
+                }
+            }
+
+            console.log("🔐 Check-Out Button Clicked");
+            const isSecurity = (activeStaff.role || '').toLowerCase().includes('security');
+
+            if (isSecurity) {
+                console.log('🔐 Security Check-Out initiated');
+                window.handleStaffCheckOut(activeStaff, session, newBtn);
+            } else {
+                console.log('👤 Staff Check-Out initiated');
+                window.handleStaffCheckOut(activeStaff, session, newBtn);
+            }
+
+        } catch (err) {
+            console.error("Auth check failed:", err);
+        } finally {
+            if (window.hideGlobalSpinner) window.hideGlobalSpinner();
         }
     });
 };

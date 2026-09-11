@@ -56,39 +56,77 @@ window.openStaffDocumentReviewModal = async function(staffMobile) {
             const staffUser = Object.values(allStaff).find(u => u.adekPass === staffMobile || u.mobile === staffMobile);
 
             if (staffUser) {
-                const bio = staffUser.bioData || {};
-                const fields = [
-                    { label: 'Full Name', val: staffUser.fullName || staffUser.name },
-                    { label: 'Staff ID', val: staffUser.adekPass || staffUser.mobile },
-                    { label: 'Company ID', val: staffUser.companyId || 'N/A' },
-                    { label: 'Email Address', val: bio.email || 'N/A' },
-                    { label: 'UAE Mobile', val: bio.phone || staffUser.mobile || 'N/A' },
-                    { label: 'Religion', val: bio.religion || 'N/A' },
-                    { label: 'Marital Status', val: bio.marital_status || 'N/A' },
-                    { label: 'Passport Issue Place', val: bio.passport_issue_place || 'N/A' },
-                    { label: 'Home Country Address', val: bio.home_country_address || 'N/A' },
-                    { label: 'UAE Address', val: bio.uae_full_address || 'N/A' }
+                // ✅ Task 2: 100% Dynamic Bio-Data Resolution (v7.4)
+                const rawStaff = staffUser || {};
+                const bio = {
+                    ...(rawStaff.bioData || {}),
+                    ...(rawStaff.biodata || {}),
+                    ...(rawStaff.bio_data || {}),
+                    ...((rawStaff.documents && rawStaff.documents.biodata) || {}),
+                    ...rawStaff // fallback to root properties
+                };
+
+                // 1. Fixed Core Identity Fields
+                const coreFields = [
+                    { label: 'Full Name', val: rawStaff.fullName || rawStaff.name || 'N/A' },
+                    { label: 'Staff ID', val: rawStaff.adekPass || rawStaff.mobile || 'N/A' },
+                    { label: 'Company ID', val: rawStaff.companyId || 'N/A' },
+                    { label: 'UAE Mobile', val: rawStaff.mobile || bio.phone || bio.uae_contact_number || 'N/A' }
                 ];
 
+                // 2. Dynamic Requirements Resolver
+                // This array contains only the fields explicitly selected/added by Admin
+                const requirements = rawStaff.bioDataRequirements || rawStaff.requiredBioData || [];
+                let dynamicFields = [];
+
+                if (requirements.length > 0) {
+                    dynamicFields = requirements.map(req => {
+                        const fieldId = req.id || req.key;
+                        const fieldName = req.name || fieldId;
+
+                        // Smart Resolver: Try ID, Name, variations
+                        const val = bio[fieldId] ||
+                                   bio[fieldName] ||
+                                   bio[fieldId.toLowerCase()] ||
+                                   bio[fieldId.replace(/ /g, '_')] ||
+                                   "Not Provided";
+
+                        return { label: fieldName, val: val };
+                    });
+                } else {
+                    // Fallback for older records: Auto-detect non-system keys
+                    const systemKeys = ['fullName', 'name', 'adekPass', 'mobile', 'companyId', 'password', 'role', 'school', 'companyName', 'profilePicUrl', 'firebaseKey', 'updatedAt', 'status', 'isProfileSubmitted', 'bioDataRequirements', 'onboardingRequirements', 'requiredBioData', 'requiredVerificationDocs', 'bioData', 'biodata', 'bio_data'];
+                    dynamicFields = Object.keys(bio)
+                        .filter(k => !systemKeys.includes(k) && typeof bio[k] !== 'object')
+                        .map(k => ({
+                            label: BIO_DATA_TITLE_MAP[k] || k.replace(/_/g, ' ').toUpperCase(),
+                            val: bio[k]
+                        }));
+                }
+
                 bioDataHtml = `
-                    <div class="mb-8 p-6 bg-white rounded-[2rem] border border-slate-100 shadow-xl overflow-hidden relative group">
+                    <div class="mb-8 w-full overflow-hidden rounded-2xl bg-white p-4 md:p-6 shadow-sm border border-slate-100 relative group">
                         <div class="absolute top-0 left-0 w-2 h-full bg-indigo-600"></div>
                         <h4 class="text-xs font-black text-indigo-900 uppercase tracking-[0.2em] mb-6 flex items-center gap-2">
                             <i class="fa-solid fa-address-card text-indigo-500"></i> Staff Bio-Data Profile
                         </h4>
-                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-y-4 gap-x-6">
-                            ${fields.map(f => `
-                                <div class="flex flex-col border-b border-slate-50 pb-2">
-                                    <span class="text-[8px] font-black text-slate-400 uppercase tracking-widest">${f.label}</span>
-                                    <span class="text-[11px] font-bold text-slate-800 uppercase">${f.val || 'Not Provided'}</span>
+
+                        <!-- CORE IDENTITY -->
+                        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6 pb-6 border-b border-slate-100">
+                            ${coreFields.map(f => `
+                                <div class="flex flex-col">
+                                    <span class="text-slate-600 font-semibold text-[10px] uppercase tracking-widest mb-1">${f.label}</span>
+                                    <span class="text-slate-900 font-bold text-sm uppercase truncate">${f.val}</span>
                                 </div>
                             `).join('')}
+                        </div>
 
-                            <!-- Custom Fields if any -->
-                            ${Object.entries(bio).filter(([k]) => !fields.find(f => f.label.toLowerCase().includes(k.replace(/_/g,' ').toLowerCase()))).map(([key, val]) => `
+                        <!-- DYNAMIC REQUIREMENTS -->
+                        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
+                            ${dynamicFields.map(f => `
                                 <div class="flex flex-col border-b border-slate-50 pb-2">
-                                    <span class="text-[8px] font-black text-slate-400 uppercase tracking-widest">${BIO_DATA_TITLE_MAP[key] || key.replace(/_/g, ' ').toUpperCase()}</span>
-                                    <span class="text-[11px] font-bold text-slate-800 uppercase">${val || 'Not Provided'}</span>
+                                    <span class="text-slate-600 font-semibold text-xs uppercase tracking-widest">${f.label}</span>
+                                    <span class="text-slate-900 font-bold text-sm uppercase">${f.val}</span>
                                 </div>
                             `).join('')}
                         </div>
@@ -140,10 +178,17 @@ window.openStaffDocumentReviewModal = async function(staffMobile) {
 
                     <div class="flex flex-col gap-2 mt-4">
                         ${isUploaded ? `
-                            <button onclick="window.open('${d.driveFileUrl}', '_blank'); return false;"
-                               class="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-[10px] font-black uppercase text-center shadow-lg shadow-indigo-500/20 transition-all active:scale-95 flex items-center justify-center gap-2">
-                                <i class="fa-solid fa-eye"></i> Preview Document
-                            </button>
+                            <div class="flex gap-2 w-full">
+                                <button onclick="window.open('${d.driveFileUrl}', '_blank'); return false;"
+                                   class="flex-1 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-[10px] font-black uppercase text-center shadow-lg shadow-indigo-500/20 transition-all active:scale-95 flex items-center justify-center gap-2">
+                                    <i class="fa-solid fa-eye"></i> Preview
+                                </button>
+
+                                <button onclick="window.downloadDocument('${d.driveFileUrl}', '${friendlyTitle}_${staffMobile}')"
+                                   class="flex-1 py-2.5 bg-slate-800 hover:bg-black text-white rounded-xl text-[10px] font-black uppercase text-center shadow-lg transition-all active:scale-95 flex items-center justify-center gap-2">
+                                    <i class="fa-solid fa-download"></i> Download
+                                </button>
+                            </div>
 
                             ${(status !== 'APPROVED' && status !== 'REJECTED') ? `
                                 <div class="flex gap-2 w-full">
@@ -176,7 +221,7 @@ window.openStaffDocumentReviewModal = async function(staffMobile) {
         }).join('');
 
         modal.innerHTML = `
-            <div class="bg-white w-full max-w-xl rounded-[40px] shadow-2xl relative overflow-hidden flex flex-col max-h-[90vh] fade-in">
+            <div class="bg-white w-[95%] md:w-full max-w-5xl rounded-[40px] shadow-2xl relative overflow-hidden flex flex-col max-h-[90vh] fade-in transition-all duration-300">
                 <!-- Premium Header -->
                 <div class="p-8 border-b border-slate-50 flex justify-between items-center bg-slate-50/50">
                     <div>
@@ -190,14 +235,16 @@ window.openStaffDocumentReviewModal = async function(staffMobile) {
                 </div>
 
                 <!-- Scrollable Body -->
-                <div class="p-8 overflow-y-auto bg-[#f8fafc] custom-scrollbar" style="flex: 1;">
+                <div class="p-4 md:p-8 overflow-y-auto bg-[#f8fafc] custom-scrollbar max-h-[85vh]" style="flex: 1;">
                     ${bioDataHtml}
-                    ${docsHtml || `
-                        <div class="py-20 text-center">
-                            <i class="fa-solid fa-folder-open text-4xl text-slate-200 mb-4"></i>
-                            <p class="text-xs font-bold text-slate-400 uppercase tracking-widest">No verification documents assigned.</p>
-                        </div>
-                    `}
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        ${docsHtml.length ? docsHtml : `
+                            <div class="col-span-full py-20 text-center">
+                                <i class="fa-solid fa-folder-open text-4xl text-slate-200 mb-4"></i>
+                                <p class="text-xs font-bold text-slate-400 uppercase tracking-widest">No verification documents assigned.</p>
+                            </div>
+                        `}
+                    </div>
                 </div>
 
                 <!-- Footer -->
@@ -243,6 +290,42 @@ window.updateDocStatus = async function(userId, docKey, status, reason = "") {
         alert("Failed to update status: " + e.message);
     } finally {
         window.hideGlobalSpinner();
+    }
+};
+
+/**
+ * ✅ NEW: Direct Download Helper for Admin
+ */
+window.downloadDocument = async function(url, fileName) {
+    if (!url || url.includes('placeholder')) return;
+
+    if (window.showGlobalSpinner) window.showGlobalSpinner("Downloading File...");
+
+    try {
+        // Resolve direct URL if it's a Drive link
+        const finalUrl = window.getDirectDriveImageUrl ? window.getDirectDriveImageUrl(url) : url;
+
+        const response = await fetch(finalUrl);
+        const blob = await response.blob();
+        const blobUrl = window.URL.createObjectURL(blob);
+
+        const a = document.createElement('a');
+        a.href = blobUrl;
+        a.download = `${fileName || 'document'}_${Date.now()}.jpg`;
+        document.body.appendChild(a);
+        a.click();
+
+        setTimeout(() => {
+            document.body.removeChild(a);
+            window.URL.revokeObjectURL(blobUrl);
+        }, 100);
+
+    } catch (err) {
+        console.error("Download Error:", err);
+        // Fallback: Open in new tab if blob fails
+        window.open(url, '_blank');
+    } finally {
+        if (window.hideGlobalSpinner) window.hideGlobalSpinner();
     }
 };
 

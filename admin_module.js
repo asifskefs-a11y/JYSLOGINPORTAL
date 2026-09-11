@@ -463,17 +463,10 @@ function renderStaffDirectory(staff) {
         return name !== "" && name !== "-" && id !== "" && id !== "-";
     });
 
-    // ✅ Task 2: Safety check for Paginator (Fix for undefined directory)
-    if (!window.adminPaginators || !window.adminPaginators.directory) {
-        console.warn("⚠️ adminPaginators.directory not found. Rendering simple list.");
-        body.innerHTML = validStaff.map(s => `<tr><td colspan="10">${s.fullName || s.name}</td></tr>`).join('');
-        return;
-    }
-
-    // ✅ Task 3: Safety fix for Paginator (Fix for undefined directory)
+    // ✅ Safety check for Paginator Initialization
     if (!window.adminPaginators?.directory) {
-        console.warn("⚠️ adminPaginators.directory not found.");
-        body.innerHTML = validStaff.map(s => `<tr><td colspan="10">${s.fullName || s.name}</td></tr>`).join('');
+        console.warn("⏳ adminPaginators.directory not ready, waiting...");
+        setTimeout(() => renderStaffDirectory(staff), 500);
         return;
     }
 
@@ -483,7 +476,7 @@ function renderStaffDirectory(staff) {
             const userId = s.adekPass || s.mobile;
             const docNode = window.appCache.staffDocs ? window.appCache.staffDocs[userId] : null;
             let expiryBadge = "";
-            const displayName = s.fullName || s.name || "-";
+            const displayName = s.fullName || s.name || "Staff";
 
             if (docNode && docNode.docs) {
                 let worstDays = 999;
@@ -506,40 +499,59 @@ function renderStaffDirectory(staff) {
             }
 
             // ✅ ADDED: Profile Submission Status Badge
-            let statusBadge = `<span class="role-badge role-default">${s.role || s.position || "-"}</span>`;
+            let statusBadgeText = s.role || s.position || "N/A";
+            let statusBadge = `<span class="role-badge role-default">${statusBadgeText}</span>`;
             if (s.status === "PENDING_APPROVAL" || s.isProfileSubmitted === true && s.status !== "APPROVED") {
                 statusBadge += `<div class="mt-1 px-2 py-0.5 bg-indigo-100 text-indigo-700 text-[6px] font-black rounded-full uppercase border border-indigo-200">🔍 PENDING REVIEW</div>`;
             } else if (s.status === "APPROVED") {
                 statusBadge += `<div class="mt-1 px-2 py-0.5 bg-emerald-100 text-emerald-700 text-[6px] font-black rounded-full uppercase border border-emerald-200">✅ VERIFIED</div>`;
             }
 
+            // ✅ Task 1: Safe Object Property Extraction & Fallback Guards
             const photoUrl = window.formatDriveImageUrl(s.profilePicUrl || s.photoUrl || s.profilePic || s.avatar, displayName);
+            const name = s.fullName || s.name || 'N/A';
+            const password = s.password || s.appPassword || '••••';
+            const adekPass = s.adekPass || s.staffId || 'N/A';
+            const school = s.school || s.branch || 'N/A';
+            const position = s.role || s.position || 'N/A';
+            const company = s.companyName || s.company || 'EFS';
+            const compId = s.companyId || s.compId || 'N/A';
+            const mobile = s.mobile || s.phone || 'N/A';
 
+            // ✅ Task 2: High-Contrast Table Row (Standardized Template)
             return `
-            <tr class="hover:bg-slate-50 border-b text-[10px]">
+            <tr class="border-b border-slate-100 hover:bg-slate-50 transition-colors text-slate-700 text-[10px]">
                 <td class="p-4 text-center">
                     <img src="${photoUrl}"
                          loading="lazy"
-                         onerror="this.onerror=null; this.src='https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=4f46e5&color=fff';"
-                         class="w-8 h-8 rounded-full border shadow-sm mx-auto object-cover profile-avatar-img">
+                         onerror="this.onerror=null; this.src='https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=4f46e5&color=fff';"
+                         class="w-9 h-9 rounded-full border border-slate-200 shadow-sm mx-auto object-cover profile-avatar-img">
                 </td>
                 <td class="p-4">
-                    <div class="font-black text-indigo-900 uppercase">${displayName}</div>
+                    <div class="font-black text-indigo-900 uppercase">${name}</div>
                     ${expiryBadge}
                 </td>
-                <td class="p-4 font-mono text-slate-400">${s.password || "-"}</td>
-                <td class="p-4 font-mono text-slate-500">${s.adekPass || "-"}</td>
-                <td class="p-4 font-bold text-slate-600">${s.school || s.branch || "-"}</td>
+                <td class="p-4 font-mono text-slate-600 font-bold">${password}</td>
+                <td class="p-4 font-mono text-indigo-600 font-black">${adekPass}</td>
+                <td class="p-4 font-bold text-slate-600">${school}</td>
                 <td class="p-4 text-center">${statusBadge}</td>
-                <td class="p-4 font-bold text-slate-700">${s.companyName || "-"}</td>
-                <td class="p-4 font-mono text-indigo-600 font-bold">${s.companyId || "-"}</td>
-                <td class="p-4 font-mono text-slate-500">${s.mobile || "-"}</td>
+                <td class="p-4 font-bold text-slate-700">${company}</td>
+                <td class="p-4 font-mono text-slate-500 font-bold">${compId}</td>
+                <td class="p-4 font-mono text-slate-500 font-bold">${mobile}</td>
                 <td class="p-4 text-center">
-                    <button onclick="window.openEditStaffModal('${s.firebaseKey || s.mobile}')" class="text-indigo-400 hover:text-indigo-600 mr-2"><i class="fa-solid fa-user-pen"></i></button>
-                    <button onclick="window.openStaffDocumentReviewModal('${s.adekPass || s.mobile}')" class="text-emerald-500 hover:text-emerald-700"><i class="fa-solid fa-eye"></i></button>
+                    <div class="flex items-center justify-center gap-2">
+                        <button onclick="window.openEditStaffModal('${s.firebaseKey || s.mobile}')"
+                                class="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-400 hover:bg-indigo-600 hover:text-white transition-all flex items-center justify-center" title="Edit Staff">
+                            <i class="fa-solid fa-user-pen text-xs"></i>
+                        </button>
+                        <button onclick="window.openStaffDocumentReviewModal('${s.adekPass || s.mobile}')"
+                                class="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-500 hover:bg-emerald-600 hover:text-white transition-all flex items-center justify-center" title="Review Documents">
+                            <i class="fa-solid fa-eye text-xs"></i>
+                        </button>
+                    </div>
                 </td>
             </tr>`;
-        }).join('') : '<tr><td colspan="10" class="p-8 text-center text-gray-400">No staff found</td></tr>';
+        }).join('') : '<tr><td colspan="10" class="p-12 text-center text-slate-400 font-bold uppercase tracking-widest bg-slate-50/50">No staff records found</td></tr>';
     });
 }
 
