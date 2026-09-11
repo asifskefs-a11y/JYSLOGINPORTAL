@@ -193,18 +193,20 @@ class SignaturePadEngine {
         if (isEntering) {
             wrapper.classList.add('sig-full-screen');
             document.body.style.overflow = 'hidden';
-            if (this.isLocked) this.unlock(); // Auto-unlock on full screen for UX
+            if (this.isLocked) this.unlock();
         } else {
             wrapper.classList.remove('sig-full-screen');
             document.body.style.overflow = '';
         }
 
-        // ✅ 2. Preserve & Recalculate Resolution
+        // ✅ 2. Preserve & Force Exact Viewport Resize (v7.6 Fix)
         setTimeout(() => {
             const ratio = Math.max(window.devicePixelRatio || 1, 1);
             const parent = this.canvas.parentElement;
-            const width = parent.clientWidth;
-            const height = parent.clientHeight;
+
+            // Force strict dimensions based on full-screen vs standard
+            const width = isEntering ? window.innerWidth - 40 : parent.clientWidth;
+            const height = isEntering ? window.innerHeight - 120 : parent.clientHeight;
 
             if (width > 0 && height > 0) {
                 this.canvas.width = width * ratio;
@@ -222,14 +224,14 @@ class SignaturePadEngine {
                 if (!wasEmpty) {
                     const img = new Image();
                     img.onload = () => {
-                        // Draw with scaling to fit new aspect ratio
+                        // Maintain stroke fidelity while scaling to new canvas size
                         this.ctx.drawImage(img, 0, 0, width, height);
                         this.hasDrawn = true;
                     };
                     img.src = dataUrl;
                 }
             }
-        }, 100);
+        }, 150);
     }
 
     clear() {
@@ -1687,45 +1689,49 @@ document.addEventListener('DOMContentLoaded', () => {
         /* Canvas Wrapper Full Screen Mode */
         .canvas-wrapper.sig-full-screen {
             position: fixed !important;
-            inset: 0 !important;
-            z-index: 9999999 !important;
+            top: 0 !important;
+            left: 0 !important;
             width: 100vw !important;
             height: 100vh !important;
-            background: #000 !important;
-            padding: 20px !important;
+            z-index: 9999999 !important;
+            background: #ffffff !important;
             display: flex !important;
             flex-direction: column !important;
+            align-items: center !important;
+            justify-content: center !important;
+            padding: 20px !important;
             margin: 0 !important;
-            border-radius: 0 !important;
-            animation: fs-pop 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+            box-sizing: border-box !important;
         }
 
         .canvas-wrapper.sig-full-screen canvas {
-            flex: 1 !important;
             width: 100% !important;
-            height: 100% !important;
+            height: calc(100% - 80px) !important;
             background: #fff !important;
             touch-action: none !important;
+            border: 2px solid #e2e8f0 !important;
             border-radius: 20px !important;
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.05) !important;
         }
 
         /* Full Screen Toggle Button */
         .sig-fs-toggle {
             position: absolute;
-            top: 10px;
-            right: 10px;
+            top: 12px;
+            right: 12px;
             z-index: 100;
-            background: rgba(79, 70, 229, 0.1);
+            background: #f8fafc;
             color: #4f46e5;
-            border: none;
-            width: 32px;
-            height: 32px;
-            border-radius: 8px;
+            border: 1px solid #e2e8f0;
+            width: 36px;
+            height: 36px;
+            border-radius: 10px;
             display: flex;
             align-items: center;
             justify-content: center;
             cursor: pointer;
             transition: all 0.2s;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
         }
 
         .sig-fs-toggle:hover { background: #4f46e5; color: #fff; transform: scale(1.1); }
@@ -1733,23 +1739,24 @@ document.addEventListener('DOMContentLoaded', () => {
 
         /* Full Screen Active State Button */
         .sig-full-screen .sig-fs-toggle {
-            position: fixed;
-            top: 40px;
-            right: 40px;
-            width: auto;
-            height: auto;
-            padding: 12px 24px;
-            background: #4f46e5;
-            color: #fff;
-            border-radius: 16px;
-            font-weight: 900;
-            text-transform: uppercase;
-            font-size: 12px;
-            letter-spacing: 2px;
-            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);
-            display: flex;
-            align-items: center;
-            gap: 8px;
+            position: fixed !important;
+            top: 20px !important;
+            right: 20px !important;
+            width: auto !important;
+            height: auto !important;
+            padding: 14px 28px !important;
+            background: #4f46e5 !important;
+            color: #fff !important;
+            border: none !important;
+            border-radius: 18px !important;
+            font-weight: 900 !important;
+            text-transform: uppercase !important;
+            font-size: 13px !important;
+            letter-spacing: 2px !important;
+            box-shadow: 0 20px 25px -5px rgba(79, 70, 229, 0.4) !important;
+            display: flex !important;
+            align-items: center !important;
+            gap: 10px !important;
         }
 
         .sig-full-screen .sig-fs-toggle::after { content: " DONE / EXIT"; }
@@ -1801,22 +1808,29 @@ window.renderUserProfileImages = function(user) {
     const photoUrl = user.profilePicUrl || user.photoUrl || user.profilePicture || user.photo || user.imageUrl || "";
     const name = user.fullName || user.name || "User";
     const initials = name.split(" ").map(n => n[0]).join("").substring(0, 2).toUpperCase();
+    const fallbackUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=4f46e5&color=fff`;
 
     console.log(`🖼️ Rendering user profile images for: ${name}`);
 
-    // Side Menu Avatar
+    // Side Menu Avatar (v7.6 Fix)
     const sideAvatarContainer = document.getElementById('side-menu-avatar') || document.querySelector('.sidebar-avatar-container') || document.getElementById('menuAvatar');
     if (sideAvatarContainer) {
-        if (photoUrl && photoUrl.trim() !== "" && photoUrl !== 'N/A' && photoUrl !== '-') {
-            const finalUrl = window.formatDriveImageUrl(photoUrl, name);
-            sideAvatarContainer.innerHTML = `<img src="${finalUrl}" class="sidebar-avatar-img" alt="Profile" style="width:100%; height:100%; object-fit:cover; border-radius:50%;" onerror="this.onerror=null; this.parentElement.innerHTML='<span class=\"text-white font-black text-xl\">${initials}</span>'; this.parentElement.style.display='flex'; this.parentElement.style.alignItems='center'; this.parentElement.style.justifyContent='center';"/>`;
-            sideAvatarContainer.classList.remove('hidden');
-        } else {
-            sideAvatarContainer.innerHTML = `<span id="sidebar-initials" class="text-white font-black text-xl">${initials}</span>`;
-            sideAvatarContainer.style.display = 'flex';
-            sideAvatarContainer.style.alignItems = 'center';
-            sideAvatarContainer.style.justifyContent = 'center';
-        }
+        // Ensure clean container
+        sideAvatarContainer.innerHTML = '';
+        sideAvatarContainer.className = 'w-12 h-12 rounded-full overflow-hidden flex-shrink-0 border-2 border-amber-400 shadow-md flex items-center justify-center bg-indigo-600';
+
+        const finalUrl = (photoUrl && photoUrl.trim() !== "" && photoUrl !== 'N/A' && photoUrl !== '-') ?
+                         window.formatDriveImageUrl(photoUrl, name) : fallbackUrl;
+
+        const img = document.createElement('img');
+        img.src = finalUrl;
+        img.alt = "Profile";
+        img.className = "w-full h-full object-cover";
+        img.onerror = function() {
+            this.style.display = 'none';
+            sideAvatarContainer.innerHTML = `<span class="text-white font-black text-xl">${initials}</span>`;
+        };
+        sideAvatarContainer.appendChild(img);
     }
 
     // Main Dashboard Avatar

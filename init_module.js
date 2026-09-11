@@ -355,7 +355,7 @@ window.handleVisitorSignIn = async (e) => {
 // ================================================================ */
 
 // ✅ VERSION CONTROL (v6.8)
-const APP_VERSION = 'v7.4';
+const APP_VERSION = 'v7.6';
 
 document.addEventListener('DOMContentLoaded', async () => {
     console.log("🚀 SchoolLog Init: DOMContentLoaded triggered");
