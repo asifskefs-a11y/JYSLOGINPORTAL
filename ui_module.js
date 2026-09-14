@@ -7,6 +7,67 @@ import { ref, get, child } from "https://www.gstatic.com/firebasejs/10.7.1/fireb
 
 
 // ================================================================ */
+// ✅ XSS PROTECTION UTILITY                                        */
+// ================================================================ */
+window.escapeHTML = function(value) {
+    if (value === null || value === undefined) return '';
+    if (typeof value !== 'string') return String(value);
+
+    return value.replace(/[&<>"'`=\/]/g, function(match) {
+        const escapeMap = {
+            '&': '&amp;',
+            '<': '&lt;',
+            '>': '&gt;',
+            '"': '&quot;',
+            "'": '&#39;',
+            '`': '&#96;',
+            '=': '&#61;',
+            '/': '&#47;'
+        };
+        return escapeMap[match];
+    });
+};
+window.escapeHtml = window.escapeHTML;
+
+
+// ================================================================ */
+// ✅ SMART STORAGE MANAGEMENT UTILITY                              */
+// ================================================================ */
+window.purgeOldImageCache = function() {
+    try {
+        const cacheKeys = [];
+        for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i);
+            if (key && key.startsWith('jys_img_cache_')) {
+                cacheKeys.push(key);
+            }
+        }
+
+        if (cacheKeys.length === 0) {
+            console.warn("⚠️ No image cache entries to purge.");
+            return 0;
+        }
+
+        const purgeCount = Math.max(5, Math.ceil(cacheKeys.length * 0.3));
+        let purged = 0;
+
+        for (let i = 0; i < purgeCount && i < cacheKeys.length; i++) {
+            try {
+                localStorage.removeItem(cacheKeys[i]);
+                purged++;
+            } catch (e) {}
+        }
+
+        console.log(`🧹 Purged ${purged} old image cache entries to free LocalStorage.`);
+        return purged;
+    } catch (e) {
+        console.error("❌ purgeOldImageCache error:", e);
+        return 0;
+    }
+};
+
+
+// ================================================================ */
 // WHATSAPP-STYLE TOAST ENGINE (FIXED v4.2)                        */
 // ================================================================ */
 
@@ -21,7 +82,6 @@ window.showWhatsAppToast = (title, message, type = 'info') => {
         document.body.appendChild(container);
     }
 
-    // Direct removal to prevent DOM lag on rapid notifications
     while (container.children.length >= 3) {
         if (container.firstChild) {
             container.firstChild.remove();
@@ -39,22 +99,23 @@ window.showWhatsAppToast = (title, message, type = 'info') => {
                 type === 'warning' ? 'fa-triangle-exclamation' :
                 'fa-bell';
 
+    const safeTitle = window.escapeHTML(title);
+    const safeMessage = window.escapeHTML(message);
+
     toast.className = `pointer-events-auto bg-slate-900/95 border-l-4 ${bgColor} text-white p-4 rounded-xl shadow-2xl backdrop-blur-md transition-all duration-300 transform translate-x-full flex flex-col gap-1`;
     toast.innerHTML = `
         <div class="flex items-center justify-between">
             <span class="font-bold text-xs uppercase tracking-wider ${iconColor} flex items-center gap-2">
-                <i class="fa-solid ${icon} animate-bounce"></i> ${title}
+                <i class="fa-solid ${icon} animate-bounce"></i> ${safeTitle}
             </span>
             <button onclick="this.parentElement.parentElement.remove()" class="text-slate-400 hover:text-white text-xs">&times;</button>
         </div>
-        <p class="text-xs text-slate-200 mt-1">${message}</p>
+        <p class="text-xs text-slate-200 mt-1">${safeMessage}</p>
     `;
     container.appendChild(toast);
 
-    // Trigger entrance animation
     setTimeout(() => toast.classList.remove('translate-x-full'), 50);
 
-    // Auto-remove after 5 seconds
     setTimeout(() => {
         if (toast.parentElement) {
             toast.classList.add('translate-x-full');
@@ -145,8 +206,6 @@ class SignaturePadEngine {
 
     unlock() {
         if (!this.canvas) return;
-
-        // Clean up old listeners
         this.lock();
 
         this._handlers.start = this._handleStart.bind(this);
@@ -190,8 +249,6 @@ class SignaturePadEngine {
         const wasEmpty = this.isEmpty();
 
         if (isEntering) {
-            // ✅ Task 1: Escape Parent Modal Stacking Context (Portal Concept)
-            // Store original position to restore later
             this._originalParent = wrapper.parentElement;
             this._originalNextSibling = wrapper.nextSibling;
 
@@ -200,7 +257,6 @@ class SignaturePadEngine {
             document.body.style.overflow = 'hidden';
             if (this.isLocked) this.unlock();
         } else {
-            // Restore to original position
             wrapper.classList.remove('sig-full-screen');
             if (this._originalParent) {
                 this._originalParent.insertBefore(wrapper, this._originalNextSibling);
@@ -208,16 +264,12 @@ class SignaturePadEngine {
             document.body.style.overflow = '';
         }
 
-        // ✅ Task 2: Responsive Screen Size Auto-Fitting (v7.7 Fix)
         setTimeout(() => {
             const ratio = Math.max(window.devicePixelRatio || 1, 1);
-
-            // If in full screen, use window dimensions; otherwise use parent container
             const width = isEntering ? window.innerWidth : wrapper.clientWidth;
             const height = isEntering ? window.innerHeight : wrapper.clientHeight;
 
             if (width > 0 && height > 0) {
-                // Adjust for control buttons in full screen
                 const targetWidth = isEntering ? width - 40 : width;
                 const targetHeight = isEntering ? height - 120 : height;
 
@@ -276,7 +328,6 @@ class SignaturePadManager {
 window.sigPadManager = new SignaturePadManager();
 window.getCanvasBase64 = (id) => window.sigPadManager.getPad(id).toDataURL();
 
-// ✅ FIXED: Clear hone par canvas locked nahi hoga
 window.clearSignaturePad = (id) => {
     const pad = window.sigPadManager.getPad(id);
     if (pad) {
@@ -293,14 +344,12 @@ window.unlockCanvas = (el, event) => {
         if (typeof event.preventDefault === 'function') event.preventDefault();
     }
 
-    // 1. Identify Wrapper
     const wrapper = el.closest('.canvas-wrapper') || el.parentElement;
     if (!wrapper) {
         console.error("❌ unlockCanvas: Wrapper not found");
         return;
     }
 
-    // 2. Identify Elements
     const canvas = wrapper.querySelector('canvas');
     const overlay = wrapper.querySelector('.sig-lock-overlay') || el;
 
@@ -309,7 +358,6 @@ window.unlockCanvas = (el, event) => {
         return;
     }
 
-    // 3. Force Visual State
     wrapper.classList.add('unlocked');
     if (overlay) {
         overlay.style.display = 'none';
@@ -318,17 +366,14 @@ window.unlockCanvas = (el, event) => {
         overlay.classList.add('hidden');
     }
 
-    // 4. Force Canvas Pointer State
     canvas.style.pointerEvents = 'auto';
     canvas.style.touchAction = 'none';
     canvas.style.zIndex = '50';
 
-    // 5. Initialize Drawing Engine
     if (window.sigPadManager && canvas.id) {
         const pad = window.sigPadManager.getPad(canvas.id);
         if (pad) {
             pad.unlock();
-            // Use small timeout to ensure layout has reflowed for hidden containers
             setTimeout(() => {
                 if (typeof pad._setupCanvas === 'function') pad._setupCanvas();
             }, 50);
@@ -341,7 +386,7 @@ window.unlockCanvas = (el, event) => {
 window.initVisitorCanvas = () => window.sigPadManager.getPad('v-sig-pad');
 
 // ================================================================ */
-// ASSET PREVIEW MODAL (FIXED v4.3)                                */
+// ASSET PREVIEW MODAL (FIXED v4.3 - XSS SAFE)                     */
 // ================================================================ */
 
 window.openAssetPreviewModal = function(assetData) {
@@ -355,7 +400,6 @@ window.openAssetPreviewModal = function(assetData) {
         document.body.appendChild(modal);
     }
 
-    // Safely parse JSON or string
     let data = assetData;
     if (typeof assetData === 'string') {
         try {
@@ -370,33 +414,50 @@ window.openAssetPreviewModal = function(assetData) {
         }
     }
 
-    // Support both normalized and raw formats
-    const photo = data.photoUrl || data.imageUrl || data.photoURL || data.auditPhoto || data.photo || data["AUDIT PHOTO"] || data.transferPhotoUrl || data.disposalPhotoUrl;
-    const barcode = data.barcode || data.assetBarcode || data["ASSET BARCODE"] || data.id || 'N/A';
-    const desc = data.description || data.assetDescription || data.assetName || data["ASSET DESCRIPTION"] || data.name || 'N/A';
-    const category = data.category || data["CATEGORY"] || 'N/A';
-    const building = data.building || data.schoolBuildingName || data["SCHOOL BUILDING NAME"] || 'N/A';
-    const location = data.location || data.locationName || data["LOCATION NAME"] || data.roomName || 'N/A';
-    const status = data.assetStatus || data.status || data["STATUS"] || 'Active';
+    const rawPhoto = data.photoUrl || data.imageUrl || data.photoURL || data.auditPhoto || data.photo || data["AUDIT PHOTO"] || data.transferPhotoUrl || data.disposalPhotoUrl;
+    const rawBarcode = data.barcode || data.assetBarcode || data["ASSET BARCODE"] || data.id || 'N/A';
+    const rawDesc = data.description || data.assetDescription || data.assetName || data["ASSET DESCRIPTION"] || data.name || 'N/A';
+    const rawCategory = data.category || data["CATEGORY"] || 'N/A';
+    const rawBuilding = data.building || data.schoolBuildingName || data["SCHOOL BUILDING NAME"] || 'N/A';
+    const rawLocation = data.location || data.locationName || data["LOCATION NAME"] || data.roomName || 'N/A';
+    const rawStatus = data.assetStatus || data.status || data["STATUS"] || 'Active';
 
-    // Movement Meta Check
     const hasMovement = data.collector || data.destination || data.performedBy || data.collectorName;
+
+    const photo = rawPhoto;
+    const safePhotoUrl = photo ? window.escapeHTML(photo) : '';
+    const barcode = window.escapeHTML(rawBarcode);
+    const desc = window.escapeHTML(rawDesc);
+    const category = window.escapeHTML(rawCategory);
+    const building = window.escapeHTML(rawBuilding);
+    const location = window.escapeHTML(rawLocation);
+    const status = window.escapeHTML(rawStatus);
+    const action = window.escapeHTML(data.action || 'Detailed Record');
+
+    const collector = window.escapeHTML(data.collector || data.collectorName || '-');
+    const destination = window.escapeHTML(data.destination || data.destinationLocation || '-');
+    const staffName = window.escapeHTML(data.staff || data.staffName || data.performedBy || '-');
+    const company = window.escapeHTML(data.company || data.companyName || '-');
+    const serialNo = window.escapeHTML(data.serialNo || data.assetSerial || '-');
+    const roomNo = window.escapeHTML(data.roomNo || data.roomNumber || '-');
+    const floorNo = window.escapeHTML(data.floorNo || '-');
+    const vendor = window.escapeHTML(data.vendor || data.assetVendor || data.assetVendorName || '-');
+    const condition = window.escapeHTML(data.condition || data.assetCondition || 'Good');
 
     modal.innerHTML = `
         <div class="bg-indigo-950 border border-white/10 rounded-[2.5rem] p-8 max-w-lg w-full text-white space-y-6 shadow-2xl animate-fade-in flex flex-col max-h-[90vh]">
             <div class="flex justify-between items-center border-b border-white/5 pb-5 shrink-0">
                 <div class="flex flex-col">
                     <h3 class="text-xl font-black text-amber-400 uppercase tracking-tight">📦 Asset History</h3>
-                    <span class="text-[8px] font-black text-white/40 uppercase tracking-widest mt-0.5">${data.action || 'Detailed Record'}</span>
+                    <span class="text-[8px] font-black text-white/40 uppercase tracking-widest mt-0.5">${action}</span>
                 </div>
                 <button onclick="window.closeAssetPreviewModal()" class="w-10 h-10 bg-white/10 rounded-full flex items-center justify-center text-white/60 hover:text-white transition-colors text-2xl font-bold">×</button>
             </div>
 
             <div class="space-y-6 text-xs overflow-y-auto pr-2 custom-scrollbar flex-1">
-                <!-- PRIMARY PHOTO -->
                 <div class="relative group">
-                    ${(photo && photo !== 'N/A' && photo !== '-') ? `
-                        <img src="${window.getDirectDriveImageUrl ? window.getDirectDriveImageUrl(photo) : photo}" class="w-full h-48 object-cover rounded-3xl border border-white/10 shadow-inner cursor-pointer" onclick="window.openImageZoom('${photo}')"/>
+                    ${(rawPhoto && rawPhoto !== 'N/A' && rawPhoto !== '-') ? `
+                        <img src="${window.getDirectDriveImageUrl ? window.getDirectDriveImageUrl(photo) : safePhotoUrl}" class="w-full h-48 object-cover rounded-3xl border border-white/10 shadow-inner cursor-pointer" onclick="window.openImageZoom('${safePhotoUrl}')"/>
                     ` : `
                         <div class="w-full h-32 bg-white/5 rounded-3xl flex flex-col items-center justify-center text-white/20 border-2 border-dashed border-white/5">
                             <i class="fa-solid fa-image text-3xl mb-2"></i>
@@ -405,44 +466,41 @@ window.openAssetPreviewModal = function(assetData) {
                     `}
                 </div>
 
-                <!-- MOVEMENT META (IF APPLICABLE) -->
                 ${hasMovement ? `
                 <div class="space-y-3 bg-white/5 p-4 rounded-3xl border border-white/10">
                     <h4 class="text-[9px] font-black text-amber-400 uppercase tracking-[0.2em] mb-3">Movement Details</h4>
                     <div class="grid grid-cols-2 gap-4">
                         <div class="space-y-1">
                             <span class="text-white/40 uppercase font-black tracking-widest text-[7px]">Collector</span>
-                            <p class="font-bold text-white">${data.collector || data.collectorName || '-'}</p>
+                            <p class="font-bold text-white">${collector}</p>
                         </div>
                         <div class="space-y-1">
                             <span class="text-white/40 uppercase font-black tracking-widest text-[7px]">Destination</span>
-                            <p class="font-bold text-white truncate">${data.destination || data.destinationLocation || '-'}</p>
+                            <p class="font-bold text-white truncate">${destination}</p>
                         </div>
                         <div class="space-y-1">
                             <span class="text-white/40 uppercase font-black tracking-widest text-[7px]">Staff / Initiator</span>
-                            <p class="font-bold text-white truncate">${data.staff || data.staffName || data.performedBy || '-'}</p>
+                            <p class="font-bold text-white truncate">${staffName}</p>
                         </div>
                         <div class="space-y-1">
                             <span class="text-white/40 uppercase font-black tracking-widest text-[7px]">Company</span>
-                            <p class="font-bold text-white truncate">${data.company || data.companyName || '-'}</p>
+                            <p class="font-bold text-white truncate">${company}</p>
                         </div>
                     </div>
 
-                    <!-- SIGNATURES -->
                     <div class="grid grid-cols-2 gap-4 pt-3 mt-3 border-t border-white/5">
                         <div class="space-y-2">
                              <span class="text-white/40 uppercase font-black tracking-widest text-[7px]">Security Sig</span>
-                             ${data.securitySig ? `<img src="${data.securitySig}" class="h-12 bg-white rounded-lg p-1 mx-auto" onclick="window.openImageZoom('${data.securitySig}')">` : `<div class="h-12 flex items-center justify-center text-white/10 italic text-[8px]">N/A</div>`}
+                             ${data.securitySig ? `<img src="${window.escapeHTML(data.securitySig)}" class="h-12 bg-white rounded-lg p-1 mx-auto" onclick="window.openImageZoom('${window.escapeHTML(data.securitySig)}')">` : `<div class="h-12 flex items-center justify-center text-white/10 italic text-[8px]">N/A</div>`}
                         </div>
                         <div class="space-y-2">
                              <span class="text-white/40 uppercase font-black tracking-widest text-[7px]">Receiver Sig</span>
-                             ${data.receivedSig || data.receiverSig ? `<img src="${data.receivedSig || data.receiverSig}" class="h-12 bg-white rounded-lg p-1 mx-auto" onclick="window.openImageZoom('${data.receivedSig || data.receiverSig}')">` : `<div class="h-12 flex items-center justify-center text-white/10 italic text-[8px]">N/A</div>`}
+                             ${(data.receivedSig || data.receiverSig) ? `<img src="${window.escapeHTML(data.receivedSig || data.receiverSig)}" class="h-12 bg-white rounded-lg p-1 mx-auto" onclick="window.openImageZoom('${window.escapeHTML(data.receivedSig || data.receiverSig)}')">` : `<div class="h-12 flex items-center justify-center text-white/10 italic text-[8px]">N/A</div>`}
                         </div>
                     </div>
                 </div>
                 ` : ''}
 
-                <!-- ASSET METADATA -->
                 <div class="space-y-3">
                     <h4 class="text-[9px] font-black text-indigo-400 uppercase tracking-[0.2em]">Asset Information</h4>
                     <div class="grid grid-cols-1 gap-3">
@@ -461,7 +519,7 @@ window.openAssetPreviewModal = function(assetData) {
                             </div>
                             <div class="bg-white/5 p-3 rounded-2xl border border-white/5 flex flex-col gap-1">
                                 <span class="text-white/40 uppercase font-black tracking-widest text-[8px]">Serial No</span>
-                                <span class="font-bold text-white truncate">${data.serialNo || data.assetSerial || '-'}</span>
+                                <span class="font-bold text-white truncate">${serialNo}</span>
                             </div>
                         </div>
                         <div class="bg-white/5 p-3 rounded-2xl border border-white/5 flex flex-col gap-1">
@@ -471,17 +529,17 @@ window.openAssetPreviewModal = function(assetData) {
                         <div class="grid grid-cols-2 gap-3">
                              <div class="bg-white/5 p-3 rounded-2xl border border-white/5 flex flex-col gap-1">
                                 <span class="text-white/40 uppercase font-black tracking-widest text-[8px]">Room / Floor</span>
-                                <span class="font-bold text-white">${data.roomNo || data.roomNumber || '-'} / ${data.floorNo || '-'}</span>
+                                <span class="font-bold text-white">${roomNo} / ${floorNo}</span>
                             </div>
                             <div class="bg-white/5 p-3 rounded-2xl border border-white/5 flex flex-col gap-1">
                                 <span class="text-white/40 uppercase font-black tracking-widest text-[8px]">Vendor</span>
-                                <span class="font-bold text-white truncate">${data.vendor || data.assetVendor || data.assetVendorName || '-'}</span>
+                                <span class="font-bold text-white truncate">${vendor}</span>
                             </div>
                         </div>
                         <div class="grid grid-cols-2 gap-3">
                             <div class="bg-white/5 p-3 rounded-2xl border border-white/5 flex flex-col gap-1">
                                 <span class="text-white/40 uppercase font-black tracking-widest text-[8px]">Condition</span>
-                                <span class="font-bold text-emerald-400">${data.condition || data.assetCondition || 'Good'}</span>
+                                <span class="font-bold text-emerald-400">${condition}</span>
                             </div>
                             <div class="bg-white/5 p-3 rounded-2xl border border-white/5 flex flex-col gap-1 text-center">
                                 <span class="text-white/40 uppercase font-black tracking-widest text-[8px] mb-1">Status</span>
@@ -507,10 +565,6 @@ window.closeAssetPreviewModal = function() {
     }
 };
 
-// --- GLOBAL SUCCESS POPUP ---
-// --- [DEPRECATED] Moved to image_processor.js for early load availability ---
-// window.triggerSuccessPopup = (msg) => { ... }
-
 // ================================================================ */
 // GLOBAL LOADING SPINNER (FIXED v4.3)                             */
 // ================================================================ */
@@ -521,7 +575,6 @@ let spinnerActive = false;
 window.showGlobalSpinner = (message = "Loading...") => {
     let spinner = document.getElementById('universal-logo-loader');
 
-    // Auto-create element if missing from DOM
     if (!spinner) {
         spinner = document.createElement('div');
         spinner.id = 'universal-logo-loader';
@@ -531,7 +584,7 @@ window.showGlobalSpinner = (message = "Loading...") => {
                 <img src="schoollogo.png" class="loader-center-logo logo-pulse-anim w-24 h-24 object-contain relative z-10" alt="JYS" onerror="this.src='jys_Icon.png'">
                 <div class="spinner-ring absolute inset-[-20px] border-4 border-indigo-500/20 border-t-indigo-500 rounded-full animate-spin"></div>
             </div>
-            <p id="universal-loader-text" style="color: #ffffff; font-weight: 800; margin-top: 32px; font-family: 'Poppins', sans-serif; letter-spacing: 2px; text-transform: uppercase; font-size: 14px; text-shadow: 0 2px 4px rgba(0,0,0,0.5);">${message}</p>
+            <p id="universal-loader-text" style="color: #ffffff; font-weight: 800; margin-top: 32px; font-family: 'Poppins', sans-serif; letter-spacing: 2px; text-transform: uppercase; font-size: 14px; text-shadow: 0 2px 4px rgba(0,0,0,0.5);">${window.escapeHTML(message)}</p>
         `;
         document.body.appendChild(spinner);
 
@@ -578,9 +631,9 @@ window.hideGlobalSpinner = () => {
     }
 };
 
-// Aliases for backward compatibility
 window.showLoader = window.showGlobalSpinner;
 window.hideLoader = window.hideGlobalSpinner;
+
 // ================================================================ */
 // AVATAR GENERATOR (FIXED v4.3)                                   */
 // ================================================================ */
@@ -589,11 +642,9 @@ window.generateLocalAvatar = function(name, background = "4f46e5", color = "fff"
     try {
         if (!name) name = "User";
 
-        // Remove '#' if accidentally passed to prevent '##' in SVG
         const cleanBg = String(background).replace('#', '');
         const cleanColor = String(color).replace('#', '');
 
-        // Safe splitting to handle extra spaces
         const initials = name.trim().split(/\s+/).map(n => n[0]).join('').substring(0, 2).toUpperCase();
 
         if (!initials) {
@@ -617,162 +668,363 @@ window.generateLocalAvatar = function(name, background = "4f46e5", color = "fff"
 };
 
 // ================================================================ */
-// ROLE-BASED DASHBOARD RULES (FIXED v6.0 - POSITION RESTRICTIONS)  */
+// ✅ Task 3: Separate Login Screen & Staff Dashboard Views        */
+// ================================================================ */
+window.switchPortalView = function(activeViewName) {
+    console.log(`🔄 Switching portal view to: ${activeViewName}`);
+
+    const loginContainers = document.querySelectorAll('#login-screen-container, #staff-auth-area, .login-card, .login-view, #login-wrapper, #login-container, #staff-login-card, #login-section');
+    const dashboardContainers = document.querySelectorAll('#staff-dashboard-container, #staff-dash-area, .dashboard-wrapper, .staff-dashboard-view, #dashboard-main, #dashboard-root');
+
+    if (activeViewName === 'DASHBOARD') {
+        loginContainers.forEach(el => {
+            el.style.setProperty('display', 'none', 'important');
+            el.classList.add('hidden-view', 'hidden');
+            el.classList.remove('active-view', 'active-view-flex', 'active');
+        });
+
+        dashboardContainers.forEach(el => {
+            el.style.setProperty('display', 'block', 'important');
+            el.classList.remove('hidden-view', 'hidden');
+            el.classList.add('active-view');
+        });
+
+        window.scrollTo({ top: 0, behavior: 'instant' });
+        document.body.scrollTop = 0;
+        document.documentElement.scrollTop = 0;
+
+        setTimeout(() => {
+            const user = window.currentStaff || JSON.parse(sessionStorage.getItem('active_staff_user') || 'null');
+            if (user && typeof window.renderUserProfileImages === 'function') {
+                window.renderUserProfileImages(user);
+            }
+        }, 100);
+
+    } else if (activeViewName === 'LOGIN') {
+        dashboardContainers.forEach(el => {
+            el.style.setProperty('display', 'none', 'important');
+            el.classList.add('hidden-view', 'hidden');
+            el.classList.remove('active-view', 'active-view-flex');
+        });
+
+        loginContainers.forEach(el => {
+            // Force clean visible state for ALL login containers
+            el.classList.remove('hidden-view', 'hidden');
+            el.style.setProperty('visibility', 'visible', 'important');
+            el.style.setProperty('opacity', '1', 'important');
+            el.style.removeProperty('filter');
+            el.style.removeProperty('backdrop-filter');
+
+            if (el.id === 'login-screen-container') {
+                el.style.setProperty('display', 'flex', 'important');
+                el.classList.add('active-view-flex', 'active');
+            } else {
+                el.style.setProperty('display', 'block', 'important');
+                el.classList.add('active-view');
+            }
+        });
+    }
+};
+
+window.onAuthenticationSuccess = function(userData) {
+    console.log("✅ Authentication Success Event Triggered");
+
+    window.switchPortalView('DASHBOARD');
+
+    if (typeof window.renderUserProfileImages === 'function') {
+        window.renderUserProfileImages(userData);
+    }
+};
+
+// ================================================================ */
+// ✅ STRICT ROLE-BASED SIDE MENU & DASHBOARD ACCESS (v11.0)       */
 // ================================================================ */
 
-window.applyRoleDashboardRules = function(userRole) {
-    const staff = window.currentStaff || JSON.parse(sessionStorage.getItem('active_staff_user') || '{}');
+window.applyStrictRoleBasedLayout = function() {
+    const rawRole = localStorage.getItem('user_role') || document.querySelector('#sidebar-user-role')?.textContent || '';
+    const cleanRole = rawRole.trim().toUpperCase();
 
-    // Normalize string for position/designation/role
-    const normalize = (val) => (val || '').toString().trim().toLowerCase().replace(/[\s-]+/g, '_');
+    if (!cleanRole) return;
 
-    const roleVal = normalize(staff.role);
-    const designVal = normalize(staff.designation || staff.position || userRole);
+    const hide = (id) => {
+        const el = document.querySelector(id);
+        if (el) el.style.setProperty('display', 'none', 'important');
+    };
+    const show = (id, type = 'block') => {
+        const el = document.querySelector(id);
+        if (el) el.style.setProperty('display', type, 'important');
+    };
 
-    console.log(`👤 Position UI Filter: Role=[${roleVal}], Position=[${designVal}]`);
+    show('#staff-dashboard-container', 'block');
 
-    // ✅ MANDATE: Restricted Positions for Minimalist Dashboard
-    // IMPORTANT: 'cleaner_leader' and 'security' are NOT in this list and will retain all features.
-    const restrictedList = ['cleaner', 'bus_supervisor', 'bus_monitor', 'gardener', 'bus_driver'];
+    const isCleanerLeader = cleanRole.includes('CLEANER LEADER') || cleanRole.includes('LEADER');
+    const isTechnician = cleanRole.includes('TECHNICIAN');
+    const isOfficeBoy = cleanRole.includes('OFFICE BOY');
+    const isSecurity = cleanRole.includes('SECURITY');
 
-    // Check if either field matches restricted positions
-    const isRestricted = restrictedList.includes(roleVal) || restrictedList.includes(designVal);
+    const restrictedList = ['BUS MONITOR', 'BUS DRIVER', 'BUS SUPERVISOR', 'SUPERVISOR', 'GARDENER'];
+    const isBasicCleaner = cleanRole.includes('CLEANER') && !isCleanerLeader;
+    const isRestricted = (isBasicCleaner || restrictedList.some(r => cleanRole.includes(r))) && !isCleanerLeader && !isTechnician && !isOfficeBoy && !isSecurity;
 
-    // 1. Dashboard Banner & Metrics Visibility
-    const widgetsToControl = [
-        'scan-edit-asset-btn',      // SCAN & EDIT ASSET LOCATION (Banner)
-        'tasks-summary-card',       // Stats Grid container
-        'visitor-log-section',      // Visitor Counter
-        'active-staff-grid',        // Staff Present Counter
-        'security-pin-control',     // Key PIN Control
-        'security-profile-card',    // Security Dashboard Variant
-        's-dash-create-task-btn'    // Dashboard Quick Create Task
-    ];
+    console.log(`🛡️ [RoleLayout] Role=[${cleanRole}] | Group=[${
+        isRestricted ? 'Restricted' :
+        (isCleanerLeader || isTechnician) ? 'Leader/Tech' :
+        isOfficeBoy ? 'Office Boy' :
+        isSecurity ? 'Security' : 'Other'
+    }]`);
 
-    widgetsToControl.forEach(id => {
-        const el = document.getElementById(id);
-        if (el) {
-            if (isRestricted) {
-                el.style.display = 'none';
-                el.classList.add('hidden');
-            } else {
-                // ✅ FIXED: Explicitly show for non-restricted roles (Leader/Security/Admin)
-                el.style.display = '';
-                el.classList.remove('hidden');
-            }
+    if (isRestricted) {
+        const hideIDs = [
+            '#menu-asset-section', '#menu-asset-transfer', '#menu-asset-audit',
+            '#menu-asset-dispose', '#menu-movement-logs', '#menu-create-task-btn',
+            '#menu-tasks-btn', '#scan-edit-asset-btn', '#tasks-summary-card',
+            '#s-dash-create-task-btn', '#security-pin-control'
+        ];
+        hideIDs.forEach(id => hide(id));
+
+        show('#menu-history-btn', 'flex');
+        show('#menu-docs-btn', 'flex');
+        show('#biometric-toggle-btn', 'flex');
+    }
+    else if (isCleanerLeader || isTechnician) {
+        show('#menu-asset-section', 'block');
+        show('#menu-asset-transfer', 'flex');
+        show('#menu-asset-audit', 'flex');
+        show('#menu-asset-dispose', 'flex');
+        show('#menu-movement-logs', 'flex');
+        show('#menu-tasks-btn', 'flex');
+        show('#scan-edit-asset-btn', 'block');
+        show('#menu-history-btn', 'flex');
+        show('#menu-docs-btn', 'flex');
+        show('#biometric-toggle-btn', 'flex');
+
+        hide('#menu-create-task-btn');
+        hide('#s-dash-create-task-btn');
+        hide('#security-pin-control');
+    }
+    else if (isOfficeBoy) {
+        show('#menu-asset-section', 'block');
+        show('#menu-asset-transfer', 'flex');
+        show('#menu-asset-audit', 'flex');
+        show('#menu-asset-dispose', 'flex');
+        show('#menu-movement-logs', 'flex');
+        show('#scan-edit-asset-btn', 'block');
+        show('#menu-history-btn', 'flex');
+        show('#menu-docs-btn', 'flex');
+        show('#biometric-toggle-btn', 'flex');
+
+        hide('#menu-tasks-btn');
+        hide('#menu-create-task-btn');
+        hide('#s-dash-create-task-btn');
+        hide('#security-pin-control');
+    }
+    else if (isSecurity) {
+        show('#menu-asset-section', 'block');
+        show('#menu-asset-transfer', 'flex');
+        show('#menu-asset-audit', 'flex');
+        show('#menu-asset-dispose', 'flex');
+        show('#menu-movement-logs', 'flex');
+        show('#scan-edit-asset-btn', 'block');
+        show('#menu-history-btn', 'flex');
+        show('#menu-docs-btn', 'flex');
+        show('#biometric-toggle-btn', 'flex');
+        show('#menu-create-task-btn', 'flex');
+        show('#s-dash-create-task-btn', 'block');
+        show('#security-pin-control', 'block');
+
+        hide('#menu-tasks-btn');
+    }
+};
+
+// ================================================================ */
+// ✅ AUTO-HIDE ENFORCER (FIXES FIRST LOGIN DELAY WITHOUT REFRESH) */
+// ================================================================ */
+
+window.initRoleRulesObserver = function() {
+    console.log('🛡️ [RoleObserver] Initializing auto-hide enforcer...');
+
+    if (typeof window.applyStrictRoleBasedLayout === 'function') {
+        window.applyStrictRoleBasedLayout();
+    }
+
+    let burstCount = 0;
+    const burstInterval = setInterval(() => {
+        if (typeof window.applyStrictRoleBasedLayout === 'function') {
+            window.applyStrictRoleBasedLayout();
         }
+        burstCount++;
+        if (burstCount > 25) {
+            clearInterval(burstInterval);
+            console.log('✅ [RoleObserver] Burst interval completed (5 sec).');
+        }
+    }, 200);
+
+    const targetNode = document.body;
+    if (targetNode) {
+        if (window._roleRulesObserver) {
+            window._roleRulesObserver.disconnect();
+        }
+
+        const observer = new MutationObserver((mutations) => {
+            if (typeof window.applyStrictRoleBasedLayout === 'function') {
+                window.applyStrictRoleBasedLayout();
+            }
+        });
+
+        observer.observe(targetNode, {
+            childList: true,
+            subtree: true
+        });
+
+        window._roleRulesObserver = observer;
+        console.log('✅ [RoleObserver] MutationObserver attached to document.body.');
+    }
+};
+
+document.addEventListener('DOMContentLoaded', window.initRoleRulesObserver);
+window.addEventListener('hashchange', window.applyStrictRoleBasedLayout);
+window.addEventListener('popstate', window.applyStrictRoleBasedLayout);
+
+if (document.readyState === 'complete' || document.readyState === 'interactive') {
+    window.initRoleRulesObserver();
+}
+
+window.applyPositionBasedRules = window.applyStrictRoleBasedLayout;
+window.applyRoleDashboardRules = window.applyStrictRoleBasedLayout;
+window.applyRoleBasedRestrictions = window.applyStrictRoleBasedLayout;
+
+
+// ================================================================ */
+// 🧹 COMPLETE SIDEBAR & LOGOUT RECOVERY ENGINE (v14.0)            */
+// ================================================================ */
+// Fixes:
+//   - Security Dashboard Logout freeze
+//   - Hamburger button breaking after logout
+//   - Hard Refresh DOM overlay lock
+//   - **NEW (v14.0): Blur-free logout** — strips all filter/backdrop
+//     effects and force-renders login container
+
+
+// --- 1. Safely Reset Sidebar & Overlay without breaking the Hamburger ---
+window.resetSidebarState = function() {
+    console.log("🧹 Resetting Sidebar & Overlay state...");
+
+    const sidebarElements = document.querySelectorAll('#side-menu, #sidebar, .sidebar, #side-menu-content, .sidebar-wrapper');
+    sidebarElements.forEach(el => {
+        el.classList.remove('open', 'active', 'show', 'expanded');
+        el.style.removeProperty('display');
+        el.style.removeProperty('transform');
     });
 
-    if (isRestricted) {
-        // ✅ MANDATE: Specifically hide the Completed Tasks Card metrics
-        const completedCard = document.querySelector('.stat-completed');
-        if (completedCard) {
-            completedCard.style.display = 'none';
-            completedCard.classList.add('hidden');
-        }
+    const overlays = document.querySelectorAll('.sidebar-backdrop, .menu-overlay, #sidebar-overlay');
+    overlays.forEach(overlay => overlay.remove());
 
-        // Collapse grid layout
-        const statsGrid = document.querySelector('.stats-grid');
-        if (statsGrid) {
-            statsGrid.style.display = 'none';
-            statsGrid.classList.add('hidden');
-        }
-
-        // Show personal attendance history table
-        const attHistorySec = document.getElementById('cleaner-attendance-section');
-        if (attHistorySec) {
-            attHistorySec.classList.remove('hidden');
-            attHistorySec.style.display = 'block';
-        }
-    } else {
-        // ✅ FIXED: Show sections for full access roles
-        const statsGrid = document.querySelector('.stats-grid');
-        if (statsGrid) {
-            statsGrid.style.display = '';
-            statsGrid.classList.remove('hidden');
-        }
-    }
-
-    // 2. Side Menu Visibility (Global Filter)
-    const assetSection = document.getElementById('menu-asset-section');
-    const taskHistoryBtn = document.getElementById('menu-tasks-btn');
-    const createTaskBtn = document.getElementById('menu-create-task-btn');
-
-    if (isRestricted) {
-        if (assetSection) { assetSection.style.display = 'none'; assetSection.classList.add('hidden'); }
-        if (taskHistoryBtn) { taskHistoryBtn.style.display = 'none'; taskHistoryBtn.classList.add('hidden'); }
-        if (createTaskBtn) { createTaskBtn.style.display = 'none'; createTaskBtn.classList.add('hidden'); }
-    } else {
-        // Standards for non-restricted (Includes Cleaner Leader)
-        const assetRoles = ['security', 'technician', 'tech', 'admin', 'leader', 'cleaner_leader'];
-        const hasAssetAccess = assetRoles.includes(roleVal) || assetRoles.includes(designVal);
-        if (assetSection) {
-            assetSection.style.display = hasAssetAccess ? 'block' : 'none';
-            assetSection.classList.toggle('hidden', !hasAssetAccess);
-        }
-    }
-
-    // 3. Ensure Primary Nav (Attendance & Docs) is always accessible
-    const historyBtn = document.getElementById('menu-history-btn');
-    const docsBtn = document.getElementById('menu-docs-btn');
-
-    if (historyBtn) { historyBtn.style.display = 'flex'; historyBtn.classList.remove('hidden'); }
-    if (docsBtn) { docsBtn.style.display = 'flex'; docsBtn.classList.remove('hidden'); }
-
-    if (typeof window.initSidebarProfileAndRestrictions === 'function') {
-        window.initSidebarProfileAndRestrictions();
-    }
+    document.body.classList.remove('sidebar-open', 'modal-open', 'overflow-hidden');
+    document.body.style.removeProperty('overflow');
 };
 
-// ================================================================ */
-// LOGOUT FUNCTION (FIXED v4.3)                                    */
-// ================================================================ */
 
-window.executeSecureLogout = function() {
+// --- 2. Universal Robust Logout Execution (BLUR-FREE v14.0) ---
+window.handleGlobalLogout = function(e) {
+    if (e) {
+        e.preventDefault();
+        e.stopPropagation();
+    }
+
+    console.log("🚪 Executing Clean Unblurred Logout...");
+
+    // 1. CLEAR ALL BLUR EFFECTS & OVERLAYS FROM BODY & CONTAINERS
+    document.body.classList.remove('blur', 'blurred', 'modal-open', 'overflow-hidden');
+    document.body.style.removeProperty('filter');
+    document.body.style.removeProperty('backdrop-filter');
+
+    const allBlurredElements = document.querySelectorAll('.blur, .blurred, .backdrop-blur');
+    allBlurredElements.forEach(el => {
+        el.classList.remove('blur', 'blurred', 'backdrop-blur');
+        el.style.removeProperty('filter');
+        el.style.removeProperty('backdrop-filter');
+    });
+
+    // Remove any leftover modal overlays/backdrops blocking the UI
+    const overlays = document.querySelectorAll('.modal-backdrop, .sidebar-backdrop, .menu-overlay, #overlay');
+    overlays.forEach(overlay => overlay.remove());
+
+    // 2. CLEAR SESSION & STORAGE DATA
     try {
-        // Safe cleanup for listeners
-        if (typeof window.cleanupAdminListeners === 'function') {
-            window.cleanupAdminListeners();
-        }
-
-        // Firebase v9/v10 Listener Cleanup Check
-        if (window._visitorLogsListener) {
-            if (typeof window._visitorLogsListener === 'function') {
-                window._visitorLogsListener(); // Unsubscribe function
-            } else if (typeof window._visitorLogsListener.off === 'function') {
-                window._visitorLogsListener.off();
-            }
-            window._visitorLogsListener = null;
-        }
-
-        if (window.activeSessionListener) {
-            if (typeof window.activeSessionListener === 'function') {
-                window.activeSessionListener(); // Unsubscribe function
-            } else if (typeof window.activeSessionListener.off === 'function') {
-                window.activeSessionListener.off();
-            }
-            window.activeSessionListener = null;
-        }
-    } catch (e) {
-        console.warn("⚠️ Listener cleanup error on logout:", e);
+        localStorage.clear();
+        sessionStorage.clear();
+    } catch (err) {
+        console.error("Storage clear error:", err);
     }
 
-    // Clear personal user avatar cache
-    localStorage.removeItem('jys_cached_user_avatar');
+    // 3. FORCE DISPLAY SWITCH TO LOGIN CONTAINER
+    const dashboardContainer = document.querySelector('#staff-dashboard-container, #dashboard-root, .dashboard-wrapper');
+    const loginContainer = document.querySelector('#login-container, #staff-login-card, .login-wrapper, #login-section');
 
-    // Clear Sessions
-    sessionStorage.clear();
-    localStorage.clear();
-
-    if (window.switchPortalView) {
-        window.switchPortalView('LOGIN');
-    } else {
-        // Direct redirect to Login Page as fallback
-        window.location.href = 'staff-login.html';
+    if (dashboardContainer) {
+        dashboardContainer.style.setProperty('display', 'none', 'important');
     }
+
+    if (loginContainer) {
+        loginContainer.style.setProperty('display', 'block', 'important');
+        loginContainer.style.setProperty('visibility', 'visible', 'important');
+        loginContainer.style.setProperty('opacity', '1', 'important');
+    }
+
+    // 4. FIREBASE SIGN OUT & CLEAN ROUTE REDIRECT
+    if (window.firebase && firebase.auth) {
+        firebase.auth().signOut().catch(err => console.log("Firebase logout error:", err));
+    }
+
+    // Redirect directly to staff-login.html if single-page view switching is not present
+    setTimeout(() => {
+        if (typeof window.switchPortalView === 'function') {
+            window.switchPortalView('LOGIN');
+        } else {
+            window.location.href = 'staff-login.html';
+        }
+    }, 150);
 };
 
-window.logoutStaff = window.executeSecureLogout;
+// Legacy alias
+window.executeSecureLogout = function() {
+    console.log("🔄 [Legacy] executeSecureLogout → handleGlobalLogout");
+    window.handleGlobalLogout();
+};
+window.logoutStaff = window.handleGlobalLogout;
+
+
+// --- 3. Global Click Event Delegation for Logout & Hamburger Toggle ---
+document.addEventListener('click', function(e) {
+    const logoutBtn = e.target.closest('#logout-btn, .logout-btn, #security-logout-btn, #side-logout-btn, [data-action="logout"]');
+    if (logoutBtn) {
+        window.handleGlobalLogout(e);
+        return;
+    }
+
+    const toggleBtn = e.target.closest('#menu-toggle, .nav-pill-purple, .hamburger-btn, #sidebar-toggle');
+    if (toggleBtn) {
+        const sideMenu = document.querySelector('#side-menu, #sidebar, .sidebar');
+        if (sideMenu) {
+            sideMenu.classList.toggle('open');
+            sideMenu.classList.toggle('active');
+        }
+    }
+});
+
+
+// --- 4. Ensure Hard Refresh (Ctrl+Shift+R) Recovers State Cleanly ---
+document.addEventListener('DOMContentLoaded', () => {
+    window.resetSidebarState();
+
+    // Also strip any leftover blur effects on load
+    document.body.classList.remove('blur', 'blurred', 'modal-open', 'overflow-hidden');
+    document.body.style.removeProperty('filter');
+    document.body.style.removeProperty('backdrop-filter');
+    document.body.style.removeProperty('-webkit-backdrop-filter');
+});
+
+
 // ================================================================ */
 // SIDEBAR PROFILE & RESTRICTIONS (FIXED v6.0 - NO DUPLICATES)      */
 // ================================================================ */
@@ -786,7 +1038,6 @@ window.initSidebarProfileAndRestrictions = function(staffData) {
     const displayName = staff.fullName || staff.name || "Staff Member";
     const displayRole = staff.designation || staff.position || staff.role || "Employee";
 
-    // Normalize for checks
     const normalize = (val) => (val || '').toString().trim().toLowerCase().replace(/[\s-]+/g, '_');
     const roleVal = normalize(staff.role);
     const designVal = normalize(staff.designation || staff.position);
@@ -801,30 +1052,8 @@ window.initSidebarProfileAndRestrictions = function(staffData) {
     }
     if (roleEl) roleEl.innerText = displayRole;
 
-    // ✅ Task 2: Unified Profile Image Rendering
     if (typeof window.renderUserProfileImages === 'function') {
         window.renderUserProfileImages(staff);
-    }
-
-    // ✅ MANDATE: Strict Visibility Control for Side Menu Items
-    // IMPORTANT: 'cleaner_leader' will NOT be restricted here.
-    const restrictedList = ['cleaner', 'bus_supervisor', 'bus_monitor', 'gardener', 'bus_driver'];
-    const isRestricted = restrictedList.includes(roleVal) || restrictedList.includes(designVal);
-
-    if (isRestricted) {
-        // HIDE Asset Management Buttons
-        document.querySelectorAll('#menu-asset-section, #menu-asset-transfer, #menu-asset-audit, #menu-asset-dispose, #menu-movement-logs').forEach(el => {
-            el.style.display = 'none';
-            el.classList.add('hidden');
-        });
-
-        // HIDE Task Related Buttons
-        document.querySelectorAll('#menu-tasks-btn, #menu-create-task-btn, #s-dash-create-task-btn').forEach(el => {
-            el.style.display = 'none';
-            el.classList.add('hidden');
-        });
-
-        // DUPLICATE FIX: Toggling visibility only, no dynamic HTML injection.
     }
 };
 
@@ -854,13 +1083,13 @@ window.renderDashboardProfile = function(staffData) {
         const displayRole = safeStaff.designation || safeStaff.position || safeStaff.role || "Employee";
         if (roleEl) roleEl.innerText = displayRole;
 
-        // ✅ Task 2: Fix Profile Picture Rendering (Unified)
         if (typeof window.renderUserProfileImages === 'function') {
             window.renderUserProfileImages(safeStaff);
         }
 
         if (branchEl) {
-            branchEl.innerHTML = `<i class="fa-solid fa-location-dot text-indigo-400"></i> ${safeStaff.school || safeStaff.branch || 'Jern Yafoor School'}`;
+            const branchName = window.escapeHTML(safeStaff.school || safeStaff.branch || 'Jern Yafoor School');
+            branchEl.innerHTML = `<i class="fa-solid fa-location-dot text-indigo-400"></i> ${branchName}`;
         }
 
         if (typeof window.initSidebarProfileAndRestrictions === 'function') {
@@ -871,13 +1100,19 @@ window.renderDashboardProfile = function(staffData) {
             window.updateAccountActivationUI(safeStaff.isAccountActive);
         }
 
-        // Final safeguard: Ensure the dashboard section is actually VISIBLE
         const dashArea = document.getElementById('staff-dashboard-container');
         if (dashArea) {
             dashArea.classList.remove('hidden');
             dashArea.style.display = 'block';
             dashArea.style.visibility = 'visible';
             dashArea.style.opacity = '1';
+        }
+
+        if (typeof window.applyStrictRoleBasedLayout === 'function') {
+            window.applyStrictRoleBasedLayout();
+            setTimeout(() => window.applyStrictRoleBasedLayout(), 100);
+            setTimeout(() => window.applyStrictRoleBasedLayout(), 300);
+            setTimeout(() => window.applyStrictRoleBasedLayout(), 1000);
         }
 
     } catch (renderErr) {
@@ -890,23 +1125,16 @@ window.renderDashboardProfile = function(staffData) {
     }
 };
 
-/**
- * ✅ UPDATE ACCOUNT ACTIVATION UI (v5.0)
- * Handles the "Parda / Overlay" Lock and Status Badges
- */
 window.updateAccountActivationUI = function(isActive) {
     const banner = document.getElementById('account-activation-banner');
     const overlay = document.getElementById('account-lock-overlay');
     const badge = document.getElementById('account-status-badge');
 
-    // Get current staff data for deep check
     const staff = window.currentStaff || JSON.parse(sessionStorage.getItem('active_staff_user') || '{}');
 
-    // Unified Logic for unlocking
     const isActuallyApproved = (isActive === true || staff.isApproved === true || staff.documentsApproved === true || staff.status === "APPROVED");
     const canUnlock = isActuallyApproved && staff.isProfileSubmitted === true;
 
-    // UI Elements for status color mapping
     const colorActive = '#10B981';
     const colorInactive = '#EF4444';
 
@@ -925,7 +1153,6 @@ window.updateAccountActivationUI = function(isActive) {
             banner.style.backgroundColor = colorInactive;
         }
         if (overlay) {
-            // ONLY show modal if profile is NOT submitted yet
             if (staff.isProfileSubmitted !== true) {
                 overlay.classList.remove('hidden');
                 overlay.className = 'onboarding-modal-overlay';
@@ -941,7 +1168,6 @@ window.updateAccountActivationUI = function(isActive) {
         }
     }
 
-    // Check-in / Out Buttons: Keep enabled but they will be intercepted in attendance_module.js
     const cinBtn = document.getElementById('s-checkin-btn') || document.getElementById('security-checkin-btn');
     const coutBtn = document.getElementById('s-checkout-btn') || document.getElementById('security-checkout-btn');
 
@@ -955,7 +1181,6 @@ window.updateAccountActivationUI = function(isActive) {
     }
 };
 
-// Re-bind the Upload Documents button explicitly
 document.addEventListener('DOMContentLoaded', () => {
     const observer = new MutationObserver(() => {
         const btn = document.getElementById('btn_upload_docs_now');
@@ -967,7 +1192,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (typeof window.showStaffView === 'function') {
                     window.showStaffView('staff-docs-section');
                 }
-                // Also hide the modal
                 const overlay = document.getElementById('account-lock-overlay');
                 if (overlay) overlay.classList.add('hidden');
             });
@@ -977,10 +1201,10 @@ document.addEventListener('DOMContentLoaded', () => {
     observer.observe(document.body, { childList: true, subtree: true });
 });
 
-window.renderDashboard = window.renderDashboardProfile; // Alias for compatibility
+window.renderDashboard = window.renderDashboardProfile;
 
 // ================================================================ */
-// ATTENDANCE HISTORY MODAL (FIXED v4.3)                           */
+// ATTENDANCE HISTORY MODAL (FIXED v4.3 - XSS SAFE)                */
 // ================================================================ */
 
 window.openAttendanceHistoryModal = async function() {
@@ -993,14 +1217,15 @@ window.openAttendanceHistoryModal = async function() {
     }
 
     const staff = window.currentStaff || JSON.parse(sessionStorage.getItem('active_staff_user') || '{}');
-    const staffName = staff.fullName || staff.name || 'Staff';
+    const staffName = window.escapeHTML(staff.fullName || staff.name || 'Staff');
+    const staffRole = window.escapeHTML(staff.role || 'User');
 
     modal.innerHTML = `
         <div class="bg-indigo-950 border border-white/10 rounded-[2.5rem] p-8 max-w-lg w-full text-white space-y-6 shadow-2xl max-h-[90vh] flex flex-col fade-in">
             <div class="flex justify-between items-center border-b border-white/5 pb-5">
                 <div>
                     <h3 class="text-xl font-black text-cyan-400 uppercase tracking-tight attendance-history-title">📅 Attendance History</h3>
-                    <p class="text-[10px] font-bold text-white/40 uppercase tracking-widest mt-1">${staffName} • ${staff.role || 'User'}</p>
+                    <p class="text-[10px] font-bold text-white/40 uppercase tracking-widest mt-1">${staffName} • ${staffRole}</p>
                 </div>
                 <button onclick="window.closeAttendanceHistoryModal()" class="w-10 h-10 bg-white/5 rounded-full flex items-center justify-center text-white/60 hover:text-white transition-colors">&times;</button>
             </div>
@@ -1019,7 +1244,6 @@ window.openAttendanceHistoryModal = async function() {
     modal.classList.remove('hidden');
     modal.style.display = 'flex';
 
-    // Declared outside try-catch to ensure availability in catch block
     const logsContainer = document.getElementById('attendance-modal-logs');
 
     try {
@@ -1046,11 +1270,11 @@ window.openAttendanceHistoryModal = async function() {
                 logsContainer.innerHTML = myLogs.map(log => `
                     <div class="bg-white/5 p-4 rounded-2xl border border-white/5 flex justify-between items-center group hover:bg-white/10 transition-all">
                         <div class="space-y-1">
-                            <span class="font-black text-xs text-white block uppercase tracking-tight">${log.date || 'N/A'}</span>
+                            <span class="font-black text-xs text-white block uppercase tracking-tight">${window.escapeHTML(log.date || 'N/A')}</span>
                             <div class="flex items-center gap-2 text-[9px] font-bold text-white/40 uppercase tracking-widest">
-                                <span class="text-emerald-400">IN: ${log.timeIn || '--'}</span>
+                                <span class="text-emerald-400">IN: ${window.escapeHTML(log.timeIn || '--')}</span>
                                 <span class="w-1 h-1 bg-white/10 rounded-full"></span>
-                                <span class="text-rose-400">OUT: ${log.checkOutTime || log.timeOut || '--'}</span>
+                                <span class="text-rose-400">OUT: ${window.escapeHTML(log.checkOutTime || log.timeOut || '--')}</span>
                             </div>
                         </div>
                         <div class="text-right">
@@ -1085,10 +1309,9 @@ window.closeAttendanceHistoryModal = function() {
 };
 
 // ================================================================ */
-// MEDIA RENDERING & FALLBACKS (FIXED v4.4 - WITH LOCAL CACHING)            */
+// MEDIA RENDERING & FALLBACKS (FIXED v4.4 - SMART STORAGE)        */
 // ================================================================ */
 
-// 🛑 RATE LIMIT COOLDOWN (Persistent in-session memory)
 const rateLimitedUrls = new Set();
 
 window.getOrCacheImage = async function(url) {
@@ -1096,10 +1319,8 @@ window.getOrCacheImage = async function(url) {
         return 'https://placehold.co/400x300/e2e8f0/64748b?text=No+Photo';
     }
 
-    // Direct Data URLs don't need caching
     if (url.startsWith('data:image')) return url;
 
-    // Check Cooldown to prevent spamming 429s
     if (rateLimitedUrls.has(url)) {
         return url;
     }
@@ -1111,11 +1332,9 @@ window.getOrCacheImage = async function(url) {
     try {
         const response = await fetch(url);
 
-        // Handle Rate Limiting (429) specifically
         if (response.status === 429) {
             console.warn("🛑 Google Rate Limit (429): Too many requests. Adding to cooldown.");
             rateLimitedUrls.add(url);
-            // Remove from cooldown after 1 minute
             setTimeout(() => rateLimitedUrls.delete(url), 60000);
             return url;
         }
@@ -1128,9 +1347,22 @@ window.getOrCacheImage = async function(url) {
             reader.onloadend = () => {
                 try {
                     localStorage.setItem(cacheKey, reader.result);
-                } catch(e) {
-                    console.warn("localStorage quota full, serving live URL");
-                    // Optional: Clear old cache if full
+                } catch (quotaErr) {
+                    console.warn("⚠️ LocalStorage quota exceeded. Attempting purge...");
+
+                    if (window.purgeOldImageCache) {
+                        const purged = window.purgeOldImageCache();
+                        console.log(`🧹 Purged ${purged} entries. Retrying cache write...`);
+
+                        try {
+                            localStorage.setItem(cacheKey, reader.result);
+                            console.log("✅ Cache write successful after purge.");
+                        } catch (retryErr) {
+                            console.warn("⚠️ Cache write still failed after purge. Serving live URL.");
+                        }
+                    } else {
+                        console.warn("⚠️ purgeOldImageCache not available. Serving live URL.");
+                    }
                 }
                 resolve(reader.result);
             };
@@ -1138,7 +1370,7 @@ window.getOrCacheImage = async function(url) {
         });
     } catch (e) {
         console.warn("⚠️ getOrCacheImage failed, using live URL:", e);
-        return url; // Fallback to live URL on error
+        return url;
     }
 };
 
@@ -1147,16 +1379,13 @@ window.getDirectDriveImageUrl = (driveUrl) => {
         return 'https://placehold.co/400x300/e2e8f0/64748b?text=No+Photo';
     }
 
-    // Direct Data URLs and already formatted links
     if (driveUrl.startsWith('data:image')) return driveUrl;
     if (driveUrl.startsWith('https://lh3.googleusercontent.com')) return driveUrl;
 
-    // Standard HTTP/HTTPS Non-Drive URLs
     if (!driveUrl.includes('drive.google.com') && !driveUrl.includes('docs.google.com') && driveUrl.startsWith('http')) {
         return driveUrl;
     }
 
-    // Google Drive Specific Parsing
     let fileId = null;
     const match = driveUrl.match(/\/file\/d\/([a-zA-Z0-9_-]+)/) ||
                   driveUrl.match(/[?&]id=([a-zA-Z0-9_-]+)/) ||
@@ -1175,44 +1404,34 @@ window.lazyLoadCachedImages = function() {
                 img.src = cachedSrc;
                 img.dataset.cacheLoaded = "true";
             }).catch(e => {
-                img.src = src; // Fallback
+                img.src = src;
                 img.dataset.cacheLoaded = "true";
             });
         }
     });
 };
 
-/**
- * Universal URL normalizer for Google Drive and UI Avatars
- */
-/**
- * Universal URL normalizer for Google Drive and UI Avatars
- */
 window.formatDriveImageUrl = function(url, staffName = "Staff") {
+    const safeName = encodeURIComponent(String(staffName || "Staff"));
+
     if (!url || url.trim() === "" || url.includes("ui-avatars.com") || url === 'N/A' || url === '-') {
-        return `https://ui-avatars.com/api/?name=${encodeURIComponent(staffName)}&background=4f46e5&color=fff`;
+        return `https://ui-avatars.com/api/?name=${safeName}&background=4f46e5&color=fff`;
     }
 
-    // Extract File ID from Google Drive URLs
-    // Handles: /file/d/[ID], /d/[ID], ?id=[ID], and raw IDs
     const driveRegex = /\/file\/d\/([a-zA-Z0-9_-]+)|\/d\/([a-zA-Z0-9_-]+)|[?&]id=([a-zA-Z0-9_-]+)|([a-zA-Z0-9_-]{25,})/;
     const match = url.match(driveRegex);
 
     if (match) {
         const fileId = match[1] || match[2] || match[3] || match[4];
         if (fileId && fileId.length > 20) {
-            // ✅ Task 2: Use Optimized Thumbnail path for lists (Prevents 429 quota issues)
             return `https://drive.google.com/thumbnail?id=${fileId}&sz=w200`;
         }
     }
 
-    // Standard HTTP/HTTPS Non-Drive URLs
     if (url.startsWith('http')) return url;
-
-    // Base64 Data URLs
     if (url.startsWith('data:image')) return url;
 
-    return `https://ui-avatars.com/api/?name=${encodeURIComponent(staffName)}&background=4f46e5&color=fff`;
+    return `https://ui-avatars.com/api/?name=${safeName}&background=4f46e5&color=fff`;
 };
 
 window.openImageZoom = (url) => {
@@ -1225,17 +1444,10 @@ window.openImageZoom = (url) => {
 // COMPRESSION & IMAGE HELPERS (FIXED v4.3 - WITH RETRY & SAFARI BUGFIX) */
 // ================================================================ */
 
-/**
- * ✅ [DEPRECATED] Internal compressImageFile removed.
- * Using window.compressImageFile from image_processor.js for early loading.
- */
-
-// ✅ FIXED: Compress with retry and exponential fallback
 window.compressImageWithRetry = async (file, maxWidth = 800, maxHeight = 800, quality = 0.7, retries = 3) => {
     let lastError = null;
     for (let i = 0; i < retries; i++) {
         try {
-            // Quality downgrade on retry attempts to ensure success on memory-constrained devices
             const currentQuality = Math.max(0.4, quality - (i * 0.1));
             return await window.compressImageFile(file, maxWidth, maxHeight, currentQuality);
         } catch (err) {
@@ -1246,10 +1458,6 @@ window.compressImageWithRetry = async (file, maxWidth = 800, maxHeight = 800, qu
     }
     throw lastError || new Error("Image compression failed after retries");
 };
-
-// ================================================================ */
-// APP LAUNCH VIDEO LOGIC (FIXED v4.3)                             */
-// ================================================================ */
 
 // ================================================================ */
 // APP LAUNCH VIDEO LOGIC (FIXED v4.5)                             */
@@ -1273,7 +1481,6 @@ window.handleLaunchVideo = () => {
     let hasHidden = false;
     let safetyTimeout = null;
 
-    // Define Global Skip Function for immediate access
     window.skipLaunchVideo = () => {
         if (hasHidden) return;
         hasHidden = true;
@@ -1283,7 +1490,6 @@ window.handleLaunchVideo = () => {
         if (safetyTimeout) clearTimeout(safetyTimeout);
         sessionStorage.setItem('videoPlayedThisSession', 'true');
 
-        // Smooth Fade Out
         overlay.style.transition = 'opacity 0.5s ease-out, visibility 0.5s ease-out';
         overlay.style.opacity = '0';
         overlay.style.visibility = 'hidden';
@@ -1295,13 +1501,11 @@ window.handleLaunchVideo = () => {
         }, 500);
     };
 
-    // Auto-hide fallback after 7 seconds
     safetyTimeout = setTimeout(window.skipLaunchVideo, 7000);
 
     video.onended = window.skipLaunchVideo;
     video.onerror = window.skipLaunchVideo;
 
-    // Force play with muted state
     video.muted = true;
     const playPromise = video.play();
 
@@ -1316,7 +1520,6 @@ window.handleLaunchVideo = () => {
 document.addEventListener('DOMContentLoaded', window.handleLaunchVideo);
 
 window.addEventListener('load', () => {
-    // Secondary safety cleanup
     setTimeout(() => {
         const o = document.getElementById('launchVideoOverlay');
         if (o) window.skipLaunchVideo();
@@ -1354,10 +1557,7 @@ class TablePaginator {
         const end = start + this.itemsPerPage;
         const pageItems = this.data.slice(start, end);
 
-        // Execute actual rendering of rows
         this.renderCallback(pageItems, start);
-
-        // Render controls UI
         this.renderControls(totalPages);
     }
 
@@ -1396,7 +1596,6 @@ class TablePaginator {
             </div>
         `;
 
-        // Bind control events safely
         container.querySelector('.prev-btn')?.addEventListener('click', (e) => {
             e.preventDefault();
             if (this.currentPage > 1) {
@@ -1424,7 +1623,6 @@ class TablePaginator {
 
 window.TablePaginator = TablePaginator;
 
-// Initialize global paginators object
 window.adminPaginators = {
     visitors: new TablePaginator('visitor-logs-pagination'),
     contractors: new TablePaginator('contractor-logs-pagination'),
@@ -1473,7 +1671,6 @@ window.toggleAccordion = function(id) {
 
     const isHidden = content.classList.contains('hidden');
 
-    // Toggle targeted section
     if (isHidden) {
         content.classList.remove('hidden');
         if (icon) {
@@ -1506,26 +1703,22 @@ window.showStaffView = function(viewId) {
     try {
         console.log(`📂 Switching to view: ${viewId}`);
 
-        // ✅ MEMORY LEAK PREVENTION: Close camera scanner if open
         if (typeof window.closeScannerModal === 'function') {
             window.closeScannerModal();
         }
 
-        // Hide Auth Area
         const authArea = document.getElementById('staff-auth-area');
         if (authArea) {
             authArea.classList.add('hidden');
             authArea.style.display = 'none';
         }
 
-        // 1. Hide all modern view sections (Class-based)
         const allSections = document.querySelectorAll('.transfer-workflow-container, .view-section, .staff-view-section');
         allSections.forEach(s => {
             s.classList.add('hidden');
             s.style.display = 'none';
         });
 
-        // 2. Define legacy view IDs for deep-cleanup
         const views = [
             'staff-dashboard-container',
             'security-main-container',
@@ -1545,18 +1738,15 @@ window.showStaffView = function(viewId) {
             }
         });
 
-        // 3. Resolve Target Element (Flexible Mapping)
         const target = document.getElementById(viewId) ||
                        document.getElementById(`staff_view_${viewId}`) ||
                        document.getElementById(`${viewId}_section`);
 
         if (target) {
             target.classList.remove('hidden');
-            // Clear inline display style so element preserves its native flex/grid CSS layout
             target.style.display = '';
             console.log(`✅ View ${viewId} is now visible`);
 
-            // Ensure parent section is visible (if nested)
             const parentSection = target.closest('.view-section');
             if (parentSection) {
                 parentSection.classList.remove('hidden');
@@ -1565,8 +1755,6 @@ window.showStaffView = function(viewId) {
         } else {
             console.warn(`⚠️ View Switcher Warning: Element with ID "${viewId}" not found in DOM. Attempting fallback.`);
 
-            // ✅ Task 3: Safety Guard Fallback
-            // Ensure we are logged in before showing any dashboard/docs
             const staff = window.currentStaff || JSON.parse(sessionStorage.getItem('active_staff_user') || 'null');
             if (!staff || !staff.mobile) {
                 console.error("❌ View Switcher: User not authenticated. Forcing Login.");
@@ -1587,7 +1775,6 @@ window.showStaffView = function(viewId) {
             }
         }
 
-        // 4. Trigger Module-Specific Inits
         if ((viewId === 'tasks-management-section' || viewId === 'tasks') && typeof window.loadRoleView === 'function') {
             window.loadRoleView(window.currentStaff);
         }
@@ -1598,6 +1785,10 @@ window.showStaffView = function(viewId) {
 
         if (typeof window.initTopBackButton === 'function') {
             window.initTopBackButton();
+        }
+
+        if (viewId === 'staff-dashboard-container' && typeof window.applyStrictRoleBasedLayout === 'function') {
+            window.applyStrictRoleBasedLayout();
         }
 
         window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -1611,7 +1802,6 @@ window.showStaffView = function(viewId) {
 // ================================================================ */
 
 document.addEventListener('DOMContentLoaded', () => {
-    // 1. Override existing logout buttons
     const attachLogoutListeners = () => {
         const logoutBtns = document.querySelectorAll('#logout-btn, .logout-btn, [onclick*="logoutStaff"]');
         logoutBtns.forEach(btn => {
@@ -1619,8 +1809,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 btn.onclick = (e) => {
                     e.preventDefault();
                     e.stopPropagation();
-                    if (typeof window.executeSecureLogout === 'function') {
-                        window.executeSecureLogout();
+                    if (typeof window.handleGlobalLogout === 'function') {
+                        window.handleGlobalLogout(e);
                     }
                 };
                 btn.dataset.logoutBound = "true";
@@ -1634,25 +1824,22 @@ document.addEventListener('DOMContentLoaded', () => {
         window.initSidebarProfileAndRestrictions();
     }
 
-    // 2. Auto-catch all form submit events ONLY IF valid
     document.addEventListener('submit', (e) => {
         const form = e.target;
         if (form && typeof form.checkValidity === 'function' && !form.checkValidity()) {
-            return; // Don't show spinner if HTML5 form validation fails
+            return;
         }
         if (typeof window.showGlobalSpinner === 'function') {
             window.showGlobalSpinner("Saving Data...");
         }
     }, true);
 
-    // 3. Auto-catch all primary action buttons with validation check
     const attachButtonListeners = () => {
         document.querySelectorAll('button[type="submit"], .btn-primary, .submit-btn, .btn-submit-transfer').forEach(btn => {
             if (!btn.dataset.spinnerBound) {
                 btn.addEventListener('click', (e) => {
                     const form = btn.closest('form');
 
-                    // If button is inside a form, let form submit listener handle spinner safely
                     if (form) {
                         if (form.checkValidity()) {
                             setTimeout(() => {
@@ -1662,7 +1849,6 @@ document.addEventListener('DOMContentLoaded', () => {
                             }, 50);
                         }
                     } else {
-                        // Standalone buttons (not in forms)
                         setTimeout(() => {
                             if (typeof window.showGlobalSpinner === 'function') {
                                 window.showGlobalSpinner("Please wait...");
@@ -1677,7 +1863,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     attachButtonListeners();
 
-    // Observe DOM changes to attach listeners to dynamic elements
     const observer = new MutationObserver(() => {
         attachLogoutListeners();
         attachButtonListeners();
@@ -1686,19 +1871,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
     observer.observe(document.body, { childList: true, subtree: true });
 
-    // 4. Initial Injection
     if (window.injectSignatureFSButtons) window.injectSignatureFSButtons();
 });
 
-/**
- * ✅ Task 3: Global Style Injection for Full-Screen Signatures
- */
 (function injectSignatureStyles() {
     if (document.getElementById('sig-fs-styles')) return;
     const style = document.createElement('style');
     style.id = 'sig-fs-styles';
     style.textContent = `
-        /* Canvas Wrapper Full Screen Mode */
         .canvas-wrapper.sig-full-screen {
             position: fixed !important;
             top: 0 !important;
@@ -1728,7 +1908,6 @@ document.addEventListener('DOMContentLoaded', () => {
             box-shadow: 0 10px 25px rgba(0,0,0,0.1) !important;
         }
 
-        /* Controls Toolbar for Full Screen */
         .sig-fs-controls {
             display: none;
             position: fixed;
@@ -1762,7 +1941,6 @@ document.addEventListener('DOMContentLoaded', () => {
         .sig-fs-btn.clear { background: #f8fafc; color: #ef4444; border: 1px solid #fee2e2; }
         .sig-fs-btn:active { transform: scale(0.95); }
 
-        /* standard small toggle */
         .sig-fs-toggle {
             position: absolute;
             top: 12px;
@@ -1784,25 +1962,16 @@ document.addEventListener('DOMContentLoaded', () => {
         .sig-full-screen .sig-fs-toggle { display: none !important; }
 
         .sig-full-screen .sig-fs-toggle i { font-size: 14px; }
-
-        @keyframes fs-pop {
-            from { opacity: 0; transform: scale(0.95); }
-            to { opacity: 1; transform: scale(1); }
-        }
     `;
     document.head.appendChild(style);
 })();
 
-/**
- * ✅ Auto-Inject Full-Screen Button into all canvas-wrappers
- */
 window.injectSignatureFSButtons = () => {
     document.querySelectorAll('.canvas-wrapper').forEach(wrapper => {
         if (!wrapper.querySelector('.sig-fs-toggle')) {
             const canvas = wrapper.querySelector('canvas');
             if (!canvas || !canvas.id) return;
 
-            // 1. Standard Toggle Button
             const toggleBtn = document.createElement('button');
             toggleBtn.type = "button";
             toggleBtn.className = "sig-fs-toggle";
@@ -1814,11 +1983,9 @@ window.injectSignatureFSButtons = () => {
             };
             wrapper.appendChild(toggleBtn);
 
-            // 2. Full Screen Controls Toolbar
             const controls = document.createElement('div');
             controls.className = "sig-fs-controls";
 
-            // Clear Button
             const clearBtn = document.createElement('button');
             clearBtn.type = "button";
             clearBtn.className = "sig-fs-btn clear";
@@ -1828,7 +1995,6 @@ window.injectSignatureFSButtons = () => {
                 if (window.clearSignaturePad) window.clearSignaturePad(canvas.id);
             };
 
-            // Done Button
             const doneBtn = document.createElement('button');
             doneBtn.type = "button";
             doneBtn.className = "sig-fs-btn done";
@@ -1859,10 +2025,8 @@ window.renderUserProfileImages = function(user) {
 
     console.log(`🖼️ Rendering user profile images for: ${name}`);
 
-    // Side Menu Avatar (v7.6 Fix)
     const sideAvatarContainer = document.getElementById('side-menu-avatar') || document.querySelector('.sidebar-avatar-container') || document.getElementById('menuAvatar');
     if (sideAvatarContainer) {
-        // Ensure clean container
         sideAvatarContainer.innerHTML = '';
         sideAvatarContainer.className = 'w-12 h-12 rounded-full overflow-hidden flex-shrink-0 border-2 border-amber-400 shadow-md flex items-center justify-center bg-indigo-600';
 
@@ -1875,12 +2039,11 @@ window.renderUserProfileImages = function(user) {
         img.className = "w-full h-full object-cover";
         img.onerror = function() {
             this.style.display = 'none';
-            sideAvatarContainer.innerHTML = `<span class="text-white font-black text-xl">${initials}</span>`;
+            sideAvatarContainer.innerHTML = `<span class="text-white font-black text-xl">${window.escapeHTML(initials)}</span>`;
         };
         sideAvatarContainer.appendChild(img);
     }
 
-    // Main Dashboard Avatar
     const mainAvatarContainer = document.getElementById('user-avatar-container') || document.querySelector('.dashboard-avatar-box');
     if (mainAvatarContainer) {
         const imgEl = document.getElementById('user-avatar');
@@ -1919,82 +2082,8 @@ window.renderUserProfileImages = function(user) {
         }
     }
 
-    // Update Name Displays safely
     const nameDisplays = document.querySelectorAll('#user-name, #sidebar-user-name, .user-display-name, .sidebar-user-name, #menuUserName');
     nameDisplays.forEach(el => el.innerText = name);
 };
 
-// ================================================================ */
-// ✅ Task 3: Separate Login Screen & Staff Dashboard Views        */
-// ================================================================ */
-window.switchPortalView = function(activeViewName) {
-    console.log(`🔄 Switching portal view to: ${activeViewName}`);
-
-    // Select all potential wrapper selectors for Login and Dashboard
-    const loginContainers = document.querySelectorAll('#login-screen-container, #staff-auth-area, .login-card, .login-view, #login-wrapper');
-    const dashboardContainers = document.querySelectorAll('#staff-dashboard-container, #staff-dash-area, .dashboard-wrapper, .staff-dashboard-view, #dashboard-main');
-
-    if (activeViewName === 'DASHBOARD') {
-        // 1. Completely remove and hide Login elements
-        loginContainers.forEach(el => {
-            el.style.setProperty('display', 'none', 'important');
-            el.classList.add('hidden-view', 'hidden');
-            el.classList.remove('active-view', 'active-view-flex', 'active');
-        });
-
-        // 2. Show Dashboard elements
-        dashboardContainers.forEach(el => {
-            el.style.setProperty('display', 'block', 'important');
-            el.classList.remove('hidden-view', 'hidden');
-            el.classList.add('active-view');
-        });
-
-        // Reset page scroll position to top
-        window.scrollTo({ top: 0, behavior: 'instant' });
-        document.body.scrollTop = 0;
-        document.documentElement.scrollTop = 0;
-
-        // ✅ ISSUE 2 FIX: Trigger image re-render after view is shown
-        setTimeout(() => {
-            const user = window.currentStaff || JSON.parse(sessionStorage.getItem('active_staff_user') || 'null');
-            if (user && typeof window.renderUserProfileImages === 'function') {
-                window.renderUserProfileImages(user);
-            }
-        }, 100);
-
-    } else if (activeViewName === 'LOGIN') {
-        // 1. Completely hide Dashboard elements
-        dashboardContainers.forEach(el => {
-            el.style.setProperty('display', 'none', 'important');
-            el.classList.add('hidden-view', 'hidden');
-            el.classList.remove('active-view', 'active-view-flex');
-        });
-
-        // 2. Show Login elements
-        loginContainers.forEach(el => {
-            if (el.id === 'login-screen-container') {
-                el.style.setProperty('display', 'flex', 'important');
-                el.classList.add('active-view-flex', 'active');
-            } else {
-                el.style.setProperty('display', 'block', 'important');
-                el.classList.add('active-view');
-            }
-            el.classList.remove('hidden-view', 'hidden');
-        });
-    }
-};
-
-// Auto-trigger on successful authentication
-window.onAuthenticationSuccess = function(userData) {
-    console.log("✅ Authentication Success Event Triggered");
-
-    // Hide login screen and display dashboard strictly
-    window.switchPortalView('DASHBOARD');
-
-    // Render profile details
-    if (typeof window.renderUserProfileImages === 'function') {
-        window.renderUserProfileImages(userData);
-    }
-};
-
-console.log("✅ ui_module.js (v5.2 Stable) Loaded");
+console.log("✅ ui_module.js (v14.0 - Blur-Free Logout Engine) Loaded");

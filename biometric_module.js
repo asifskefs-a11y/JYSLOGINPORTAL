@@ -76,6 +76,7 @@ window.biometricManager = {
                 // Also store locally for "Quick Login" discovery
                 localStorage.setItem('jys_biometric_enrolled', 'true');
                 localStorage.setItem('biometric_enabled', 'true'); // ✅ Unified key for boot check
+                localStorage.setItem('biometric_registered', 'true'); // ✅ Fix for User Request
                 localStorage.setItem('jys_biometric_user', userId);
 
                 if (window.showWhatsAppToast) {
@@ -213,7 +214,7 @@ window.biometricManager = {
         // Save session
         localStorage.setItem('loggedStaff', JSON.stringify(foundUser));
         sessionStorage.setItem('active_staff_user', JSON.stringify(foundUser));
-        localStorage.setItem('app_version', 'v6.8'); // ✅ Static mapping to current target version
+        localStorage.setItem('app_version', 'v8.1'); // ✅ Sync with global version
 
         if (window.triggerSuccessPopup) {
             window.triggerSuccessPopup(`Welcome back, ${foundUser.name || foundUser.fullName}! 🛡️`);

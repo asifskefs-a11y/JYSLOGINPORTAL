@@ -355,7 +355,7 @@ window.handleVisitorSignIn = async (e) => {
 // ================================================================ */
 
 // ✅ VERSION CONTROL (v6.8)
-const APP_VERSION = 'v7.8';
+const APP_VERSION = 'v8.4';
 
 document.addEventListener('DOMContentLoaded', async () => {
     console.log("🚀 SchoolLog Init: DOMContentLoaded triggered");
@@ -409,8 +409,23 @@ document.addEventListener('DOMContentLoaded', async () => {
                 if (authSec) authSec.classList.add('hidden');
                 if (dashSec) dashSec.classList.remove('hidden');
 
+                // ✅ Boot Loader Initialization (v8.3)
                 if (window.loadAdminDashboard) {
                     window.loadAdminDashboard();
+
+                    // Trigger initial data render for the default active tab
+                    setTimeout(() => {
+                        const activeTabBtn = document.querySelector('.admin-nav-tab.active');
+                        if (activeTabBtn) {
+                            // Extract tabId from onclick="window.showAdminTab('tabId')"
+                            const match = activeTabBtn.getAttribute('onclick')?.match(/'([^']+)'/);
+                            if (match && match[1]) {
+                                window.renderTabFromAppCache(match[1]);
+                            }
+                        } else {
+                            window.renderTabFromAppCache('tab-visitor-logs');
+                        }
+                    }, 500);
                 } else {
                     console.log("⏳ Admin: Waiting for admin_module.js...");
                     setTimeout(() => { if (window.loadAdminDashboard) window.loadAdminDashboard(); }, 1000);
@@ -469,10 +484,11 @@ document.addEventListener('DOMContentLoaded', async () => {
                     window.switchPortalView('LOGIN');
                 }
 
-                // ✅ Task 4: Auto Biometric Prompt (v6.8)
+                // ✅ Task 2: Auto Biometric Prompt (v8.1)
                 setTimeout(() => {
                     const isBiometricReady = localStorage.getItem('jys_biometric_enrolled') === 'true' ||
-                                           localStorage.getItem('biometric_enabled') === 'true';
+                                           localStorage.getItem('biometric_enabled') === 'true' ||
+                                           localStorage.getItem('biometric_registered') === 'true';
 
                     if (isBiometricReady && window.quickBiometricLogin) {
                         console.log("🧬 Biometric Enrollment Detected. Auto-prompting...");

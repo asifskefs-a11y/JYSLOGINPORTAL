@@ -158,6 +158,20 @@ window.updateAdminKPIs = function() {
     updateBar('bar-alerts', urgentAlerts, 10);
 };
 
+/**
+ * ✅ Fallback Empty-State HTML Injector
+ * Prevents blank containers when no data is found or loading
+ */
+window.renderEmptyState = function(targetContainerId, message = "No records found.") {
+    const el = document.getElementById(targetContainerId);
+    if (el) {
+        // Automatically determine colspan based on table headers if possible
+        const table = el.closest('table');
+        const colCount = table ? table.querySelectorAll('thead th').length : 10;
+        el.innerHTML = `<tr><td colspan="${colCount}" class="p-12 text-center text-slate-400 font-bold uppercase tracking-widest bg-slate-50/50">${message}</td></tr>`;
+    }
+};
+
 // ================================================================ */
 // ✅ STAFF CENSUS GRID RENDERER (v5.5)                             */
 // ================================================================ */
@@ -220,32 +234,42 @@ window.initAdminRealTimeListeners = function() {
     const registerListener = (node, cacheKey, tabId = null, filterFunc = null) => {
         // ✅ DEBOUNCED RENDERER: Prevents rapid re-renders on bulk Firebase updates
         const debouncedRender = window.debounce(() => {
-            window.updateAdminKPIs();
-            const activeTab = document.querySelector('.tab-section.active')?.id;
-            if (activeTab === tabId && filterFunc) {
-                filterFunc();
-            } else if (activeTab === tabId) {
-                window.renderTabFromAppCache(tabId);
+            try {
+                window.updateAdminKPIs();
+                const activeTab = document.querySelector('.tab-section.active')?.id;
+                if (activeTab === tabId && filterFunc) {
+                    filterFunc();
+                } else if (activeTab === tabId) {
+                    window.renderTabFromAppCache(tabId);
+                }
+            } catch (err) {
+                console.error(`❌ Debounced Render Error (${cacheKey}):`, err);
             }
         }, 150);
 
         activeListeners[node] = onValue(ref(db, node), (snapshot) => {
-            if (snapshot.exists()) {
-                const rawData = snapshot.val();
-                if (rawData && typeof rawData === 'object') {
-                    window.appCache[cacheKey] = Object.entries(rawData).map(([key, val]) => {
-                        if (val && typeof val === 'object') {
-                            return { ...val, firebaseKey: key };
-                        }
-                        return val;
-                    });
+            try {
+                if (snapshot.exists()) {
+                    const rawData = snapshot.val();
+                    if (rawData && typeof rawData === 'object') {
+                        window.appCache[cacheKey] = Object.entries(rawData).map(([key, val]) => {
+                            if (val && typeof val === 'object') {
+                                return { ...val, firebaseKey: key };
+                            }
+                            return val;
+                        });
+                    } else {
+                        window.appCache[cacheKey] = [];
+                    }
                 } else {
                     window.appCache[cacheKey] = [];
                 }
-            } else {
-                window.appCache[cacheKey] = [];
+                debouncedRender();
+            } catch (err) {
+                console.error(`❌ Real-Time Listener Error (${node}):`, err);
             }
-            debouncedRender();
+        }, (error) => {
+            console.error(`❌ Firebase Subscription Failed (${node}):`, error);
         });
     };
 
@@ -291,7 +315,8 @@ window.initAdminRealTimeListeners = function() {
 // ✅ DASHBOARD CORE FLOWS                                          */
 // ================================================================ */
 
-window.loadAdminDashboard = () => {
+window.loadAdminDashboard = function() {
+    console.log("🚀 Initializing Admin Dashboard Modules...");
     window.initAdminRealTimeListeners();
     window.updateAdminProfileHeader();
 
@@ -308,7 +333,12 @@ window.loadAdminDashboard = () => {
     }
 
     setTimeout(() => {
-        window.renderTabFromAppCache('tab-visitor-logs');
+        // Trigger default active tab render
+        if (typeof window.switchAdminTab === 'function') {
+            window.switchAdminTab('tab-visitor-logs');
+        } else {
+            window.renderTabFromAppCache('tab-visitor-logs');
+        }
         window.appCache.isInitialized = true;
     }, 1000);
 };
@@ -322,19 +352,71 @@ window.refreshDashboardData = async () => {
 // ================================================================ */
 
 window.renderTabFromAppCache = (tabId) => {
+    const cleanId = tabId.toLowerCase().replace('tab-', '');
+    console.log(`🏗️ Rendering Admin Module: ${cleanId}`);
+
     window.showGlobalSpinner("Syncing View...");
     try {
-        switch (tabId) {
-            case 'tab-visitor-logs': renderVisitorLogs(window.currentFilteredData.visitors || window.appCache.visitors); break;
-            case 'tab-contractor-logs': renderContractorLogs(window.currentFilteredData.contractors || window.appCache.contractors); break;
-            case 'tab-staff-logs': renderStaffAttendance(window.currentFilteredData.staff || window.appCache.attendance); break;
-            case 'tab-tasks': renderGlobalTaskAudit(window.currentFilteredData.tasks || window.appCache.tasks); break;
-            case 'tab-staff-list': renderStaffDirectory(window.appCache.staff); break;
-            case 'tab-assets': window.filterAssetTable(); break;
-            case 'tab-disposal': window.loadAdminDisposalTable(); break;
-            case 'tab-transfers': window.renderStandardizedAssetTable(window.currentFilteredData.transfers || window.appCache.transfers, 'transfers'); break;
-            case 'tab-settings': if (window.loadGoogleDriveConfig) window.loadGoogleDriveConfig(); break;
+        switch (cleanId) {
+            case 'visitor-logs':
+            case 'visitors':
+                if (window.currentFilteredData.visitors || window.appCache.visitors.length > 0) {
+                    renderVisitorLogs(window.currentFilteredData.visitors || window.appCache.visitors);
+                } else {
+                    window.renderEmptyState('visitor-logs-body', 'No visitor records found');
+                }
+                break;
+            case 'contractor-logs':
+            case 'contractors':
+                if (window.currentFilteredData.contractors || window.appCache.contractors.length > 0) {
+                    renderContractorLogs(window.currentFilteredData.contractors || window.appCache.contractors);
+                } else {
+                    window.renderEmptyState('contractor-logs-body', 'No contractor records found');
+                }
+                break;
+            case 'staff-logs':
+            case 'attendance':
+                if (window.currentFilteredData.staff || window.appCache.attendance.length > 0) {
+                    renderStaffAttendance(window.currentFilteredData.staff || window.appCache.attendance);
+                } else {
+                    window.renderEmptyState('staff-attendance-body', 'No attendance records found');
+                }
+                break;
+            case 'tasks':
+            case 'audit':
+                if (window.currentFilteredData.tasks || window.appCache.tasks.length > 0) {
+                    renderGlobalTaskAudit(window.currentFilteredData.tasks || window.appCache.tasks);
+                } else {
+                    window.renderEmptyState('admin-task-list-body', 'No task audit records found');
+                }
+                break;
+            case 'staff-list':
+            case 'directory':
+            case 'staff':
+                if (window.appCache.staff.length > 0) {
+                    renderStaffDirectory(window.appCache.staff);
+                } else {
+                    window.renderEmptyState('admin-staff-list-body', 'Staff directory is empty');
+                }
+                break;
+            case 'assets':
+                window.filterAssetTable();
+                break;
+            case 'disposal':
+                window.loadAdminDisposalTable();
+                break;
+            case 'transfers':
+            case 'movement':
+                window.renderStandardizedAssetTable(window.currentFilteredData.transfers || window.appCache.transfers, 'transfers');
+                break;
+            case 'settings':
+                if (window.loadGoogleDriveConfig) window.loadGoogleDriveConfig();
+                break;
+            default:
+                console.warn(`⚠️ No handler found for tab: ${tabId}`);
         }
+    } catch (err) {
+        console.error(`❌ Render Error for ${tabId}:`, err);
     } finally {
         window.hideGlobalSpinner();
     }
@@ -398,32 +480,85 @@ function renderContractorLogs(contractors) {
 }
 
 function renderStaffAttendance(attendance) {
-    const body = document.getElementById('staff-attendance-body');
-    if (!body) return;
-    const data = (attendance || []).sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
-    window.adminPaginators.attendance.init(data, (pageItems) => {
-        body.innerHTML = pageItems.length ? pageItems.map(a => `
-            <tr class="hover:bg-slate-50 border-b text-[10px]">
-                <td class="p-4 font-black text-indigo-900 uppercase">${a.name || "-"}</td>
-                <td class="p-4 font-mono text-slate-500">${a.id || "-"}</td>
-                <td class="p-4">${a.mobile || "-"}</td>
-                <td class="p-4 font-bold text-indigo-600">${a.companyName || "N/A"}</td>
-                <td class="p-4">${a.companyId || "N/A"}</td>
-                <td class="p-4 font-bold text-slate-600">${a.branch || a.school || "N/A"}</td>
-                <td class="p-4 text-center"><span class="role-badge role-default">${a.role || "-"}</span></td>
-                <td class="p-4 font-mono text-slate-400">${a.adekPass || "-"}</td>
-                <td class="p-4 font-mono text-slate-400">${a.date || "-"}</td>
-                <td class="p-4 text-emerald-600 font-black">${a.timeIn || "-"}</td>
-                <td class="p-4 text-red-500 font-black">${a.checkOutTime || "-"}</td>
-                <td class="p-4 text-center font-bold">${a.keyStatus || "NONE"}</td>
-                <td class="p-4 text-center">${a.signatureUrl ? `<img src="${a.signatureUrl}" class="h-6 mx-auto rounded border shadow-sm" onclick="window.openImageZoom('${a.signatureUrl}')">` : 'No Sig'}</td>
-                <td class="p-4 text-center">
-                    <button onclick="window.openAttendanceDetailModal('${a.mobile}_${a.timestamp}')" class="text-indigo-600 hover:scale-110 transition-transform">
-                        <i class="fa-solid fa-eye text-base"></i>
-                    </button>
-                </td>
-            </tr>`).join('') : '<tr><td colspan="14" class="p-8 text-center text-gray-400">No records found</td></tr>';
-    });
+    try {
+        const body = document.getElementById('staff-attendance-body') || document.getElementById('attendanceTableBody');
+        if (!body) return;
+
+        // ✅ Task 1: Create staff lookup map for hydration
+        const staffMap = {};
+        if (window.appCache && window.appCache.staff) {
+            window.appCache.staff.forEach(s => {
+                const key = String(s.adekPass || s.mobile || s.id || '').trim().toLowerCase();
+                if (key) staffMap[key] = s;
+            });
+        }
+
+        const data = (attendance || []).sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+
+        if (!window.adminPaginators?.attendance) {
+            console.warn("⏳ adminPaginators.attendance not ready.");
+            body.innerHTML = `<tr><td colspan="14" class="p-8 text-center text-slate-400 font-bold uppercase tracking-widest bg-slate-50/50">Initial loading...</td></tr>`;
+            return;
+        }
+
+        window.adminPaginators.attendance.init(data, (pageItems) => {
+            try {
+                body.innerHTML = pageItems.length ? pageItems.map(a => {
+                    // ✅ Data Hydration: Lookup staff details
+                    const staffIdKey = String(a.adekPass || a.mobile || a.id || '').trim().toLowerCase();
+                    const staffObj = staffMap[staffIdKey] || {};
+
+                    const name = a.name || staffObj.fullName || staffObj.name || "-";
+                    const staffId = a.id || staffObj.adekPass || staffObj.mobile || "-";
+                    const mobile = a.mobile || staffObj.mobile || "-";
+                    const companyName = a.companyName || staffObj.companyName || staffObj.company || 'EFS';
+                    const companyId = a.companyId || staffObj.companyId || staffObj.compId || 'N/A';
+                    const schoolName = a.branch || a.school || staffObj.school || staffObj.schoolBuildingName || 'N/A';
+                    const role = a.role || staffObj.role || staffObj.position || "-";
+                    const adekPass = a.adekPass || staffObj.adekPass || "-";
+
+                    // ✅ Task 2: Fix Signature Thumbnail Rendering
+                    const sigUrl = a.signatureUrl || a.checkInSignatureUrl || "";
+                    let sigHtml = '<span class="text-slate-300 italic text-[8px]">No Signature</span>';
+
+                    if (sigUrl && sigUrl !== "N/A" && sigUrl !== "-") {
+                        const finalSigUrl = window.getDirectDriveImageUrl ? window.getDirectDriveImageUrl(sigUrl) : sigUrl;
+                        sigHtml = `<img src="${finalSigUrl}"
+                                     class="h-8 mx-auto rounded border border-slate-200 bg-white shadow-sm cursor-zoom-in hover:scale-110 transition-transform"
+                                     onerror="this.style.display='none'; this.parentElement.innerHTML='<span class=\'text-rose-400 font-bold\'>Broken Img</span>';"
+                                     onclick="window.openImageZoom('${sigUrl}')">`;
+                    }
+
+                    return `
+                    <tr class="hover:bg-slate-50 border-b text-[10px]">
+                        <td class="p-4 font-black text-indigo-900 uppercase">${name}</td>
+                        <td class="p-4 font-mono text-slate-500">${staffId}</td>
+                        <td class="p-4">${mobile}</td>
+                        <td class="p-4 font-bold text-indigo-600">${companyName}</td>
+                        <td class="p-4 font-bold text-slate-700">${companyId}</td>
+                        <td class="p-4 font-bold text-slate-600">${schoolName}</td>
+                        <td class="p-4 text-center"><span class="role-badge role-default">${role}</span></td>
+                        <td class="p-4 font-mono text-indigo-400 font-bold">${adekPass}</td>
+                        <td class="p-4 font-mono text-slate-400">${a.date || "-"}</td>
+                        <td class="p-4 text-emerald-600 font-black">${a.timeIn || "-"}</td>
+                        <td class="p-4 text-red-500 font-black">${a.checkOutTime || "-"}</td>
+                        <td class="p-4 text-center font-bold">${a.keyStatus || "NONE"}</td>
+                        <td class="p-4 text-center">${sigHtml}</td>
+                        <td class="p-4 text-center">
+                            <button onclick="window.openAttendanceDetailModal('${a.mobile}_${a.timestamp}')" class="text-indigo-600 hover:scale-110 transition-transform">
+                                <i class="fa-solid fa-eye text-base"></i>
+                            </button>
+                        </td>
+                    </tr>`;
+                }).join('') : '<tr><td colspan="14" class="p-8 text-center text-gray-400 font-bold uppercase tracking-widest bg-slate-50/50">No attendance records found</td></tr>';
+            } catch (innerErr) {
+                console.error("❌ Attendance Row Mapping Crash:", innerErr);
+                body.innerHTML = '<tr><td colspan="14" class="p-8 text-center text-rose-500 font-bold">Data Rendering Error</td></tr>';
+            }
+        });
+    } catch (err) {
+        console.error("❌ renderStaffAttendance Critical Error:", err);
+    }
 }
 
 function renderGlobalTaskAudit(tasks) {
@@ -453,106 +588,116 @@ function renderGlobalTaskAudit(tasks) {
 }
 
 function renderStaffDirectory(staff) {
-    const body = document.getElementById('admin-staff-list-body');
-    if (!body) return;
+    try {
+        const body = document.getElementById('admin-staff-list-body') || document.getElementById('staffTableBody');
+        if (!body) return;
 
-    // ✅ Task 3: Filter out invalid/ghost records (Missing name or ID)
-    const validStaff = (staff || []).filter(s => {
-        const name = (s.fullName || s.name || "").trim();
-        const id = (s.adekPass || s.mobile || s.id || "").trim();
-        return name !== "" && name !== "-" && id !== "" && id !== "-";
-    });
+        // ✅ Task 3: Filter out invalid/ghost records (Missing name or ID)
+        const validStaff = (staff || []).filter(s => {
+            const name = (s.fullName || s.name || "").trim();
+            const id = (s.adekPass || s.mobile || s.id || "").trim();
+            return name !== "" && name !== "-" && id !== "" && id !== "-";
+        });
 
-    // ✅ Safety check for Paginator Initialization
-    if (!window.adminPaginators?.directory) {
-        console.warn("⏳ adminPaginators.directory not ready, waiting...");
-        setTimeout(() => renderStaffDirectory(staff), 500);
-        return;
-    }
+        // ✅ Safety check for Paginator Initialization
+        if (!window.adminPaginators?.directory) {
+            console.warn("⏳ adminPaginators.directory not ready, waiting...");
+            body.innerHTML = '<tr><td colspan="10" class="p-8 text-center text-slate-400 font-bold uppercase tracking-widest bg-slate-50/50">Synchronizing directory...</td></tr>';
+            setTimeout(() => renderStaffDirectory(staff), 500);
+            return;
+        }
 
-    window.adminPaginators.directory.init(validStaff, (pageItems) => {
-        body.innerHTML = pageItems.length ? pageItems.map(s => {
-            // Task 3: Visual Expiry Badge logic
-            const userId = s.adekPass || s.mobile;
-            const docNode = window.appCache.staffDocs ? window.appCache.staffDocs[userId] : null;
-            let expiryBadge = "";
-            const displayName = s.fullName || s.name || "Staff";
+        window.adminPaginators.directory.init(validStaff, (pageItems) => {
+            try {
+                body.innerHTML = pageItems.length ? pageItems.map(s => {
+                    // Task 3: Visual Expiry Badge logic
+                    const userId = s.adekPass || s.mobile;
+                    const docNode = window.appCache.staffDocs ? window.appCache.staffDocs[userId] : null;
+                    let expiryBadge = "";
+                    const displayName = s.fullName || s.name || "Staff";
 
-            if (docNode && docNode.docs) {
-                let worstDays = 999;
-                let worstDoc = "";
-                Object.entries(docNode.docs).forEach(([key, d]) => {
-                    if (d.expiryDate && d.status === 'APPROVED') {
-                        const days = Math.ceil((new Date(d.expiryDate) - new Date()) / (1000 * 60 * 60 * 24));
-                        if (days < worstDays) {
-                            worstDays = days;
-                            worstDoc = key.replace(/_/g, ' ');
+                    if (docNode && docNode.docs) {
+                        let worstDays = 999;
+                        let worstDoc = "";
+                        Object.entries(docNode.docs).forEach(([key, d]) => {
+                            if (d.expiryDate && d.status === 'APPROVED') {
+                                const days = Math.ceil((new Date(d.expiryDate) - new Date()) / (1000 * 60 * 60 * 24));
+                                if (days < worstDays) {
+                                    worstDays = days;
+                                    worstDoc = key.replace(/_/g, ' ');
+                                }
+                            }
+                        });
+
+                        if (worstDays <= 0) {
+                            expiryBadge = `<div class="mt-1 px-2 py-0.5 bg-rose-600 text-white text-[7px] font-black rounded-full pulse-badge uppercase">❌ EXPIRED (${worstDoc})</div>`;
+                        } else if (worstDays <= 30) {
+                            expiryBadge = `<div class="mt-1 px-2 py-0.5 bg-amber-500 text-white text-[7px] font-black rounded-full uppercase">⚠️ EXPIRING SOON (${worstDoc}: ${worstDays}d)</div>`;
                         }
                     }
-                });
 
-                if (worstDays <= 0) {
-                    expiryBadge = `<div class="mt-1 px-2 py-0.5 bg-rose-600 text-white text-[7px] font-black rounded-full pulse-badge uppercase">❌ EXPIRED (${worstDoc})</div>`;
-                } else if (worstDays <= 30) {
-                    expiryBadge = `<div class="mt-1 px-2 py-0.5 bg-amber-500 text-white text-[7px] font-black rounded-full uppercase">⚠️ EXPIRING SOON (${worstDoc}: ${worstDays}d)</div>`;
-                }
+                    // ✅ ADDED: Profile Submission Status Badge
+                    let statusBadgeText = s.role || s.position || "N/A";
+                    let statusBadge = `<span class="role-badge role-default">${statusBadgeText}</span>`;
+                    if (s.status === "PENDING_APPROVAL" || s.isProfileSubmitted === true && s.status !== "APPROVED") {
+                        statusBadge += `<div class="mt-1 px-2 py-0.5 bg-indigo-100 text-indigo-700 text-[6px] font-black rounded-full uppercase border border-indigo-200">🔍 PENDING REVIEW</div>`;
+                    } else if (s.status === "APPROVED") {
+                        statusBadge += `<div class="mt-1 px-2 py-0.5 bg-emerald-100 text-emerald-700 text-[6px] font-black rounded-full uppercase border border-emerald-200">✅ VERIFIED</div>`;
+                    }
+
+                    // ✅ Task 1: Safe Object Property Extraction & Fallback Guards
+                    const photoUrl = window.formatDriveImageUrl(s.profilePicUrl || s.photoUrl || s.profilePic || s.avatar, displayName);
+                    const name = s.fullName || s.name || 'N/A';
+                    const password = s.password || s.appPassword || '••••';
+                    const adekPass = s.adekPass || s.staffId || 'N/A';
+                    const school = s.school || s.branch || 'N/A';
+                    const position = s.role || s.position || 'N/A';
+                    const company = s.companyName || s.company || 'EFS';
+                    const compId = s.companyId || s.compId || 'N/A';
+                    const mobile = s.mobile || s.phone || 'N/A';
+
+                    // ✅ Task 2: High-Contrast Table Row (Standardized Template)
+                    return `
+                    <tr class="border-b border-slate-100 hover:bg-slate-50 transition-colors text-slate-700 text-[10px]">
+                        <td class="p-4 text-center">
+                            <img src="${photoUrl}"
+                                 loading="lazy"
+                                 onerror="this.onerror=null; this.src='https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=4f46e5&color=fff';"
+                                 class="w-9 h-9 rounded-full border border-slate-200 shadow-sm mx-auto object-cover profile-avatar-img">
+                        </td>
+                        <td class="p-4">
+                            <div class="font-black text-indigo-900 uppercase">${name}</div>
+                            ${expiryBadge}
+                        </td>
+                        <td class="p-4 font-mono text-slate-600 font-bold">${password}</td>
+                        <td class="p-4 font-mono text-indigo-600 font-black">${adekPass}</td>
+                        <td class="p-4 font-bold text-slate-600">${school}</td>
+                        <td class="p-4 text-center">${statusBadge}</td>
+                        <td class="p-4 font-bold text-slate-700">${company}</td>
+                        <td class="p-4 font-mono text-slate-500 font-bold">${compId}</td>
+                        <td class="p-4 font-mono text-slate-500 font-bold">${mobile}</td>
+                        <td class="p-4 text-center">
+                            <div class="flex items-center justify-center gap-2">
+                                <button onclick="window.openEditStaffModal('${s.firebaseKey || s.mobile}')"
+                                        class="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-400 hover:bg-indigo-600 hover:text-white transition-all flex items-center justify-center" title="Edit Staff">
+                                    <i class="fa-solid fa-user-pen text-xs"></i>
+                                </button>
+                                <button onclick="window.openStaffDocumentReviewModal('${s.adekPass || s.mobile}')"
+                                        class="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-500 hover:bg-emerald-600 hover:text-white transition-all flex items-center justify-center" title="Review Documents">
+                                    <i class="fa-solid fa-eye text-xs"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>`;
+                }).join('') : '<tr><td colspan="10" class="p-12 text-center text-slate-400 font-bold uppercase tracking-widest bg-slate-50/50">No staff records found</td></tr>';
+            } catch (innerErr) {
+                console.error("❌ Staff Row Mapping Crash:", innerErr);
+                body.innerHTML = '<tr><td colspan="10" class="p-8 text-center text-rose-500 font-bold">Data Rendering Error</td></tr>';
             }
-
-            // ✅ ADDED: Profile Submission Status Badge
-            let statusBadgeText = s.role || s.position || "N/A";
-            let statusBadge = `<span class="role-badge role-default">${statusBadgeText}</span>`;
-            if (s.status === "PENDING_APPROVAL" || s.isProfileSubmitted === true && s.status !== "APPROVED") {
-                statusBadge += `<div class="mt-1 px-2 py-0.5 bg-indigo-100 text-indigo-700 text-[6px] font-black rounded-full uppercase border border-indigo-200">🔍 PENDING REVIEW</div>`;
-            } else if (s.status === "APPROVED") {
-                statusBadge += `<div class="mt-1 px-2 py-0.5 bg-emerald-100 text-emerald-700 text-[6px] font-black rounded-full uppercase border border-emerald-200">✅ VERIFIED</div>`;
-            }
-
-            // ✅ Task 1: Safe Object Property Extraction & Fallback Guards
-            const photoUrl = window.formatDriveImageUrl(s.profilePicUrl || s.photoUrl || s.profilePic || s.avatar, displayName);
-            const name = s.fullName || s.name || 'N/A';
-            const password = s.password || s.appPassword || '••••';
-            const adekPass = s.adekPass || s.staffId || 'N/A';
-            const school = s.school || s.branch || 'N/A';
-            const position = s.role || s.position || 'N/A';
-            const company = s.companyName || s.company || 'EFS';
-            const compId = s.companyId || s.compId || 'N/A';
-            const mobile = s.mobile || s.phone || 'N/A';
-
-            // ✅ Task 2: High-Contrast Table Row (Standardized Template)
-            return `
-            <tr class="border-b border-slate-100 hover:bg-slate-50 transition-colors text-slate-700 text-[10px]">
-                <td class="p-4 text-center">
-                    <img src="${photoUrl}"
-                         loading="lazy"
-                         onerror="this.onerror=null; this.src='https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=4f46e5&color=fff';"
-                         class="w-9 h-9 rounded-full border border-slate-200 shadow-sm mx-auto object-cover profile-avatar-img">
-                </td>
-                <td class="p-4">
-                    <div class="font-black text-indigo-900 uppercase">${name}</div>
-                    ${expiryBadge}
-                </td>
-                <td class="p-4 font-mono text-slate-600 font-bold">${password}</td>
-                <td class="p-4 font-mono text-indigo-600 font-black">${adekPass}</td>
-                <td class="p-4 font-bold text-slate-600">${school}</td>
-                <td class="p-4 text-center">${statusBadge}</td>
-                <td class="p-4 font-bold text-slate-700">${company}</td>
-                <td class="p-4 font-mono text-slate-500 font-bold">${compId}</td>
-                <td class="p-4 font-mono text-slate-500 font-bold">${mobile}</td>
-                <td class="p-4 text-center">
-                    <div class="flex items-center justify-center gap-2">
-                        <button onclick="window.openEditStaffModal('${s.firebaseKey || s.mobile}')"
-                                class="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-400 hover:bg-indigo-600 hover:text-white transition-all flex items-center justify-center" title="Edit Staff">
-                            <i class="fa-solid fa-user-pen text-xs"></i>
-                        </button>
-                        <button onclick="window.openStaffDocumentReviewModal('${s.adekPass || s.mobile}')"
-                                class="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-500 hover:bg-emerald-600 hover:text-white transition-all flex items-center justify-center" title="Review Documents">
-                            <i class="fa-solid fa-eye text-xs"></i>
-                        </button>
-                    </div>
-                </td>
-            </tr>`;
-        }).join('') : '<tr><td colspan="10" class="p-12 text-center text-slate-400 font-bold uppercase tracking-widest bg-slate-50/50">No staff records found</td></tr>';
-    });
+        });
+    } catch (err) {
+        console.error("❌ renderStaffDirectory Critical Error:", err);
+    }
 }
 
 // ================================================================ */
@@ -578,14 +723,24 @@ window.filterContractorTable = window.debounce(() => {
 }, 300);
 
 window.filterStaffTable = window.debounce(() => {
-    const q = document.getElementById('staff-search')?.value?.toLowerCase() || '';
-    const d = document.getElementById('staff-date-filter')?.value;
-    const r = document.getElementById('staff-role-filter')?.value;
-    let f = window.appCache.attendance;
-    if (q) f = f.filter(a => (a.name||'').toLowerCase().includes(q) || (a.mobile||'').includes(q));
-    if (d) f = f.filter(a => a.date === new Date(d).toLocaleDateString());
-    if (r && r !== 'all') f = f.filter(a => (a.role||'').toLowerCase().trim() === r.toLowerCase().trim());
-    window.currentFilteredData.staff = f; renderStaffAttendance(f);
+    try {
+        const q = document.getElementById('staff-search')?.value?.toLowerCase() || '';
+        const d = document.getElementById('staff-date-filter')?.value;
+        const r = document.getElementById('staff-role-filter')?.value;
+        let f = window.appCache.attendance;
+
+        if (q) f = f.filter(a => (a.name||'').toLowerCase().includes(q) || (a.mobile||'').includes(q));
+        if (d) {
+            const filterDateStr = new Date(d).toLocaleDateString();
+            f = f.filter(a => a.date === filterDateStr);
+        }
+        if (r && r !== 'all') f = f.filter(a => (a.role||'').toLowerCase().trim() === r.toLowerCase().trim());
+
+        window.currentFilteredData.staff = f;
+        renderStaffAttendance(f);
+    } catch (err) {
+        console.error("❌ filterStaffTable Crash:", err);
+    }
 }, 300);
 
 window.filterStaffDirectory = () => {
@@ -1275,72 +1430,79 @@ window.openAttendanceDetailModal = function(staffKey) {
     if (!modal) return;
 
     modal.innerHTML = `
-        <div class="bg-white w-full max-w-xl rounded-[40px] overflow-hidden shadow-2xl p-8 sm:p-10 relative fade-in">
-            <div class="flex justify-between items-center mb-8 border-b border-slate-100 pb-5">
+        <div class="bg-white w-full max-w-11/12 md:max-w-3xl rounded-[2.5rem] overflow-hidden shadow-2xl relative flex flex-col max-h-[90vh] fade-in">
+            <!-- ✅ Task 1: Sticky Header -->
+            <div class="sticky top-0 bg-white/90 backdrop-blur-md z-50 p-6 border-b border-slate-100 flex justify-between items-center shrink-0">
                 <div>
-                    <h3 class="text-2xl font-black text-indigo-900 uppercase tracking-tight">Attendance Record</h3>
-                    <p class="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] mt-1">Detailed Shift Log</p>
+                    <h3 class="text-xl font-black text-indigo-900 uppercase tracking-tight">Attendance Record</h3>
+                    <p class="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">Detailed Shift Log</p>
                 </div>
-                <button onclick="document.getElementById('view-staff-modal').classList.add('hidden')" class="w-10 h-10 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center hover:bg-red-50 hover:text-red-500 transition-all text-xl">&times;</button>
+                <button onclick="document.getElementById('view-staff-modal').classList.add('hidden')"
+                        class="w-10 h-10 rounded-full bg-slate-50 text-slate-400 flex items-center justify-center hover:bg-rose-50 hover:text-rose-500 transition-all shadow-sm border border-slate-100">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
             </div>
 
-            <div class="space-y-6 text-gray-800">
+            <!-- ✅ Task 1: Scrollable Body -->
+            <div class="overflow-y-auto p-6 md:p-8 space-y-8 flex-1 custom-scrollbar">
                 <!-- Profile Header -->
-                <div class="flex items-center gap-5 bg-indigo-50 p-5 rounded-[2rem] border border-indigo-100 shadow-sm">
-                    <div class="w-20 h-20 bg-indigo-600 rounded-3xl flex items-center justify-center text-white text-3xl font-black shadow-lg shadow-indigo-200">
+                <div class="flex items-center gap-5 bg-indigo-50/50 p-5 rounded-[2rem] border border-indigo-100">
+                    <div class="w-16 h-16 bg-indigo-600 rounded-2xl flex items-center justify-center text-white text-2xl font-black shadow-lg shadow-indigo-200 shrink-0">
                         ${record.name ? record.name.charAt(0).toUpperCase() : '?'}
                     </div>
                     <div class="flex-1 min-w-0">
                         <h4 class="font-black text-indigo-950 uppercase text-lg truncate">${record.name || 'Unknown Staff'}</h4>
                         <div class="flex flex-wrap gap-2 mt-1">
-                            <span class="px-3 py-1 bg-indigo-100 text-indigo-700 text-[9px] font-black rounded-lg uppercase">${record.role || 'Staff'}</span>
-                            <span class="px-3 py-1 bg-white/60 text-slate-500 text-[9px] font-bold rounded-lg border border-indigo-100">${record.mobile || 'No Mobile'}</span>
+                            <span class="px-2.5 py-1 bg-white text-indigo-700 text-[8px] font-black rounded-lg uppercase border border-indigo-100">${record.role || 'Staff'}</span>
+                            <span class="px-2.5 py-1 bg-white text-slate-500 text-[8px] font-bold rounded-lg border border-slate-100">${record.mobile || 'No Mobile'}</span>
                         </div>
                     </div>
                 </div>
 
-                <!-- Timing Grid -->
-                <div class="grid grid-cols-2 gap-4">
-                    <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200 shadow-inner">
-                        <span class="text-[9px] font-black text-emerald-600 uppercase block mb-1 tracking-wider"><i class="fa-solid fa-right-to-bracket mr-1"></i> Checked In</span>
+                <!-- Timing & Info Grid (Responsive 2-Col) -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200">
+                        <span class="text-[8px] font-black text-emerald-600 uppercase block mb-1 tracking-wider"><i class="fa-solid fa-right-to-bracket mr-1"></i> Checked In</span>
                         <span class="font-black text-slate-900 text-sm">${record.timeIn || '--:--'}</span>
                     </div>
-                    <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200 shadow-inner">
-                        <span class="text-[9px] font-black text-rose-500 uppercase block mb-1 tracking-wider"><i class="fa-solid fa-right-from-bracket mr-1"></i> Checked Out</span>
+                    <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200">
+                        <span class="text-[8px] font-black text-rose-500 uppercase block mb-1 tracking-wider"><i class="fa-solid fa-right-from-bracket mr-1"></i> Checked Out</span>
                         <span class="font-black text-slate-900 text-sm">${record.checkOutTime || '--:--'}</span>
                     </div>
-                </div>
-
-                <!-- Info Grid -->
-                <div class="grid grid-cols-2 gap-4">
                     <div class="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm">
-                        <span class="text-[9px] font-black text-slate-400 uppercase block mb-1">Date of Shift</span>
+                        <span class="text-[8px] font-black text-slate-400 uppercase block mb-1">Date of Shift</span>
                         <span class="font-bold text-slate-700 text-xs">${record.date || '-'}</span>
                     </div>
                     <div class="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm">
-                        <span class="text-[9px] font-black text-slate-400 uppercase block mb-1">Key Status</span>
+                        <span class="text-[8px] font-black text-slate-400 uppercase block mb-1">Key Status</span>
                         <span class="font-black text-indigo-600 text-xs">${record.keyStatus || 'NONE'}</span>
                     </div>
                 </div>
 
-                <!-- Signatures -->
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
-                    <div class="text-center bg-white p-5 rounded-3xl border border-slate-100 shadow-sm">
-                        <span class="text-[9px] font-black text-indigo-400 uppercase block mb-3 tracking-widest underline decoration-2 underline-offset-4">Entry Signature</span>
-                        <div class="h-24 flex items-center justify-center bg-slate-50 rounded-2xl border border-dashed border-slate-200">
-                            ${record.signatureUrl ? `<img src="${window.getDirectDriveImageUrl(record.signatureUrl)}" class="max-h-20 object-contain mix-blend-multiply" onclick="window.openImageZoom('${record.signatureUrl}')">` : '<span class="text-[10px] font-bold text-slate-300 uppercase">No Signature</span>'}
+                <!-- Signatures (Responsive Grid) -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-6 pt-2">
+                    <div class="text-center">
+                        <span class="text-[9px] font-black text-indigo-400 uppercase block mb-3 tracking-[0.2em]">Entry Signature</span>
+                        <div class="h-32 flex items-center justify-center bg-white rounded-3xl border-2 border-slate-100 shadow-inner group overflow-hidden">
+                            ${record.signatureUrl ? `<img src="${window.getDirectDriveImageUrl(record.signatureUrl)}" class="max-h-24 object-contain transition-transform group-hover:scale-110" onclick="window.openImageZoom('${record.signatureUrl}')">` : '<span class="text-[10px] font-bold text-slate-200 uppercase">No Signature</span>'}
                         </div>
                     </div>
-                    <div class="text-center bg-white p-5 rounded-3xl border border-slate-100 shadow-sm">
-                        <span class="text-[9px] font-black text-rose-400 uppercase block mb-3 tracking-widest underline decoration-2 underline-offset-4">Exit Signature</span>
-                        <div class="h-24 flex items-center justify-center bg-slate-50 rounded-2xl border border-dashed border-slate-200">
-                            ${record.checkOutSignatureUrl ? `<img src="${window.getDirectDriveImageUrl(record.checkOutSignatureUrl)}" class="max-h-20 object-contain mix-blend-multiply" onclick="window.openImageZoom('${record.checkOutSignatureUrl}')">` : '<span class="text-[10px] font-bold text-slate-300 uppercase">No Signature</span>'}
+                    <div class="text-center">
+                        <span class="text-[9px] font-black text-rose-400 uppercase block mb-3 tracking-[0.2em]">Exit Signature</span>
+                        <div class="h-32 flex items-center justify-center bg-white rounded-3xl border-2 border-slate-100 shadow-inner group overflow-hidden">
+                            ${record.checkOutSignatureUrl ? `<img src="${window.getDirectDriveImageUrl(record.checkOutSignatureUrl)}" class="max-h-24 object-contain transition-transform group-hover:scale-110" onclick="window.openImageZoom('${record.checkOutSignatureUrl}')">` : '<span class="text-[10px] font-bold text-slate-200 uppercase">Not Checked Out</span>'}
                         </div>
                     </div>
                 </div>
             </div>
 
-            <button onclick="document.getElementById('view-staff-modal').classList.add('hidden')" class="w-full mt-10 py-5 bg-indigo-900 text-white rounded-2xl font-black text-sm uppercase tracking-[0.2em] shadow-2xl shadow-indigo-950/20 active:scale-95 transition-all">Close Shift Audit</button>
+            <!-- Footer -->
+            <div class="p-6 bg-slate-50 border-t border-slate-100 flex justify-center shrink-0">
+                <button onclick="document.getElementById('view-staff-modal').classList.add('hidden')"
+                        class="px-10 py-4 bg-slate-900 text-white rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] shadow-xl active:scale-95 transition-all">
+                    Close Record
+                </button>
+            </div>
         </div>
     `;
     modal.classList.remove('hidden');

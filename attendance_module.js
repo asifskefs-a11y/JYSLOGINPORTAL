@@ -682,10 +682,14 @@ window.handleStaffCheckIn = async function(staff, btn) {
     console.log(`🔐 handleStaffCheckIn started for: ${staff.fullName || staff.name}`);
     const isSecurity = (staff.role || '').toLowerCase().includes('security');
 
-    // ✅ MANDATED FIX: Biometric Verification Fast-Track
+    // ✅ Task 2: Unified Biometric Fast-Track (v8.1)
     let biometricVerified = false;
-    if (staff.biometricEnabled) {
+    if (staff.biometricEnabled || localStorage.getItem('biometric_registered') === 'true') {
+        console.log("🧬 Biometric detected. Prompting for authentication...");
         biometricVerified = await window.biometricManager.verify();
+        if (!biometricVerified) {
+             console.warn("🧬 Biometric failed or cancelled. Falling back to password.");
+        }
     }
 
     const startWorkflow = () => {
@@ -721,8 +725,8 @@ window.handleStaffCheckOut = async function(staff, session, btn) {
     const hasKey = (session.keyStatus === 'HELD' || session.keyCollected === 'YES');
     const isSecurity = (staff.role || '').toLowerCase().includes('security');
 
-    // ✅ MANDATED FIX: Biometric Verification Fast-Track
-    if (staff.biometricEnabled) {
+    // ✅ Task 2: Unified Biometric Fast-Track (v8.1)
+    if (staff.biometricEnabled || localStorage.getItem('biometric_registered') === 'true') {
         const verified = await window.biometricManager.verify();
         if (!verified) return; // Stop if biometric cancelled/failed
     }

@@ -56,7 +56,7 @@ window.openStaffDocumentReviewModal = async function(staffMobile) {
             const staffUser = Object.values(allStaff).find(u => u.adekPass === staffMobile || u.mobile === staffMobile);
 
             if (staffUser) {
-                // ✅ Task 2: 100% Dynamic Bio-Data Resolution (v7.4)
+                // ✅ Task 2: Multi-Path Data Resolution (v7.4)
                 const rawStaff = staffUser || {};
                 const bio = {
                     ...(rawStaff.bioData || {}),
@@ -64,6 +64,24 @@ window.openStaffDocumentReviewModal = async function(staffMobile) {
                     ...(rawStaff.bio_data || {}),
                     ...((rawStaff.documents && rawStaff.documents.biodata) || {}),
                     ...rawStaff // fallback to root properties
+                };
+
+                // Helper to resolve embeddable URL and type (Fixes 429 Rate Limit)
+                const resolveMediaType = (url) => {
+                    if (!url || url === 'N/A' || url === '-') return null;
+                    if (url.startsWith('data:image')) return { type: 'image', url };
+                    if (url.startsWith('data:application/pdf')) return { type: 'pdf', url };
+
+                    const driveRegex = /\/file\/d\/([a-zA-Z0-9_-]+)|[?&]id=([a-zA-Z0-9_-]+)/;
+                    const match = url.match(driveRegex);
+                    if (match) {
+                        const fileId = match[1] || match[2];
+                        // Native Drive Preview bypasses Google Docs Viewer 429 errors
+                        return { type: 'drive_embed', url: `https://drive.google.com/file/d/${fileId}/preview` };
+                    }
+
+                    if (url.match(/\.(jpg|jpeg|png|webp)$/i)) return { type: 'image', url };
+                    return { type: 'link', url };
                 };
 
                 // 1. Fixed Core Identity Fields
@@ -158,9 +176,20 @@ window.openStaffDocumentReviewModal = async function(staffMobile) {
                 }
             }
 
+            const media = resolveMediaType(d.driveFileUrl);
+            let previewHtml = '';
+
+            if (media) {
+                if (media.type === 'image') {
+                    previewHtml = `<img src="${media.url}" class="w-full h-auto max-h-[300px] object-contain rounded-xl border border-slate-100 mb-3 cursor-zoom-in" onclick="window.open('${media.url}', '_blank')">`;
+                } else if (media.type === 'drive_embed' || media.type === 'pdf') {
+                    previewHtml = `<iframe src="${media.url}" class="w-full h-[300px] rounded-xl border border-slate-100 mb-3" frameborder="0"></iframe>`;
+                }
+            }
+
             return `
                 <div class="p-5 bg-white rounded-2xl border border-slate-200 mb-4 shadow-sm transition-all hover:border-indigo-200 ${expiryClass}">
-                    <div class="flex justify-between items-start mb-3">
+                    <div class="flex justify-between items-start mb-4">
                         <div class="flex flex-col">
                             <span class="font-bold text-[#1e293b] text-sm uppercase tracking-tight">${friendlyTitle}</span>
                             <div class="text-[11px] font-medium text-[#64748b] mt-1">
@@ -176,12 +205,15 @@ window.openStaffDocumentReviewModal = async function(staffMobile) {
                         }">${status}</span>
                     </div>
 
-                    <div class="flex flex-col gap-2 mt-4">
+                    <!-- DIRECT MEDIA PREVIEW (v7.8 Fix) -->
+                    ${previewHtml}
+
+                    <div class="flex flex-col gap-2 mt-2">
                         ${isUploaded ? `
                             <div class="flex gap-2 w-full">
                                 <button onclick="window.open('${d.driveFileUrl}', '_blank'); return false;"
                                    class="flex-1 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-[10px] font-black uppercase text-center shadow-lg shadow-indigo-500/20 transition-all active:scale-95 flex items-center justify-center gap-2">
-                                    <i class="fa-solid fa-eye"></i> Preview
+                                    <i class="fa-solid fa-eye"></i> View Full
                                 </button>
 
                                 <button onclick="window.downloadDocument('${d.driveFileUrl}', '${friendlyTitle}_${staffMobile}')"
