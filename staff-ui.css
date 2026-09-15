@@ -300,7 +300,8 @@ body {
     color: #94a3b8 !important;
     text-transform: uppercase !important;
     margin-bottom: 4px !important;
-    white-space: nowrap !important;
+    white-space: normal !important;
+    line-height: 1.2 !important;
 }
 
 .stat-card .number {

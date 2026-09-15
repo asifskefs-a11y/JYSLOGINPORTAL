@@ -1,5 +1,5 @@
 import { db } from './firebase_config.js';
-import { ref, set, get, update, runTransaction, push, remove, onValue } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+import { ref, set, get, update, runTransaction, push, remove, onValue, query, orderByChild, equalTo } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
 // --- VISITOR SYSTEM (v3.5.1 - FIXED) ---
 let vCanvas, vCtx, vDrawing = false;
@@ -154,6 +154,110 @@ window.generateKeyReturnPin = () => {
     return Math.floor(1000 + Math.random() * 9000).toString();
 };
 
+/**
+ * REAL-TIME DATABASE CHECK-OUT PERSISTENCE CHECKER (v3.6 Upgrade)
+ */
+window.handlePhoneLookup = async function(phoneNumber) {
+    const cleanPhone = (phoneNumber || "").toString().trim();
+    if (cleanPhone.length < 8) return;
+
+    console.log("🔍 Fetching Visitor History for:", cleanPhone);
+
+    const mode = window.portalMode || 'visitor';
+    const dbNode = mode === 'contractor' ? 'contractors' : 'visitors';
+
+    try {
+        const q = query(ref(db, dbNode), orderByChild('mobile'), equalTo(cleanPhone));
+        const snapshot = await get(q);
+
+        let activeSession = null;
+        let lastCompletedProfile = null;
+
+        if (snapshot.exists()) {
+            snapshot.forEach(child => {
+                const record = child.val();
+                record.firebaseKey = child.key;
+
+                // 1. STRICT ACTIVE VISIT FILTERING
+                if (record.status === 'active' || !record.outTime || record.outTime === '-') {
+                    activeSession = record;
+                } else if (record.status === 'completed' || record.status === 'SIGNED OUT') {
+                    // Keep track of the most recent profile to auto-fill
+                    if (!lastCompletedProfile || record.timestamp > lastCompletedProfile.timestamp) {
+                        lastCompletedProfile = record;
+                    }
+                }
+            });
+        }
+
+        // --- DECISION LOGIC ---
+
+        if (activeSession) {
+            // CONDITION 1: ACTIVE VISIT EXISTS -> FORCE CHECK-OUT VIEW
+            console.log("⚠️ Active Session Found! Forcing Check-Out Screen.");
+            const sessionData = {
+                ...activeSession,
+                name: activeSession.name || activeSession.fullName,
+                id: activeSession.id,
+                timeIn: activeSession.timeIn,
+                mode: mode
+            };
+            localStorage.setItem('vActive', JSON.stringify(sessionData));
+            window.checkVisitorSession();
+        }
+        else {
+            // CONDITION 2: ALL PREVIOUS VISITS ARE CHECKED-OUT -> ALLOW NEW CHECK-IN
+            console.log("🆕 No active stay. Registration Form allowed.");
+
+            // Only clear if we were showing a sign-out area previously
+            const wasActive = localStorage.getItem('vActive');
+            if (wasActive) {
+                localStorage.removeItem('vActive');
+                window.checkVisitorSession();
+            }
+
+            if (lastCompletedProfile) {
+                // AUTO-FILL FEATURE: Pre-populate from last completed visit
+                console.log("🔄 Repeat Visitor Detected. Auto-filling saved profile.");
+                window.autoFillVisitorForm({
+                    name: lastCompletedProfile.name || lastCompletedProfile.fullName || '',
+                    company: lastCompletedProfile.company || '',
+                    contractorId: lastCompletedProfile.contractorId || ''
+                });
+            } else {
+                console.log("🆕 Brand New Visitor. Fresh blank form.");
+                // Ensure form is clean if phone number was changed to a new one
+                window.autoFillVisitorForm({ name: '', company: '', contractorId: '' });
+            }
+        }
+    } catch (err) {
+        console.error("Phone lookup error:", err);
+    }
+};
+
+/**
+ * AUTO-FILL UI HELPER
+ */
+window.autoFillVisitorForm = (profile) => {
+    const vName = document.getElementById('v-name');
+    const vCompany = document.getElementById('v-company');
+    const contractorId = document.getElementById('contractorId');
+
+    if (vName) vName.value = profile.name || '';
+    if (vCompany) vCompany.value = profile.company || '';
+    if (contractorId) contractorId.value = profile.contractorId || '';
+
+    // Brief visual feedback for auto-fill
+    if (profile.name || profile.company) {
+        [vName, vCompany, contractorId].forEach(el => {
+            if (el && el.value) {
+                el.style.backgroundColor = '#EEF2FF'; // Indigo-50
+                setTimeout(() => { el.style.backgroundColor = ''; }, 1500);
+            }
+        });
+    }
+};
+
 window.checkVisitorSession = () => {
     const active = localStorage.getItem('vActive');
     const signInArea = document.getElementById('v-signin-area');
@@ -172,7 +276,17 @@ window.checkVisitorSession = () => {
             if (activeName) activeName.innerText = data.name;
             if (activeId) activeId.innerText = data.id;
             if (activeTimeIn) activeTimeIn.innerText = data.timeIn;
-            if (activePin && data.keyCollected === 'YES') activePin.innerText = "🔑 PIN: " + data.keyReturnPin; // NEW
+            const activePin = document.getElementById('v-active-pin');
+            if (activePin) {
+                if (data.keyCollected === 'YES' || data.keyReturnPin) {
+                    activePin.innerText = data.keyReturnPin || "----";
+                    const pinBox = document.getElementById('v-active-pin-box');
+                    if (pinBox) pinBox.classList.remove('hidden');
+                } else {
+                    const pinBox = document.getElementById('v-active-pin-box');
+                    if (pinBox) pinBox.classList.add('hidden');
+                }
+            }
         }
 
         // Fix for Sign-Out button event listener
@@ -236,7 +350,7 @@ window.checkVisitorSession = () => {
                     const targetKey = data.firebaseKey || data.id;
                     await update(ref(db, `${dbNode}/${targetKey}`), {
                         outTime: outTime,
-                        status: 'SIGNED OUT',
+                        status: 'completed',
                         keyReturned: 'YES'
                     });
 
@@ -332,6 +446,11 @@ window.initVisitorForm = async () => {
     // Ensure the fields are visible
     vId.parentElement.style.display = "block";
     vDate.parentElement.style.display = "block";
+
+    // ✅ NEW: Trigger lookup if mobile was auto-filled from URL
+    if (vMobile.value.length >= 8) {
+        window.handlePhoneLookup(vMobile.value);
+    }
 
     setTimeout(window.initVisitorCanvas, 50);
 };

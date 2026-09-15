@@ -86,7 +86,8 @@
                                     <label class="visitor-label text-[10px] font-black text-indigo-400 uppercase tracking-wider flex items-center gap-1.5">
                                         <i class="fa-regular fa-phone"></i> Contact No.
                                     </label>
-                                    <input type="tel" id="v-mobile" placeholder="Mobile Number" required class="transfer-input-field !min-h-[58px] !text-base border-slate-200">
+                                    <input type="tel" id="v-mobile" placeholder="Mobile Number" required class="transfer-input-field !min-h-[58px] !text-base border-slate-200" oninput="if(typeof window.handlePhoneLookup === 'function') window.handlePhoneLookup(this.value)">
+                                    <p class="text-[8px] text-slate-400 font-bold uppercase tracking-wider ml-1">Enter number to resume active session</p>
                                 </div>
                                 <div class="space-y-1.5">
                                     <label id="company-label" class="visitor-label text-[10px] font-black text-indigo-400 uppercase tracking-wider flex items-center gap-1.5">
@@ -149,6 +150,10 @@
                             <div class="flex justify-between items-center">
                                 <span class="text-[11px] font-black text-indigo-400 uppercase tracking-widest">Arrival:</span>
                                 <span id="v-active-timein" class="text-sm font-bold text-indigo-900"></span>
+                            </div>
+                            <div id="v-active-pin-box" class="mt-4 pt-4 border-t border-indigo-100 flex justify-between items-center">
+                                <span class="text-[11px] font-black text-orange-500 uppercase tracking-widest">Checkout PIN:</span>
+                                <span id="v-active-pin" class="text-lg font-black text-orange-600 tracking-widest">----</span>
                             </div>
                         </div>
                         <button id="v-signout-btn" class="btn-submit-transfer !bg-orange-500 !shadow-orange-200 !py-6 !text-lg">Register Departure</button>

@@ -778,49 +778,71 @@ window.handleSecurityCheckOut = function(event) {
 };
 
 // ================================================================ */
-// DASHBOARD PIN LIST LOADER (NEW v5.6)                             */
+// DASHBOARD PIN LIST LOADER (FIXED v5.7 - MULTI-RECORD SUPPORT)    */
 // ================================================================ */
 
 window.loadSecurityPinControl = function() {
-    const tbody = document.getElementById('security-pin-list-body');
-    if (!tbody) return;
+    const tableBody = document.getElementById('key-pin-table-body') || document.getElementById('security-pin-list-body');
+    if (!tableBody) return;
 
     onValue(ref(db, 'security_key_control'), (snapshot) => {
-        tbody.innerHTML = "";
-
         if (!snapshot.exists()) {
-            tbody.innerHTML = "<tr><td colspan='6' class='p-8 text-center text-slate-500 uppercase font-black tracking-widest'>No active keys issued.</td></tr>";
+            tableBody.innerHTML = "<tr><td colspan='6' class='p-8 text-center text-slate-500 uppercase font-black tracking-widest'>No active keys issued.</td></tr>";
             return;
         }
 
         const data = snapshot.val();
-        Object.entries(data).forEach(([passId, log]) => {
-            const row = document.createElement('tr');
-            row.className = "border-b border-white/5 hover:bg-white/5 transition-colors";
-            row.innerHTML = `
-                <td class="p-3 font-bold text-white uppercase">${log.name || 'Unknown'}</td>
-                <td class="p-3"><span class="px-2 py-0.5 bg-indigo-500/20 text-indigo-300 rounded-md font-black uppercase text-[8px]">${log.type || 'STAFF'}</span></td>
-                <td class="p-3 font-mono text-slate-400">${log.id || '-'}</td>
+        // Convert object to array and pass to standardized renderer
+        const keysArray = Object.entries(data).map(([key, val]) => ({
+            ...val,
+            id: key // Preserve the database key (usually passId)
+        }));
+
+        window.renderKeyPinBoard(keysArray);
+    });
+};
+
+// KEY RETURN PIN BOARD LIST RENDERER FIX
+window.renderKeyPinBoard = function(keysArray) {
+    const tableBody = document.querySelector('#key-pin-table-body') || document.querySelector('#security-pin-list-body');
+    if (!tableBody) return;
+
+    // Clear previous view
+    tableBody.innerHTML = '';
+
+    if (!keysArray || keysArray.length === 0) {
+        tableBody.innerHTML = `<tr><td colspan="6" style="text-align:center; padding: 20px; color: #888;">No Active Keys Logged</td></tr>`;
+        return;
+    }
+
+    // MAP AND RENDER ALL KEYS (NOT JUST THE FIRST ONE)
+    keysArray.forEach(keyItem => {
+        const rowHTML = `
+            <tr class="border-b border-white/5 hover:bg-white/5 transition-colors">
+                <td class="p-3 font-bold text-white uppercase">${keyItem.name || keyItem.staffName || 'Unknown'}</td>
+                <td class="p-3"><span class="px-2 py-0.5 bg-indigo-500/20 text-indigo-300 rounded-md font-black uppercase text-[8px]">${keyItem.type || keyItem.staffType || 'STAFF'}</span></td>
+                <td class="p-3 font-mono text-slate-400">${keyItem.id || keyItem.passId || '-'}</td>
                 <td class="p-3 text-center">
                     <div class="flex flex-col items-center gap-1">
-                        <span class="text-[8px] font-black text-amber-500 uppercase">Return PIN</span>
-                        <span class="bg-indigo-600 px-3 py-1 rounded-lg text-white font-black text-base shadow-lg shadow-indigo-500/30">${log.pin || '----'}</span>
+                        <span class="text-[8px] font-black text-amber-500 uppercase">${keyItem.status === 'RETURNED' ? 'Returned' : 'Return PIN'}</span>
+                        <span class="bg-indigo-600 px-3 py-1 rounded-lg text-white font-black text-base shadow-lg shadow-indigo-500/30">
+                            ${keyItem.pin || keyItem.pinCode || '****'}
+                        </span>
                     </div>
                 </td>
                 <td class="p-3 text-center">
-                    <span class="inline-flex items-center gap-1 text-[8px] font-black text-emerald-400 uppercase">
-                        <span class="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse"></span>
-                        Active
-                    </span>
+                    ${(keyItem.signature || keyItem.signatureUrl) ?
+                        '<span class="text-emerald-400 font-bold text-[8px] uppercase">✍️ Signed</span>' :
+                        '<span class="text-rose-400 font-bold text-[8px] uppercase">❌ Pending</span>'}
                 </td>
                 <td class="p-3 text-center">
-                    <button onclick="window.initiateKeyReturn('${passId}')" class="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-[8px] font-black uppercase shadow-md active:scale-95 transition-all">
+                    <button onclick="window.initiateKeyReturn('${keyItem.id}')" class="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-[8px] font-black uppercase shadow-md active:scale-95 transition-all">
                         Verify Return
                     </button>
                 </td>
-            `;
-            tbody.appendChild(row);
-        });
+            </tr>
+        `;
+        tableBody.insertAdjacentHTML('beforeend', rowHTML);
     });
 };
 

@@ -100,67 +100,91 @@ window.cleanupAdminListeners = function() {
 // ✅ REAL-TIME METRICS & KPI LOGIC                                 */
 // ================================================================ */
 
+// GLOBAL REAL-TIME DASHBOARD COUNTERS SYNC ENGINE (v5.5 Upgrade)
 window.updateAdminKPIs = function() {
-    console.log("📊 Updating Dashboard KPI Metrics...");
+    // Get today's date formats for wide compatibility
+    const todayObj = new Date();
+    const dateFormatted = todayObj.toLocaleDateString('en-US'); // MM/DD/YYYY
+    const dateISO = todayObj.toISOString().split('T')[0];        // YYYY-MM-DD
 
-    // 1. Get Today's Date String
-    const todayStr = new Date().toLocaleDateString('en-US'); // M/D/YYYY
+    console.log("📊 Updating Dashboard KPI Metrics for:", dateFormatted);
 
     const normalizeDate = (d) => {
         if (!d) return "";
         return d.split('/').map(p => parseInt(p)).join('/');
     };
 
-    // 2. Aggregate Metrics
-
-    // VISITORS TODAY
-    const visitorsToday = window.appCache.visitors.filter(v => {
-        return normalizeDate(v.date) === todayStr;
+    // 1. VISITORS TODAY
+    const visitorsToday = (window.appCache.visitors || []).filter(v => {
+        const vDate = normalizeDate(v.date);
+        const vStatus = (v.status || '').toLowerCase();
+        return vDate === dateFormatted || vStatus === 'active';
     }).length;
 
-    // CONTRACTORS TODAY
-    const contractorsToday = window.appCache.contractors.filter(c => {
-        return normalizeDate(c.date) === todayStr;
+    // 2. CONTRACTORS TODAY
+    const contractorsToday = (window.appCache.contractors || []).filter(c => {
+        const cDate = normalizeDate(c.date);
+        const cStatus = (c.status || '').toLowerCase();
+        return cDate === dateFormatted || cStatus === 'active';
     }).length;
 
-    // ACTIVE TASKS
-    const activeTasks = window.appCache.tasks.filter(t => {
+    // 3. LIVE STAFF PRESENT COUNT (Consolidated Multi-Node Cache)
+    const staffPresent = (window.appCache.attendance || []).filter(a => {
+        const aDate = a.date || '';
+        const aStatus = (a.status || '').toUpperCase();
+
+        // Check Date Match (if date field exists)
+        const isToday = !aDate || aDate === dateFormatted || aDate === dateISO;
+
+        // Check Active Check-In Conditions
+        const isCheckedIn =
+            aStatus === 'CHECK_IN' ||
+            aStatus === 'CHECKED_IN' ||
+            aStatus === 'ACTIVE' ||
+            aStatus === 'PRESENT' ||
+            (a.inTime && (!a.outTime || a.outTime === '-' || a.outTime === ''));
+
+        return isToday && isCheckedIn;
+    }).length;
+
+    // 4. ACTIVE TASKS
+    const activeTasks = (window.appCache.tasks || []).filter(t => {
         const s = (t.status || '').toLowerCase();
         return s !== 'closed' && s !== 'completed' && s !== 'rejected';
     }).length;
 
-    // STAFF PRESENT
-    const staffPresent = window.appCache.attendance.filter(a => {
-        const s = (a.status || '').toLowerCase();
-        return s === 'checked_in';
-    }).length;
-
-    // URGENT ALERTS
-    const urgentAlerts = window.appCache.tasks.filter(t => {
+    // 5. URGENT ALERTS
+    const urgentAlerts = (window.appCache.tasks || []).filter(t => {
         const p = (t.priority || '').toLowerCase();
         const s = (t.status || '').toLowerCase();
         return (p === 'high' || p === 'urgent' || p === 'critical') && s !== 'closed' && s !== 'completed';
     }).length;
 
-    // 3. Update DOM Elements
+    // --- UNIFIED UI UPDATES (Admin & Security) ---
+
+    window.updateCounterUI('.visitors-count-val', visitorsToday);
+    window.updateCounterUI('.contractors-count-val', contractorsToday);
+    window.updateCounterUI('.staff-present-count-val', staffPresent);
+
     const safeUpdateText = (id, val) => {
         const el = document.getElementById(id);
         if (el) el.innerText = val;
     };
 
     safeUpdateText('kpi-visitors', visitorsToday);
-    safeUpdateText('top-counter-visitors', visitorsToday); // Support Security Dashboard
+    safeUpdateText('top-counter-visitors', visitorsToday);
     safeUpdateText('kpi-contractors', contractorsToday);
+    safeUpdateText('top-counter-contractors', contractorsToday);
     safeUpdateText('kpi-tasks', activeTasks);
     safeUpdateText('kpi-staff', staffPresent);
-    safeUpdateText('top-counter-staff', staffPresent); // Support Security Dashboard
+    safeUpdateText('top-counter-staff', staffPresent);
+    safeUpdateText('admin-staff-present-count', staffPresent);
+    safeUpdateText('security-staff-present-count', staffPresent);
     safeUpdateText('kpi-alerts', urgentAlerts);
 
-    // 4. Staff Census Breakdown
     const staffDir = window.appCache.staff;
-    window.renderCensusCards(staffDir);
+    if (window.renderCensusCards) window.renderCensusCards(staffDir);
 
-    // 5. Update Progress Bars
     const updateBar = (id, val, max) => {
         const el = document.getElementById(id);
         if (el) el.style.width = Math.min(100, (val / (max || 1)) * 100) + '%';
@@ -171,6 +195,60 @@ window.updateAdminKPIs = function() {
     updateBar('bar-tasks', activeTasks, 30);
     updateBar('bar-staff', staffPresent, 30);
     updateBar('bar-alerts', urgentAlerts, 10);
+};
+
+/**
+ * STAFF PRESENT COUNTER SYNC ENGINE (Multi-Path)
+ */
+window.initStaffPresentCounterSync = function() {
+    console.log("⚡ Initializing Staff Present Counter Sync (Multi-Path)...");
+
+    const attendancePaths = ['staff_attendance', 'attendance', 'logs/attendance'];
+    const pathData = {};
+
+    attendancePaths.forEach(path => {
+        activeListeners[`attendance_${path}`] = onValue(ref(db, path), (snapshot) => {
+            if (snapshot.exists()) {
+                pathData[path] = snapshot.val();
+            } else {
+                pathData[path] = {};
+            }
+
+            // Merge all data into appCache.attendance
+            let merged = [];
+            Object.values(pathData).forEach(nodeData => {
+                if (nodeData && typeof nodeData === 'object') {
+                    const entries = Object.entries(nodeData).map(([key, val]) => {
+                        return { ...val, firebaseKey: key };
+                    });
+                    merged = merged.concat(entries);
+                }
+            });
+
+            window.appCache.attendance = merged;
+            window.updateAdminKPIs();
+        });
+    });
+};
+
+/**
+ * HELPER FUNCTION TO UPDATE ALL MATCHING UI ELEMENTS
+ */
+window.updateCounterUI = function(selector, value) {
+    const elements = document.querySelectorAll(selector);
+    elements.forEach(el => {
+        if (el) el.textContent = value;
+    });
+};
+
+/**
+ * GLOBAL REAL-TIME DASHBOARD COUNTERS SYNC ENGINE (Alias)
+ */
+window.initDashboardCountersSync = function() {
+    console.log("⚡ Dashboard Counters Sync Initialized");
+    if (typeof window.initAdminRealTimeListeners === 'function') {
+        window.initAdminRealTimeListeners();
+    }
 };
 
 /**
@@ -290,7 +368,10 @@ window.initAdminRealTimeListeners = function() {
 
     registerListener('visitors', 'visitors', 'tab-visitor-logs', window.filterVisitorTable);
     registerListener('contractors', 'contractors', 'tab-contractor-logs', window.filterContractorTable);
-    registerListener('staff_attendance', 'attendance', 'tab-staff-logs', window.filterStaffTable);
+
+    // ✅ Use the Multi-Path Staff Attendance Sync
+    window.initStaffPresentCounterSync();
+
     registerListener('tasks', 'tasks', 'tab-tasks');
     registerListener('staff', 'staff', 'tab-staff-list', window.filterStaffDirectory);
     registerListener('disposed_assets', 'disposedAssets', 'tab-disposal', window.filterDisposalTable);
