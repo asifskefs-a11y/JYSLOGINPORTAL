@@ -1,6 +1,21 @@
 import { db, UPLOAD_CONFIG } from './firebase_config.js';
 import { ref, get, set, update, remove, onValue, push, query, orderByChild, equalTo, child, off } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
+const FEATURE_PERMISSIONS = [
+    { id: 'can_access_attendance', label: 'Attendance History', selector: '#menu-history-btn' },
+    { id: 'can_access_docs', label: 'My Documents', selector: '#menu-docs-btn' },
+    { id: 'can_access_biometric', label: 'Enable Biometric', selector: '#biometric-toggle-btn' },
+    { id: 'can_access_assets', label: 'Asset Management Section', selector: '#menu-asset-section' },
+    { id: 'can_access_asset_transfer', label: 'Asset Transfer', selector: '#menu-asset-transfer' },
+    { id: 'can_access_asset_audit', label: 'Item Audit', selector: '#menu-asset-audit' },
+    { id: 'can_access_asset_dispose', label: 'Item Disposal', selector: '#menu-asset-dispose' },
+    { id: 'can_access_movement_logs', label: 'Movement Logs', selector: '#menu-movement-logs' },
+    { id: 'can_access_scan_edit_asset', label: 'Scan & Edit Asset Location', selector: '#scan-edit-asset-btn' },
+    { id: 'can_access_create_task', label: 'Create Task', selector: '#menu-create-task-btn, #s-dash-create-task-btn' },
+    { id: 'can_access_task_history', label: 'Task History', selector: '#menu-tasks-btn, #tasks-summary-card' },
+    { id: 'can_access_security_controls', label: 'Security Verification Controls', selector: '#security-pin-control, #visitor-card-btn, #contractor-card-btn' }
+];
+
 // ================================================================ */
 // ADMIN DASHBOARD CORE MODULE (FIXED v4.7 - REAL-TIME METRICS)     */
 // ================================================================ */
@@ -911,6 +926,25 @@ window.openAddStaffModal = function() {
                         <input type="text" id="staff-comp-id" placeholder="Company ID" class="pro-input" autocomplete="off">
                     </div>
 
+                    <!-- ✅ DYNAMIC FEATURE ACCESS CONTROLS (NEW v15.0) -->
+                    <div class="permissions-manager-section" style="grid-column: 1 / -1; background: #f8fafc; padding: 20px; border-radius: 20px; border: 1px solid #e2e8f0; margin-top: 10px;">
+                        <h4 class="text-[11px] font-black text-indigo-900 uppercase tracking-widest mb-4 flex items-center gap-2">
+                            <i class="fa-solid fa-user-lock"></i> Feature Access Controls
+                        </h4>
+                        <div id="staff-permissions-grid" class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <!-- Dynamically injected checkboxes -->
+                            ${FEATURE_PERMISSIONS.map(f => `
+                                <label class="flex items-center gap-3 p-3 bg-white rounded-xl border border-slate-100 hover:border-indigo-300 transition-all cursor-pointer group">
+                                    <div class="relative inline-flex items-center cursor-pointer">
+                                        <input type="checkbox" id="perm_${f.id}" class="sr-only peer" data-permission-id="${f.id}">
+                                        <div class="w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-indigo-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
+                                    </div>
+                                    <span class="text-[10px] font-bold text-slate-600 uppercase tracking-tight group-hover:text-indigo-900">${f.label}</span>
+                                </label>
+                            `).join('')}
+                        </div>
+                    </div>
+
                     <!-- Document Verification Assignment Container -->
                     <div id="staff-doc-assignment-container" style="grid-column: 1 / -1;"></div>
 
@@ -1140,6 +1174,14 @@ window.handleStaffSubmit = async function(type) {
             updatedAt: Date.now()
         };
 
+        // ✅ Collect Feature Permissions
+        const permissions = {};
+        FEATURE_PERMISSIONS.forEach(f => {
+            const chk = document.getElementById(`perm_${f.id}`);
+            permissions[f.id] = chk ? chk.checked : false;
+        });
+        staffData.permissions = permissions;
+
         // ✅ Preserve existing photo if no new image was selected during Edit
         if (finalPhotoUrl) {
             staffData.profilePicUrl = finalPhotoUrl;
@@ -1320,6 +1362,13 @@ window.openEditStaffModal = async function(dbKey) {
 
         const compIdField = document.getElementById('staff-comp-id');
         if (compIdField) compIdField.value = s.companyId || "";
+
+        // ✅ Load Feature Permissions
+        const perms = s.permissions || {};
+        FEATURE_PERMISSIONS.forEach(f => {
+            const chk = document.getElementById(`perm_${f.id}`);
+            if (chk) chk.checked = perms[f.id] === true;
+        });
 
         // Load assigned verification documents
         if (window.renderDocAssignmentUI) {

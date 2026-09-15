@@ -737,102 +737,362 @@ window.onAuthenticationSuccess = function(userData) {
 };
 
 // ================================================================ */
-// ✅ STRICT ROLE-BASED SIDE MENU & DASHBOARD ACCESS (v11.0)       */
+// ✅ STRICT ROLE-BASED SIDE MENU & DASHBOARD ACCESS (v11.5)       */
 // ================================================================ */
 
+window.isModalOpen = false;
+
+// Wrap role-based layout updates with a modal active guard
+window.safeApplyRoleRules = function() {
+    if (window.isModalOpen) {
+        console.log("⏸️ Layout update skipped: Modal is active.");
+        return;
+    }
+    if (typeof window.applyStrictRoleBasedLayout === 'function') {
+        window.applyStrictRoleBasedLayout();
+    }
+};
+
+// ================================================================ */
+// ✅ DYNAMIC PERMISSION-BASED ACCESS CONTROL (RBAC v15.0)          */
+// ================================================================ */
+
+window.FEATURE_PERMISSIONS = [
+    { id: 'can_access_attendance', label: 'Attendance History', selector: '#menu-history-btn' },
+    { id: 'can_access_docs', label: 'My Documents', selector: '#menu-docs-btn' },
+    { id: 'can_access_biometric', label: 'Enable Biometric', selector: '#biometric-toggle-btn' },
+    { id: 'can_access_assets', label: 'Asset Management Section', selector: '#menu-asset-section' },
+    { id: 'can_access_asset_transfer', label: 'Asset Transfer', selector: '#menu-asset-transfer' },
+    { id: 'can_access_asset_audit', label: 'Item Audit', selector: '#menu-asset-audit' },
+    { id: 'can_access_asset_dispose', label: 'Item Disposal', selector: '#menu-asset-dispose' },
+    { id: 'can_access_movement_logs', label: 'Movement Logs', selector: '#menu-movement-logs' },
+    { id: 'can_access_scan_edit_asset', label: 'Scan & Edit Asset Location', selector: '#scan-edit-asset-btn' },
+    { id: 'can_access_create_task', label: 'Create Task', selector: '#menu-create-task-btn, #s-dash-create-task-btn' },
+    { id: 'can_access_task_history', label: 'Task History', selector: '#menu-tasks-btn, #tasks-summary-card' },
+    { id: 'can_access_security_controls', label: 'Security Verification Controls', selector: '#security-pin-control, #visitor-card-btn, #contractor-card-btn' }
+];
+
 window.applyStrictRoleBasedLayout = function() {
-    const rawRole = localStorage.getItem('user_role') || document.querySelector('#sidebar-user-role')?.textContent || '';
-    const cleanRole = rawRole.trim().toUpperCase();
+    const staff = JSON.parse(sessionStorage.getItem('active_staff_user') || localStorage.getItem('loggedStaff') || '{}');
+    if (!staff || !staff.mobile) return;
 
-    if (!cleanRole) return;
+    const perms = staff.permissions || {};
+    const isAdmin = (staff.role || '').toUpperCase() === 'ADMIN';
 
-    const hide = (id) => {
-        const el = document.querySelector(id);
-        if (el) el.style.setProperty('display', 'none', 'important');
+    const hide = (selector) => {
+        document.querySelectorAll(selector).forEach(el => {
+            el.style.setProperty('display', 'none', 'important');
+            el.classList.add('hidden');
+        });
     };
-    const show = (id, type = 'block') => {
-        const el = document.querySelector(id);
-        if (el) el.style.setProperty('display', type, 'important');
+    const show = (selector, type = 'block') => {
+        document.querySelectorAll(selector).forEach(el => {
+            el.style.setProperty('display', type, 'important');
+            el.classList.remove('hidden');
+        });
     };
 
-    show('#staff-dashboard-container', 'block');
+    // 1. DEFAULT BEHAVIOR: Hide all feature-controlled elements
+    window.FEATURE_PERMISSIONS.forEach(f => hide(f.selector));
 
-    const isCleanerLeader = cleanRole.includes('CLEANER LEADER') || cleanRole.includes('LEADER');
-    const isTechnician = cleanRole.includes('TECHNICIAN');
-    const isOfficeBoy = cleanRole.includes('OFFICE BOY');
-    const isSecurity = cleanRole.includes('SECURITY');
+    // 2. ALWAYS SHOW IDENTITY ELEMENTS (Safeguard)
+    const identityElements = [
+        '#user-avatar-container', '#user-avatar', '#avatar-placeholder',
+        '#user-name', '#sidebar-user-name',
+        '#user-role', '#sidebar-user-role',
+        '#sidebar-home-link', '#logout-btn', '.logout-btn',
+        '#staff-dashboard-container'
+    ];
+    identityElements.forEach(s => {
+        const el = document.querySelector(s);
+        if (el) {
+            el.style.removeProperty('display');
+            el.classList.remove('hidden');
+        }
+    });
 
-    const restrictedList = ['BUS MONITOR', 'BUS DRIVER', 'BUS SUPERVISOR', 'SUPERVISOR', 'GARDENER'];
-    const isBasicCleaner = cleanRole.includes('CLEANER') && !isCleanerLeader;
-    const isRestricted = (isBasicCleaner || restrictedList.some(r => cleanRole.includes(r))) && !isCleanerLeader && !isTechnician && !isOfficeBoy && !isSecurity;
+    // 3. DYNAMIC ENFORCEMENT
+    window.FEATURE_PERMISSIONS.forEach(feature => {
+        // If Admin or permission is explicitly TRUE
+        if (isAdmin || perms[feature.id] === true) {
+            const isButton = feature.selector.includes('btn') || feature.selector.includes('item');
+            const displayType = isButton ? 'flex' : (feature.selector.includes('card') ? 'grid' : 'block');
+            show(feature.selector, displayType);
+        }
+    });
 
-    console.log(`🛡️ [RoleLayout] Role=[${cleanRole}] | Group=[${
-        isRestricted ? 'Restricted' :
-        (isCleanerLeader || isTechnician) ? 'Leader/Tech' :
-        isOfficeBoy ? 'Office Boy' :
-        isSecurity ? 'Security' : 'Other'
-    }]`);
+    console.log(`🛡️ [RBAC v15.0] Applied dynamic permissions for: ${staff.fullName || staff.name}`);
+};
 
-    if (isRestricted) {
-        const hideIDs = [
-            '#menu-asset-section', '#menu-asset-transfer', '#menu-asset-audit',
-            '#menu-asset-dispose', '#menu-movement-logs', '#menu-create-task-btn',
-            '#menu-tasks-btn', '#scan-edit-asset-btn', '#tasks-summary-card',
-            '#s-dash-create-task-btn', '#security-pin-control'
-        ];
-        hideIDs.forEach(id => hide(id));
 
-        show('#menu-history-btn', 'flex');
-        show('#menu-docs-btn', 'flex');
-        show('#biometric-toggle-btn', 'flex');
+// ================================================================ */
+// ✅ VISITOR & CONTRACTOR MOBILE LOOKUP RESTORATION (v12.0)        */
+// ================================================================ */
+
+window.openMobileVerifyModal = function(type) {
+    window.isModalOpen = true; // Lock background updates
+    const modalId = 'mobile-verify-modal';
+    let modal = document.getElementById(modalId);
+
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = modalId;
+        modal.className = 'fixed inset-0 bg-black/90 backdrop-blur-md z-[99999] hidden items-center justify-center p-4';
+        modal.innerHTML = `
+            <div class="bg-white w-full max-w-sm rounded-[32px] overflow-hidden shadow-2xl p-8 text-center text-gray-800">
+                <div class="w-20 h-20 bg-indigo-50 text-indigo-600 rounded-3xl mx-auto flex items-center justify-center mb-4 shadow-sm">
+                    <i class="fa-solid fa-mobile-screen-button text-3xl"></i>
+                </div>
+                <h3 id="verify-modal-title" class="text-2xl font-black text-indigo-900 uppercase tracking-tighter">Visitor Verify</h3>
+                <p class="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1 mb-6">Enter mobile number to check-in/out</p>
+
+                <div class="relative group mb-6">
+                    <div class="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300">
+                        <i class="fa-solid fa-phone"></i>
+                    </div>
+                    <input type="tel" id="verify-mobile-input" placeholder="Enter Mobile Number (or Last Digits)"
+                           class="w-full pl-12 pr-4 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl text-center font-black tracking-widest outline-none focus:border-indigo-500 focus:bg-white transition-all">
+                </div>
+
+                <div class="flex flex-col gap-3">
+                    <button id="btn-verify-mobile" class="w-full py-5 bg-gradient-to-r from-indigo-600 to-indigo-800 text-white font-black rounded-2xl shadow-xl uppercase tracking-[0.2em] text-sm active:scale-95 transition-all">
+                        Verify & Proceed
+                    </button>
+                    <button onclick="window.closeMobileVerifyModal()" class="w-full py-3 text-slate-400 font-black uppercase tracking-widest text-[10px]">
+                        Cancel
+                    </button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(modal);
+
+        document.getElementById('btn-verify-mobile').onclick = () => window.executeMobileLookup();
+        document.getElementById('verify-mobile-input').onkeypress = (e) => { if(e.key === 'Enter') window.executeMobileLookup(); };
     }
-    else if (isCleanerLeader || isTechnician) {
-        show('#menu-asset-section', 'block');
-        show('#menu-asset-transfer', 'flex');
-        show('#menu-asset-audit', 'flex');
-        show('#menu-asset-dispose', 'flex');
-        show('#menu-movement-logs', 'flex');
-        show('#menu-tasks-btn', 'flex');
-        show('#scan-edit-asset-btn', 'block');
-        show('#menu-history-btn', 'flex');
-        show('#menu-docs-btn', 'flex');
-        show('#biometric-toggle-btn', 'flex');
 
-        hide('#menu-create-task-btn');
-        hide('#s-dash-create-task-btn');
-        hide('#security-pin-control');
+    window.currentLookupType = type.toUpperCase();
+    document.getElementById('verify-modal-title').innerText = `${window.currentLookupType} VERIFY`;
+
+    modal.style.setProperty('display', 'flex', 'important');
+    modal.style.setProperty('visibility', 'visible', 'important');
+    modal.style.setProperty('opacity', '1', 'important');
+    modal.style.setProperty('z-index', '999999', 'important');
+
+    document.body.classList.add('modal-open');
+    const input = document.getElementById('verify-mobile-input');
+    if (input) {
+        input.value = '';
+        setTimeout(() => input.focus(), 200);
     }
-    else if (isOfficeBoy) {
-        show('#menu-asset-section', 'block');
-        show('#menu-asset-transfer', 'flex');
-        show('#menu-asset-audit', 'flex');
-        show('#menu-asset-dispose', 'flex');
-        show('#menu-movement-logs', 'flex');
-        show('#scan-edit-asset-btn', 'block');
-        show('#menu-history-btn', 'flex');
-        show('#menu-docs-btn', 'flex');
-        show('#biometric-toggle-btn', 'flex');
+};
 
-        hide('#menu-tasks-btn');
-        hide('#menu-create-task-btn');
-        hide('#s-dash-create-task-btn');
-        hide('#security-pin-control');
+window.closeMobileVerifyModal = function() {
+    const modal = document.getElementById('mobile-verify-modal');
+    if (modal) modal.style.display = 'none';
+    document.body.classList.remove('modal-open');
+    window.isModalOpen = false;
+    window.safeApplyRoleRules();
+};
+
+window.executeMobileLookup = async function() {
+    const input = document.getElementById('verify-mobile-input');
+    const mobile = input.value.trim();
+    if (!mobile || mobile.length < 3) return alert("Please enter at least last 3 digits.");
+
+    window.tempUserMobile = mobile; // Store for next step
+    window.showGlobalSpinner(`Verifying ${window.currentLookupType}...`);
+
+    try {
+        const dbNode = window.currentLookupType === 'CONTRACTOR' ? 'contractors' : 'visitors';
+        // Note: For a truly robust lookup, we should probably check BOTH nodes if type was ambiguous
+        const snap = await get(ref(db, dbNode));
+
+        let activeRecord = null;
+        if (snap.exists()) {
+            const records = snap.val();
+            activeRecord = Object.entries(records).find(([key, val]) => {
+                const isStatusActive = (val.status || '').toLowerCase() === 'active';
+                const mobileMatch = (val.mobile || '').toString().includes(mobile);
+                return isStatusActive && mobileMatch;
+            });
+        }
+
+        window.hideGlobalSpinner();
+
+        if (activeRecord) {
+            // Already checked in: Go to checkout confirm
+            document.getElementById('mobile-verify-modal').style.display = 'none';
+            window.openCheckOutConfirmation(activeRecord[0], activeRecord[1], window.currentLookupType);
+        } else {
+            // New entry: Show Category Selection (Visitor or Contractor)
+            // This fixes the "always contractor" bug and provides user choice
+            window.showCategorySelectionModal();
+        }
+    } catch (err) {
+        console.error("Lookup Error:", err);
+        window.hideGlobalSpinner();
+        alert("Search failed. Please try again.");
     }
-    else if (isSecurity) {
-        show('#menu-asset-section', 'block');
-        show('#menu-asset-transfer', 'flex');
-        show('#menu-asset-audit', 'flex');
-        show('#menu-asset-dispose', 'flex');
-        show('#menu-movement-logs', 'flex');
-        show('#scan-edit-asset-btn', 'block');
-        show('#menu-history-btn', 'flex');
-        show('#menu-docs-btn', 'flex');
-        show('#biometric-toggle-btn', 'flex');
-        show('#menu-create-task-btn', 'flex');
-        show('#s-dash-create-task-btn', 'block');
-        show('#security-pin-control', 'block');
+};
 
-        hide('#menu-tasks-btn');
+window.showCategorySelectionModal = function() {
+    // Hide mobile verify modal if open
+    const verifyModal = document.getElementById('mobile-verify-modal');
+    if (verifyModal) verifyModal.style.display = 'none';
+
+    const modalId = 'entry-category-selection-modal';
+    let modal = document.getElementById(modalId);
+
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = modalId;
+        modal.className = 'fixed inset-0 bg-black/95 backdrop-blur-xl z-[999999] hidden items-center justify-center p-4';
+        modal.innerHTML = `
+            <div class="w-full max-w-lg space-y-6">
+                <div class="text-center mb-8">
+                    <h3 class="text-3xl font-black text-white uppercase tracking-tighter">Select Entry Mode</h3>
+                    <p class="text-indigo-300 font-bold uppercase tracking-widest text-xs mt-2">Mobile Verified: ${window.tempUserMobile}</p>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                    <!-- VISITOR CARD -->
+                    <div id="select-visitor-card" class="group bg-white p-8 rounded-[2.5rem] text-center cursor-pointer transition-all hover:scale-105 active:scale-95 shadow-2xl">
+                        <div class="w-20 h-20 bg-indigo-100 text-indigo-600 rounded-3xl mx-auto flex items-center justify-center mb-4 group-hover:bg-indigo-600 group-hover:text-white transition-colors">
+                            <i class="fa-solid fa-user-plus text-4xl"></i>
+                        </div>
+                        <h4 class="text-xl font-black text-indigo-900 uppercase">Visitor</h4>
+                        <p class="text-[10px] text-slate-400 font-bold uppercase mt-1">Standard Entry</p>
+                    </div>
+
+                    <!-- CONTRACTOR CARD -->
+                    <div id="select-contractor-card" class="group bg-white p-8 rounded-[2.5rem] text-center cursor-pointer transition-all hover:scale-105 active:scale-95 shadow-2xl">
+                        <div class="w-20 h-20 bg-emerald-100 text-emerald-600 rounded-3xl mx-auto flex items-center justify-center mb-4 group-hover:bg-emerald-600 group-hover:text-white transition-colors">
+                            <i class="fa-solid fa-helmet-safety text-4xl"></i>
+                        </div>
+                        <h4 class="text-xl font-black text-emerald-900 uppercase">Contractor</h4>
+                        <p class="text-[10px] text-slate-400 font-bold uppercase mt-1">Services / Work</p>
+                    </div>
+                </div>
+
+                <button onclick="window.closeCategorySelection()" class="w-full py-4 text-white/40 font-black uppercase tracking-widest text-xs hover:text-white transition-colors">
+                    Back to Dashboard
+                </button>
+            </div>
+        `;
+        document.body.appendChild(modal);
+
+        // Bind clicks for choices
+        document.getElementById('select-visitor-card').onclick = () => window.selectEntryCategory('VISITOR');
+        document.getElementById('select-contractor-card').onclick = () => window.selectEntryCategory('CONTRACTOR');
+    }
+
+    modal.style.setProperty('display', 'flex', 'important');
+    window.isModalOpen = true;
+};
+
+window.closeCategorySelection = function() {
+    const modal = document.getElementById('entry-category-selection-modal');
+    if (modal) modal.style.display = 'none';
+    window.isModalOpen = false;
+    window.safeApplyRoleRules();
+};
+
+window.selectEntryCategory = function(type) {
+    console.log(`✅ Selected Category: ${type} for Mobile: ${window.tempUserMobile}`);
+
+    // Final redirect to registration portal
+    const mode = type.toLowerCase();
+    window.location.href = `visitor.html?mode=${mode}&mobile=${window.tempUserMobile}`;
+};
+
+window.openCheckOutConfirmation = function(key, data, type) {
+    window.isModalOpen = true; // Lock
+    const modalId = 'checkout-confirm-modal';
+    let modal = document.getElementById(modalId);
+
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = modalId;
+        modal.className = 'fixed inset-0 bg-black/90 backdrop-blur-md z-[99999] hidden items-center justify-center p-4';
+        document.body.appendChild(modal);
+    }
+
+    modal.innerHTML = `
+        <div class="bg-indigo-950 border border-white/10 rounded-[2.5rem] p-8 max-w-sm w-full text-white text-center space-y-6 shadow-2xl">
+            <div class="w-20 h-20 bg-orange-500/20 text-orange-400 rounded-full mx-auto flex items-center justify-center mb-2">
+                <i class="fa-solid fa-right-from-bracket text-3xl"></i>
+            </div>
+            <h3 class="text-2xl font-black uppercase tracking-tighter">Active Entry Found</h3>
+
+            <div class="bg-white/5 p-5 rounded-2xl border border-white/10 text-left space-y-3">
+                <div>
+                    <span class="text-[8px] font-black text-white/40 uppercase tracking-widest">Name:</span>
+                    <p class="font-bold text-white">${data.name || 'Unknown'}</p>
+                </div>
+                <div>
+                    <span class="text-[8px] font-black text-white/40 uppercase tracking-widest">Company:</span>
+                    <p class="font-bold text-white">${data.company || '-'}</p>
+                </div>
+                <div class="flex justify-between">
+                    <div>
+                        <span class="text-[8px] font-black text-white/40 uppercase tracking-widest">In-Time:</span>
+                        <p class="font-bold text-emerald-400">${data.timeIn || '-'}</p>
+                    </div>
+                    <div>
+                        <span class="text-[8px] font-black text-white/40 uppercase tracking-widest">Status:</span>
+                        <p class="font-bold text-orange-400 uppercase">${data.status || 'Active'}</p>
+                    </div>
+                </div>
+            </div>
+
+            <button onclick="window.processExternalCheckOut('${key}', '${type}')" class="w-full py-5 bg-orange-500 text-white font-black rounded-2xl shadow-xl uppercase tracking-widest text-sm active:scale-95 transition-all">
+                Complete Check-Out
+            </button>
+            <button onclick="window.closeCheckOutConfirmation()" class="w-full py-2 text-white/40 font-bold uppercase text-[10px]">
+                Back
+            </button>
+        </div>
+    `;
+    modal.style.setProperty('display', 'flex', 'important');
+    document.body.classList.add('modal-open');
+};
+
+window.closeCheckOutConfirmation = function() {
+    const modal = document.getElementById('checkout-confirm-modal');
+    if (modal) modal.style.display = 'none';
+    document.body.classList.remove('modal-open');
+    window.isModalOpen = false;
+    window.safeApplyRoleRules();
+};
+
+window.processExternalCheckOut = async function(key, type) {
+    const dbNode = type === 'CONTRACTOR' ? 'contractors' : 'visitors';
+    window.showGlobalSpinner("Processing Exit...");
+
+    try {
+        const outTime = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', hour12: true});
+        await update(ref(db, `${dbNode}/${key}`), {
+            outTime: outTime,
+            status: 'SIGNED OUT',
+            keyReturned: 'YES',
+            timestamp_out: Date.now()
+        });
+
+        // Also clean up from security_key_control if mobile exists
+        const mobileKey = data.mobile || key;
+        await remove(ref(db, `security_key_control/${mobileKey}`));
+
+        window.hideGlobalSpinner();
+        document.getElementById('checkout-confirm-modal').style.display = 'none';
+        document.body.classList.remove('modal-open');
+        window.isModalOpen = false; // Unlock
+        window.safeApplyRoleRules();
+        alert("✅ Check-Out Successful!");
+
+    } catch (err) {
+        console.error("Check-out Error:", err);
+        window.hideGlobalSpinner();
+        alert("Check-out failed. Try again.");
     }
 };
 
@@ -843,14 +1103,14 @@ window.applyStrictRoleBasedLayout = function() {
 window.initRoleRulesObserver = function() {
     console.log('🛡️ [RoleObserver] Initializing auto-hide enforcer...');
 
-    if (typeof window.applyStrictRoleBasedLayout === 'function') {
-        window.applyStrictRoleBasedLayout();
+    if (typeof window.safeApplyRoleRules === 'function') {
+        window.safeApplyRoleRules();
     }
 
     let burstCount = 0;
     const burstInterval = setInterval(() => {
-        if (typeof window.applyStrictRoleBasedLayout === 'function') {
-            window.applyStrictRoleBasedLayout();
+        if (typeof window.safeApplyRoleRules === 'function') {
+            window.safeApplyRoleRules();
         }
         burstCount++;
         if (burstCount > 25) {
@@ -866,8 +1126,8 @@ window.initRoleRulesObserver = function() {
         }
 
         const observer = new MutationObserver((mutations) => {
-            if (typeof window.applyStrictRoleBasedLayout === 'function') {
-                window.applyStrictRoleBasedLayout();
+            if (typeof window.safeApplyRoleRules === 'function') {
+                window.safeApplyRoleRules();
             }
         });
 
@@ -882,16 +1142,16 @@ window.initRoleRulesObserver = function() {
 };
 
 document.addEventListener('DOMContentLoaded', window.initRoleRulesObserver);
-window.addEventListener('hashchange', window.applyStrictRoleBasedLayout);
-window.addEventListener('popstate', window.applyStrictRoleBasedLayout);
+window.addEventListener('hashchange', window.safeApplyRoleRules);
+window.addEventListener('popstate', window.safeApplyRoleRules);
 
 if (document.readyState === 'complete' || document.readyState === 'interactive') {
     window.initRoleRulesObserver();
 }
 
-window.applyPositionBasedRules = window.applyStrictRoleBasedLayout;
-window.applyRoleDashboardRules = window.applyStrictRoleBasedLayout;
-window.applyRoleBasedRestrictions = window.applyStrictRoleBasedLayout;
+window.applyPositionBasedRules = window.safeApplyRoleRules;
+window.applyRoleDashboardRules = window.safeApplyRoleRules;
+window.applyRoleBasedRestrictions = window.safeApplyRoleRules;
 
 
 // ================================================================ */
@@ -986,6 +1246,77 @@ window.handleGlobalLogout = function(e) {
     }, 150);
 };
 
+// --- DYNAMIC RE-RENDER GUARD & MOBILE VERIFICATION FIX ---
+
+// --- FIX BLANK BLUE SCREEN ON VISITOR/CONTRACTOR PORTAL ---
+
+window.showVisitorPortalEntry = function(cardType) {
+    console.log("🚀 Launching Visitor Portal for:", cardType);
+    window.isModalOpen = true; // Lock background updates
+
+    // 1. Force display of the Portal Main Container
+    const portalContainer = document.querySelector('#visitor-portal-container, .visitor-portal-view, #staff-dashboard-container');
+    if (portalContainer) {
+        portalContainer.classList.remove('hidden', 'hidden-view');
+        portalContainer.style.setProperty('display', 'block', 'important');
+    }
+
+    // 2. Fetch or Create Modal / Input Form Wrapper
+    if (typeof window.openMobileVerifyModal === 'function') {
+        window.openMobileVerifyModal(cardType);
+    } else {
+        const targetModal = document.querySelector('#pass-number-modal, #visitor-checkin-modal, #mobile-verify-modal, .verify-pass-modal, #visitor-entry-form');
+
+        if (targetModal) {
+            // Unhide Modal & Layer directly over the Blue Background
+            targetModal.style.setProperty('display', 'flex', 'important');
+            targetModal.style.setProperty('visibility', 'visible', 'important');
+            targetModal.style.setProperty('opacity', '1', 'important');
+            targetModal.style.setProperty('z-index', '999999', 'important');
+            targetModal.style.setProperty('position', 'fixed', 'important');
+            targetModal.style.setProperty('top', '50%', 'important');
+            targetModal.style.setProperty('left', '50%', 'important');
+            targetModal.style.setProperty('transform', 'translate(-50%, -50%)', 'important');
+
+            // Set attributes for Visitor vs Contractor mode
+            targetModal.setAttribute('data-card-type', cardType);
+
+            // Auto Focus Input Field
+            const inputField = targetModal.querySelector('input[type="tel"], input[type="number"], .pass-code-input, #mobile-number-input, #verify-mobile-input');
+            if (inputField) {
+                inputField.value = '';
+                inputField.setAttribute('placeholder', `Enter ${cardType} Mobile No.`);
+                setTimeout(() => inputField.focus(), 150);
+            }
+        } else {
+            console.error("❌ Visitor Form/Modal wrapper not found in DOM elements!");
+        }
+    }
+};
+
+// Global Delegated Handler with Event Isolation (CAPTURE PHASE)
+document.addEventListener('click', function(e) {
+    const cardTarget = e.target.closest('#visitor-card-btn, .visitor-card, #contractor-card-btn, .contractor-card, [data-action="visitor-entry"], #card-visitor-contractor');
+    if (cardTarget) {
+        e.preventDefault();
+        e.stopPropagation();
+        e.stopImmediatePropagation();
+
+        console.log("🎯 Dashboard Card Tapped (Isolated):", cardTarget.id);
+
+        const cardType = (cardTarget.id.includes('contractor') || cardTarget.classList.contains('contractor-card')) ? 'CONTRACTOR' : 'VISITOR';
+        window.showVisitorPortalEntry(cardType);
+        return;
+    }
+
+    // Modal Close Handler - Unlocks background updates
+    const closeBtn = e.target.closest('.close-modal, #close-pass-modal, .modal-close, [onclick*="display=\'none\'"], [onclick*="closeMobileVerifyModal"]');
+    if (closeBtn) {
+        window.isModalOpen = false; // Unlock layout updates
+        window.safeApplyRoleRules();
+    }
+}, true); // Use capture phase
+
 // Legacy alias
 window.executeSecureLogout = function() {
     console.log("🔄 [Legacy] executeSecureLogout → handleGlobalLogout");
@@ -1010,6 +1341,9 @@ document.addEventListener('click', function(e) {
             sideMenu.classList.toggle('active');
         }
     }
+
+    // --- NEW: Visitor/Contractor Dashboard Card Delegation ---
+    // (Moved to Capture Phase Handler for better isolation)
 });
 
 

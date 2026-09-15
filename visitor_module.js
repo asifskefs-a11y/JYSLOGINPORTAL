@@ -296,9 +296,20 @@ window.initVisitorForm = async () => {
 
     if (!vId || !vDate) return;
 
-    // ✅ FIXED: Clear all previous data for new entry
+    // ✅ FIXED: Clear only if NOT auto-filled from URL
     if (vName) vName.value = '';
-    if (vMobile) vMobile.value = '';
+
+    const params = new URLSearchParams(window.location.search);
+    const mobileFromUrl = params.get('mobile');
+
+    if (vMobile) {
+        if (mobileFromUrl) {
+            vMobile.value = mobileFromUrl;
+            console.log("📱 Preserving auto-filled mobile:", mobileFromUrl);
+        } else {
+            vMobile.value = '';
+        }
+    }
     if (vCompany) vCompany.value = '';
     if (vPurpose) vPurpose.value = '';
     if (contractorId) contractorId.value = '';

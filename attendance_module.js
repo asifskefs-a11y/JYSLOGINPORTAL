@@ -1037,6 +1037,11 @@ window.initUserDashboard = async (staff) => {
                 if (window.updateAccountActivationUI) {
                     window.updateAccountActivationUI(window.currentStaff.isAccountActive);
                 }
+
+                // ✅ Task 1: Force Role-Based Layout Re-calculation on permission change
+                if (typeof window.applyStrictRoleBasedLayout === 'function') {
+                    window.applyStrictRoleBasedLayout();
+                }
             }
         });
     }

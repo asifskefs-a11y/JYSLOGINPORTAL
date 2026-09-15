@@ -213,6 +213,17 @@
             } else {
                 document.getElementById('visitor-portal-title').innerText = "VISITOR MANAGEMENT ENTRY PORTAL";
             }
+
+            // --- AUTO-FILL MOBILE FROM QUERY PARAMS ---
+            const mobile = params.get('mobile');
+            if (mobile) {
+                const mobileInput = document.getElementById('v-mobile');
+                if (mobileInput) {
+                    mobileInput.value = mobile;
+                    // Trigger lookup if needed or just leave for user to confirm
+                    console.log("📱 Auto-filled mobile from query:", mobile);
+                }
+            }
         });
     </script>
 

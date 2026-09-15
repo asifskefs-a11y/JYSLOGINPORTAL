@@ -193,7 +193,7 @@
     </div>
 
     <!-- STATS GRID -->
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6" id="tasks-summary-card">
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6" id="tasks-summary-card">
         <!-- Document Compliance Card -->
         <div onclick="window.showStaffView('staff-docs-section')" class="bg-white p-5 rounded-3xl shadow-xl border border-indigo-50 flex items-center justify-between cursor-pointer active:scale-95 transition-all">
             <div class="flex-1">
@@ -202,29 +202,38 @@
                     <p class="text-3xl font-black text-indigo-900" id="dash-doc-progress">0%</p>
                     <span class="text-[8px] font-bold text-amber-500 bg-amber-50 px-2 py-0.5 rounded uppercase" id="dash-doc-status">Pending</span>
                 </div>
-                <div class="w-full h-1.5 bg-slate-100 rounded-full mt-3 overflow-hidden">
-                    <div id="dash-doc-progress-bar" class="h-full bg-indigo-600 transition-all duration-1000" style="width: 0%;"></div>
-                </div>
             </div>
             <div class="text-indigo-500 text-3xl ml-4 bg-indigo-50 w-12 h-12 rounded-2xl flex items-center justify-center">
                 <i class="fa-solid fa-shield-check"></i>
             </div>
         </div>
 
-        <div class="bg-white p-5 rounded-3xl shadow-xl border border-indigo-50 text-center" id="visitor-log-section">
-            <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Visitors Today</p>
-            <p class="text-3xl font-black text-indigo-900" id="top-counter-visitors">0</p>
-            <div class="mt-2 flex items-center justify-center gap-1">
-                <span class="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse"></span>
-                <span class="text-[8px] font-bold text-emerald-500 uppercase">Live Sync</span>
+        <!-- Visitor Entry Card -->
+        <div id="visitor-card-btn" class="visitor-card bg-white p-5 rounded-3xl shadow-xl border border-indigo-50 text-center cursor-pointer active:scale-95 transition-all hover:bg-indigo-50 group">
+            <div class="w-10 h-10 bg-indigo-600 text-white rounded-xl flex items-center justify-center mx-auto mb-3 shadow-lg group-hover:scale-110 transition-transform">
+                <i class="fa-solid fa-user-plus"></i>
             </div>
+            <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Visitors Today</p>
+            <p class="text-2xl font-black text-indigo-900" id="top-counter-visitors">0</p>
+            <span class="text-[8px] font-bold text-indigo-500 uppercase mt-2 block group-hover:text-indigo-700">Open Entry Portal →</span>
         </div>
+
+        <!-- Contractor Entry Card -->
+        <div id="contractor-card-btn" class="contractor-card bg-white p-5 rounded-3xl shadow-xl border border-emerald-50 text-center cursor-pointer active:scale-95 transition-all hover:bg-emerald-50 group">
+            <div class="w-10 h-10 bg-emerald-600 text-white rounded-xl flex items-center justify-center mx-auto mb-3 shadow-lg group-hover:scale-110 transition-transform">
+                <i class="fa-solid fa-helmet-safety"></i>
+            </div>
+            <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Contractors</p>
+            <p class="text-2xl font-black text-emerald-900" id="top-counter-contractors">0</p>
+            <span class="text-[8px] font-bold text-emerald-600 uppercase mt-2 block group-hover:text-emerald-700">Service Access →</span>
+        </div>
+
         <div class="bg-white p-5 rounded-3xl shadow-xl border border-indigo-50 text-center" id="active-staff-grid">
             <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Staff Present</p>
             <p class="text-3xl font-black text-indigo-900" id="top-counter-staff">0</p>
             <div class="mt-2 flex items-center justify-center gap-1">
                 <span class="w-1.5 h-1.5 bg-indigo-400 rounded-full animate-pulse"></span>
-                <span class="text-[8px] font-bold text-indigo-400 uppercase">Attendance</span>
+                <span class="text-[8px] font-bold text-indigo-400 uppercase">Live Attendance</span>
             </div>
         </div>
     </div>
