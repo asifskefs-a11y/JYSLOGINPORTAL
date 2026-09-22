@@ -1,243 +1,98 @@
 import { db } from './firebase_config.js';
 import { ref, set, get, update, runTransaction, push, remove, onValue, query, orderByChild, equalTo } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
-// --- VISITOR SYSTEM (v3.5.1 - FIXED) ---
-let vCanvas, vCtx, vDrawing = false;
-
-// Session state for current reserved token
+// --- VISITOR SYSTEM CORE (v4.0 OVERHAUL) ---
 window.currentReservedToken = null;
 window.tokenTimer = null;
 
+const getLocalTodayStr = () => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+};
+
 /**
- * ASSIGN IMMEDIATE UNIQUE TOKEN ON FORM OPEN
+ * 1. ASSIGN PLACEHOLDERS (Atomic sequence only happens on Submit)
  */
 window.reservePortalToken = async function(mode = 'visitor') {
-    const counterPath = mode === 'contractor' ? 'system_counters/contractor_daily' : 'system_counters/visitor_daily';
-    const counterRef = ref(db, counterPath);
-    const todayStr = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+    const params = new URLSearchParams(window.location.search);
+    const modeParam = params.get('mode') || window.portalMode || mode;
+    const prefix = modeParam.toLowerCase().includes('contractor') ? 'JYSC' : 'JYSV';
 
-    try {
-        let assignedSeq = 1;
+    const vId = document.getElementById('v-id');
+    const badgeEl = document.getElementById('contractor-token-badge');
+    const vDate = document.getElementById('v-date');
 
-        // Atomic Transaction ensures no two devices get the same integer even in the exact same millisecond
-        await runTransaction(counterRef, (currentData) => {
-            if (currentData && currentData.date === todayStr) {
-                assignedSeq = (currentData.lastSeq || 0) + 1;
-                return { date: todayStr, lastSeq: assignedSeq };
-            } else {
-                // Reset counter for a new day
-                assignedSeq = 1;
-                return { date: todayStr, lastSeq: 1 };
-            }
-        });
+    if (vDate) vDate.value = new Date().toLocaleDateString('en-US');
+    if (localStorage.getItem('vActive')) return;
 
-        // Reserve temporary token in Firebase
-        const reservationRef = push(ref(db, 'token_reservations'));
-        const tokenId = reservationRef.key;
+    if (vId) vId.value = `${prefix}---`;
+    if (badgeEl) badgeEl.innerText = `TOKEN #--`;
 
-        const tokenData = {
-            tokenId: tokenId,
-            sequenceNo: assignedSeq,
-            status: 'RESERVED',
-            mode: mode,
-            createdAt: Date.now(),
-            expiresAt: Date.now() + (5 * 60 * 1000) // Expire after 5 minutes
-        };
-
-        await set(reservationRef, tokenData);
-
-        window.currentReservedToken = tokenData;
-
-        // Display Token ID on the screen
-        const badgeEl = document.getElementById('contractor-token-badge');
-        if (badgeEl) badgeEl.innerText = `Token #${assignedSeq}`;
-
-        // Sync ID field with sequence
-        const vId = document.getElementById('v-id');
-        if (vId) {
-            const prefix = mode === 'contractor' ? 'JYS-C' : 'JYS-V';
-            vId.value = prefix + assignedSeq.toString().padStart(3, '0');
-        }
-
-        // Start 5-Minute Auto-Expiry Safeguard
-        startTokenExpiryTimer(tokenId, assignedSeq);
-
-    } catch (err) {
-        console.error("Atomic reservation error:", err);
-    }
+    console.log(`🌐 System: ${prefix} Portal ready. Sequence will be assigned by server on confirm.`);
 };
 
 /**
- * AUTO-EXPIRY & QUEUE RE-INDEXING IF ABANDONED
+ * 2. STRICT ACTIVE-ONLY EVALUATION (The Core Interlock)
  */
-function startTokenExpiryTimer(tokenId, seqNo) {
-    if (window.tokenTimer) clearTimeout(window.tokenTimer);
+window.handlePhoneLookup = async function(enteredMobile) {
+    const cleanMobile = (enteredMobile || "").toString().trim();
+    if (cleanMobile.length < 8) return;
 
-    window.tokenTimer = setTimeout(async () => {
-        if (window.currentReservedToken && window.currentReservedToken.tokenId === tokenId) {
-            console.warn(`Token #${seqNo} expired without signature. Recycling token...`);
-
-            // Remove unsubmitted token
-            await remove(ref(db, `token_reservations/${tokenId}`));
-
-            // Mark token as recycled so queue auto-shifts
-            window.currentReservedToken = null;
-            alert("⏰ Session expired due to inactivity. Please reopen the form.");
-            window.location.reload();
-        }
-    }, 5 * 60 * 1000); // 5 Minutes
-}
-
-// ✅ FIXED: Self-contained compression function
-// Ensures visitor sign-in works even if attendance_module.js hasn't loaded.
-function getCompressedSignature(canvas) {
-    if (!canvas) return null;
-    try {
-        const offscreen = document.createElement('canvas');
-        offscreen.width = 300;
-        offscreen.height = 150;
-        const ctx = offscreen.getContext('2d');
-        ctx.fillStyle = "#FFFFFF";
-        ctx.fillRect(0, 0, 300, 150);
-        ctx.imageSmoothingQuality = 'high';
-        ctx.drawImage(canvas, 0, 0, 300, 150);
-        return offscreen.toDataURL("image/jpeg", 0.4);
-    } catch (e) {
-        console.error("Compression error:", e);
-        return null;
-    }
-}
-
-// Ensure global availability for init_module.js
-window.getCompressedSignature = getCompressedSignature;
-
-// ✅ FIXED: Using SignaturePadEngine's isEmpty check
-function isCanvasBlank(canvasId) {
-    if (window.sigPadManager) {
-        const pad = window.sigPadManager.getPad(canvasId);
-        return pad ? pad.isEmpty() : true;
-    }
-    const canvas = document.getElementById(canvasId);
-    if (!canvas) return true;
-    const blank = document.createElement('canvas');
-    blank.width = canvas.width;
-    blank.height = canvas.height;
-    const ctx = blank.getContext('2d');
-    ctx.fillStyle = "#FFFFFF";
-    ctx.fillRect(0, 0, blank.width, blank.height);
-    return canvas.toDataURL() === blank.toDataURL();
-}
-window.isCanvasBlank = isCanvasBlank;
-
-// --- INITIALIZATION: Signature Pad for Visitors ---
-window.initVisitorCanvas = () => {
-    if (document.getElementById('v-sig-pad') && window.sigPadManager) {
-        const pad = window.sigPadManager.getPad('v-sig-pad');
-        // Ensure pad is initialized but keep locked status from HTML/UI
-        if (pad && typeof pad._setupCanvas === 'function') {
-             // We don't call unlock here, the UI overlay handles it.
-        }
-    }
-};
-
-window.clearVisitorSig = () => {
-    if (window.sigPadManager) {
-        const pad = window.sigPadManager.getPad('v-sig-pad');
-        if (pad) {
-            pad.clear();
-            pad.lock();
-        }
-    }
-};
-
-window.generateKeyReturnPin = () => {
-    return Math.floor(1000 + Math.random() * 9000).toString();
-};
-
-/**
- * REAL-TIME DATABASE CHECK-OUT PERSISTENCE CHECKER (v3.6 Upgrade)
- */
-window.handlePhoneLookup = async function(phoneNumber) {
-    const cleanPhone = (phoneNumber || "").toString().trim();
-    if (cleanPhone.length < 8) return;
-
-    console.log("🔍 Fetching Visitor History for:", cleanPhone);
+    console.log("🔍 Evaluating Session for:", cleanMobile);
 
     const mode = window.portalMode || 'visitor';
     const dbNode = mode === 'contractor' ? 'contractors' : 'visitors';
 
     try {
-        const q = query(ref(db, dbNode), orderByChild('mobile'), equalTo(cleanPhone));
+        const q = query(ref(db, dbNode), orderByChild('mobile'), equalTo(cleanMobile));
         const snapshot = await get(q);
 
-        let activeSession = null;
-        let lastCompletedProfile = null;
+        let activeRecord = null;
+        let lastProfile = null;
 
         if (snapshot.exists()) {
             snapshot.forEach(child => {
-                const record = child.val();
-                record.firebaseKey = child.key;
-
-                // 1. STRICT ACTIVE VISIT FILTERING
-                if (record.status === 'active' || !record.outTime || record.outTime === '-') {
-                    activeSession = record;
-                } else if (record.status === 'completed' || record.status === 'SIGNED OUT') {
-                    // Keep track of the most recent profile to auto-fill
-                    if (!lastCompletedProfile || record.timestamp > lastCompletedProfile.timestamp) {
-                        lastCompletedProfile = record;
+                const data = child.val();
+                data.firebaseKey = child.key;
+                if (data.status === 'active') {
+                    activeRecord = data;
+                } else {
+                    if (!lastProfile || (data.timestamp || 0) > (lastProfile.timestamp || 0)) {
+                        lastProfile = data;
                     }
                 }
             });
         }
 
-        // --- DECISION LOGIC ---
-
-        if (activeSession) {
-            // CONDITION 1: ACTIVE VISIT EXISTS -> FORCE CHECK-OUT VIEW
-            console.log("⚠️ Active Session Found! Forcing Check-Out Screen.");
-            const sessionData = {
-                ...activeSession,
-                name: activeSession.name || activeSession.fullName,
-                id: activeSession.id,
-                timeIn: activeSession.timeIn,
-                mode: mode
-            };
-            localStorage.setItem('vActive', JSON.stringify(sessionData));
+        if (activeRecord) {
+            // SCENARIO A: Visitor is CURRENTLY inside -> Force Check-Out
+            console.log("⚠️ Active Stay Detected. Switching to Check-Out View.");
+            localStorage.setItem('vActive', JSON.stringify({ ...activeRecord, mode: mode }));
             window.checkVisitorSession();
-        }
-        else {
-            // CONDITION 2: ALL PREVIOUS VISITS ARE CHECKED-OUT -> ALLOW NEW CHECK-IN
-            console.log("🆕 No active stay. Registration Form allowed.");
+        } else {
+            // SCENARIO B: No active stay (New or Completed) -> Open Fresh Check-In
+            console.log("🆕 No active stay. Opening Fresh Check-In Form.");
 
-            // Only clear if we were showing a sign-out area previously
             const wasActive = localStorage.getItem('vActive');
             if (wasActive) {
                 localStorage.removeItem('vActive');
-                window.checkVisitorSession();
+                window.checkVisitorSession(); // Resets UI to sign-in form
             }
 
-            if (lastCompletedProfile) {
-                // AUTO-FILL FEATURE: Pre-populate from last completed visit
-                console.log("🔄 Repeat Visitor Detected. Auto-filling saved profile.");
+            if (lastProfile) {
+                // UX Feature: Pre-fill past details for speed
                 window.autoFillVisitorForm({
-                    name: lastCompletedProfile.name || lastCompletedProfile.fullName || '',
-                    company: lastCompletedProfile.company || '',
-                    contractorId: lastCompletedProfile.contractorId || ''
+                    name: lastProfile.name || lastProfile.fullName || '',
+                    company: lastProfile.company || '',
+                    contractorId: lastProfile.contractorId || ''
                 });
             } else {
-                console.log("🆕 Brand New Visitor. Fresh blank form.");
-                // Ensure form is clean if phone number was changed to a new one
                 window.autoFillVisitorForm({ name: '', company: '', contractorId: '' });
             }
         }
-    } catch (err) {
-        console.error("Phone lookup error:", err);
-    }
+    } catch (err) { console.error("❌ Evaluation Error:", err); }
 };
 
-/**
- * AUTO-FILL UI HELPER
- */
 window.autoFillVisitorForm = (profile) => {
     const vName = document.getElementById('v-name');
     const vCompany = document.getElementById('v-company');
@@ -247,11 +102,10 @@ window.autoFillVisitorForm = (profile) => {
     if (vCompany) vCompany.value = profile.company || '';
     if (contractorId) contractorId.value = profile.contractorId || '';
 
-    // Brief visual feedback for auto-fill
     if (profile.name || profile.company) {
         [vName, vCompany, contractorId].forEach(el => {
             if (el && el.value) {
-                el.style.backgroundColor = '#EEF2FF'; // Indigo-50
+                el.style.backgroundColor = '#EEF2FF';
                 setTimeout(() => { el.style.backgroundColor = ''; }, 1500);
             }
         });
@@ -269,132 +123,45 @@ window.checkVisitorSession = () => {
         if (signInArea) signInArea.classList.add('hidden');
         if (signOutArea) {
             signOutArea.classList.remove('hidden');
-            const activeName = document.getElementById('v-active-name');
-            const activeId = document.getElementById('v-active-id');
-            const activeTimeIn = document.getElementById('v-active-timein');
-            const activePin = document.getElementById('v-active-pin'); // NEW
-            if (activeName) activeName.innerText = data.name;
-            if (activeId) activeId.innerText = data.id;
-            if (activeTimeIn) activeTimeIn.innerText = data.timeIn;
-            const activePin = document.getElementById('v-active-pin');
-            if (activePin) {
-                if (data.keyCollected === 'YES' || data.keyReturnPin) {
-                    activePin.innerText = data.keyReturnPin || "----";
-                    const pinBox = document.getElementById('v-active-pin-box');
-                    if (pinBox) pinBox.classList.remove('hidden');
-                } else {
-                    const pinBox = document.getElementById('v-active-pin-box');
-                    if (pinBox) pinBox.classList.add('hidden');
-                }
-            }
+            if (document.getElementById('v-active-name')) document.getElementById('v-active-name').innerText = data.name || data.fullName || 'Visitor';
+            if (document.getElementById('v-active-id')) document.getElementById('v-active-id').innerText = data.id || '-';
+            if (document.getElementById('v-active-timein')) document.getElementById('v-active-timein').innerText = data.timeIn || '-';
+
+            const badgeEl = document.getElementById('contractor-token-badge');
+            if (badgeEl) badgeEl.innerText = `TOKEN #${data.tokenNumber || '--'}`;
+
+            const pinEl = document.getElementById('v-active-pin');
+            if (pinEl) pinEl.innerText = data.checkoutPin || data.keyReturnPin || "----";
         }
 
-        // Fix for Sign-Out button event listener
         if (signOutBtn) {
             signOutBtn.onclick = async () => {
-                window.showGlobalSpinner("Fetching Security PIN...");
-                let liveStoredPin = null;
-                const mode = data.mode || (data.contractorId ? 'contractor' : 'visitor');
-                const dbNode = mode === 'contractor' ? 'contractors' : 'visitors';
+                window.showGlobalSpinner("Logging Departure...");
                 try {
-                    // 1. ALWAYS FORCE A FRESH FIREBASE LOOKUP FOR ALL CHECKOUTS
-                    const snap = await get(ref(db, dbNode));
-                    if (snap.exists()) {
-                        const logs = snap.val();
-                        const recordEntry = Object.entries(logs).find(([key, record]) =>
-                            key === data.firebaseKey ||
-                            (record.id && data.id && record.id.toString().trim() === data.id.toString().trim()) ||
-                            (record.contractorId && data.contractorId && record.contractorId.toString().trim() === data.contractorId.toString().trim()) ||
-                            (record.mobile && data.mobile && record.mobile.toString().trim() === data.mobile.toString().trim())
-                        );
-                        if (recordEntry) {
-                            const freshData = recordEntry[1];
-                            liveStoredPin = (freshData.keyReturnPin || freshData.checkoutPin || freshData.pin || "").toString().trim();
-                            data.firebaseKey = recordEntry[0];
-                        }
-                    }
-                } catch (err) {
-                    console.error("Firebase fetch error:", err);
-                } finally {
-                    window.hideGlobalSpinner();
-                }
-                // Fallback to local data if fetch returned empty
-                if (!liveStoredPin) {
-                    liveStoredPin = (data.keyReturnPin || data.checkoutPin || data.pin || "").toString().trim();
-                }
-                // 2. MOBILE-SAFE PIN PROMPT LOGIC
-                // ✅ Check if key was issued. If 'NO', skip PIN verification.
-                const keyIssued = (data.keyCollected === 'YES' || data.keyCollected === 'Yes' || data.keyCollected === true);
+                    const dbNode = data.mode === 'contractor' ? 'contractors' : 'visitors';
+                    const outTime = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', hour12: true});
 
-                if (keyIssued) {
-                    // Use a standard prompt with clean string trimming
-                    const userEntered = prompt(`🔑 KEY RETURN PIN REQUIRED\n\nPlease enter the 4-digit PIN shown on Security Dashboard:`);
-
-                    if (userEntered === null) {
-                        // User clicked Cancel
-                        return;
-                    }
-                    const enteredPin = userEntered.toString().trim();
-                    if (!liveStoredPin || enteredPin === "" || enteredPin !== liveStoredPin) {
-                        alert(`❌ Invalid PIN!\n\nPlease enter the exact 4-digit PIN displayed on the Security Dashboard. Contact Security if you do not have it.`);
-                        return;
-                    }
-                }
-                // 3. EXECUTE SIGN OUT
-                // ✅ Show Processing Spinner first
-                if (window.showGlobalSpinner) window.showGlobalSpinner("Processing Check-Out...");
-
-                try {
-                    const now = new Date();
-                    const outTime = now.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', hour12: true});
                     const targetKey = data.firebaseKey || data.id;
                     await update(ref(db, `${dbNode}/${targetKey}`), {
                         outTime: outTime,
                         status: 'completed',
-                        keyReturned: 'YES'
+                        timestamp_out: Date.now()
                     });
 
-                    // ✅ REMOVE FROM SECURITY KEY CONTROL (RESTORED)
-                    // Uses exact same identifier logic as init_module.js
-                    const securityRefId = data.mobile || data.id;
-                    await remove(ref(db, `security_key_control/${securityRefId}`));
-
+                    await remove(ref(db, `security_key_control/${data.mobile || data.id}`)).catch(()=>{});
                     localStorage.removeItem('vActive');
-
-                    // ✅ Hide Processing Spinner
-                    if (window.hideGlobalSpinner) window.hideGlobalSpinner();
-
-                    if (window.showPortalAnimation) {
-                        window.showPortalAnimation('exit');
-                        setTimeout(() => {
-                            window.hidePortalAnimation();
-                            if (window.triggerSuccessPopup) {
-                                window.triggerSuccessPopup("Signed Out Successfully! 👋");
-                            } else {
-                                alert("Signed Out Successfully! 👋");
-                            }
-                            window.checkVisitorSession();
-                        }, 2000);
-                    } else {
-                        if (window.triggerSuccessPopup) {
-                            window.triggerSuccessPopup("Signed Out Successfully! 👋");
-                        } else {
-                            alert("Signed Out Successfully! 👋");
-                        }
-                        window.checkVisitorSession();
-                    }
-                } catch (e) {
-                    if (window.hidePortalAnimation) window.hidePortalAnimation();
-                    alert("Error during sign-out: " + e.message);
-                } finally {
                     window.hideGlobalSpinner();
-                }
+                    if (window.showPortalAnimation) window.showPortalAnimation('exit');
+                    setTimeout(() => {
+                        if (window.hidePortalAnimation) window.hidePortalAnimation();
+                        window.checkVisitorSession();
+                    }, 2000);
+                } catch (e) { alert("Check-Out Failed: " + e.message); window.hideGlobalSpinner(); }
             };
         }
     } else {
         if (signInArea) signInArea.classList.remove('hidden');
         if (signOutArea) signOutArea.classList.add('hidden');
-        // Ensure form is initialized when session is clear
         window.initVisitorForm();
     }
 };
@@ -410,88 +177,30 @@ window.initVisitorForm = async () => {
 
     if (!vId || !vDate) return;
 
-    // ✅ FIXED: Clear only if NOT auto-filled from URL
+    vId.value = "Generating...";
+    vDate.value = new Date().toLocaleDateString('en-US');
     if (vName) vName.value = '';
-
-    const params = new URLSearchParams(window.location.search);
-    const mobileFromUrl = params.get('mobile');
-
-    if (vMobile) {
-        if (mobileFromUrl) {
-            vMobile.value = mobileFromUrl;
-            console.log("📱 Preserving auto-filled mobile:", mobileFromUrl);
-        } else {
-            vMobile.value = '';
-        }
-    }
     if (vCompany) vCompany.value = '';
     if (vPurpose) vPurpose.value = '';
     if (contractorId) contractorId.value = '';
 
-    // Reset Key Buttons to "NO"
-    window.toggleVisitorKey(false);
+    const params = new URLSearchParams(window.location.search);
+    const mobileFromUrl = params.get('mobile');
+    if (vMobile) vMobile.value = mobileFromUrl || '';
 
-    // Reset Signature
-    window.clearVisitorSig();
-
-    const now = new Date();
     const mode = window.portalMode || 'visitor';
-
-    // Start Atomic Transaction Reservation
     await window.reservePortalToken(mode);
+    if (mobileFromUrl && mobileFromUrl.length >= 8) window.handlePhoneLookup(mobileFromUrl);
 
-    // Set date/time
-    vDate.value = now.toLocaleDateString('en-US') + " " + now.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', hour12: true});
-
-    // Ensure the fields are visible
-    vId.parentElement.style.display = "block";
-    vDate.parentElement.style.display = "block";
-
-    // ✅ NEW: Trigger lookup if mobile was auto-filled from URL
-    if (vMobile.value.length >= 8) {
-        window.handlePhoneLookup(vMobile.value);
-    }
-
-    setTimeout(window.initVisitorCanvas, 50);
+    if (window.initVisitorCanvas) window.initVisitorCanvas();
 };
 
-/**
- * PROFESSIONAL SCHOOL ANIMATION OVERLAY
- */
-window.showPortalAnimation = function(type = 'verify') {
-    const overlay = document.getElementById('portal-animation-overlay');
-    const icon = document.getElementById('anim-icon');
-    const text = document.getElementById('anim-text');
-    const subtext = document.getElementById('anim-subtext');
-
-    if (!overlay) return;
-
-    if (type === 'entry') {
-        icon.className = "fa-solid fa-shield-check text-emerald-500 text-6xl animate-bounce";
-        text.innerText = "ACCESS GRANTED";
-        subtext.innerText = "Welcome to Jern Yafoor School";
-    } else if (type === 'exit') {
-        icon.className = "fa-solid fa-door-open text-orange-500 text-6xl animate-pulse";
-        text.innerText = "DEPARTURE LOGGED";
-        subtext.innerText = "Thank you for visiting";
-    } else {
-        icon.className = "fa-solid fa-user-shield text-indigo-500 text-6xl animate-pulse";
-        text.innerText = "VERIFYING IDENTITY";
-        subtext.innerText = "School Security Protocol Active";
+window.isCanvasBlank = (id) => {
+    if (window.sigPadManager) {
+        const pad = window.sigPadManager.getPad(id);
+        if (pad && pad.canvas) {
+            return pad.isEmpty() || pad.canvas.toDataURL().length < 2000;
+        }
     }
-
-    overlay.classList.remove('hidden');
-    overlay.style.display = 'flex';
-};
-
-window.hidePortalAnimation = function() {
-    const overlay = document.getElementById('portal-animation-overlay');
-    if (overlay) {
-        overlay.style.opacity = '0';
-        setTimeout(() => {
-            overlay.classList.add('hidden');
-            overlay.style.display = 'none';
-            overlay.style.opacity = '1';
-        }, 500);
-    }
+    return true;
 };

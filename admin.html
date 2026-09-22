@@ -1015,6 +1015,9 @@
                                         <i class="fa-regular fa-upload"></i> Import
                                     </button>
                                     <button onclick="window.downloadMasterAssetReport()" class="px-4 py-2 bg-cyan-600 text-white rounded-xl text-[9px] font-black uppercase shadow-lg">Export Assets</button>
+                                    <button onclick="window.openDeleteAllAssetsModal()" class="px-4 py-2 bg-red-600 text-white rounded-xl text-[9px] font-black uppercase shadow-lg flex items-center gap-2 hover:bg-red-700 transition-colors">
+                                        <i class="fa-regular fa-trash-can"></i> Delete All Assets
+                                    </button>
                                 </div>
                             </div>
                         </div>
@@ -1204,11 +1207,19 @@
                                     <span class="text-[11px] font-black text-slate-500 uppercase tracking-wider" id="driveStatusText">Status: Not Connected</span>
                                 </div>
 
-                                <button id="saveDriveUrlBtn" onclick="window.saveGoogleDriveConfig()"
-                                        class="w-full sm:w-auto px-10 py-5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-[1.5rem] font-black text-xs uppercase tracking-[0.2em] shadow-xl shadow-indigo-500/30 active:scale-95 transition-all flex items-center justify-center gap-3 group">
-                                    <i class="fa-solid fa-rotate group-hover:rotate-180 transition-transform duration-500"></i>
-                                    Update & Test Connection
-                                </button>
+                                <div class="flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto">
+                                    <button id="saveDriveUrlBtn" onclick="window.saveGoogleDriveConfig()"
+                                            class="w-full sm:w-auto px-10 py-5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-[1.5rem] font-black text-xs uppercase tracking-[0.2em] shadow-xl shadow-indigo-500/30 active:scale-95 transition-all flex items-center justify-center gap-3 group">
+                                        <i class="fa-solid fa-rotate group-hover:rotate-180 transition-transform duration-500"></i>
+                                        Update & Test
+                                    </button>
+
+                                    <button onclick="window.disconnectGoogleDrive()"
+                                            class="w-full sm:w-auto px-10 py-5 bg-rose-500 hover:bg-rose-600 text-white rounded-[1.5rem] font-black text-xs uppercase tracking-[0.2em] shadow-xl shadow-rose-500/20 active:scale-95 transition-all flex items-center justify-center gap-3">
+                                        <i class="fa-solid fa-plug-circle-xmark"></i>
+                                        Disconnect
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -1530,6 +1541,42 @@
                 <div class="flex items-center gap-2 px-4 py-1.5 bg-emerald-500/10 border border-emerald-500/20 rounded-full">
                     <span class="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-ping"></span>
                     <span class="text-[8px] font-black text-emerald-500 uppercase tracking-[0.2em]">Ready to Scan</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- DELETE ALL ASSETS CONFIRMATION MODAL -->
+    <div id="delete-all-assets-modal" class="fixed inset-0 bg-black/90 backdrop-blur-md z-[100009] hidden flex items-center justify-center p-4">
+        <div class="bg-white w-full max-w-md rounded-[2rem] overflow-hidden shadow-2xl">
+            <div class="p-8 text-center space-y-6">
+                <div class="w-20 h-20 bg-red-50 text-red-600 rounded-full flex items-center justify-center mx-auto shadow-inner">
+                    <i class="fa-solid fa-triangle-exclamation text-4xl"></i>
+                </div>
+
+                <div class="space-y-2">
+                    <h3 class="text-xl font-black text-slate-900 uppercase tracking-tight">Permanent Asset Purge</h3>
+                    <p class="text-slate-500 text-xs font-medium leading-relaxed">
+                        You are about to delete <strong>ALL</strong> assets from the database. This action cannot be undone.
+                    </p>
+                </div>
+
+                <div class="bg-red-50 p-4 rounded-2xl border border-red-100">
+                    <p class="text-[10px] font-black text-red-600 uppercase tracking-widest mb-3">Type 'DELETE ALL' to confirm</p>
+                    <input type="text" id="delete-all-confirm-input" placeholder="Type here..."
+                           class="w-full px-4 py-3 bg-white border-2 border-red-100 rounded-xl text-center font-black text-red-600 uppercase outline-none focus:border-red-500 transition-all"
+                           oninput="window.validateDeleteAllAssetsInput(this.value)">
+                </div>
+
+                <div class="flex gap-3">
+                    <button onclick="document.getElementById('delete-all-assets-modal').classList.add('hidden')"
+                            class="flex-1 py-4 bg-slate-100 text-slate-600 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-slate-200 transition-all">
+                        Cancel
+                    </button>
+                    <button id="confirm-delete-all-btn" disabled onclick="window.deleteAllAssets()"
+                            class="flex-1 py-4 bg-red-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-lg shadow-red-200 disabled:opacity-30 disabled:grayscale transition-all">
+                        Confirm Delete
+                    </button>
                 </div>
             </div>
         </div>

@@ -40,23 +40,28 @@ const firebaseConfig = {
 console.log("🔥 Firebase: Starting Initialization...");
 const app = initializeApp(firebaseConfig);
 
-// FORCE LONG-POLLING TO BYPASS PUBLIC WI-FI WEBSOCKET BLOCKING
-export const db = getDatabase(app);
+// Initialize Realtime Database with explicit URL and debug mode
+export const db = getDatabase(app, "https://schoollog-f0a04-default-rtdb.firebaseio.com");
+window.db = db; // Expose for debugging
 
-// Use a self-invoking function to configure the database for long polling
-(function forceLongPolling(db) {
-    try {
-        const { _repo } = db;
-        if (_repo) {
-            db._repo.repoInfo_.host = db._repo.repoInfo_.host;
-            console.log("🛠️ Firebase: WebSocket bypass active (Long-Polling mode)");
-        }
-    } catch (e) {
-        console.warn("⚠️ Firebase Long-Polling force failed:", e);
+// Monitor Connection State
+const connectedRef = ref(db, ".info/connected");
+onValue(connectedRef, (snap) => {
+    if (snap.val() === true) {
+        console.log("🔥 Firebase: Connection Established ✅");
+    } else {
+        console.warn("🔥 Firebase: Disconnected ❌");
     }
-})(db);
+});
 
-console.log("🔥 Firebase: Database Connection Established");
+// IMMEDIATE CONNECTION TEST WRITE
+set(ref(db, 'system/last_boot'), Date.now()).then(() => {
+    console.log("✅ Firebase: Initial Write Test Successful");
+}).catch(err => {
+    console.error("❌ Firebase: Initial Write Test FAILED", err);
+});
+
+console.log("🔥 Firebase: Database instance ready");
 
 // ================================================================ */
 // DYNAMIC MULTI-FOLDER DRIVE CONFIGURATION                         */

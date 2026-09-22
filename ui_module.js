@@ -812,6 +812,9 @@ window.applyStrictRoleBasedLayout = function() {
     });
 
     // 3. DYNAMIC ENFORCEMENT
+    const isCreateTaskEnabled = perms.can_access_create_task === true;
+    const isTaskHistoryEnabled = perms.can_access_task_history === true;
+
     window.FEATURE_PERMISSIONS.forEach(feature => {
         // If Admin or permission is explicitly TRUE
         if (isAdmin || perms[feature.id] === true) {
@@ -820,6 +823,33 @@ window.applyStrictRoleBasedLayout = function() {
             show(feature.selector, displayType);
         }
     });
+
+    // 🔒 SCENARIO-SPECIFIC ENFORCEMENT (v15.1)
+    if (!isAdmin) {
+        if (!isCreateTaskEnabled) {
+            // Strictly hide all Create Task triggers
+            hide('#menu-create-task-btn, #s-dash-create-task-btn, #tab-btn-create-task, #tab-btn-create, #section-create-task');
+
+            // If currently on Create Tab, switch away
+            const createSection = document.getElementById('section-create-task');
+            if (createSection && !createSection.classList.contains('hidden')) {
+                if (typeof window.switchTaskTab === 'function') window.switchTaskTab('active');
+            }
+        }
+
+        if (!isTaskHistoryEnabled) {
+            // Strictly hide Task History related triggers
+            hide('#tab-btn-history, #section-history-tasks');
+        }
+
+        // Entire Task Section visibility: visible if EITHER history or creation is allowed
+        if (!isCreateTaskEnabled && !isTaskHistoryEnabled) {
+            hide('#tasks-management-section, #menu-tasks-btn, #tasks-summary-card');
+        } else {
+            // Ensure the main entry point is shown
+            show('#menu-tasks-btn, #tasks-summary-card', 'flex');
+        }
+    }
 
     console.log(`🛡️ [RBAC v15.0] Applied dynamic permissions for: ${staff.fullName || staff.name}`);
 };

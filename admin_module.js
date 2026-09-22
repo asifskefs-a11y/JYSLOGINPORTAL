@@ -96,6 +96,66 @@ window.cleanupAdminListeners = function() {
     console.log("🧹 Admin listeners cleaned up");
 };
 
+/**
+ * Robust Media Type Resolver
+ * Returns the detected type of the file URL
+ */
+window.resolveMediaType = function(fileUrl) {
+    if (!fileUrl || fileUrl === 'N/A' || fileUrl === '-') return 'unknown';
+    const urlLower = String(fileUrl).split('?')[0].toLowerCase();
+
+    if (urlLower.endsWith('.pdf') || urlLower.includes('pdf')) {
+        return 'pdf';
+    }
+
+    // Handle Google Drive links specifically for the viewer
+    if (urlLower.includes('drive.google.com') || urlLower.includes('docs.google.com')) {
+        const driveRegex = /\/file\/d\/([a-zA-Z0-9_-]+)|[?&]id=([a-zA-Z0-9_-]+)/;
+        const match = String(fileUrl).match(driveRegex);
+        if (match) return 'drive_embed';
+    }
+
+    if (urlLower.match(/\.(jpeg|jpg|png|gif|webp|svg)/) || urlLower.includes('googleusercontent.com')) {
+        return 'image';
+    }
+    if (urlLower.match(/\.(doc|docx|xls|xlsx|ppt|pptx)/)) {
+        return 'document';
+    }
+    return 'image'; // Default fallback
+};
+
+/**
+ * Global entry point for loading staff documents into the review modal.
+ */
+window.loadStaffDocs = async function(staffId) {
+    console.log("📂 loadStaffDocs triggered for:", staffId);
+    if (!staffId) return;
+
+    try {
+        if (window.openStaffDocumentReviewModal) {
+            await window.openStaffDocumentReviewModal(staffId);
+        } else {
+            console.error("❌ openStaffDocumentReviewModal not found on window. Module likely failed to load.");
+            alert("Error: Verification module is not initialized.");
+        }
+    } catch (err) {
+        console.error("❌ loadStaffDocs Failed:", err);
+        if (window.showWhatsAppToast) {
+            window.showWhatsAppToast("Loading Error", err.message, 'error');
+        } else {
+            alert("Error loading docs: " + err.message);
+        }
+    }
+};
+
+/**
+ * Explicit global binding to ensure modal works even if module execution is deferred
+ */
+window.openStaffDocumentReviewModal = window.openStaffDocumentReviewModal || function(id) {
+    console.warn("⚠️ openStaffDocumentReviewModal called before module initialization.");
+    // This will be overwritten when docs_verification.js loads successfully
+};
+
 // ================================================================ */
 // ✅ REAL-TIME METRICS & KPI LOGIC                                 */
 // ================================================================ */
@@ -394,12 +454,24 @@ window.initAdminRealTimeListeners = function() {
     activeListeners.assets = onValue(ref(db, 'assets'), (snapshot) => {
         if (snapshot.exists()) {
             const rawData = snapshot.val();
-            // Store as array while PRESERVING keys for consistency
+            // In-memory fast cache (NO 5MB limit)
             window.appCache.assets = Object.entries(rawData).map(([key, val]) => {
                 return { ...val, firebaseKey: key, _key: key };
             });
 
-            localStorage.setItem('cached_asset_register', JSON.stringify(window.appCache.assets));
+            // Safe caching wrapper with QuotaExceededError protection
+            // For large datasets (6000+ assets), we rely on in-memory appCache primarily
+            try {
+                // Only attempt to cache if data is reasonably sized
+                if (window.appCache.assets.length < 1000) {
+                    localStorage.setItem('cached_asset_register', JSON.stringify(window.appCache.assets));
+                } else {
+                    console.info("⚡ Large dataset detected (6000+ items). Skipping LocalStorage to prevent quota errors.");
+                }
+            } catch (e) {
+                console.warn("⚠️ LocalStorage Quota Exceeded. Asset register used in-memory only.");
+            }
+
             if (document.querySelector('.tab-section.active')?.id === 'tab-assets') {
                 window.filterAssetTable();
             }
@@ -2237,4 +2309,72 @@ window.openDetailedAuditModal = function(type, id) {
     `;
     modal.classList.remove('hidden');
     modal.style.display = 'flex';
+};
+
+// ================================================================ */
+// ✅ BULK ASSET DELETION LOGIC (v5.0 - ATOMIC PURGE)                */
+// ================================================================ */
+
+window.openDeleteAllAssetsModal = function() {
+    const modal = document.getElementById('delete-all-assets-modal');
+    const input = document.getElementById('delete-all-confirm-input');
+    const btn = document.getElementById('confirm-delete-all-btn');
+
+    if (modal) {
+        if (input) input.value = '';
+        if (btn) btn.disabled = true;
+        modal.classList.remove('hidden');
+    }
+};
+
+window.validateDeleteAllAssetsInput = function(val) {
+    const btn = document.getElementById('confirm-delete-all-btn');
+    if (btn) {
+        btn.disabled = (val !== 'DELETE ALL');
+    }
+};
+
+window.deleteAllAssets = async function() {
+    try {
+        if (window.showGlobalSpinner) {
+            window.showGlobalSpinner("Permanently Purging All Assets...");
+        }
+
+        console.log("🔥 Firebase: Initiating atomic deletion of 'assets' node...");
+
+        // Single atomic removal of the entire assets node
+        const assetsRef = ref(db, 'assets');
+        await remove(assetsRef);
+
+        console.log("✅ Firebase: All assets deleted successfully.");
+
+        // Clear local cache and filtered state
+        window.appCache.assets = [];
+        window.currentFilteredData.assets = null;
+        window.selectedAssetKeys = new Set();
+
+        // Update UI counters and table
+        if (window.updateCounterUI) {
+            window.updateCounterUI('.assets-count-val', 0);
+        }
+
+        const countDisplay = document.getElementById('asset-count-display');
+        if (countDisplay) countDisplay.innerText = "0 assets found";
+
+        // Re-render empty table
+        if (typeof window.renderDynamicAssetTable === 'function') {
+            window.renderDynamicAssetTable([], []);
+        }
+
+        // Hide modal and spinner
+        document.getElementById('delete-all-assets-modal').classList.add('hidden');
+        if (window.hideGlobalSpinner) window.hideGlobalSpinner();
+
+        alert("✅ Success: All assets have been permanently removed from the database.");
+
+    } catch (error) {
+        if (window.hideGlobalSpinner) window.hideGlobalSpinner();
+        console.error("❌ Bulk Deletion Failed:", error);
+        alert("❌ Deletion Failed: " + error.message);
+    }
 };

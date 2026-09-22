@@ -37,6 +37,26 @@ const BIO_DATA_TITLE_MAP = {
 };
 
 /**
+ * Helper to resolve embeddable URL and type (Fixes 429 Rate Limit)
+ */
+const resolveMediaType = (url) => {
+    if (!url || url === 'N/A' || url === '-') return null;
+    if (url.startsWith('data:image')) return { type: 'image', url };
+    if (url.startsWith('data:application/pdf')) return { type: 'pdf', url };
+
+    const driveRegex = /\/file\/d\/([a-zA-Z0-9_-]+)|[?&]id=([a-zA-Z0-9_-]+)/;
+    const match = url.match(driveRegex);
+    if (match) {
+        const fileId = match[1] || match[2];
+        // Native Drive Preview bypasses Google Docs Viewer 429 errors
+        return { type: 'drive_embed', url: `https://drive.google.com/file/d/${fileId}/preview` };
+    }
+
+    if (url.match(/\.(jpg|jpeg|png|webp)$/i)) return { type: 'image', url };
+    return { type: 'link', url };
+};
+
+/**
  * Opens a modal for Admin to review staff documents
  */
 window.openStaffDocumentReviewModal = async function(staffMobile) {
@@ -64,24 +84,6 @@ window.openStaffDocumentReviewModal = async function(staffMobile) {
                     ...(rawStaff.bio_data || {}),
                     ...((rawStaff.documents && rawStaff.documents.biodata) || {}),
                     ...rawStaff // fallback to root properties
-                };
-
-                // Helper to resolve embeddable URL and type (Fixes 429 Rate Limit)
-                const resolveMediaType = (url) => {
-                    if (!url || url === 'N/A' || url === '-') return null;
-                    if (url.startsWith('data:image')) return { type: 'image', url };
-                    if (url.startsWith('data:application/pdf')) return { type: 'pdf', url };
-
-                    const driveRegex = /\/file\/d\/([a-zA-Z0-9_-]+)|[?&]id=([a-zA-Z0-9_-]+)/;
-                    const match = url.match(driveRegex);
-                    if (match) {
-                        const fileId = match[1] || match[2];
-                        // Native Drive Preview bypasses Google Docs Viewer 429 errors
-                        return { type: 'drive_embed', url: `https://drive.google.com/file/d/${fileId}/preview` };
-                    }
-
-                    if (url.match(/\.(jpg|jpeg|png|webp)$/i)) return { type: 'image', url };
-                    return { type: 'link', url };
                 };
 
                 // 1. Fixed Core Identity Fields
@@ -157,100 +159,106 @@ window.openStaffDocumentReviewModal = async function(staffMobile) {
         if (!modal) return;
 
         // Render each document card
-        let docsHtml = Object.entries(docData.docs || {}).map(([key, d]) => {
-            const friendlyTitle = DOC_TITLE_MAP[key] || key.replace(/_/g, ' ');
-            const status = d.status || "NOT UPLOADED";
-            const isUploaded = status !== "NOT UPLOADED";
+        let docsHtml = "";
+        try {
+            docsHtml = Object.entries(docData.docs || {}).map(([key, d]) => {
+                const friendlyTitle = DOC_TITLE_MAP[key] || key.replace(/_/g, ' ');
+                const status = d.status || "NOT UPLOADED";
+                const isUploaded = status !== "NOT UPLOADED";
 
-            // Task 2: Calculate Expiry & Animated Border
-            let expiryClass = "";
-            let expiryAlert = "";
-            if (isUploaded && d.expiryDate && status === 'APPROVED') {
-                const daysLeft = Math.ceil((new Date(d.expiryDate) - new Date()) / (1000 * 60 * 60 * 24));
-                if (daysLeft <= 30) {
-                    expiryClass = "expiring-border-animated";
-                    expiryAlert = `<div class="mt-2 px-2 py-1 bg-rose-500 text-white text-[8px] font-black uppercase rounded animate-pulse text-center">
-                        <i class="fa-solid fa-triangle-exclamation"></i>
-                        ${daysLeft <= 0 ? "EXPIRED" : `Expiring in ${daysLeft} Days`}
-                    </div>`;
+                // Task 2: Calculate Expiry & Animated Border
+                let expiryClass = "";
+                let expiryAlert = "";
+                if (isUploaded && d.expiryDate && status === 'APPROVED') {
+                    const daysLeft = Math.ceil((new Date(d.expiryDate) - new Date()) / (1000 * 60 * 60 * 24));
+                    if (daysLeft <= 30) {
+                        expiryClass = "expiring-border-animated";
+                        expiryAlert = `<div class="mt-2 px-2 py-1 bg-rose-500 text-white text-[8px] font-black uppercase rounded animate-pulse text-center">
+                            <i class="fa-solid fa-triangle-exclamation"></i>
+                            ${daysLeft <= 0 ? "EXPIRED" : `Expiring in ${daysLeft} Days`}
+                        </div>`;
+                    }
                 }
-            }
 
-            const media = resolveMediaType(d.driveFileUrl);
-            let previewHtml = '';
+                const media = resolveMediaType(d.driveFileUrl);
+                let previewHtml = '';
 
-            if (media) {
-                if (media.type === 'image') {
-                    previewHtml = `<img src="${media.url}" class="w-full h-auto max-h-[300px] object-contain rounded-xl border border-slate-100 mb-3 cursor-zoom-in" onclick="window.open('${media.url}', '_blank')">`;
-                } else if (media.type === 'drive_embed' || media.type === 'pdf') {
-                    previewHtml = `<iframe src="${media.url}" class="w-full h-[300px] rounded-xl border border-slate-100 mb-3" frameborder="0"></iframe>`;
+                if (media) {
+                    if (media.type === 'image') {
+                        previewHtml = `<img src="${media.url}" class="w-full h-auto max-h-[300px] object-contain rounded-xl border border-slate-100 mb-3 cursor-zoom-in" onclick="window.open('${media.url}', '_blank')">`;
+                    } else if (media.type === 'drive_embed' || media.type === 'pdf') {
+                        previewHtml = `<iframe src="${media.url}" class="w-full h-[300px] rounded-xl border border-slate-100 mb-3" frameborder="0"></iframe>`;
+                    }
                 }
-            }
 
-            return `
-                <div class="p-5 bg-white rounded-2xl border border-slate-200 mb-4 shadow-sm transition-all hover:border-indigo-200 ${expiryClass}">
-                    <div class="flex justify-between items-start mb-4">
-                        <div class="flex flex-col">
-                            <span class="font-bold text-[#1e293b] text-sm uppercase tracking-tight">${friendlyTitle}</span>
-                            <div class="text-[11px] font-medium text-[#64748b] mt-1">
-                                <i class="fa-solid fa-calendar-day mr-1 opacity-50"></i> Issue: ${d.issueDate || '-'} |
-                                <i class="fa-solid fa-calendar-xmark mr-1 opacity-50 ml-1"></i> Expiry: ${d.expiryDate || '-'}
+                return `
+                    <div class="p-5 bg-white rounded-2xl border border-slate-200 mb-4 shadow-sm transition-all hover:border-indigo-200 ${expiryClass}">
+                        <div class="flex justify-between items-start mb-4">
+                            <div class="flex flex-col">
+                                <span class="font-bold text-[#1e293b] text-sm uppercase tracking-tight">${friendlyTitle}</span>
+                                <div class="text-[11px] font-medium text-[#64748b] mt-1">
+                                    <i class="fa-solid fa-calendar-day mr-1 opacity-50"></i> Issue: ${d.issueDate || '-'} |
+                                    <i class="fa-solid fa-calendar-xmark mr-1 opacity-50 ml-1"></i> Expiry: ${d.expiryDate || '-'}
+                                </div>
+                                ${expiryAlert}
                             </div>
-                            ${expiryAlert}
+                            <span class="px-3 py-1 rounded-full text-[9px] font-black tracking-widest uppercase ${
+                                status === 'APPROVED' ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' :
+                                status === 'REJECTED' ? 'bg-rose-50 text-rose-600 border border-rose-100' :
+                                'bg-amber-50 text-amber-600 border border-amber-100'
+                            }">${status}</span>
                         </div>
-                        <span class="px-3 py-1 rounded-full text-[9px] font-black tracking-widest uppercase ${
-                            status === 'APPROVED' ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' :
-                            status === 'REJECTED' ? 'bg-rose-50 text-rose-600 border border-rose-100' :
-                            'bg-amber-50 text-amber-600 border border-amber-100'
-                        }">${status}</span>
-                    </div>
 
-                    <!-- DIRECT MEDIA PREVIEW (v7.8 Fix) -->
-                    ${previewHtml}
+                        <!-- DIRECT MEDIA PREVIEW (v7.8 Fix) -->
+                        ${previewHtml}
 
-                    <div class="flex flex-col gap-2 mt-2">
-                        ${isUploaded ? `
-                            <div class="flex gap-2 w-full">
-                                <button onclick="window.open('${d.driveFileUrl}', '_blank'); return false;"
-                                   class="flex-1 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-[10px] font-black uppercase text-center shadow-lg shadow-indigo-500/20 transition-all active:scale-95 flex items-center justify-center gap-2">
-                                    <i class="fa-solid fa-eye"></i> View Full
-                                </button>
-
-                                <button onclick="window.downloadDocument('${d.driveFileUrl}', '${friendlyTitle}_${staffMobile}')"
-                                   class="flex-1 py-2.5 bg-slate-800 hover:bg-black text-white rounded-xl text-[10px] font-black uppercase text-center shadow-lg transition-all active:scale-95 flex items-center justify-center gap-2">
-                                    <i class="fa-solid fa-download"></i> Download
-                                </button>
-                            </div>
-
-                            ${(status !== 'APPROVED' && status !== 'REJECTED') ? `
+                        <div class="flex flex-col gap-2 mt-2">
+                            ${isUploaded ? `
                                 <div class="flex gap-2 w-full">
-                                    <button onclick="window.updateDocStatus('${staffMobile}', '${key}', 'APPROVED')"
-                                            class="flex-1 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl text-[10px] font-black uppercase shadow-lg shadow-emerald-500/10 transition-all active:scale-95">
-                                        Approve
+                                    <button onclick="window.open('${d.driveFileUrl}', '_blank'); return false;"
+                                       class="flex-1 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-[10px] font-black uppercase text-center shadow-lg shadow-indigo-500/20 transition-all active:scale-95 flex items-center justify-center gap-2">
+                                        <i class="fa-solid fa-eye"></i> View Full
                                     </button>
-                                    <button onclick="window.rejectDoc('${staffMobile}', '${key}')"
-                                            class="flex-1 py-2.5 bg-rose-500 hover:bg-rose-600 text-white rounded-xl text-[10px] font-black uppercase shadow-lg shadow-rose-500/10 transition-all active:scale-95">
-                                        Reject
+
+                                    <button onclick="window.downloadDocument('${d.driveFileUrl}', '${friendlyTitle}_${staffMobile}')"
+                                       class="flex-1 py-2.5 bg-slate-800 hover:bg-black text-white rounded-xl text-[10px] font-black uppercase text-center shadow-lg transition-all active:scale-95 flex items-center justify-center gap-2">
+                                        <i class="fa-solid fa-download"></i> Download
                                     </button>
                                 </div>
-                            ` : ''}
-                        ` : `
-                            <div class="w-full py-3 bg-slate-100 text-slate-400 rounded-xl text-[10px] font-black uppercase text-center border-2 border-dashed border-slate-200">
-                                <i class="fa-solid fa-file-circle-xmark mr-1"></i> No File Uploaded
-                            </div>
-                        `}
-                    </div>
 
-                    ${d.rejectionReason ? `
-                        <div class="mt-3 p-3 bg-rose-50 border border-rose-100 rounded-xl">
-                            <p class="text-[10px] font-bold text-rose-600 uppercase tracking-tighter">
-                                <i class="fa-solid fa-circle-exclamation mr-1"></i> Reason: ${d.rejectionReason}
-                            </p>
+                                ${(status !== 'APPROVED' && status !== 'REJECTED') ? `
+                                    <div class="flex gap-2 w-full">
+                                        <button onclick="window.updateDocStatus('${staffMobile}', '${key}', 'APPROVED')"
+                                                class="flex-1 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl text-[10px] font-black uppercase shadow-lg shadow-emerald-500/10 transition-all active:scale-95">
+                                            Approve
+                                        </button>
+                                        <button onclick="window.rejectDoc('${staffMobile}', '${key}')"
+                                                class="flex-1 py-2.5 bg-rose-500 hover:bg-rose-600 text-white rounded-xl text-[10px] font-black uppercase shadow-lg shadow-rose-500/10 transition-all active:scale-95">
+                                            Reject
+                                        </button>
+                                    </div>
+                                ` : ''}
+                            ` : `
+                                <div class="w-full py-3 bg-slate-100 text-slate-400 rounded-xl text-[10px] font-black uppercase text-center border-2 border-dashed border-slate-200">
+                                    <i class="fa-solid fa-file-circle-xmark mr-1"></i> No File Uploaded
+                                </div>
+                            `}
                         </div>
-                    ` : ''}
-                </div>
-            `;
-        }).join('');
+
+                        ${d.rejectionReason ? `
+                            <div class="mt-3 p-3 bg-rose-50 border border-rose-100 rounded-xl">
+                                <p class="text-[10px] font-bold text-rose-600 uppercase tracking-tighter">
+                                    <i class="fa-solid fa-circle-exclamation mr-1"></i> Reason: ${d.rejectionReason}
+                                </p>
+                            </div>
+                        ` : ''}
+                    </div>
+                `;
+            }).join('');
+        } catch (renderErr) {
+            console.error("❌ Document List Rendering Failed:", renderErr);
+            docsHtml = `<div class="col-span-full p-8 bg-rose-50 text-rose-600 rounded-2xl text-center font-bold uppercase text-[10px]">⚠️ Error rendering document list. Please check database structure.</div>`;
+        }
 
         modal.innerHTML = `
             <div class="bg-white w-[95%] md:w-full max-w-5xl rounded-[40px] shadow-2xl relative overflow-hidden flex flex-col max-h-[90vh] fade-in transition-all duration-300">
@@ -565,3 +573,6 @@ window.handleDirectFileUpload = async function(event, documentType) {
 console.log("✅ docs_verification.js: v6.0 Smart Scanner Deployed");
 
 console.log("✅ docs_verification.js: v2.5 Smart Scanner Active");
+
+// Explicit Global Binding
+window.openStaffDocumentReviewModal = window.openStaffDocumentReviewModal;

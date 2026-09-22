@@ -5,7 +5,8 @@ import {
     get,
     push,
     remove,
-    child
+    child,
+    runTransaction
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 import { registerPushNotifications } from './fcm_module.js';
 
@@ -225,127 +226,154 @@ window.handleStaffLogin = async (e) => {
 };
 
 /**
- * VISITOR / CONTRACTOR SIGN-IN HANDLER
+ * HELPER: GET LOCAL DATE STRING (YYYY-MM-DD)
+ */
+const getLocalTodayStr = () => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+};
+
+/**
+ * VISITOR / CONTRACTOR SIGN-IN HANDLER (OVERHAULED v4.0)
  */
 window.handleVisitorSignIn = async (e) => {
-    if (e) {
-        e.preventDefault();
-        e.stopPropagation();
-    }
-
-    if (!window.currentReservedToken) {
-        alert("⚠️ Session expired or invalid. Please re-open the form.");
-        window.location.reload();
-        return;
-    }
+    if (e) { e.preventDefault(); e.stopPropagation(); }
 
     const mode = window.portalMode || 'visitor';
-    console.log(`🏢 ${mode.toUpperCase()} Sign-In: Form Submitted`);
+    const nameVal = document.getElementById('v-name')?.value;
+    const mobileVal = document.getElementById('v-mobile')?.value;
+
+    if (!nameVal || !mobileVal) { alert("Please fill in Name and Mobile number."); return false; }
 
     const btn = e?.target?.querySelector('button[type="submit"]');
     if (btn) btn.disabled = true;
 
-    // ✅ Stage 1: Professional Processing Spinner with Logo
-    if (window.showGlobalSpinner) window.showGlobalSpinner("Your Check-In is in Process...");
+    if (window.showGlobalSpinner) window.showGlobalSpinner("Syncing with School Cloud...");
 
     try {
         const canvasId = 'v-sig-pad';
-        if (window.isCanvasBlank && window.isCanvasBlank(canvasId)) {
-            throw new Error("Please provide signature before proceeding.");
+        if (window.isCanvasBlank(canvasId)) throw new Error("Please provide your signature.");
+
+        const sigBase64 = window.getCanvasBase64(canvasId);
+        const todayStr = getLocalTodayStr();
+        const dbPathName = mode === 'contractor' ? 'contractors' : 'visitors';
+        const counterRef = ref(db, `counters/${dbPathName}/${todayStr}`);
+
+        console.log(`🌐 Firebase: Executing Atomic Transaction [${todayStr}]`);
+
+        const txResult = await runTransaction(counterRef, (current) => {
+            return (current || 0) + 1;
+        });
+
+        if (!txResult.committed) throw new Error("Server sequence conflict. Please try again.");
+
+        const finalTokenNumber = txResult.snapshot.val();
+        const prefix = mode === 'contractor' ? 'JYSC' : 'JYSV';
+        const finalId = `${prefix}${finalTokenNumber.toString().padStart(3, '0')}`;
+
+        console.log(`✅ Token Allocated: #${finalTokenNumber} | ID: ${finalId}`);
+
+        // --- MANDATORY PERMANENT CLOUD DRIVE SYNC ---
+        console.log(`🌐 System: Dispatching signature DIRECT to Google Drive [${mode}]`);
+        let finalSignatureUrl = "N/A"; // Enforce no raw Base64
+
+        try {
+            const driveResponse = await window.uploadToDrive({
+                base64Data: sigBase64,
+                adekPassNumber: finalId,
+                documentType: "SIGNATURE",
+                category: mode === 'contractor' ? 'CONTRACTORS' : 'VISITORS',
+                fileName: `SIG_${finalId}_${Date.now()}.png`
+            });
+
+            if (driveResponse && driveResponse.status === 'success') {
+                console.log("✅ Cloud Sync: Signature stored in Google Drive.");
+                finalSignatureUrl = driveResponse.fileUrl;
+            } else if (driveResponse.status === 'disabled') {
+                console.warn("⚠️ Admin has disabled Drive Sync. Signature will not be stored.");
+                finalSignatureUrl = "SYNC_DISABLED_BY_ADMIN";
+            } else {
+                throw new Error(driveResponse.message || "Upload failed");
+            }
+        } catch (driveErr) {
+            console.error("❌ Critical: Direct Cloud Sync Failed!", driveErr);
+            alert("⚠️ SYSTEM BLOCK: Signature could not be synced to Google Drive. Check internet or contact Admin.");
+            throw new Error("Mandatory Cloud Sync Failed.");
         }
-
-        const sigBase64 = window.getCanvasBase64 ? window.getCanvasBase64(canvasId) : null;
-        if (!sigBase64 || sigBase64.length < 1000) {
-            throw new Error("Please provide signature before proceeding.");
-        }
-
-        console.log(`🏢 ${mode.toUpperCase()} Sign-In: Processing signature...`);
-
-        const token = window.currentReservedToken;
-        if (window.tokenTimer) clearTimeout(window.tokenTimer);
 
         const data = {
-            id: document.getElementById('v-id').value,
-            name: document.getElementById('v-name').value,
-            mobile: document.getElementById('v-mobile').value,
-            company: document.getElementById('v-company').value,
-            purpose: document.getElementById('v-purpose').value,
+            id: finalId,
+            tokenNumber: finalTokenNumber,
+            name: nameVal,
+            mobile: mobileVal,
+            company: document.getElementById('v-company')?.value || '',
+            purpose: document.getElementById('v-purpose')?.value || '',
             keyCollected: document.getElementById('v-key-status')?.value || 'NO',
-            keyReturnPin: Math.floor(1000 + Math.random() * 9000).toString(), // ✅ RANDOM 4-DIGIT PIN
+            checkoutPin: Math.floor(1000 + Math.random() * 9000).toString(),
             date: new Date().toLocaleDateString('en-US'),
             timeIn: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', hour12: true}),
             timestamp: Date.now(),
             status: "active",
-            signatureUrl: sigBase64, // Base64 Data URL
+            signatureUrl: finalSignatureUrl, // PERMANENT CLOUD LINK ONLY
             type: mode,
-            sequenceNo: token.sequenceNo,
-            tokenId: token.tokenId
+            sequenceNo: finalTokenNumber,
+            tokenId: finalId
         };
-        // Ensure checkoutPin matches keyReturnPin
-        data.checkoutPin = data.keyReturnPin;
+        data.keyReturnPin = data.checkoutPin;
 
-        if (mode === 'contractor') {
-            data.contractorId = document.getElementById('contractorId').value;
-        }
+        // FINAL FIREBASE PERSISTENCE
+        console.log(`🏢 Firebase: Writing Master Record to /${dbPathName}/${finalId}`);
+        await set(ref(db, `${dbPathName}/${finalId}`), data);
 
-        const dbPath = mode === 'contractor' ? 'contractors/' : 'visitors/';
-        console.log(`🏢 ${mode.toUpperCase()} Sign-In: Saving to Firebase Database [${dbPath}]`);
+        console.log("🔥 Firebase: Data Saved Successfully.");
 
-        // Save into Permanent Master Node using Token ID
-        await set(ref(db, dbPath + token.tokenId), data);
+        // UI SYNC
+        if (document.getElementById('v-id')) document.getElementById('v-id').value = finalId;
+        const badgeEl = document.getElementById('contractor-token-badge');
+        if (badgeEl) badgeEl.innerText = `TOKEN #${finalTokenNumber}`;
 
-        // ✅ Hide Spinner before showing Welcome Animation
         if (window.hideGlobalSpinner) window.hideGlobalSpinner();
 
-        // SYNC TO SECURITY KEY CONTROL (RESTORED)
+        // KEY CONTROL SYNC
         if (data.keyCollected === 'YES') {
-            await set(ref(db, `security_key_control/${data.mobile || data.id}`), {
+            await set(ref(db, `security_key_control/${data.mobile || finalId}`), {
                 name: data.name,
-                id: data.id,
+                id: finalId,
                 type: mode.toUpperCase(),
-                pin: data.keyReturnPin,
+                pin: data.checkoutPin,
                 status: 'HELD',
                 timestamp: Date.now()
-            });
+            }).catch(()=>{});
         }
 
-        // Remove temporary reservation
-        await remove(ref(db, `token_reservations/${token.tokenId}`));
+        // Cleanup temporary tokens if existing
+        if (window.currentReservedToken) {
+            await remove(ref(db, `token_reservations/${window.currentReservedToken.tokenId}`)).catch(() => {});
+        }
 
-        localStorage.setItem('vActive', JSON.stringify({
-            id: data.id,
-            name: data.name,
-            mobile: data.mobile, // ✅ ADDED: Store mobile to ensure clean checkout deletion
-            timeIn: data.timeIn,
-            keyCollected: data.keyCollected,
-            mode: mode,
-            firebaseKey: token.tokenId,
-            keyReturnPin: data.keyReturnPin
-        }));
+        // Local Session Store
+        localStorage.setItem('vActive', JSON.stringify({ ...data, firebaseKey: finalId, mode: mode }));
 
-        window.currentReservedToken = null;
-        window.showWhatsAppToast(`🚪 New ${mode === 'contractor' ? 'Contractor' : 'Visitor'} Entry`, `${data.name} has checked in.`);
+        if (window.showWhatsAppToast) {
+            window.showWhatsAppToast(`🚪 New ${mode === 'contractor' ? 'Contractor' : 'Visitor'} Entry`, `${data.name} checked in.`);
+        }
 
         if (window.showPortalAnimation) {
             window.showPortalAnimation('entry');
             setTimeout(() => {
                 window.hidePortalAnimation();
-                if (window.triggerSuccessPopup) window.triggerSuccessPopup(`Sign-In Successful! Assigned Sequence #${token.sequenceNo} 🏢`);
                 if (window.checkVisitorSession) window.checkVisitorSession();
             }, 2000);
         } else {
-            if (window.triggerSuccessPopup) window.triggerSuccessPopup(`Sign-In Successful! Assigned Sequence #${token.sequenceNo} 🏢`);
             if (window.checkVisitorSession) window.checkVisitorSession();
         }
 
     } catch (error) {
-        console.error(`❌ ${mode.toUpperCase()} Sign-In: Error:`, error);
-        if (window.hidePortalAnimation) window.hidePortalAnimation();
+        console.error("❌ Sign-In Failure:", error);
+        if (window.hideGlobalSpinner) window.hideGlobalSpinner();
         alert("Sign-In Error: " + error.message);
     } finally {
         if (btn) btn.disabled = false;
-        if (window.hidePortalAnimation) window.hidePortalAnimation();
-        window.hideGlobalSpinner();
     }
     return false;
 };
@@ -359,6 +387,18 @@ const APP_VERSION = 'v8.4';
 
 document.addEventListener('DOMContentLoaded', async () => {
     console.log("🚀 SchoolLog Init: DOMContentLoaded triggered");
+
+    // --- FIREBASE CONNECTION MONITOR ---
+    try {
+        const connectedRef = ref(db, ".info/connected");
+        onValue(connectedRef, (snap) => {
+            if (snap.val() === true) {
+                console.log("🔥 Firebase: Online");
+            } else {
+                console.warn("🔥 Firebase: Offline / Reconnecting...");
+            }
+        });
+    } catch (e) { console.error("Connection monitor failed:", e); }
 
     // --- 0. DYNAMIC VERSION CHECK & CACHE INVALIDATION ---
     const savedVersion = localStorage.getItem('app_version');
