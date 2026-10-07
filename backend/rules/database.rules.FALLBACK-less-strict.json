@@ -1,0 +1,69 @@
+{
+  "rules": {
+    ".read": false,
+    ".write": false,
+
+    "staff_secrets": { ".read": false, ".write": false },
+    "login_attempts": { ".read": false, ".write": false },
+
+    "staff": {
+      ".read": "auth != null && auth.token.staffKey != null",
+      ".indexOn": ["adekPass", "mobile"],
+      "$key": {
+        ".write": "auth != null && auth.token.admin === true",
+        "bioData": { ".write": "auth != null && auth.token.staffKey === $key" },
+        "isProfileSubmitted": { ".write": "auth != null && auth.token.staffKey === $key" },
+        "documentStatus": { ".write": "auth != null && auth.token.staffKey === $key" },
+        "status": {
+          ".write": "auth != null && auth.token.staffKey === $key",
+          ".validate": "newData.val() === 'PENDING_APPROVAL' || auth.token.admin === true"
+        },
+        "biometricCredentialId": { ".write": "auth != null && auth.token.staffKey === $key" },
+        "biometricEnabled": { ".write": "auth != null && auth.token.staffKey === $key" },
+        "biometricEnrolledAt": { ".write": "auth != null && auth.token.staffKey === $key" }
+      }
+    },
+
+    "staff_documents": {
+      ".read": "auth != null && auth.token.staffKey != null",
+      ".write": "auth != null && auth.token.staffKey != null",
+      "$id": {
+        "isAccountActivated": { ".validate": "newData.val() === false || auth.token.admin === true" },
+        "verificationProgress": { ".validate": "auth.token.admin === true || newData.val() === '0%'" },
+        "docs": { "$doc": { "status": { ".validate": "newData.val() === 'PENDING' || auth.token.admin === true" } } }
+      }
+    },
+
+    "system": {
+      ".read": "auth != null",
+      ".write": "auth != null && auth.token.admin === true"
+    },
+    "role_required_docs": {
+      ".read": "auth != null && auth.token.staffKey != null",
+      ".write": "auth != null && auth.token.admin === true"
+    },
+
+    "users": {
+      ".read": "auth != null && auth.token.staffKey != null",
+      "$id": { "fcmToken": { ".write": "auth != null && auth.token.mobile === $id" } }
+    },
+
+    "visitors":   { ".read": "auth != null", ".write": "auth != null", ".indexOn": ["mobile"] },
+    "contractors": { ".read": "auth != null", ".write": "auth != null", ".indexOn": ["mobile"] },
+    "counters":   { ".read": "auth != null", ".write": "auth != null" },
+    "token_reservations": { ".read": "auth != null", ".write": "auth != null" },
+    "security_key_control": { ".read": "auth != null", ".write": "auth != null" },
+
+    "assets": { ".read": "auth != null && auth.token.staffKey != null", ".write": "auth != null && auth.token.staffKey != null" },
+    "tasks": { ".read": "auth != null && auth.token.staffKey != null", ".write": "auth != null && auth.token.staffKey != null" },
+    "staff_attendance": { ".read": "auth != null && auth.token.staffKey != null", ".write": "auth != null && auth.token.staffKey != null" },
+    "active_staff_sessions": { ".read": "auth != null && auth.token.staffKey != null", ".write": "auth != null && auth.token.staffKey != null" },
+    "movement_logs": { ".read": "auth != null && auth.token.staffKey != null", ".write": "auth != null && auth.token.staffKey != null" },
+    "staff_movement_logs": { ".read": "auth != null && auth.token.staffKey != null", ".write": "auth != null && auth.token.staffKey != null" },
+    "asset_disposal_requests": { ".read": "auth != null && auth.token.staffKey != null", ".write": "auth != null && auth.token.staffKey != null" },
+    "asset_transfers": { ".read": "auth != null && auth.token.staffKey != null", ".write": "auth != null && auth.token.staffKey != null" },
+    "disposed_assets": { ".read": "auth != null && auth.token.staffKey != null", ".write": "auth != null && auth.token.staffKey != null" },
+    "ASSET_DISPOSAL_REGISTRY": { ".read": "auth != null && auth.token.staffKey != null", ".write": "auth != null && auth.token.staffKey != null" },
+    "system_counters": { ".read": "auth != null && auth.token.staffKey != null", ".write": "auth != null && auth.token.staffKey != null" }
+  }
+}

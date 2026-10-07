@@ -1,0 +1,2397 @@
+import { db, UPLOAD_CONFIG } from './firebase_config.js';
+import { ref, get, set, update, remove, onValue, push, query, orderByChild, equalTo, child, off } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+
+const FEATURE_PERMISSIONS = [
+    { id: 'can_access_attendance', label: 'Attendance History', selector: '#menu-history-btn' },
+    { id: 'can_access_docs', label: 'My Documents', selector: '#menu-docs-btn' },
+    { id: 'can_access_biometric', label: 'Enable Biometric', selector: '#biometric-toggle-btn' },
+    { id: 'can_access_assets', label: 'Asset Management Section', selector: '#menu-asset-section' },
+    { id: 'can_access_asset_transfer', label: 'Asset Transfer', selector: '#menu-asset-transfer' },
+    { id: 'can_access_asset_audit', label: 'Item Audit', selector: '#menu-asset-audit' },
+    { id: 'can_access_asset_dispose', label: 'Item Disposal', selector: '#menu-asset-dispose' },
+    { id: 'can_access_movement_logs', label: 'Movement Logs', selector: '#menu-movement-logs' },
+    { id: 'can_access_scan_edit_asset', label: 'Scan & Edit Asset Location', selector: '#scan-edit-asset-btn' },
+    { id: 'can_access_create_task', label: 'Create Task', selector: '#menu-create-task-btn, #s-dash-create-task-btn' },
+    { id: 'can_access_task_history', label: 'Task History', selector: '#menu-tasks-btn, #tasks-summary-card' },
+    { id: 'can_access_security_controls', label: 'Security Verification Controls', selector: '#security-pin-control, #visitor-card-btn, #contractor-card-btn' }
+];
+
+// ================================================================ */
+// ADMIN DASHBOARD CORE MODULE (FIXED v4.7 - REAL-TIME METRICS)     */
+// ================================================================ */
+
+window.appCache = {
+    isInitialized: false,
+    visitors: [],
+    contractors: [],
+    staff: [], // Staff Directory
+    tasks: [],
+    assets: [],
+    attendance: [], // Staff Attendance Logs
+    transfers: [],
+    disposedAssets: [],
+    disposalRegistry: [],
+    disposalRequests: [],
+    staffDocs: {} // Added for expiry tracking
+};
+
+window.currentFilteredData = {
+    visitors: null,
+    contractors: null,
+    staff: null,
+    tasks: null,
+    assets: null,
+    disposal: null,
+    transfers: null
+};
+
+// Selection State for Bulk Actions
+window.selectedAssetKeys = new Set();
+
+// Track active listeners for cleanup
+let activeListeners = {
+    assets: null,
+    disposal: null,
+    visitors: null,
+    contractors: null,
+    staff_attendance: null,
+    staff_directory: null,
+    tasks: null,
+    disposal_requests: null
+};
+
+// ================================================================ */
+// ✅ UTILITIES                                                     */
+// ================================================================ */
+
+window.debounce = function(func, wait = 300) {
+    let timeout;
+    return function executedFunction(...args) {
+        const later = () => {
+            clearTimeout(timeout);
+            func.apply(this, args);
+        };
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+    };
+};
+
+window.filterActiveAssets = function(assets) {
+    if (!assets || !Array.isArray(assets)) return [];
+    return assets.filter(a => {
+        if (!a) return false;
+        const status = (a.assetStatus || a.status || '').toUpperCase();
+        const isArchived = a.isArchived === true || a.deletedFromMaster === true || a.isDisposed === true || a.isTransferred === true;
+        return status !== 'DISPOSED' && status !== 'PENDING_DISPOSAL' && status !== 'SCRAPPED' && status !== 'TRANSFERRED' && !isArchived;
+    });
+};
+
+window.cleanupAdminListeners = function() {
+    Object.keys(activeListeners).forEach(key => {
+        if (typeof activeListeners[key] === 'function') {
+            activeListeners[key](); // Call the Unsubscribe function
+            activeListeners[key] = null;
+        }
+    });
+    console.log("🧹 Admin listeners cleaned up");
+};
+
+/**
+ * Robust Media Type Resolver
+ * Returns the detected type of the file URL
+ */
+window.resolveMediaType = function(fileUrl) {
+    if (!fileUrl || fileUrl === 'N/A' || fileUrl === '-') return 'unknown';
+    const urlLower = String(fileUrl).split('?')[0].toLowerCase();
+
+    if (urlLower.endsWith('.pdf') || urlLower.includes('pdf')) {
+        return 'pdf';
+    }
+
+    // Handle Google Drive links specifically for the viewer
+    if (urlLower.includes('drive.google.com') || urlLower.includes('docs.google.com')) {
+        const driveRegex = /\/file\/d\/([a-zA-Z0-9_-]+)|[?&]id=([a-zA-Z0-9_-]+)/;
+        const match = String(fileUrl).match(driveRegex);
+        if (match) return 'drive_embed';
+    }
+
+    if (urlLower.match(/\.(jpeg|jpg|png|gif|webp|svg)/) || urlLower.includes('googleusercontent.com')) {
+        return 'image';
+    }
+    if (urlLower.match(/\.(doc|docx|xls|xlsx|ppt|pptx)/)) {
+        return 'document';
+    }
+    return 'image'; // Default fallback
+};
+
+/**
+ * Global entry point for loading staff documents into the review modal.
+ */
+window.loadStaffDocs = async function(staffId) {
+    console.log("📂 loadStaffDocs triggered for:", staffId);
+    if (!staffId) return;
+
+    try {
+        if (window.openStaffDocumentReviewModal) {
+            await window.openStaffDocumentReviewModal(staffId);
+        } else {
+            console.error("❌ openStaffDocumentReviewModal not found on window. Module likely failed to load.");
+            alert("Error: Verification module is not initialized.");
+        }
+    } catch (err) {
+        console.error("❌ loadStaffDocs Failed:", err);
+        if (window.showWhatsAppToast) {
+            window.showWhatsAppToast("Loading Error", err.message, 'error');
+        } else {
+            alert("Error loading docs: " + err.message);
+        }
+    }
+};
+
+/**
+ * Explicit global binding to ensure modal works even if module execution is deferred
+ */
+window.openStaffDocumentReviewModal = window.openStaffDocumentReviewModal || function(id) {
+    console.warn("⚠️ openStaffDocumentReviewModal called before module initialization.");
+    // This will be overwritten when docs_verification.js loads successfully
+};
+
+// ================================================================ */
+// ✅ REAL-TIME METRICS & KPI LOGIC                                 */
+// ================================================================ */
+
+// GLOBAL REAL-TIME DASHBOARD COUNTERS SYNC ENGINE (v5.5 Upgrade)
+window.updateAdminKPIs = function() {
+    // Get today's date formats for wide compatibility
+    const todayObj = new Date();
+    const dateFormatted = todayObj.toLocaleDateString('en-US'); // MM/DD/YYYY
+    const dateISO = todayObj.toISOString().split('T')[0];        // YYYY-MM-DD
+
+    console.log("📊 Updating Dashboard KPI Metrics for:", dateFormatted);
+
+    const normalizeDate = (d) => {
+        if (!d) return "";
+        return d.split('/').map(p => parseInt(p)).join('/');
+    };
+
+    // 1. VISITORS TODAY
+    const visitorsToday = (window.appCache.visitors || []).filter(v => {
+        const vDate = normalizeDate(v.date);
+        const vStatus = (v.status || '').toLowerCase();
+        return vDate === dateFormatted || vStatus === 'active';
+    }).length;
+
+    // 2. CONTRACTORS TODAY
+    const contractorsToday = (window.appCache.contractors || []).filter(c => {
+        const cDate = normalizeDate(c.date);
+        const cStatus = (c.status || '').toLowerCase();
+        return cDate === dateFormatted || cStatus === 'active';
+    }).length;
+
+    // 3. LIVE STAFF PRESENT COUNT (Consolidated Multi-Node Cache)
+    const staffPresent = (window.appCache.attendance || []).filter(a => {
+        const aDate = a.date || '';
+        const aStatus = (a.status || '').toUpperCase();
+
+        // Check Date Match (if date field exists)
+        const isToday = !aDate || aDate === dateFormatted || aDate === dateISO;
+
+        // Check Active Check-In Conditions
+        const isCheckedIn =
+            aStatus === 'CHECK_IN' ||
+            aStatus === 'CHECKED_IN' ||
+            aStatus === 'ACTIVE' ||
+            aStatus === 'PRESENT' ||
+            (a.inTime && (!a.outTime || a.outTime === '-' || a.outTime === ''));
+
+        return isToday && isCheckedIn;
+    }).length;
+
+    // 4. ACTIVE TASKS
+    const activeTasks = (window.appCache.tasks || []).filter(t => {
+        const s = (t.status || '').toLowerCase();
+        return s !== 'closed' && s !== 'completed' && s !== 'rejected';
+    }).length;
+
+    // 5. URGENT ALERTS
+    const urgentAlerts = (window.appCache.tasks || []).filter(t => {
+        const p = (t.priority || '').toLowerCase();
+        const s = (t.status || '').toLowerCase();
+        return (p === 'high' || p === 'urgent' || p === 'critical') && s !== 'closed' && s !== 'completed';
+    }).length;
+
+    // --- UNIFIED UI UPDATES (Admin & Security) ---
+
+    window.updateCounterUI('.visitors-count-val', visitorsToday);
+    window.updateCounterUI('.contractors-count-val', contractorsToday);
+    window.updateCounterUI('.staff-present-count-val', staffPresent);
+
+    const safeUpdateText = (id, val) => {
+        const el = document.getElementById(id);
+        if (el) el.innerText = val;
+    };
+
+    safeUpdateText('kpi-visitors', visitorsToday);
+    safeUpdateText('top-counter-visitors', visitorsToday);
+    safeUpdateText('kpi-contractors', contractorsToday);
+    safeUpdateText('top-counter-contractors', contractorsToday);
+    safeUpdateText('kpi-tasks', activeTasks);
+    safeUpdateText('kpi-staff', staffPresent);
+    safeUpdateText('top-counter-staff', staffPresent);
+    safeUpdateText('admin-staff-present-count', staffPresent);
+    safeUpdateText('security-staff-present-count', staffPresent);
+    safeUpdateText('kpi-alerts', urgentAlerts);
+
+    const staffDir = window.appCache.staff;
+    if (window.renderCensusCards) window.renderCensusCards(staffDir);
+
+    const updateBar = (id, val, max) => {
+        const el = document.getElementById(id);
+        if (el) el.style.width = Math.min(100, (val / (max || 1)) * 100) + '%';
+    };
+
+    updateBar('bar-visitors', visitorsToday, 50);
+    updateBar('bar-contractors', contractorsToday, 20);
+    updateBar('bar-tasks', activeTasks, 30);
+    updateBar('bar-staff', staffPresent, 30);
+    updateBar('bar-alerts', urgentAlerts, 10);
+};
+
+/**
+ * STAFF PRESENT COUNTER SYNC ENGINE (Multi-Path)
+ */
+window.initStaffPresentCounterSync = function() {
+    console.log("⚡ Initializing Staff Present Counter Sync (Multi-Path)...");
+
+    const attendancePaths = ['staff_attendance', 'attendance', 'logs/attendance'];
+    const pathData = {};
+
+    attendancePaths.forEach(path => {
+        activeListeners[`attendance_${path}`] = onValue(ref(db, path), (snapshot) => {
+            if (snapshot.exists()) {
+                pathData[path] = snapshot.val();
+            } else {
+                pathData[path] = {};
+            }
+
+            // Merge all data into appCache.attendance
+            let merged = [];
+            Object.values(pathData).forEach(nodeData => {
+                if (nodeData && typeof nodeData === 'object') {
+                    const entries = Object.entries(nodeData).map(([key, val]) => {
+                        return { ...val, firebaseKey: key };
+                    });
+                    merged = merged.concat(entries);
+                }
+            });
+
+            window.appCache.attendance = merged;
+            window.updateAdminKPIs();
+        });
+    });
+};
+
+/**
+ * HELPER FUNCTION TO UPDATE ALL MATCHING UI ELEMENTS
+ */
+window.updateCounterUI = function(selector, value) {
+    const elements = document.querySelectorAll(selector);
+    elements.forEach(el => {
+        if (el) el.textContent = value;
+    });
+};
+
+/**
+ * GLOBAL REAL-TIME DASHBOARD COUNTERS SYNC ENGINE (Alias)
+ */
+window.initDashboardCountersSync = function() {
+    console.log("⚡ Dashboard Counters Sync Initialized");
+    if (typeof window.initAdminRealTimeListeners === 'function') {
+        window.initAdminRealTimeListeners();
+    }
+};
+
+/**
+ * ✅ Fallback Empty-State HTML Injector
+ * Prevents blank containers when no data is found or loading
+ */
+window.renderEmptyState = function(targetContainerId, message = "No records found.") {
+    const el = document.getElementById(targetContainerId);
+    if (el) {
+        // Automatically determine colspan based on table headers if possible
+        const table = el.closest('table');
+        const colCount = table ? table.querySelectorAll('thead th').length : 10;
+        el.innerHTML = `<tr><td colspan="${colCount}" class="p-12 text-center text-slate-400 font-bold uppercase tracking-widest bg-slate-50/50">${window.escapeHTML(message)}</td></tr>`;
+    }
+};
+
+// ================================================================ */
+// ✅ STAFF CENSUS GRID RENDERER (v5.5)                             */
+// ================================================================ */
+
+const ALL_ROLES_CENSUS = [
+    { name: "Cleaner", icon: "fa-broom" },
+    { name: "Cleaner Leader", icon: "fa-user-tie" },
+    { name: "Technician", icon: "fa-tools" },
+    { name: "Office Boy", icon: "fa-concierge-bell" },
+    { name: "Bus Monitor", icon: "fa-user-shield" },
+    { name: "Bus Driver", icon: "fa-bus" },
+    { name: "Bus Supervisor", icon: "fa-id-badge" },
+    { name: "Supervisor", icon: "fa-user-check" },
+    { name: "Gardener", icon: "fa-seedling" },
+    { name: "Security", icon: "fa-shield-alt" },
+    { name: "Admin", icon: "fa-user-cog" }
+];
+
+window.renderCensusCards = function(staffList) {
+    const container = document.getElementById('staff-census-grid-container');
+    if (!container) return;
+
+    container.innerHTML = '';
+
+    // 1. Total Staff Card First
+    container.appendChild(createCensusCard("Total Staff", staffList.length, "fa-users", "total-card"));
+
+    // 2. Individual Role Cards
+    ALL_ROLES_CENSUS.forEach(role => {
+        const count = staffList.filter(s => {
+            const staffRole = (s.position || s.role || '').toString().trim().toLowerCase();
+            return staffRole === role.name.trim().toLowerCase();
+        }).length;
+
+        container.appendChild(createCensusCard(role.name, count, role.icon, "role-card"));
+    });
+};
+
+function createCensusCard(title, count, icon, cardClass) {
+    const card = document.createElement('div');
+    card.className = `census-op-card ${cardClass}`;
+    card.innerHTML = `
+        <div class="census-card-icon"><i class="fas ${icon}"></i></div>
+        <div class="census-card-info">
+            <span class="census-card-title">${window.escapeHTML(title)}</span>
+            <span class="census-card-count">${count}</span>
+        </div>
+    `;
+    return card;
+}
+
+// ================================================================ */
+// ✅ REAL-TIME DATA LISTENERS                                      */
+// ================================================================ */
+
+window.initAdminRealTimeListeners = function() {
+    window.cleanupAdminListeners();
+    console.log("📡 Initializing Admin Real-Time Firebase Observers...");
+
+    const registerListener = (node, cacheKey, tabId = null, filterFunc = null) => {
+        // ✅ DEBOUNCED RENDERER: Prevents rapid re-renders on bulk Firebase updates
+        const debouncedRender = window.debounce(() => {
+            try {
+                window.updateAdminKPIs();
+                const activeTab = document.querySelector('.tab-section.active')?.id;
+                if (activeTab === tabId && filterFunc) {
+                    filterFunc();
+                } else if (activeTab === tabId) {
+                    window.renderTabFromAppCache(tabId);
+                }
+            } catch (err) {
+                console.error(`❌ Debounced Render Error (${cacheKey}):`, err);
+            }
+        }, 150);
+
+        activeListeners[node] = onValue(ref(db, node), (snapshot) => {
+            try {
+                if (snapshot.exists()) {
+                    const rawData = snapshot.val();
+                    if (rawData && typeof rawData === 'object') {
+                        window.appCache[cacheKey] = Object.entries(rawData).map(([key, val]) => {
+                            if (val && typeof val === 'object') {
+                                return { ...val, firebaseKey: key };
+                            }
+                            return val;
+                        });
+                    } else {
+                        window.appCache[cacheKey] = [];
+                    }
+                } else {
+                    window.appCache[cacheKey] = [];
+                }
+                debouncedRender();
+            } catch (err) {
+                console.error(`❌ Real-Time Listener Error (${node}):`, err);
+            }
+        }, (error) => {
+            console.error(`❌ Firebase Subscription Failed (${node}):`, error);
+        });
+    };
+
+    registerListener('visitors', 'visitors', 'tab-visitor-logs', window.filterVisitorTable);
+    registerListener('contractors', 'contractors', 'tab-contractor-logs', window.filterContractorTable);
+
+    // ✅ Use the Multi-Path Staff Attendance Sync
+    window.initStaffPresentCounterSync();
+
+    registerListener('tasks', 'tasks', 'tab-tasks');
+    registerListener('staff', 'staff', 'tab-staff-list', window.filterStaffDirectory);
+    registerListener('disposed_assets', 'disposedAssets', 'tab-disposal', window.filterDisposalTable);
+    registerListener('ASSET_DISPOSAL_REGISTRY', 'disposalRegistry', 'tab-disposal');
+    registerListener('asset_disposal_requests', 'disposalRequests', 'tab-disposal', window.filterDisposalTable);
+    registerListener('asset_transfers', 'transfers', 'tab-transfers', window.filterTransferTable);
+
+    // ✅ ADDED: Staff Documents Listener for Expiry tracking
+    activeListeners.staff_docs = onValue(ref(db, 'staff_documents'), (snap) => {
+        if (snap.exists()) {
+            window.appCache.staffDocs = snap.val();
+            // Refresh staff directory if active to show badges
+            if (document.querySelector('.tab-section.active')?.id === 'tab-staff-list') {
+                window.filterStaffDirectory();
+            }
+        }
+    });
+
+    // Assets needs special handling for local cache
+    activeListeners.assets = onValue(ref(db, 'assets'), (snapshot) => {
+        if (snapshot.exists()) {
+            const rawData = snapshot.val();
+            // In-memory fast cache (NO 5MB limit)
+            window.appCache.assets = Object.entries(rawData).map(([key, val]) => {
+                return { ...val, firebaseKey: key, _key: key };
+            });
+
+            // Safe caching wrapper with QuotaExceededError protection
+            // For large datasets (6000+ assets), we rely on in-memory appCache primarily
+            try {
+                // Only attempt to cache if data is reasonably sized
+                if (window.appCache.assets.length < 1000) {
+                    localStorage.setItem('cached_asset_register', JSON.stringify(window.appCache.assets));
+                } else {
+                    console.info("⚡ Large dataset detected (6000+ items). Skipping LocalStorage to prevent quota errors.");
+                }
+            } catch (e) {
+                console.warn("⚠️ LocalStorage Quota Exceeded. Asset register used in-memory only.");
+            }
+
+            if (document.querySelector('.tab-section.active')?.id === 'tab-assets') {
+                window.filterAssetTable();
+            }
+        }
+    });
+};
+
+// ================================================================ */
+// ✅ DASHBOARD CORE FLOWS                                          */
+// ================================================================ */
+
+window.loadAdminDashboard = function() {
+    console.log("🚀 Initializing Admin Dashboard Modules...");
+    window.initAdminRealTimeListeners();
+    window.updateAdminProfileHeader();
+
+    // ✅ SYNC SAVED DRIVE URL FROM FIREBASE
+    if (window.loadSavedDriveUrlOnAdminLaunch) {
+        window.loadSavedDriveUrlOnAdminLaunch();
+    }
+
+    // ✅ SYNC MASTER ROLES TO DROPDOWNS
+    if (window.syncRoleDropdown) {
+        window.syncRoleDropdown('staff-role-filter', 'All Positions', true);
+        window.syncRoleDropdown('directory-role-filter', 'All Positions', true);
+        window.syncRoleDropdown('taskRoleSelect', 'Choose Dept');
+    }
+
+    setTimeout(() => {
+        // Trigger default active tab render
+        if (typeof window.switchAdminTab === 'function') {
+            window.switchAdminTab('tab-visitor-logs');
+        } else {
+            window.renderTabFromAppCache('tab-visitor-logs');
+        }
+        window.appCache.isInitialized = true;
+    }, 1000);
+};
+
+window.refreshDashboardData = async () => {
+    window.loadAdminDashboard();
+};
+
+// ================================================================ */
+// ✅ RENDER ENGINE                                                 */
+// ================================================================ */
+
+window.renderTabFromAppCache = (tabId) => {
+    const cleanId = tabId.toLowerCase().replace('tab-', '');
+    console.log(`🏗️ Rendering Admin Module: ${cleanId}`);
+
+    window.showGlobalSpinner("Syncing View...");
+    try {
+        switch (cleanId) {
+            case 'visitor-logs':
+            case 'visitors':
+                if (window.currentFilteredData.visitors || window.appCache.visitors.length > 0) {
+                    renderVisitorLogs(window.currentFilteredData.visitors || window.appCache.visitors);
+                } else {
+                    window.renderEmptyState('visitor-logs-body', 'No visitor records found');
+                }
+                break;
+            case 'contractor-logs':
+            case 'contractors':
+                if (window.currentFilteredData.contractors || window.appCache.contractors.length > 0) {
+                    renderContractorLogs(window.currentFilteredData.contractors || window.appCache.contractors);
+                } else {
+                    window.renderEmptyState('contractor-logs-body', 'No contractor records found');
+                }
+                break;
+            case 'staff-logs':
+            case 'attendance':
+                if (window.currentFilteredData.staff || window.appCache.attendance.length > 0) {
+                    renderStaffAttendance(window.currentFilteredData.staff || window.appCache.attendance);
+                } else {
+                    window.renderEmptyState('staff-attendance-body', 'No attendance records found');
+                }
+                break;
+            case 'tasks':
+            case 'audit':
+                if (window.currentFilteredData.tasks || window.appCache.tasks.length > 0) {
+                    renderGlobalTaskAudit(window.currentFilteredData.tasks || window.appCache.tasks);
+                } else {
+                    window.renderEmptyState('admin-task-list-body', 'No task audit records found');
+                }
+                break;
+            case 'staff-list':
+            case 'directory':
+            case 'staff':
+                if (window.appCache.staff.length > 0) {
+                    renderStaffDirectory(window.appCache.staff);
+                } else {
+                    window.renderEmptyState('admin-staff-list-body', 'Staff directory is empty');
+                }
+                break;
+            case 'assets':
+                window.filterAssetTable();
+                break;
+            case 'disposal':
+                window.loadAdminDisposalTable();
+                break;
+            case 'transfers':
+            case 'movement':
+                window.renderStandardizedAssetTable(window.currentFilteredData.transfers || window.appCache.transfers, 'transfers');
+                break;
+            case 'settings':
+                if (window.loadGoogleDriveConfig) window.loadGoogleDriveConfig();
+                break;
+            default:
+                console.warn(`⚠️ No handler found for tab: ${tabId}`);
+        }
+    } catch (err) {
+        console.error(`❌ Render Error for ${tabId}:`, err);
+    } finally {
+        window.hideGlobalSpinner();
+    }
+};
+
+function renderVisitorLogs(visitors) {
+    const body = document.getElementById('visitor-logs-body');
+    if (!body) return;
+
+    const data = (visitors || []).sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+
+    // ✅ Task 3: Safety fix for Paginator (Fix for undefined visitors)
+    if (!window.adminPaginators?.visitors) {
+        console.warn("⚠️ adminPaginators.visitors not found.");
+        body.innerHTML = data.map(v => `<tr><td colspan="10">${v.name || v.id}</td></tr>`).join('');
+        return;
+    }
+
+    window.adminPaginators.visitors.init(data, (pageItems, startIndex) => {
+        body.innerHTML = pageItems.length ? pageItems.map((v, i) => `
+            <tr class="hover:bg-slate-50 transition-colors border-b text-[10px]">
+                <td class="p-4 font-black text-indigo-900 uppercase">${v.type || "VISITOR"}</td>
+                <td class="p-4 font-mono font-bold">${v.id || "-"}</td>
+                <td class="p-4 font-bold text-slate-800">${window.escapeHTML(v.name || "-")}</td>
+                <td class="p-4">${window.escapeHTML(v.mobile || "-")}</td>
+                <td class="p-4">${window.escapeHTML(v.company || "-")}</td>
+                <td class="p-4 truncate max-w-[120px]">${window.escapeHTML(v.purpose || "-")}</td>
+                <td class="p-4">${v.date || "-"}</td>
+                <td class="p-4 text-emerald-600 font-bold">${v.timeIn || "-"}</td>
+                <td class="p-4 text-red-500 font-bold">${v.outTime || "-"}</td>
+                <td class="p-4"><span class="status-badge ${/signed out|completed/i.test(v.status || '') ? 'closed' : 'open'}">${v.status || "Active"}</span></td>
+                <td class="p-4 text-center">${(v.keyCollected === 'YES' || v.keyCollected === true) ? '🔑 HELD' : '❌ NO'}</td>
+                <td class="p-4 text-center">${v.signatureUrl ? `<img src="${v.signatureUrl}" class="h-6 mx-auto rounded border shadow-sm" onclick="window.openImageZoom('${v.signatureUrl}')">` : 'No Sig'}</td>
+                <td class="p-4 text-center"><button onclick="window.openDetailedAuditModal('visitor', '${v.id}')" class="text-indigo-600 hover:scale-110"><i class="fa-solid fa-eye"></i></button></td>
+            </tr>`).join('') : '<tr><td colspan="13" class="p-8 text-center text-gray-400">No records found</td></tr>';
+    });
+}
+
+function renderContractorLogs(contractors) {
+    const body = document.getElementById('contractor-logs-body');
+    if (!body) return;
+    const data = (contractors || []).sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+    window.adminPaginators.contractors.init(data, (pageItems, startIndex) => {
+        body.innerHTML = pageItems.length ? pageItems.map((c, i) => `
+            <tr class="hover:bg-slate-50 border-b text-[10px]">
+                <td class="p-4 font-mono font-bold text-emerald-600">${c.id || "-"}</td>
+                <td class="p-4 font-bold text-slate-800">${window.escapeHTML(c.name || "-")}</td>
+                <td class="p-4">${window.escapeHTML(c.mobile || "-")}</td>
+                <td class="p-4 font-bold text-indigo-600">${window.escapeHTML(c.company || "-")}</td>
+                <td class="p-4 truncate max-w-[150px]">${window.escapeHTML(c.purpose || "-")}</td>
+                <td class="p-4 font-mono text-slate-500">${c.contractorId || "-"}</td>
+                <td class="p-4">${c.date || "-"}</td>
+                <td class="p-4 text-emerald-600 font-bold">${c.timeIn || "-"}</td>
+                <td class="p-4 text-red-500 font-bold">${c.outTime || "-"}</td>
+                <td class="p-4"><span class="status-badge ${/signed out|completed/i.test(c.status || '') ? 'closed' : 'open'}">${c.status || "Active"}</span></td>
+                <td class="p-4 text-center">${(c.keyCollected === 'YES' || c.keyCollected === true) ? '🔑 HELD' : '❌ NO'}</td>
+                <td class="p-4 text-center">${c.signatureUrl ? `<img src="${c.signatureUrl}" class="h-6 mx-auto rounded border shadow-sm">` : 'No Sig'}</td>
+                <td class="p-4 text-center"><button onclick="window.openDetailedAuditModal('contractor', '${c.id}')" class="text-emerald-600 hover:scale-110"><i class="fa-solid fa-eye"></i></button></td>
+            </tr>`).join('') : '<tr><td colspan="13" class="p-8 text-center text-gray-400">No records found</td></tr>';
+    });
+}
+
+function renderStaffAttendance(attendance) {
+    try {
+        const body = document.getElementById('staff-attendance-body') || document.getElementById('attendanceTableBody');
+        if (!body) return;
+
+        // ✅ Task 1: Create staff lookup map for hydration
+        const staffMap = {};
+        if (window.appCache && window.appCache.staff) {
+            window.appCache.staff.forEach(s => {
+                const key = String(s.adekPass || s.mobile || s.id || '').trim().toLowerCase();
+                if (key) staffMap[key] = s;
+            });
+        }
+
+        const data = (attendance || []).sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+
+        if (!window.adminPaginators?.attendance) {
+            console.warn("⏳ adminPaginators.attendance not ready.");
+            body.innerHTML = `<tr><td colspan="14" class="p-8 text-center text-slate-400 font-bold uppercase tracking-widest bg-slate-50/50">Initial loading...</td></tr>`;
+            return;
+        }
+
+        window.adminPaginators.attendance.init(data, (pageItems) => {
+            try {
+                body.innerHTML = pageItems.length ? pageItems.map(a => {
+                    // ✅ Data Hydration: Lookup staff details
+                    const staffIdKey = String(a.adekPass || a.mobile || a.id || '').trim().toLowerCase();
+                    const staffObj = staffMap[staffIdKey] || {};
+
+                    const name = a.name || staffObj.fullName || staffObj.name || "-";
+                    const staffId = a.id || staffObj.adekPass || staffObj.mobile || "-";
+                    const mobile = a.mobile || staffObj.mobile || "-";
+                    const companyName = a.companyName || staffObj.companyName || staffObj.company || 'EFS';
+                    const companyId = a.companyId || staffObj.companyId || staffObj.compId || 'N/A';
+                    const schoolName = a.branch || a.school || staffObj.school || staffObj.schoolBuildingName || 'N/A';
+                    const role = a.role || staffObj.role || staffObj.position || "-";
+                    const adekPass = a.adekPass || staffObj.adekPass || "-";
+
+                    // ✅ Task 2: Fix Signature Thumbnail Rendering
+                    const sigUrl = a.signatureUrl || a.checkInSignatureUrl || "";
+                    let sigHtml = '<span class="text-slate-300 italic text-[8px]">No Signature</span>';
+
+                    if (sigUrl && sigUrl !== "N/A" && sigUrl !== "-") {
+                        const finalSigUrl = window.getDirectDriveImageUrl ? window.getDirectDriveImageUrl(sigUrl) : sigUrl;
+                        sigHtml = `<img src="${finalSigUrl}"
+                                     class="h-8 mx-auto rounded border border-slate-200 bg-white shadow-sm cursor-zoom-in hover:scale-110 transition-transform"
+                                     onerror="this.style.display='none'; this.parentElement.innerHTML='<span class=\'text-rose-400 font-bold\'>Broken Img</span>';"
+                                     onclick="window.openImageZoom('${sigUrl}')">`;
+                    }
+
+                    return `
+                    <tr class="hover:bg-slate-50 border-b text-[10px]">
+                        <td class="p-4 font-black text-indigo-900 uppercase">${window.escapeHTML(name)}</td>
+                        <td class="p-4 font-mono text-slate-500">${staffId}</td>
+                        <td class="p-4">${window.escapeHTML(mobile)}</td>
+                        <td class="p-4 font-bold text-indigo-600">${window.escapeHTML(companyName)}</td>
+                        <td class="p-4 font-bold text-slate-700">${companyId}</td>
+                        <td class="p-4 font-bold text-slate-600">${schoolName}</td>
+                        <td class="p-4 text-center"><span class="role-badge role-default">${role}</span></td>
+                        <td class="p-4 font-mono text-indigo-400 font-bold">${window.escapeHTML(adekPass)}</td>
+                        <td class="p-4 font-mono text-slate-400">${a.date || "-"}</td>
+                        <td class="p-4 text-emerald-600 font-black">${a.timeIn || "-"}</td>
+                        <td class="p-4 text-red-500 font-black">${a.checkOutTime || "-"}</td>
+                        <td class="p-4 text-center font-bold">${a.keyStatus || "NONE"}</td>
+                        <td class="p-4 text-center">${sigHtml}</td>
+                        <td class="p-4 text-center">
+                            <button onclick="window.openAttendanceDetailModal('${window.escapeHTML(a.mobile)}_${a.timestamp}')" class="text-indigo-600 hover:scale-110 transition-transform">
+                                <i class="fa-solid fa-eye text-base"></i>
+                            </button>
+                        </td>
+                    </tr>`;
+                }).join('') : '<tr><td colspan="14" class="p-8 text-center text-gray-400 font-bold uppercase tracking-widest bg-slate-50/50">No attendance records found</td></tr>';
+            } catch (innerErr) {
+                console.error("❌ Attendance Row Mapping Crash:", innerErr);
+                body.innerHTML = '<tr><td colspan="14" class="p-8 text-center text-rose-500 font-bold">Data Rendering Error</td></tr>';
+            }
+        });
+    } catch (err) {
+        console.error("❌ renderStaffAttendance Critical Error:", err);
+    }
+}
+
+function renderGlobalTaskAudit(tasks) {
+    const body = document.getElementById('admin-task-list-body');
+    if (!body) return;
+    const data = (tasks || []).sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+    window.adminPaginators.tasks.init(data, (pageItems) => {
+        body.innerHTML = pageItems.length ? pageItems.map(t => `
+            <tr class="text-[10px] border-b hover:bg-slate-50 transition-colors cursor-pointer" onclick="window.openTaskInspector('${t.id}')">
+                <td class="p-3 font-mono text-indigo-600 font-bold">${t.id || "-"}</td>
+                <td class="p-3">${t.assignedSchool || "-"}</td>
+                <td class="p-3 font-bold">${window.escapeHTML(t.location || "-")}</td>
+                <td class="p-3 truncate max-w-[150px]">${window.escapeHTML(t.details || "-")}</td>
+                <td class="p-3 uppercase text-[8px] font-black">${t.assignedRole || "-"}</td>
+                <td class="p-3 font-bold">${window.escapeHTML(t.raisedByName || "Admin")}</td>
+                <td class="p-3 font-bold text-emerald-600">${t.solvedByName || "-"}</td>
+                <td class="p-3"><span class="status-badge ${(t.status || 'Open').toLowerCase()}">${t.status || "Open"}</span></td>
+                <td class="p-3 italic text-slate-500">${t.completionComment || t.rejectionReason || "-"}</td>
+                <td class="p-3 text-center">
+                    <div class="flex items-center justify-center gap-1">
+                        ${t.beforePhotoUrl ? '<i class="fa-solid fa-camera text-amber-500" title="Before Photo"></i>' : ''}
+                        ${t.afterPhotoUrl ? '<i class="fa-solid fa-camera-retro text-emerald-500" title="After Photo"></i>' : ''}
+                    </div>
+                </td>
+            </tr>`).join('') : '<tr><td colspan="10" class="p-8 text-center text-gray-400">No tasks found</td></tr>';
+    });
+}
+
+function renderStaffDirectory(staff) {
+    try {
+        const body = document.getElementById('admin-staff-list-body') || document.getElementById('staffTableBody');
+        if (!body) return;
+
+        // ✅ Task 3: Filter out invalid/ghost records (Missing name or ID)
+        const validStaff = (staff || []).filter(s => {
+            const name = (s.fullName || s.name || "").trim();
+            const id = (s.adekPass || s.mobile || s.id || "").trim();
+            return name !== "" && name !== "-" && id !== "" && id !== "-";
+        });
+
+        // ✅ Safety check for Paginator Initialization
+        if (!window.adminPaginators?.directory) {
+            console.warn("⏳ adminPaginators.directory not ready, waiting...");
+            body.innerHTML = '<tr><td colspan="10" class="p-8 text-center text-slate-400 font-bold uppercase tracking-widest bg-slate-50/50">Synchronizing directory...</td></tr>';
+            setTimeout(() => renderStaffDirectory(staff), 500);
+            return;
+        }
+
+        window.adminPaginators.directory.init(validStaff, (pageItems) => {
+            try {
+                body.innerHTML = pageItems.length ? pageItems.map(s => {
+                    // Task 3: Visual Expiry Badge logic
+                    const userId = s.adekPass || s.mobile;
+                    const docNode = window.appCache.staffDocs ? window.appCache.staffDocs[userId] : null;
+                    let expiryBadge = "";
+                    const displayName = s.fullName || s.name || "Staff";
+
+                    if (docNode && docNode.docs) {
+                        let worstDays = 999;
+                        let worstDoc = "";
+                        Object.entries(docNode.docs).forEach(([key, d]) => {
+                            if (d.expiryDate && d.status === 'APPROVED') {
+                                const days = Math.ceil((new Date(d.expiryDate) - new Date()) / (1000 * 60 * 60 * 24));
+                                if (days < worstDays) {
+                                    worstDays = days;
+                                    worstDoc = key.replace(/_/g, ' ');
+                                }
+                            }
+                        });
+
+                        if (worstDays <= 0) {
+                            expiryBadge = `<div class="mt-1 px-2 py-0.5 bg-rose-600 text-white text-[7px] font-black rounded-full pulse-badge uppercase">❌ EXPIRED (${worstDoc})</div>`;
+                        } else if (worstDays <= 30) {
+                            expiryBadge = `<div class="mt-1 px-2 py-0.5 bg-amber-500 text-white text-[7px] font-black rounded-full uppercase">⚠️ EXPIRING SOON (${worstDoc}: ${worstDays}d)</div>`;
+                        }
+                    }
+
+                    // ✅ ADDED: Profile Submission Status Badge
+                    let statusBadgeText = s.role || s.position || "N/A";
+                    let statusBadge = `<span class="role-badge role-default">${statusBadgeText}</span>`;
+                    if (s.status === "PENDING_APPROVAL" || s.isProfileSubmitted === true && s.status !== "APPROVED") {
+                        statusBadge += `<div class="mt-1 px-2 py-0.5 bg-indigo-100 text-indigo-700 text-[6px] font-black rounded-full uppercase border border-indigo-200">🔍 PENDING REVIEW</div>`;
+                    } else if (s.status === "APPROVED") {
+                        statusBadge += `<div class="mt-1 px-2 py-0.5 bg-emerald-100 text-emerald-700 text-[6px] font-black rounded-full uppercase border border-emerald-200">✅ VERIFIED</div>`;
+                    }
+
+                    // ✅ Task 1: Safe Object Property Extraction & Fallback Guards
+                    const photoUrl = window.formatDriveImageUrl(s.profilePicUrl || s.photoUrl || s.profilePic || s.avatar, displayName);
+                    const name = s.fullName || s.name || 'N/A';
+                    const password = s.password || s.appPassword || '••••';
+                    const adekPass = s.adekPass || s.staffId || 'N/A';
+                    const school = s.school || s.branch || 'N/A';
+                    const position = s.role || s.position || 'N/A';
+                    const company = s.companyName || s.company || 'EFS';
+                    const compId = s.companyId || s.compId || 'N/A';
+                    const mobile = s.mobile || s.phone || 'N/A';
+
+                    // ✅ Task 2: High-Contrast Table Row (Standardized Template)
+                    return `
+                    <tr class="border-b border-slate-100 hover:bg-slate-50 transition-colors text-slate-700 text-[10px]">
+                        <td class="p-4 text-center">
+                            <img src="${photoUrl}"
+                                 loading="lazy"
+                                 onerror="this.onerror=null; this.src='https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=4f46e5&color=fff';"
+                                 class="w-9 h-9 rounded-full border border-slate-200 shadow-sm mx-auto object-cover profile-avatar-img">
+                        </td>
+                        <td class="p-4">
+                            <div class="font-black text-indigo-900 uppercase">${window.escapeHTML(name)}</div>
+                            ${expiryBadge}
+                        </td>
+                        <td class="p-4 font-mono text-slate-600 font-bold">${password}</td>
+                        <td class="p-4 font-mono text-indigo-600 font-black">${window.escapeHTML(adekPass)}</td>
+                        <td class="p-4 font-bold text-slate-600">${school}</td>
+                        <td class="p-4 text-center">${statusBadge}</td>
+                        <td class="p-4 font-bold text-slate-700">${window.escapeHTML(company)}</td>
+                        <td class="p-4 font-mono text-slate-500 font-bold">${compId}</td>
+                        <td class="p-4 font-mono text-slate-500 font-bold">${window.escapeHTML(mobile)}</td>
+                        <td class="p-4 text-center">
+                            <div class="flex items-center justify-center gap-2">
+                                <button onclick="window.openEditStaffModal('${s.firebaseKey || s.mobile}')"
+                                        class="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-400 hover:bg-indigo-600 hover:text-white transition-all flex items-center justify-center" title="Edit Staff">
+                                    <i class="fa-solid fa-user-pen text-xs"></i>
+                                </button>
+                                <button onclick="window.openStaffDocumentReviewModal('${s.adekPass || s.mobile}')"
+                                        class="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-500 hover:bg-emerald-600 hover:text-white transition-all flex items-center justify-center" title="Review Documents">
+                                    <i class="fa-solid fa-eye text-xs"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>`;
+                }).join('') : '<tr><td colspan="10" class="p-12 text-center text-slate-400 font-bold uppercase tracking-widest bg-slate-50/50">No staff records found</td></tr>';
+            } catch (innerErr) {
+                console.error("❌ Staff Row Mapping Crash:", innerErr);
+                body.innerHTML = '<tr><td colspan="10" class="p-8 text-center text-rose-500 font-bold">Data Rendering Error</td></tr>';
+            }
+        });
+    } catch (err) {
+        console.error("❌ renderStaffDirectory Critical Error:", err);
+    }
+}
+
+// ================================================================ */
+// ✅ FILTER LOGIC                                                  */
+// ================================================================ */
+
+window.filterVisitorTable = window.debounce(() => {
+    const q = document.getElementById('visitor-search')?.value?.toLowerCase() || '';
+    const d = document.getElementById('visitor-date-filter')?.value;
+    let f = window.appCache.visitors;
+    if (q) f = f.filter(v => (v.name||'').toLowerCase().includes(q) || (v.id||'').toLowerCase().includes(q) || (v.mobile||'').includes(q));
+    if (d) f = f.filter(v => v.date === new Date(d).toLocaleDateString('en-US'));
+    window.currentFilteredData.visitors = f; renderVisitorLogs(f);
+}, 300);
+
+window.filterContractorTable = window.debounce(() => {
+    const q = document.getElementById('contractor-search')?.value?.toLowerCase() || '';
+    const d = document.getElementById('contractor-date-filter')?.value;
+    let f = window.appCache.contractors;
+    if (q) f = f.filter(c => (c.name||'').toLowerCase().includes(q) || (c.company||'').toLowerCase().includes(q));
+    if (d) f = f.filter(c => c.date === new Date(d).toLocaleDateString('en-US'));
+    window.currentFilteredData.contractors = f; renderContractorLogs(f);
+}, 300);
+
+window.filterStaffTable = window.debounce(() => {
+    try {
+        const q = document.getElementById('staff-search')?.value?.toLowerCase() || '';
+        const d = document.getElementById('staff-date-filter')?.value;
+        const r = document.getElementById('staff-role-filter')?.value;
+        let f = window.appCache.attendance;
+
+        if (q) f = f.filter(a => (a.name||'').toLowerCase().includes(q) || (a.mobile||'').includes(q));
+        if (d) {
+            const filterDateStr = new Date(d).toLocaleDateString();
+            f = f.filter(a => a.date === filterDateStr);
+        }
+        if (r && r !== 'all') f = f.filter(a => (a.role||'').toLowerCase().trim() === r.toLowerCase().trim());
+
+        window.currentFilteredData.staff = f;
+        renderStaffAttendance(f);
+    } catch (err) {
+        console.error("❌ filterStaffTable Crash:", err);
+    }
+}, 300);
+
+window.filterStaffDirectory = () => {
+    const q = document.getElementById('directory-search')?.value?.toLowerCase() || '';
+    const r = document.getElementById('directory-role-filter')?.value;
+    const e = document.getElementById('directory-expiry-filter')?.value || 'all';
+
+    let f = window.appCache.staff;
+    if (q) f = f.filter(s => (s.fullName||'').toLowerCase().includes(q) || (s.mobile||'').includes(q));
+    if (r && r !== 'all') f = f.filter(s => (s.role||'').toLowerCase().trim() === r.toLowerCase().trim());
+
+    // Task 3: Expiry Quick Filter Logic
+    if (e !== 'all') {
+        f = f.filter(s => {
+            const userId = s.adekPass || s.mobile;
+            const docNode = window.appCache.staffDocs ? window.appCache.staffDocs[userId] : null;
+            if (!docNode || !docNode.docs) return false;
+
+            return Object.values(docNode.docs).some(d => {
+                if (!d.expiryDate || d.status !== 'APPROVED') return false;
+                const days = Math.ceil((new Date(d.expiryDate) - new Date()) / (1000 * 60 * 60 * 24));
+                if (e === 'expiring') return days > 0 && days <= 30;
+                if (e === 'expired') return days <= 0;
+                return false;
+            });
+        });
+    }
+
+    renderStaffDirectory(f);
+};
+
+// ================================================================ */
+// ✅ MISC HANDLERS & ASSET MGMT                                    */
+// ================================================================ */
+
+window.updateAdminProfileHeader = async () => {
+    try {
+        // 1. Check local cache first for instant render
+        const cached = localStorage.getItem('jys_cached_user_avatar');
+        const pic = document.getElementById('adminProfileHeaderPic');
+        if (cached && cached.startsWith('data:image') && pic) {
+            pic.src = cached;
+        }
+
+        // ✅ no hardcoded admin number any more: use the signed-in admin's own mobile
+        const mobile = (window.authClaims && window.authClaims.mobile) || '';
+        const snap = mobile ? await get(ref(db, `users/${mobile}`)) : { exists: () => false };
+        if (snap.exists() && pic) {
+            const photo = snap.val().profilePicUrl;
+            if (photo) {
+                const finalUrl = window.getDirectDriveImageUrl ? window.getDirectDriveImageUrl(photo) : photo;
+                window.getOrCacheImage(finalUrl).then(src => {
+                    pic.src = src;
+                    localStorage.setItem('jys_cached_user_avatar', src);
+                });
+            }
+        }
+    } catch (e) {}
+};
+
+window.filterAssetTable = window.debounce(() => {
+    // DEFENSIVE: Silently exit if table elements are missing (we are not on the Admin Dashboard)
+    if (!document.getElementById('asset-table-body')) return;
+
+    const q = document.getElementById('asset-search')?.value?.toLowerCase() || '';
+    let f = window.filterActiveAssets(window.appCache.assets || []);
+    if (q) f = f.filter(a => Object.values(a).some(v => String(v).toLowerCase().includes(q)));
+    window.currentFilteredData.assets = f;
+    if (typeof window.renderDynamicAssetTable === 'function') {
+        const headers = f.length ? Object.keys(f[0]).filter(k => !['assetId', 'updatedAt', '_raw', '_key'].includes(k)) : [];
+        window.renderDynamicAssetTable(f, headers);
+    }
+}, 300);
+
+// ================================================================ */
+// ✅ BULK ACTIONS                                                  */
+// ================================================================ */
+
+window.confirmAndDeleteAllAssets = async function() {
+    const v = prompt("Type 'DELETE ALL' to confirm:");
+    if (v !== "DELETE ALL") return;
+    window.showGlobalSpinner("Clearing database...");
+    try { await set(ref(db, 'assets'), null); window.appCache.assets = []; alert("Success."); window.filterAssetTable(); }
+    catch (e) { alert(e.message); } finally { window.hideGlobalSpinner(); }
+};
+
+window.bulkDeleteAssets = async () => {
+    if (window.selectedAssetKeys.size === 0) return alert("Select assets.");
+    if (!confirm(`Delete ${window.selectedAssetKeys.size} assets?`)) return;
+    window.showLoader();
+    try {
+        const updates = {};
+        Array.from(window.selectedAssetKeys).forEach(b => { updates[`assets/${b.replace(/[.#$\[\]/]/g, '_')}`] = null; });
+        await update(ref(db), updates);
+        window.selectedAssetKeys.clear();
+        alert("Deleted.");
+    } catch (e) { alert(e.message); } finally { window.hideLoader(); }
+};
+// ================================================================ */
+// ✅ STAFF MANAGEMENT LOGIC (PHOTO + DRIVE + FIREBASE)             */
+// ================================================================ */
+
+let staffPhotoBase64 = ""; // Global variable to store selected image
+
+// ================================================================ */
+// ✅ 1. OPEN MODAL - Universal Responsive Design
+// ================================================================ */
+window.openAddStaffModal = function() {
+    const modal = document.getElementById('add-staff-modal');
+    if (!modal) return;
+
+    modal.innerHTML = `
+        <div class="pro-modal-container">
+            <button type="button" onclick="window.closeStaffModal('add')" class="modal-close-btn">&times;</button>
+
+            <h3 class="pro-modal-title">Register New Staff</h3>
+
+            <form id="add-staff-form" onsubmit="event.preventDefault(); window.handleStaffSubmit('add')">
+
+                <input type="hidden" id="staff-db-key" value="">
+
+                <!-- Profile Photo Picker - Touch Friendly -->
+                <div class="profile-upload-wrapper">
+                    <label for="staff-photo-input" class="avatar-upload-box" id="photo-upload-label">
+                        <img id="staff-photo-preview" src="" class="w-full h-full object-cover hidden" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%; display: none;">
+                        <i id="staff-photo-icon" class="fa-solid fa-camera"></i>
+                        <input type="file" id="staff-photo-input" accept="image/*" class="hidden-file-input" capture="environment" onchange="window.previewStaffPhoto(this)">
+                    </label>
+                    <span class="avatar-label-text">Upload Profile Image</span>
+                </div>
+
+                <!-- Form Inputs Grid - Responsive -->
+                <div class="pro-form-grid">
+                    <div class="input-field-group">
+                        <input type="text" id="staff-name" placeholder="Full Name" required class="pro-input" autocomplete="name">
+                    </div>
+
+                    <div class="input-field-group">
+                        <input type="tel" id="staff-mobile" placeholder="Mobile (Login ID)" required class="pro-input" autocomplete="tel" inputmode="numeric">
+                    </div>
+
+                    <div class="input-field-group">
+                        <input type="text" id="staff-adek" placeholder="ADEK Pass No" required class="pro-input" autocomplete="off">
+                    </div>
+
+                    <div class="input-field-group">
+                        <input type="text" id="staff-pass" placeholder="Login Password" required class="pro-input" autocomplete="new-password">
+                    </div>
+
+                    <div class="input-field-group">
+                        <select id="staff-role" required class="pro-select">
+                            <option value="">Select Role</option>
+                        </select>
+                    </div>
+
+                    <div class="input-field-group">
+                        <select id="staff-school" required class="pro-select">
+                            <option value="">Select School</option>
+                            <option value="Jern Yafoor School 1">Jern Yafoor School 1</option>
+                            <option value="Jern Yafoor School 2">Jern Yafoor School 2</option>
+                        </select>
+                    </div>
+
+                    <div class="input-field-group">
+                        <input type="text" id="staff-company" placeholder="Company Name" class="pro-input" autocomplete="organization">
+                    </div>
+
+                    <div class="input-field-group">
+                        <input type="text" id="staff-comp-id" placeholder="Company ID" class="pro-input" autocomplete="off">
+                    </div>
+
+                    <!-- ✅ DYNAMIC FEATURE ACCESS CONTROLS (NEW v15.0) -->
+                    <div class="permissions-manager-section" style="grid-column: 1 / -1; background: #f8fafc; padding: 20px; border-radius: 20px; border: 1px solid #e2e8f0; margin-top: 10px;">
+                        <h4 class="text-[11px] font-black text-indigo-900 uppercase tracking-widest mb-4 flex items-center gap-2">
+                            <i class="fa-solid fa-user-lock"></i> Feature Access Controls
+                        </h4>
+                        <div id="staff-permissions-grid" class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <!-- Dynamically injected checkboxes -->
+                            ${FEATURE_PERMISSIONS.map(f => `
+                                <label class="flex items-center gap-3 p-3 bg-white rounded-xl border border-slate-100 hover:border-indigo-300 transition-all cursor-pointer group">
+                                    <div class="relative inline-flex items-center cursor-pointer">
+                                        <input type="checkbox" id="perm_${f.id}" class="sr-only peer" data-permission-id="${f.id}">
+                                        <div class="w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-indigo-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
+                                    </div>
+                                    <span class="text-[10px] font-bold text-slate-600 uppercase tracking-tight group-hover:text-indigo-900">${f.label}</span>
+                                </label>
+                            `).join('')}
+                        </div>
+                    </div>
+
+                    <!-- Document Verification Assignment Container -->
+                    <div id="staff-doc-assignment-container" style="grid-column: 1 / -1;"></div>
+
+                    <!-- Submit Button - Touch Friendly -->
+                    <button type="submit" id="staff-save-btn" class="pro-submit-btn">
+                        Register Staff Member
+                    </button>
+                </div>
+            </form>
+        </div>
+    `;
+
+    // ✅ FORCE SYNC ROLE DROPDOWN (v6.2 Fix)
+    if (window.syncRoleDropdown) {
+        window.syncRoleDropdown('staff-role', 'Select Role');
+    } else if (window.MASTER_STAFF_ROLES) {
+        const select = document.getElementById('staff-role');
+        if (select) {
+            select.innerHTML = `<option value="">Select Role</option>` +
+                window.MASTER_STAFF_ROLES.map(r => `<option value="${r}">${r}</option>`).join('');
+        }
+    }
+
+    // Show modal with proper styling
+    modal.className = "modal-backdrop";
+    modal.style.display = 'flex';
+    staffPhotoBase64 = "";
+
+    // ✅ Add listener for Role Change
+    const roleSelect = document.getElementById('staff-role');
+    if (roleSelect) {
+        roleSelect.addEventListener('change', (e) => {
+            if (e.target.value) {
+                // Trigger Configuration Modal
+                if (window.openOnboardingConfigModal) {
+                    window.openOnboardingConfigModal(e.target.value);
+                }
+            }
+        });
+    }
+
+    // ✅ Mobile-friendly: auto-focus first field with slight delay
+    setTimeout(() => {
+        const firstInput = document.getElementById('staff-name');
+        if (firstInput && window.innerWidth < 768) {
+            // Don't force focus on mobile to avoid keyboard issues
+        }
+    }, 100);
+};
+
+// ================================================================ */
+// ✅ 2. PREVIEW PHOTO - Universal File Reader
+// ================================================================ */
+window.previewStaffPhoto = async function(input) {
+    if (input.files && input.files[0]) {
+        const file = input.files[0];
+
+        // ✅ Check file size (max 10MB for raw check, will compress anyway)
+        if (file.size > 10 * 1024 * 1024) {
+            alert("❌ Image is too large. Please select a smaller photo.");
+            input.value = '';
+            return;
+        }
+
+        // ✅ Check file type
+        if (!file.type.startsWith('image/')) {
+            alert("❌ Please select a valid image file.");
+            input.value = '';
+            return;
+        }
+
+        try {
+            // ✅ IMPROVED: Wait for Image Processor with clean loop
+            let attempts = 0;
+            while (typeof window.compressImageFile !== 'function' && attempts < 10) {
+                console.warn(`⏳ Image processor not ready (Attempt ${attempts + 1}/10)...`);
+                await new Promise(r => setTimeout(r, 500));
+                attempts++;
+            }
+
+            if (typeof window.compressImageFile !== 'function') {
+                throw new Error("Critical: Image Processor (image_processor.js) failed to load. Please check your network and refresh.");
+            }
+
+            // ✅ AUTO-COMPRESS before preview/store (Ensures small payload for Drive)
+            if (window.showGlobalSpinner) window.showGlobalSpinner("Optimizing Photo...");
+
+            const compressedBase64 = await window.compressImageFile(file, 600, 600, 0.7);
+
+            const preview = document.getElementById('staff-photo-preview');
+            const icon = document.getElementById('staff-photo-icon');
+
+            if (preview) {
+                preview.src = compressedBase64;
+                preview.style.display = 'block';
+                preview.classList.remove('hidden');
+                if (icon) {
+                    icon.style.display = 'none';
+                    icon.classList.add('hidden');
+                }
+                staffPhotoBase64 = compressedBase64;
+            }
+
+            if (window.hideGlobalSpinner) window.hideGlobalSpinner();
+
+        } catch (err) {
+            console.error("📸 Image Process Error:", err);
+            if (window.hideGlobalSpinner) window.hideGlobalSpinner();
+            alert(`❌ Image Error: ${err.message || "Failed to process photo."}\nPlease try a different image or format (JPG/PNG).`);
+        }
+    }
+};
+
+/**
+ * Helper to convert file to Base64 (DataURL)
+ */
+function convertFileToBase64(file) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = error => reject(error);
+    });
+}
+
+// ================================================================ */
+// ✅ 3. HANDLE SUBMIT - Enhanced Error Handling
+// ================================================================ */
+window.handleStaffSubmit = async function(type) {
+    const btn = document.getElementById('staff-save-btn');
+    const name = document.getElementById('staff-name')?.value?.trim();
+    const mobile = document.getElementById('staff-mobile')?.value?.trim();
+    const adekPass = document.getElementById('staff-adek')?.value?.trim();
+    const existingKey = document.getElementById('staff-db-key')?.value || "";
+
+    // ✅ Task 2: Strict Validation (Prevent uninitialized/empty pushes)
+    if (!name || name === "-" || (!mobile && !adekPass)) {
+        console.error("❌ Aborting submission: Missing mandatory Staff Name or ID.");
+        alert("❌ Error: Staff Name and ID (Mobile or ADEK Pass) are mandatory.");
+        if (btn) btn.disabled = false;
+        return;
+    }
+
+    // ✅ Validate mobile number format (UAE format)
+    if (mobile && !/^[0-9]{9,15}$/.test(mobile)) {
+        alert("❌ Please enter a valid mobile number (9-15 digits).");
+        if (btn) btn.disabled = false;
+        return;
+    }
+
+    if (btn) {
+        btn.disabled = true;
+        btn.textContent = "⏳ Saving...";
+    }
+
+    if (window.showGlobalSpinner) window.showGlobalSpinner("Saving Data & Uploading Photo...");
+
+    try {
+        let finalPhotoUrl = "";
+
+        // STEP A: Upload to Google Drive
+        const photoInput = document.getElementById('staff-photo-input');
+        const adekPass = document.getElementById('staff-adek')?.value?.trim() || mobile || "TEMP_PASS";
+        const staffName = document.getElementById('staff-name')?.value?.trim() || "Staff";
+
+        if (staffPhotoBase64 && window.uploadToDrive) {
+            // ✅ IMPROVEMENT: Use the Optimized/Compressed image from previewStaffPhoto
+            console.log("📤 Uploading optimized staff photo to Google Drive...");
+
+            const uploadRes = window.uploadToDriveWithRetry ?
+                await window.uploadToDriveWithRetry({
+                    category: 'PROFILES_AND_SIGS',
+                    documentType: 'ProfilePhoto',
+                    adekPassNumber: adekPass,
+                    fileName: `PROFILE_${adekPass}_${Date.now()}.jpg`,
+                    image: staffPhotoBase64
+                }) :
+                await window.uploadToDrive({
+                    category: 'PROFILES_AND_SIGS',
+                    documentType: 'ProfilePhoto',
+                    adekPassNumber: adekPass,
+                    fileName: `PROFILE_${adekPass}_${Date.now()}.jpg`,
+                    image: staffPhotoBase64
+                });
+
+            if (uploadRes && (uploadRes.status === 'success' || uploadRes.status === 'fallback')) {
+                finalPhotoUrl = uploadRes.fileUrl;
+                console.log("📸 Staff photo synced successfully:", finalPhotoUrl);
+            } else {
+                console.warn("⚠️ Drive upload failed, using fallback UI avatar.");
+                finalPhotoUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(staffName)}&background=4f46e5&color=fff`;
+            }
+        } else if (photoInput && photoInput.files && photoInput.files[0] && window.uploadToDrive) {
+            // Fallback for raw files if compression wasn't triggered
+            const file = photoInput.files[0];
+            try {
+                const reader = new FileReader();
+                const base64String = await new Promise((resolve, reject) => {
+                    reader.onload = () => resolve(reader.result.split(',')[1]);
+                    reader.onerror = e => reject(e);
+                    reader.readAsDataURL(file);
+                });
+
+                const uploadRes = await window.uploadToDrive({
+                    category: 'PROFILES_AND_SIGS',
+                    documentType: 'ProfilePhoto',
+                    adekPassNumber: adekPass,
+                    fileName: `STAFF_RAW_${Date.now()}.jpg`,
+                    base64Data: base64String
+                });
+                finalPhotoUrl = uploadRes.fileUrl || "";
+            } catch (e) {
+                finalPhotoUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(staffName)}&background=4f46e5&color=fff`;
+            }
+        }
+
+        // STEP B: Prepare Base Database Object
+        // 🔐 Password is NEVER written to the database. It is sent to the secure
+        // setStaffPassword Cloud Function (hashed server-side) after the save.
+        const newPassword = document.getElementById('staff-pass').value.trim();
+        if ((!existingKey && newPassword.length < 8) || (newPassword && newPassword.length < 8)) {
+            throw new Error('Password must be at least 8 characters.');
+        }
+        const staffData = {
+            fullName: document.getElementById('staff-name').value.trim(),
+            mobile: mobile,
+            adekPass: document.getElementById('staff-adek').value.trim(),
+            role: document.getElementById('staff-role').value,
+            school: document.getElementById('staff-school').value,
+            companyName: document.getElementById('staff-company').value.trim() || "N/A",
+            companyId: document.getElementById('staff-comp-id').value.trim() || "N/A",
+            updatedAt: Date.now()
+        };
+
+        // ✅ Collect Feature Permissions
+        const permissions = {};
+        FEATURE_PERMISSIONS.forEach(f => {
+            const chk = document.getElementById(`perm_${f.id}`);
+            permissions[f.id] = chk ? chk.checked : false;
+        });
+        staffData.permissions = permissions;
+
+        // ✅ Preserve existing photo if no new image was selected during Edit
+        if (finalPhotoUrl) {
+            staffData.profilePicUrl = finalPhotoUrl;
+        } else if (existingKey) {
+            const existingPreview = document.getElementById('staff-photo-preview');
+            if (existingPreview && existingPreview.src && !existingPreview.src.includes('data:image')) {
+                staffData.profilePicUrl = existingPreview.src;
+            }
+        }
+
+        // STEP C: Collect and Save Assigned Documents
+        let docsToInitialize = null;
+
+        if (window._pendingOnboardingConfig) {
+            staffData.onboardingRequirements = window._pendingOnboardingConfig.requiredDocuments || {};
+            staffData.bioDataRequirements = window._pendingOnboardingConfig.requiredBioData || [];
+            staffData.isAccountActive = false; // Default inactive for new staff
+            docsToInitialize = staffData.onboardingRequirements;
+        } else if (window.getAssignedDocsFromUI) {
+            const assignedDocs = window.getAssignedDocsFromUI();
+            staffData.requiredVerificationDocs = assignedDocs;
+            docsToInitialize = assignedDocs;
+        }
+
+        // Initialize verification node for NEW staff
+        if (!existingKey && docsToInitialize && Object.keys(docsToInitialize).length > 0) {
+            const docStatusNode = {};
+            Object.entries(docsToInitialize).forEach(([id, data]) => {
+                docStatusNode[id] = {
+                    status: "NOT UPLOADED",
+                    documentType: id,
+                    name: data.name || id.replace(/_/g, ' ') // ✅ Fix: Preserve friendly name for dynamic fields
+                };
+            });
+            await set(ref(db, `staff_documents/${staffData.adekPass || mobile}`), {
+                docs: docStatusNode,
+                isAccountActivated: false,
+                verificationProgress: "0%"
+            });
+        }
+
+        // STEP D: Push to Firebase (Edit vs Create)
+        if (existingKey) {
+            console.log("💾 Updating existing staff record:", existingKey);
+            await update(ref(db, `staff/${existingKey}`), staffData);
+            if (newPassword) {
+                const r = await window.setStaffPasswordSecure(existingKey, newPassword);
+                if (!r.ok) throw new Error('Saved, but password not changed: ' + r.message);
+            }
+        } else {
+            console.log("🆕 Creating new unique staff record");
+            const newRef = push(ref(db, 'staff'), staffData);
+            await newRef;
+            const r = await window.setStaffPasswordSecure(newRef.key, newPassword);
+            if (!r.ok) throw new Error('Staff saved, but password not set: ' + r.message + ' (use Edit to set it).');
+        }
+
+        if (finalPhotoUrl) {
+            if (typeof window.triggerSuccessPopup === 'function') {
+                window.triggerSuccessPopup("✅ Staff Member Saved & Photo Synced to Drive!");
+            } else {
+                alert("✅ Staff Member Saved & Photo Synced to Drive!");
+            }
+        } else {
+            if (typeof window.triggerSuccessPopup === 'function') {
+                window.triggerSuccessPopup("✅ Staff Member Saved Successfully!");
+            } else {
+                alert("✅ Staff Member Saved Successfully!");
+            }
+        }
+
+        window._pendingOnboardingConfig = null;
+        window.closeStaffModal(type);
+
+        // Refresh list
+        if (window.filterStaffDirectory) window.filterStaffDirectory();
+
+    } catch (error) {
+        console.error("Staff Save Error:", error);
+        alert("❌ Error: " + (error.message || "Unknown error occurred"));
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            btn.textContent = existingKey ? "UPDATE STAFF DETAILS" : "Register Staff Member";
+        }
+        if (window.hideGlobalSpinner) window.hideGlobalSpinner();
+    }
+};
+
+// ================================================================ */
+// ✅ 4. CLOSE MODAL - Universal Handler
+// ================================================================ */
+window.closeStaffModal = function(type) {
+    const modalId = type === 'add' ? 'add-staff-modal' : 'edit-staff-modal';
+    let modal = document.getElementById(modalId);
+
+    // Fallback if edit modal uses same modal container
+    if (!modal && type === 'edit') modal = document.getElementById('add-staff-modal');
+
+    if (modal) {
+        modal.classList.add('hidden');
+        modal.style.display = 'none';
+    }
+
+    // ✅ Clear file input to prevent cached images
+    const fileInput = document.getElementById('staff-photo-input');
+    if (fileInput) fileInput.value = '';
+
+    // ✅ Reset preview
+    const preview = document.getElementById('staff-photo-preview');
+    const icon = document.getElementById('staff-photo-icon');
+    if (preview) {
+        preview.src = '';
+        preview.style.display = 'none';
+        preview.classList.add('hidden');
+    }
+    if (icon) {
+        icon.style.display = 'block';
+        icon.classList.remove('hidden');
+    }
+
+    staffPhotoBase64 = "";
+};
+
+// ================================================================ */
+// ✅ 5. EDIT STAFF - Enhanced Loading
+// ================================================================ */
+window.openEditStaffModal = async function(dbKey) {
+    if (!dbKey) {
+        alert("❌ Invalid staff record.");
+        return;
+    }
+
+    try {
+        if (window.showGlobalSpinner) window.showGlobalSpinner("Loading Staff Data...");
+
+        const snap = await get(ref(db, `staff/${dbKey}`));
+        if (!snap.exists()) {
+            alert("❌ Staff record not found.");
+            if (window.hideGlobalSpinner) window.hideGlobalSpinner();
+            return;
+        }
+
+        const s = snap.val();
+
+        // Render base Modal UI
+        window.openAddStaffModal();
+
+        // Update Title & Submit Button Text for Edit Mode
+        const title = document.querySelector('.pro-modal-title');
+        if (title) title.innerText = "✏️ Edit Staff Member";
+
+        const saveBtn = document.getElementById('staff-save-btn');
+        if (saveBtn) saveBtn.innerText = "UPDATE STAFF DETAILS";
+
+        // Set the hidden database key
+        const keyInput = document.getElementById('staff-db-key');
+        if (keyInput) keyInput.value = dbKey;
+
+        // Fill Form Fields safely
+        const nameField = document.getElementById('staff-name');
+        if (nameField) nameField.value = s.fullName || s.name || "";
+
+        const mobileField = document.getElementById('staff-mobile');
+        if (mobileField) {
+            mobileField.value = s.mobile || "";
+            mobileField.readOnly = true;
+            mobileField.style.backgroundColor = '#f0f0f0';
+        }
+
+        const adekField = document.getElementById('staff-adek');
+        if (adekField) adekField.value = s.adekPass || "";
+
+        const passField = document.getElementById('staff-pass');
+        if (passField) {
+            passField.value = "";                 // passwords are hashed server-side; never shown
+            passField.required = false;           // blank = keep current password
+            passField.placeholder = "Leave blank to keep current password (min 8 chars to change)";
+        }
+
+        const roleField = document.getElementById('staff-role');
+        if (roleField) roleField.value = s.role || "";
+
+        const schoolField = document.getElementById('staff-school');
+        if (schoolField) schoolField.value = s.school || s.branch || "";
+
+        const companyField = document.getElementById('staff-company');
+        if (companyField) companyField.value = s.companyName || "";
+
+        const compIdField = document.getElementById('staff-comp-id');
+        if (compIdField) compIdField.value = s.companyId || "";
+
+        // ✅ Load Feature Permissions
+        const perms = s.permissions || {};
+        FEATURE_PERMISSIONS.forEach(f => {
+            const chk = document.getElementById(`perm_${f.id}`);
+            if (chk) chk.checked = perms[f.id] === true;
+        });
+
+        // Load assigned verification documents
+        if (window.renderDocAssignmentUI) {
+            window.renderDocAssignmentUI(s.role, 'staff-doc-assignment-container', s.requiredVerificationDocs || null);
+        }
+
+        // Load Existing Photo Preview
+        if (s.profilePicUrl) {
+            const preview = document.getElementById('staff-photo-preview');
+            const icon = document.getElementById('staff-photo-icon');
+            if (preview) {
+                preview.src = window.getDirectDriveImageUrl ? window.getDirectDriveImageUrl(s.profilePicUrl) : s.profilePicUrl;
+                preview.style.display = 'block';
+                preview.classList.remove('hidden');
+                if (icon) {
+                    icon.style.display = 'none';
+                    icon.classList.add('hidden');
+                }
+            }
+        }
+
+        if (window.hideGlobalSpinner) window.hideGlobalSpinner();
+
+    } catch (e) {
+        console.error("Edit Staff Load Error:", e);
+        alert("❌ Failed to load staff details: " + (e.message || "Unknown error"));
+        if (window.hideGlobalSpinner) window.hideGlobalSpinner();
+    }
+};
+
+// ================================================================ */
+// ✅ 6. ADDITIONAL UTILITY FUNCTIONS
+// ================================================================ */
+
+/**
+ * Reset the staff form to default state
+ */
+window.resetStaffForm = function() {
+    const form = document.getElementById('add-staff-form');
+    if (form) form.reset();
+
+    const preview = document.getElementById('staff-photo-preview');
+    const icon = document.getElementById('staff-photo-icon');
+    if (preview) {
+        preview.src = '';
+        preview.style.display = 'none';
+        preview.classList.add('hidden');
+    }
+    if (icon) {
+        icon.style.display = 'block';
+        icon.classList.remove('hidden');
+    }
+
+    const keyInput = document.getElementById('staff-db-key');
+    if (keyInput) keyInput.value = '';
+
+    const mobileField = document.getElementById('staff-mobile');
+    if (mobileField) {
+        mobileField.readOnly = false;
+        mobileField.style.backgroundColor = '';
+    }
+
+    staffPhotoBase64 = "";
+};
+
+/**
+ * Validate UAE mobile number format
+ */
+window.validateUAEMobile = function(number) {
+    // UAE mobile format: 9-15 digits, can start with 0 or 5
+    const cleaned = number.replace(/\s/g, '');
+    return /^[0-9]{9,15}$/.test(cleaned);
+};
+
+/**
+ * Handle mobile input formatting for better UX
+ */
+document.addEventListener('DOMContentLoaded', function() {
+    const mobileInput = document.getElementById('staff-mobile');
+    if (mobileInput) {
+        mobileInput.addEventListener('input', function(e) {
+            // Remove any non-numeric characters
+            this.value = this.value.replace(/[^0-9]/g, '');
+        });
+    }
+});
+
+console.log("✅ Staff Management Module v5.0 - Universal Responsive");
+
+// ================================================================ */
+// ✅ DETAILED MODAL HANDLERS (FIXED v4.8)                          */
+// ================================================================ */
+
+/**
+ * 1. Open Attendance Detail Modal (Staff)
+ */
+window.openAttendanceDetailModal = function(staffKey) {
+    if (!staffKey) return;
+
+    // Find record in cache
+    const record = window.appCache.attendance.find(a => `${a.mobile}_${a.timestamp}` === staffKey);
+    if (!record) {
+        alert("Attendance record not found in cache.");
+        return;
+    }
+
+    const modal = document.getElementById('view-staff-modal');
+    if (!modal) return;
+
+    modal.innerHTML = `
+        <div class="bg-white w-full max-w-11/12 md:max-w-3xl rounded-[2.5rem] overflow-hidden shadow-2xl relative flex flex-col max-h-[90vh] fade-in">
+            <!-- ✅ Task 1: Sticky Header -->
+            <div class="sticky top-0 bg-white/90 backdrop-blur-md z-50 p-6 border-b border-slate-100 flex justify-between items-center shrink-0">
+                <div>
+                    <h3 class="text-xl font-black text-indigo-900 uppercase tracking-tight">Attendance Record</h3>
+                    <p class="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">Detailed Shift Log</p>
+                </div>
+                <button onclick="document.getElementById('view-staff-modal').classList.add('hidden')"
+                        class="w-10 h-10 rounded-full bg-slate-50 text-slate-400 flex items-center justify-center hover:bg-rose-50 hover:text-rose-500 transition-all shadow-sm border border-slate-100">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+
+            <!-- ✅ Task 1: Scrollable Body -->
+            <div class="overflow-y-auto p-6 md:p-8 space-y-8 flex-1 custom-scrollbar">
+                <!-- Profile Header -->
+                <div class="flex items-center gap-5 bg-indigo-50/50 p-5 rounded-[2rem] border border-indigo-100">
+                    <div class="w-16 h-16 bg-indigo-600 rounded-2xl flex items-center justify-center text-white text-2xl font-black shadow-lg shadow-indigo-200 shrink-0">
+                        ${record.name ? record.name.charAt(0).toUpperCase() : '?'}
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <h4 class="font-black text-indigo-950 uppercase text-lg truncate">${window.escapeHTML(record.name || 'Unknown Staff')}</h4>
+                        <div class="flex flex-wrap gap-2 mt-1">
+                            <span class="px-2.5 py-1 bg-white text-indigo-700 text-[8px] font-black rounded-lg uppercase border border-indigo-100">${record.role || 'Staff'}</span>
+                            <span class="px-2.5 py-1 bg-white text-slate-500 text-[8px] font-bold rounded-lg border border-slate-100">${window.escapeHTML(record.mobile || 'No Mobile')}</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Timing & Info Grid (Responsive 2-Col) -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200">
+                        <span class="text-[8px] font-black text-emerald-600 uppercase block mb-1 tracking-wider"><i class="fa-solid fa-right-to-bracket mr-1"></i> Checked In</span>
+                        <span class="font-black text-slate-900 text-sm">${record.timeIn || '--:--'}</span>
+                    </div>
+                    <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200">
+                        <span class="text-[8px] font-black text-rose-500 uppercase block mb-1 tracking-wider"><i class="fa-solid fa-right-from-bracket mr-1"></i> Checked Out</span>
+                        <span class="font-black text-slate-900 text-sm">${record.checkOutTime || '--:--'}</span>
+                    </div>
+                    <div class="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm">
+                        <span class="text-[8px] font-black text-slate-400 uppercase block mb-1">Date of Shift</span>
+                        <span class="font-bold text-slate-700 text-xs">${record.date || '-'}</span>
+                    </div>
+                    <div class="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm">
+                        <span class="text-[8px] font-black text-slate-400 uppercase block mb-1">Key Status</span>
+                        <span class="font-black text-indigo-600 text-xs">${record.keyStatus || 'NONE'}</span>
+                    </div>
+                </div>
+
+                <!-- Signatures (Responsive Grid) -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-6 pt-2">
+                    <div class="text-center">
+                        <span class="text-[9px] font-black text-indigo-400 uppercase block mb-3 tracking-[0.2em]">Entry Signature</span>
+                        <div class="h-32 flex items-center justify-center bg-white rounded-3xl border-2 border-slate-100 shadow-inner group overflow-hidden">
+                            ${record.signatureUrl ? `<img src="${window.getDirectDriveImageUrl(record.signatureUrl)}" class="max-h-24 object-contain transition-transform group-hover:scale-110" onclick="window.openImageZoom('${record.signatureUrl}')">` : '<span class="text-[10px] font-bold text-slate-200 uppercase">No Signature</span>'}
+                        </div>
+                    </div>
+                    <div class="text-center">
+                        <span class="text-[9px] font-black text-rose-400 uppercase block mb-3 tracking-[0.2em]">Exit Signature</span>
+                        <div class="h-32 flex items-center justify-center bg-white rounded-3xl border-2 border-slate-100 shadow-inner group overflow-hidden">
+                            ${record.checkOutSignatureUrl ? `<img src="${window.getDirectDriveImageUrl(record.checkOutSignatureUrl)}" class="max-h-24 object-contain transition-transform group-hover:scale-110" onclick="window.openImageZoom('${record.checkOutSignatureUrl}')">` : '<span class="text-[10px] font-bold text-slate-200 uppercase">Not Checked Out</span>'}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Footer -->
+            <div class="p-6 bg-slate-50 border-t border-slate-100 flex justify-center shrink-0">
+                <button onclick="document.getElementById('view-staff-modal').classList.add('hidden')"
+                        class="px-10 py-4 bg-slate-900 text-white rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] shadow-xl active:scale-95 transition-all">
+                    Close Record
+                </button>
+            </div>
+        </div>
+    `;
+    modal.classList.remove('hidden');
+    modal.style.display = 'flex';
+};
+
+// ================================================================ */
+// ✅ ASSET MANAGEMENT MODALS & ACTIONS                             */
+// ================================================================ */
+
+window.openAssetDetailsModal = async function(barcode) {
+    if (!barcode) return;
+    const sanitized = barcode.replace(/[.#$\[\]/]/g, '_');
+
+    window.showGlobalSpinner("Loading Asset Details...");
+    try {
+        const snap = await get(ref(db, `assets/${sanitized}`));
+        if (!snap.exists()) {
+            alert("Asset not found in database.");
+            return;
+        }
+
+        const data = snap.val();
+        const modal = document.getElementById('asset-details-modal');
+        const grid = document.getElementById('dynamic-asset-fields-grid');
+        const img = document.getElementById('modal-asset-photo');
+        const placeholder = document.getElementById('modal-photo-placeholder');
+
+        if (!modal || !grid) return;
+
+        grid.innerHTML = "";
+
+        // Show Photo if exists
+        const photoUrl = data.photoURL || data.photoUrl || data.auditPhoto || data.photo || data.imageUrl;
+        if (photoUrl && photoUrl !== 'N/A' && photoUrl !== '-') {
+            img.src = window.getDirectDriveImageUrl ? window.getDirectDriveImageUrl(photoUrl) : photoUrl;
+            img.style.display = 'block';
+            if (placeholder) placeholder.style.display = 'none';
+        } else {
+            img.style.display = 'none';
+            if (placeholder) placeholder.style.display = 'flex';
+        }
+
+        // Exclude internal keys
+        const ignored = ['_id', '_row', '_rawBarcode', '_version', 'importedAt', 'updatedAt', 'assetId', 'locationHistory', 'photoURL', 'photoUrl', 'auditPhoto', 'photo', 'imageUrl'];
+
+        Object.entries(data).forEach(([key, val]) => {
+            if (ignored.includes(key)) return;
+
+            const label = key.replace(/([A-Z])/g, ' $1').replace(/_/g, ' ').toUpperCase();
+            const card = document.createElement('div');
+            card.className = "bg-white p-3 rounded-xl border border-slate-100 shadow-sm";
+            card.innerHTML = `
+                <label class="text-[8px] font-black text-indigo-400 uppercase block mb-1 tracking-wider">${label}</label>
+                <span class="text-[10px] font-bold text-slate-700 break-words">${val || '-'}</span>
+            `;
+            grid.appendChild(card);
+        });
+
+        modal.classList.remove('hidden');
+        modal.style.display = 'flex';
+    } catch (e) {
+        console.error("Detail Error:", e);
+        alert("Failed to load details.");
+    } finally {
+        window.hideGlobalSpinner();
+    }
+};
+
+window.closeAssetDetailsModal = function() {
+    const modal = document.getElementById('asset-details-modal');
+    if (modal) {
+        modal.classList.add('hidden');
+        modal.style.display = 'none';
+    }
+};
+
+window.openEditAssetModal = async function(barcode) {
+    if (!barcode) return;
+    const sanitized = barcode.replace(/[.#$\[\]/]/g, '_');
+
+    window.showGlobalSpinner("Unlocking Master Record...");
+    try {
+        const snap = await get(ref(db, `assets/${sanitized}`));
+        if (!snap.exists()) return alert("Asset not found in Master Register.");
+
+        const data = snap.val();
+        const container = document.getElementById('admin-dynamic-edit-fields');
+        const barcodeInput = document.getElementById('edit-barcode');
+
+        if (!container || !barcodeInput) {
+            console.error("Editor elements missing in DOM");
+            return;
+        }
+
+        container.innerHTML = "";
+        barcodeInput.value = barcode;
+
+        // Exclude purely internal or read-only keys
+        const ignored = ['assetId', 'locationHistory', 'updatedAt', 'importedAt', '_version', '_raw', '_id', '_row', '_rawBarcode', 'profilePicUrl'];
+
+        // Sort keys to maintain a professional, consistent layout
+        const keys = Object.keys(data).filter(k => !ignored.includes(k)).sort();
+
+        keys.forEach(key => {
+            const val = (data[key] !== undefined && data[key] !== null) ? data[key] : "";
+            const label = key.replace(/([A-Z])/g, ' $1').replace(/_/g, ' ').toUpperCase();
+
+            const fieldGroup = document.createElement('div');
+            fieldGroup.className = 'space-y-1 bg-white p-3 rounded-2xl border border-slate-100 shadow-sm';
+
+            let inputHtml = "";
+
+            // Intelligence: Identify if it should be a select dropdown
+            if (key.toLowerCase().includes('condition') || key.toLowerCase().includes('status')) {
+                const options = ['Active', 'Existing', 'Good', 'Excellent', 'Fair', 'Poor', 'Damaged', 'Pending_Disposal', 'DISPOSED', 'Scrapped', 'Operational'];
+                const currentVal = String(val);
+
+                inputHtml = `<select name="${key}" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-indigo-500 text-xs font-bold text-slate-800">`;
+
+                // Add current value if it's unique
+                const normalizedOptions = options.map(o => o.toLowerCase());
+                if (!normalizedOptions.includes(currentVal.toLowerCase()) && currentVal) {
+                    inputHtml += `<option value="${currentVal}" selected>${currentVal.replace(/_/g, ' ')}</option>`;
+                }
+
+                options.forEach(opt => {
+                    inputHtml += `<option value="${opt}" ${currentVal.toLowerCase() === opt.toLowerCase() ? 'selected' : ''}>${opt.replace(/_/g, ' ')}</option>`;
+                });
+                inputHtml += `</select>`;
+            } else if (key.toLowerCase().includes('date')) {
+                inputHtml = `<input type="text" name="${key}" value="${val}" placeholder="YYYY-MM-DD" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-indigo-500 text-xs font-bold text-slate-800">`;
+            } else {
+                // Default to standard text input
+                inputHtml = `<input type="text" name="${key}" value="${val}" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-indigo-500 text-xs font-bold text-slate-800">`;
+            }
+
+            fieldGroup.innerHTML = `
+                <label class="text-[8px] font-black text-indigo-400 uppercase ml-1 tracking-widest block mb-1">${label}</label>
+                ${inputHtml}
+            `;
+            container.appendChild(fieldGroup);
+        });
+
+        const modal = document.getElementById('asset-edit-modal');
+        if (modal) {
+            modal.classList.remove('hidden');
+            modal.style.display = 'flex';
+        }
+    } catch (e) {
+        console.error("Editor Load Error:", e);
+        alert("Failed to load comprehensive editor.");
+    } finally {
+        window.hideGlobalSpinner();
+    }
+};
+
+// Bind the save button for Comprehensive Asset Edit Modal
+document.addEventListener('DOMContentLoaded', () => {
+    const saveBtn = document.getElementById('save-asset-edit-btn');
+    if (saveBtn) {
+        const newSaveBtn = saveBtn.cloneNode(true);
+        saveBtn.parentNode.replaceChild(newSaveBtn, saveBtn);
+
+        newSaveBtn.onclick = async (e) => {
+            e.preventDefault();
+            const form = document.getElementById('edit-asset-form');
+            const barcode = document.getElementById('edit-barcode').value;
+            const sanitized = barcode.replace(/[.#$\[\]/]/g, '_');
+
+            if (!form) return;
+
+            const formData = new FormData(form);
+            const updates = {};
+            formData.forEach((value, key) => {
+                updates[key] = value.toString().trim();
+            });
+
+            updates.updatedAt = new Date().toISOString();
+            updates.lastEditedBy = "Admin";
+
+            window.showGlobalSpinner("Syncing All Properties...");
+            try {
+                await update(ref(db, `assets/${sanitized}`), updates);
+                alert("✅ Master Register Updated Successfully! All changes synced.");
+                document.getElementById('asset-edit-modal').classList.add('hidden');
+
+                // Trigger live UI refresh
+                if (window.filterAssetTable) window.filterAssetTable();
+            } catch (err) {
+                console.error("Sync Error:", err);
+                alert("Master Sync Failed: " + err.message);
+            } finally {
+                window.hideGlobalSpinner();
+            }
+        };
+    }
+});
+
+window.deleteAssetRecord = async function(barcode) {
+    if (!confirm(`Are you sure you want to permanently delete asset ${barcode}?`)) return;
+
+    const sanitized = barcode.replace(/[.#$\[\]/]/g, '_');
+    window.showGlobalSpinner("Deleting Record...");
+    try {
+        await remove(ref(db, `assets/${sanitized}`));
+        alert("Record deleted.");
+        window.filterAssetTable();
+    } catch (e) {
+        alert("Delete failed.");
+    } finally {
+        window.hideGlobalSpinner();
+    }
+};
+
+// ================================================================ */
+// ✅ DISPOSAL & TRANSFER LOGIC                                     */
+// ================================================================ */
+
+window.loadAdminDisposalTable = function() {
+    const body = document.getElementById('admin-disposal-list-body');
+    if (!body) return;
+
+    // Combine data from all disposal nodes
+    const requests = (window.appCache.disposalRequests || []);
+    const registry = (window.appCache.disposalRegistry || []);
+    const directDisposed = (window.appCache.disposedAssets || []);
+
+    const combinedData = [...requests, ...registry, ...directDisposed];
+    const data = combinedData.sort((a, b) => (b.timestamp || b.TIMESTAMP || 0) - (a.timestamp || a.TIMESTAMP || 0));
+
+    window.adminPaginators.disposal.init(data, (pageItems) => {
+        body.innerHTML = pageItems.length ? pageItems.map(d => {
+            // Normalize Field Mapping for Disposal Table
+            const barcode = d.assetBarcode || d.barcode || d["ASSET BARCODE"] || d["BARCODE"] || "-";
+            const name = d.assetName || d.name || d["ASSET DESCRIPTION"] || d["ASSET NAME"] || "-";
+            const vendor = d.assetVendor || d.assetVendorName || d.vendor || d["ASSET VENDOR NAME"] || d["VENDOR"] || "-";
+            const category = d.assetCategory || d.category || d["CATEGORY"] || "-";
+            const date = d.date || d["DISPOSAL DATE"] || d.disposalDate || "-";
+            const photo = d.disposalPhotoUrl || d["DISPOSAL PHOTO"] || d.proofPhoto || d.auditPhoto || "";
+            const location = d.assetLocation || d.locationName || d.location || d["LOCATION NAME"] || d["LOCATION"] || "-";
+            const reason = d.reason || d["DISPOSAL REASON"] || d.disposalReason || "-";
+
+            const status = (d.status || d.STATUS || 'Pending').toUpperCase();
+            const statusColor = status === 'APPROVED' || status === 'DISPOSED' ? 'text-red-600' : 'text-amber-600';
+
+            return `
+            <tr class="hover:bg-red-50 border-b text-[10px]">
+                <td class="p-3 font-mono font-bold ${statusColor}">${window.escapeHTML(barcode)}</td>
+                <td class="p-3 font-bold">${window.escapeHTML(name)}</td>
+                <td class="p-3">${window.escapeHTML(vendor)}</td>
+                <td class="p-3">${category}</td>
+                <td class="p-3">${date}</td>
+                <td class="p-3">${d.floorDiscretion || d.floorNo || d.assetFloor || d["FLOOR DISCRETION"] || d["FLOOR NO"] || "-"}</td>
+                <td class="p-3">${d.floorNo || d.assetFloor || d["FLOOR NO"] || "-"}</td>
+                <td class="p-3">${window.escapeHTML(location)}</td>
+                <td class="p-3">${d.majorCategory || d["MAJOR CATEGORY"] || "-"}</td>
+                <td class="p-3">${d.minorCategory || d["MINOR CATEGORY"] || "-"}</td>
+                <td class="p-3">${d.schoolBuildingName || d.building || d.assetBuilding || d["SCHOOL BUILDING NAME"] || d["BUILDING"] || "-"}</td>
+                <td class="p-3">${d.roomNumber || d.roomNo || d["ROOM NUMBER"] || d["ROOM NO"] || "-"}</td>
+                <td class="p-3">${d.roomName || d["ROOM NAME"] || "-"}</td>
+                <td class="p-3">${d.subMinorCategory || d["SUB MINOR CATEGORY"] || "-"}</td>
+                <td class="p-3 text-center">
+                    ${photo ? `<img src="https://placehold.co/40x30/e2e8f0/64748b?text=..." data-cache-src="${window.getDirectDriveImageUrl(photo)}" class="h-6 mx-auto rounded shadow-sm cursor-pointer" onclick="window.openImageZoom('${photo}')">` : 'No Photo'}
+                </td>
+                <td class="p-3 text-center">
+                    <div class="flex items-center justify-center gap-2">
+                        <button onclick="window.openAssetDetailsModal('${window.escapeHTML(barcode)}')" class="text-indigo-600 hover:scale-110" title="View Details"><i class="fa-solid fa-eye"></i></button>
+                        ${status === 'PENDING' ? `
+                            <button onclick="window.approveDisposal('${d.requestId || d.firebaseKey}')" class="text-emerald-600 hover:scale-110" title="Approve"><i class="fa-solid fa-check-circle"></i></button>
+                            <button onclick="window.rejectDisposal('${d.requestId || d.firebaseKey}')" class="text-red-600 hover:scale-110 ml-1" title="Reject"><i class="fa-solid fa-circle-xmark"></i></button>
+                        ` : `
+                            <button onclick="window.revertDisposal('${d.requestId || d.firebaseKey}', '${window.escapeHTML(barcode)}')" class="text-amber-600 hover:scale-110" title="Revert to Active"><i class="fa-solid fa-rotate-left"></i></button>
+                        `}
+                    </div>
+                </td>
+            </tr>`;
+        }).join('') : '<tr><td colspan="16" class="p-8 text-center text-gray-400">No disposal records found</td></tr>';
+
+        if (window.lazyLoadCachedImages) window.lazyLoadCachedImages();
+    });
+};
+
+window.filterDisposalTable = () => {
+    const q = document.getElementById('disposal-search')?.value?.toLowerCase() || '';
+    const combined = [...(window.appCache.disposalRequests || []), ...(window.appCache.disposalRegistry || []), ...(window.appCache.disposedAssets || [])];
+    let f = combined;
+    if (q) f = f.filter(d => JSON.stringify(d).toLowerCase().includes(q));
+    window.currentFilteredData.disposal = f;
+    window.loadAdminDisposalTable();
+};
+
+window.approveDisposal = async function(requestId) {
+    if (!confirm("Are you sure you want to APPROVE this disposal? This will move the item to the Permanent Scrap Registry.")) return;
+
+    window.showGlobalSpinner("Processing Approval...");
+    try {
+        const reqRef = ref(db, `asset_disposal_requests/${requestId}`);
+        const snap = await get(reqRef);
+        if (!snap.exists()) throw new Error("Request not found.");
+
+        const data = snap.val();
+        const barcode = data.assetBarcode;
+        const sanitizedBarcode = barcode.replace(/[.#$\[\]/]/g, '_');
+
+        const updates = {};
+        // 1. Mark as DISPOSED in master registry
+        updates[`assets/${sanitizedBarcode}/assetStatus`] = "DISPOSED";
+        updates[`assets/${sanitizedBarcode}/disposedAt`] = Date.now();
+
+        // 2. Add to permanent registry
+        updates[`ASSET_DISPOSAL_REGISTRY/${requestId}`] = {
+            ...data,
+            status: "APPROVED",
+            approvedAt: Date.now(),
+            approvedBy: "Admin"
+        };
+
+        // 3. Remove from pending requests
+        updates[`asset_disposal_requests/${requestId}`] = null;
+
+        await update(ref(db), updates);
+        alert("✅ Disposal Approved & Registered.");
+        window.loadAdminDisposalTable();
+    } catch (e) {
+        alert("Approval failed: " + e.message);
+    } finally {
+        window.hideGlobalSpinner();
+    }
+};
+
+window.rejectDisposal = async function(requestId) {
+    const reason = prompt("Enter reason for rejection:");
+    if (reason === null) return;
+
+    window.showGlobalSpinner("Processing Rejection...");
+    try {
+        const reqRef = ref(db, `asset_disposal_requests/${requestId}`);
+        const snap = await get(reqRef);
+        if (!snap.exists()) throw new Error("Request not found.");
+
+        const data = snap.val();
+        const barcode = data.assetBarcode;
+        const sanitizedBarcode = barcode.replace(/[.#$\[\]/]/g, '_');
+
+        const updates = {};
+        updates[`assets/${sanitizedBarcode}/assetStatus`] = "Active"; // Restore status
+        updates[`asset_disposal_requests/${requestId}`] = null;
+
+        // Log rejection in history? (Optional)
+
+        await update(ref(db), updates);
+        alert("❌ Disposal Request Rejected.");
+        window.loadAdminDisposalTable();
+    } catch (e) {
+        alert("Rejection failed.");
+    } finally {
+        window.hideGlobalSpinner();
+    }
+};
+
+window.deleteTransferLog = async function(key) {
+    if (!confirm("Delete this movement log entry permanently?")) return;
+
+    window.showGlobalSpinner("Deleting Log...");
+    try {
+        await remove(ref(db, `asset_transfers/${key}`));
+        alert("Log entry removed.");
+        window.filterTransferTable();
+    } catch (e) {
+        alert("Delete failed.");
+    } finally {
+        window.hideGlobalSpinner();
+    }
+};
+
+window.renderStandardizedAssetTable = function(data, type) {
+    const body = document.getElementById('transfer-logs-body');
+    if (!body) return;
+
+    const sortedData = (data || []).sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+
+    window.adminPaginators.transfers.init(sortedData, (pageItems) => {
+        body.innerHTML = pageItems.length ? pageItems.map(t => `
+            <tr class="hover:bg-slate-50 border-b text-[9px] whitespace-nowrap">
+                <td class="p-2 font-mono font-bold">${t.assetBarcode || "-"}</td>
+                <td class="p-2">${window.escapeHTML(t.assetDescription || "-")}</td>
+                <td class="p-2">${t.assetVendorName || "-"}</td>
+                <td class="p-2">${t.category || "-"}</td>
+                <td class="p-2">${t.datePlaceInService || "-"}</td>
+                <td class="p-2">${t.floorDiscretion || "-"}</td>
+                <td class="p-2">${t.floorNo || "-"}</td>
+                <td class="p-2">${t.locationName || "-"}</td>
+                <td class="p-2">${t.majorCategory || "-"}</td>
+                <td class="p-2">${t.minorCategory || "-"}</td>
+                <td class="p-2">${t.schoolBuildingName || "-"}</td>
+                <td class="p-2">${t.roomNumber || "-"}</td>
+                <td class="p-2">${window.escapeHTML(t.roomName || "-")}</td>
+                <td class="p-2">${t.subMinorCategory || "-"}</td>
+                <td class="p-2 text-center">
+                    ${(t.auditPhoto && t.auditPhoto !== 'N/A') ? `<img src="https://placehold.co/40x30/e2e8f0/64748b?text=..." data-cache-src="${window.getDirectDriveImageUrl(t.auditPhoto)}" class="h-6 mx-auto rounded shadow-sm cursor-pointer" onclick="window.openImageZoom('${t.auditPhoto}')">` : '<span class="text-[7px] text-slate-300 font-bold uppercase">N/A</span>'}
+                </td>
+                <td class="p-2 font-bold">${window.escapeHTML(t.collectorName || "-")}</td>
+                <td class="p-2">${window.escapeHTML(t.companyName || "-")}</td>
+                <td class="p-2">${t.collectionDate || "-"}</td>
+                <td class="p-2">${window.escapeHTML(t.securityName || "-")}</td>
+                <td class="p-2">${t.receivedName || "-"}</td>
+                <td class="p-2 text-center">${t.securitySig ? `<img src="${t.securitySig}" class="h-5 mx-auto bg-white" onclick="window.openImageZoom('${t.securitySig}')">` : '-'}</td>
+                <td class="p-2 text-center">${t.receivedSig ? `<img src="${t.receivedSig}" class="h-5 mx-auto bg-white" onclick="window.openImageZoom('${t.receivedSig}')">` : '-'}</td>
+                <td class="p-2 text-center">
+                    ${(t.proofPhoto || t.transferPhotoUrl || t.disposalPhotoUrl) ? `<img src="https://placehold.co/40x30/e2e8f0/64748b?text=..." data-cache-src="${window.getDirectDriveImageUrl(t.proofPhoto || t.transferPhotoUrl || t.disposalPhotoUrl)}" class="h-6 mx-auto rounded shadow-sm cursor-pointer" onclick="window.openImageZoom('${t.proofPhoto || t.transferPhotoUrl || t.disposalPhotoUrl}')">` : '-'}
+                </td>
+                <td class="p-2 text-center">
+                    <div class="flex items-center justify-center gap-2">
+                        <button onclick="window.openAssetDetailsModal('${t.assetBarcode}')" class="text-indigo-600 hover:scale-110" title="View Details"><i class="fa-solid fa-eye"></i></button>
+                        <button onclick="window.revertTransfer('${t.firebaseKey}', '${t.assetBarcode}')" class="text-amber-600 hover:scale-110" title="Revert Transfer"><i class="fa-solid fa-rotate-left"></i></button>
+                        <button onclick="window.deleteTransferLog('${t.firebaseKey}')" class="text-red-500 hover:scale-110" title="Delete Log Only"><i class="fa-solid fa-trash-can"></i></button>
+                    </div>
+                </td>
+            </tr>`).join('') : '<tr><td colspan="24" class="p-8 text-center text-gray-400">No logs found</td></tr>';
+
+        if (window.lazyLoadCachedImages) window.lazyLoadCachedImages();
+    });
+};
+
+window.revertTransfer = async function(key, barcode) {
+    if (!confirm(`Revert transfer for asset ${barcode}? This will restore its status to Active.`)) return;
+    window.showGlobalSpinner("Reverting Transfer...");
+    try {
+        const sanitized = barcode.replace(/[.#$\[\]/]/g, '_');
+        const updates = {};
+        updates[`assets/${sanitized}/assetStatus`] = "Active";
+        updates[`assets/${sanitized}/status`] = "Active";
+        updates[`assets/${sanitized}/isTransferred`] = false;
+        updates[`assets/${sanitized}/isAvailable`] = true;
+        updates[`asset_transfers/${key}`] = null;
+        await update(ref(db), updates);
+        alert("✅ Transfer reverted successfully.");
+    } catch (e) { alert("Revert failed: " + e.message); } finally { window.hideGlobalSpinner(); }
+};
+
+window.revertDisposal = async function(key, barcode) {
+    if (!confirm(`Revert disposal for asset ${barcode}? This will restore it to the Master Register.`)) return;
+    window.showGlobalSpinner("Reverting Disposal...");
+    try {
+        const sanitized = barcode.replace(/[.#$\[\]/]/g, '_');
+        const updates = {};
+        updates[`assets/${sanitized}/assetStatus`] = "Active";
+        updates[`assets/${sanitized}/status`] = "Active";
+        updates[`assets/${sanitized}/isDisposed`] = false;
+        updates[`assets/${sanitized}/isArchived`] = false;
+        updates[`assets/${sanitized}/deletedFromMaster`] = false;
+        updates[`assets/${sanitized}/isAvailable`] = true;
+        updates[`disposed_assets/${sanitized}`] = null;
+        updates[`asset_disposal_requests/${key}`] = null;
+        await update(ref(db), updates);
+        alert("✅ Disposal reverted successfully.");
+    } catch (e) { alert("Revert failed: " + e.message); } finally { window.hideGlobalSpinner(); }
+};
+
+// ================================================================ */
+// ✅ TASK INSPECTOR                                                */
+// ================================================================ */
+
+window.openTaskInspector = function(taskId) {
+    const task = window.appCache.tasks.find(t => t.id === taskId);
+    if (!task) return;
+
+    const modal = document.getElementById('task-inspector-modal');
+    if (!modal) return;
+
+    document.getElementById('insp-created-by').innerText = task.raisedByName || "Admin";
+    document.getElementById('insp-created-at').innerText = task.raisedAt || "-";
+    document.getElementById('insp-dept').innerText = task.assignedRole || "-";
+    document.getElementById('insp-location').innerText = task.location || "-";
+    document.getElementById('insp-closed-by').innerText = task.solvedByName || "-";
+    document.getElementById('insp-closed-at').innerText = task.closedAt || "-";
+    document.getElementById('insp-desc').innerText = task.details || "No description.";
+
+    const matBox = document.getElementById('insp-material-box');
+    if (task.completionMaterial) {
+        document.getElementById('insp-material-text').innerText = task.completionMaterial;
+        matBox.classList.remove('hidden');
+    } else matBox.classList.add('hidden');
+
+    const comBox = document.getElementById('insp-comment-box');
+    if (task.completionComment || task.rejectionReason) {
+        document.getElementById('insp-comment-text').innerText = task.completionComment || task.rejectionReason;
+        comBox.classList.remove('hidden');
+    } else comBox.classList.add('hidden');
+
+    const beforeImg = document.getElementById('insp-before-img');
+    const noBefore = document.getElementById('insp-no-before');
+    if (task.beforePhotoUrl) {
+        beforeImg.src = window.getDirectDriveImageUrl(task.beforePhotoUrl);
+        beforeImg.classList.remove('hidden');
+        noBefore.classList.add('hidden');
+    } else {
+        beforeImg.classList.add('hidden');
+        noBefore.classList.remove('hidden');
+    }
+
+    const afterImg = document.getElementById('insp-after-img');
+    const noAfter = document.getElementById('insp-no-after');
+    if (task.afterPhotoUrl) {
+        afterImg.src = window.getDirectDriveImageUrl(task.afterPhotoUrl);
+        afterImg.classList.remove('hidden');
+        noAfter.classList.add('hidden');
+    } else {
+        afterImg.classList.add('hidden');
+        noAfter.classList.remove('hidden');
+    }
+
+    modal.classList.remove('hidden');
+    modal.style.display = 'flex';
+};
+
+window.closeTaskInspectorModal = function() {
+    const modal = document.getElementById('task-inspector-modal');
+    if (modal) {
+        modal.classList.add('hidden');
+        modal.style.display = 'none';
+    }
+};
+
+window.openDetailedAuditModal = function(type, id) {
+    if (!id) return;
+
+    let record = null;
+    if (type === 'visitor') {
+        record = window.appCache.visitors.find(v => v.id === id);
+    } else if (type === 'contractor') {
+        record = window.appCache.contractors.find(c => c.id === id);
+    }
+
+    if (!record) {
+        alert(`${type} record not found in cache.`);
+        return;
+    }
+
+    const modal = document.getElementById('view-staff-modal');
+    if (!modal) return;
+
+    const accentColor = type === 'visitor' ? 'indigo' : 'emerald';
+    const accentHex = type === 'visitor' ? '#4f46e5' : '#10b981';
+
+    modal.innerHTML = `
+        <div class="bg-white w-full max-w-xl rounded-[40px] overflow-hidden shadow-2xl p-8 sm:p-10 relative fade-in">
+            <div class="flex justify-between items-center mb-8 border-b border-slate-100 pb-5">
+                <div>
+                    <h3 class="text-2xl font-black text-${accentColor}-900 uppercase tracking-tight">${type} Detailed Entry</h3>
+                    <p class="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] mt-1">Verification Log</p>
+                </div>
+                <button onclick="document.getElementById('view-staff-modal').classList.add('hidden')" class="w-10 h-10 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center hover:bg-red-50 hover:text-red-500 transition-all text-xl">&times;</button>
+            </div>
+
+            <div class="space-y-6 text-gray-800">
+                <!-- Identity Card -->
+                <div class="flex items-center gap-5 bg-${accentColor}-50 p-5 rounded-[2.5rem] border border-${accentColor}-100 shadow-sm">
+                    <div class="w-20 h-20 bg-${accentColor}-600 rounded-[2rem] flex items-center justify-center text-white text-3xl font-black shadow-lg">
+                        ${record.name ? record.name.charAt(0).toUpperCase() : '?'}
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <h4 class="font-black text-slate-900 uppercase text-lg truncate">${window.escapeHTML(record.name || 'Unknown')}</h4>
+                        <p class="text-[11px] font-black text-${accentColor}-600 uppercase tracking-widest mt-0.5">${window.escapeHTML(record.company || 'Private Entry')}</p>
+                        <div class="flex gap-2 mt-2">
+                             <span class="px-2.5 py-0.5 bg-white text-slate-500 text-[8px] font-black rounded-lg border border-${accentColor}-100 uppercase">${record.id || 'N/A'}</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Timing Grid -->
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200">
+                        <span class="text-[9px] font-black text-emerald-600 uppercase block mb-1">Check-In</span>
+                        <span class="font-black text-slate-900 text-sm">${record.timeIn || '--:--'}</span>
+                    </div>
+                    <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200">
+                        <span class="text-[9px] font-black text-rose-500 uppercase block mb-1">Check-Out</span>
+                        <span class="font-black text-slate-900 text-sm">${record.outTime || '--:--'}</span>
+                    </div>
+                </div>
+
+                <!-- Purpose Box -->
+                <div class="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-inner">
+                    <span class="text-[9px] font-black text-indigo-400 uppercase block mb-2 tracking-widest">Purpose of Visit</span>
+                    <p class="text-xs font-bold text-slate-700 leading-relaxed">${window.escapeHTML(record.purpose || 'No details provided.')}</p>
+                </div>
+
+                <!-- Signature Section -->
+                <div class="text-center bg-white p-6 rounded-[2.5rem] border border-slate-100 shadow-sm relative overflow-hidden">
+                    <div class="absolute top-0 left-0 w-1 h-full bg-${accentColor}-500"></div>
+                    <span class="text-[9px] font-black text-${accentColor}-400 uppercase block mb-4 tracking-[0.3em]">Authorized Signature</span>
+                    <div class="h-32 flex items-center justify-center bg-slate-50 rounded-2xl border border-dashed border-slate-200">
+                        ${record.signatureUrl ? `<img src="${window.getDirectDriveImageUrl(record.signatureUrl)}" class="max-h-28 object-contain mix-blend-multiply" onclick="window.openImageZoom('${record.signatureUrl}')">` : '<span class="text-xs font-bold text-slate-300 uppercase">Not Provided</span>'}
+                    </div>
+                </div>
+            </div>
+
+            <button onclick="document.getElementById('view-staff-modal').classList.add('hidden')" class="w-full mt-10 py-5 bg-${accentColor}-600 text-white rounded-2xl font-black text-sm uppercase tracking-[0.2em] shadow-xl shadow-${accentColor}-500/20 active:scale-95 transition-all">Close Audit View</button>
+        </div>
+    `;
+    modal.classList.remove('hidden');
+    modal.style.display = 'flex';
+};
+
+// ================================================================ */
+// ✅ BULK ASSET DELETION LOGIC (v5.0 - ATOMIC PURGE)                */
+// ================================================================ */
+
+window.openDeleteAllAssetsModal = function() {
+    const modal = document.getElementById('delete-all-assets-modal');
+    const input = document.getElementById('delete-all-confirm-input');
+    const btn = document.getElementById('confirm-delete-all-btn');
+
+    if (modal) {
+        if (input) input.value = '';
+        if (btn) btn.disabled = true;
+        modal.classList.remove('hidden');
+    }
+};
+
+window.validateDeleteAllAssetsInput = function(val) {
+    const btn = document.getElementById('confirm-delete-all-btn');
+    if (btn) {
+        btn.disabled = (val !== 'DELETE ALL');
+    }
+};
+
+window.deleteAllAssets = async function() {
+    try {
+        if (window.showGlobalSpinner) {
+            window.showGlobalSpinner("Permanently Purging All Assets...");
+        }
+
+        console.log("🔥 Firebase: Initiating atomic deletion of 'assets' node...");
+
+        // Single atomic removal of the entire assets node
+        const assetsRef = ref(db, 'assets');
+        await remove(assetsRef);
+
+        console.log("✅ Firebase: All assets deleted successfully.");
+
+        // Clear local cache and filtered state
+        window.appCache.assets = [];
+        window.currentFilteredData.assets = null;
+        window.selectedAssetKeys = new Set();
+
+        // Update UI counters and table
+        if (window.updateCounterUI) {
+            window.updateCounterUI('.assets-count-val', 0);
+        }
+
+        const countDisplay = document.getElementById('asset-count-display');
+        if (countDisplay) countDisplay.innerText = "0 assets found";
+
+        // Re-render empty table
+        if (typeof window.renderDynamicAssetTable === 'function') {
+            window.renderDynamicAssetTable([], []);
+        }
+
+        // Hide modal and spinner
+        document.getElementById('delete-all-assets-modal').classList.add('hidden');
+        if (window.hideGlobalSpinner) window.hideGlobalSpinner();
+
+        alert("✅ Success: All assets have been permanently removed from the database.");
+
+    } catch (error) {
+        if (window.hideGlobalSpinner) window.hideGlobalSpinner();
+        console.error("❌ Bulk Deletion Failed:", error);
+        alert("❌ Deletion Failed: " + error.message);
+    }
+};
